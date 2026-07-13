@@ -9,7 +9,7 @@ This project has the following tools, MCP servers, and skills installed and acti
 
 ## Installed CLI Tools
 
-- **vibe-trading** (`vibe-trade` CLI) — Natural-language finance research and market analysis. Run as: `vibe-trade "<query>"`. Installed globally via pip. Use for market research, stock analysis, crypto data.
+- **vibe-trading** (`vibe-trading` CLI) — Natural-language finance research and market analysis. Run as: `vibe-trading "<query>"`. Installed globally via pip. Use for market research, stock analysis, crypto data.
 - **AI-Trader** — AI-powered trading agent scripts in `/home/user/AI-Trader`. Use for automated trade signals, copy-trading, and market intelligence.
 
 ## Skills (249 total — always invoke via the `Skill` tool)
