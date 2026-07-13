@@ -1,0 +1,18 @@
+# Cloned tool repos (installed globally, not part of this project)
+AI-Trader/
+awesome-agent-skills/
+claude-mem/
+superpowers/
+Vibe-Trading/
+tradingview-mcp/
+caveman/
+
+# Common
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.*
+*.log
+dist/
+build/
