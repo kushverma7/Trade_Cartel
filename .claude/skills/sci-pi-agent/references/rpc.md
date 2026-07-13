@@ -15,7 +15,8 @@ For Node/TypeScript in-process apps, prefer the SDK unless subprocess isolation 
 ## Framing
 
 Commands are JSON objects sent to stdin, one per line. Responses and events are JSON objects streamed to stdout, one per line. Use LF (`
-`) as the only record delimiter; strip trailing `` for CRLF input. Do not use generic line readers that split on Unicode separators. Node `readline` is not protocol-compliant because it also splits on U+2028/U+2029.
+`) as the only record delimiter; strip trailing `
+` for CRLF input. Do not use generic line readers that split on Unicode separators. Node `readline` is not protocol-compliant because it also splits on U+2028/U+2029.
 
 Commands can include optional `id`; corresponding responses echo it. Events do not include `id`.
 

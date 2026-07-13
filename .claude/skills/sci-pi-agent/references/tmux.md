@@ -26,7 +26,8 @@ With tmux 3.2 through 3.4, omit `extended-keys-format csi-u`; Pi still supports 
 
 With CSI-u forwarding, modified Enter keys arrive distinctly:
 
-- Enter: ``
+- Enter: `
+`
 - Shift+Enter: `[13;2u`
 - Ctrl+Enter: `[13;5u`
 - Alt/Option+Enter: `[13;3u`
