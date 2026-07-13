@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/user/Trade_Cartel/.claude/hooks/run-hook.cmd session-start",
+            "command": ".claude/hooks/run-hook.cmd session-start",
             "async": false
           }
         ]
