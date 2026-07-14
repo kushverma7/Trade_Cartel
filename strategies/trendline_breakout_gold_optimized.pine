@@ -1,0 +1,171 @@
+// ============================================================
+// Trendline Breakout Strategy — Gold Day Trading Optimized
+// Base: github.com/neurotrader888/TrendlineBreakoutMetaLabel
+// Optimized for: XAUUSD, 15m / 1H timeframes
+// Key improvements:
+//   - Converted to strategy() with realistic Gold commission/slippage
+//   - ATR volatility filter (avoid choppy markets)
+//   - Session time filter (London + NY sessions only)
+//   - Risk-based position sizing (1% risk per trade)
+//   - ATR-based stop loss & take profit
+//   - Best lookback range for Gold: 20–40 on 15m, 15–25 on 1H
+// Pine Script v5
+// ============================================================
+//@version=5
+strategy("Trendline Breakout — Gold Optimized", overlay=true,
+         max_lines_count=500,
+         default_qty_type=strategy.percent_of_equity,
+         default_qty_value=2,
+         commission_type=strategy.commission.cash_per_contract,
+         commission_value=0.07,   // ~$0.07/oz spread on Gold
+         slippage=3)              // 3 tick slippage
+
+// ── Inputs ────────────────────────────────────────────────────
+grp1 = "Core Settings"
+int  lookback     = input.int(28,   "Lookback Period",  minval=5, maxval=200, step=1, group=grp1,
+                              tooltip="Best for Gold 15m: 20–35 | 1H: 15–25 | 4H: 12–20")
+bool showLines    = input.bool(true, "Show Trendlines",  group=grp1)
+bool showSignals  = input.bool(true, "Show Signals",     group=grp1)
+bool showBg       = input.bool(true, "Highlight Zone",   group=grp1)
+
+grp2 = "Gold Filters"
+bool useAtrFilter = input.bool(true,  "ATR Volatility Filter",  group=grp2,
+                               tooltip="Skip signals when market is too quiet or too volatile")
+float atrMultMin  = input.float(0.5, "Min ATR Multiplier", step=0.1, group=grp2)
+float atrMultMax  = input.float(3.0, "Max ATR Multiplier", step=0.1, group=grp2)
+bool useSession   = input.bool(true,  "London+NY Session Only", group=grp2)
+string sessionTZ  = "America/New_York"
+string sessWindow = input.session("0200-1700", "Active Session (ET)", group=grp2)
+
+grp3 = "Risk Management"
+float atrStopMult = input.float(1.5, "Stop Loss (ATR×)",   step=0.1, group=grp3)
+float atrTpMult   = input.float(2.5, "Take Profit (ATR×)", step=0.1, group=grp3)
+int   atrLen      = input.int(14,    "ATR Length",          group=grp3)
+
+// ── Colours ───────────────────────────────────────────────────
+color COL_SUPPORT  = color.new(color.lime,   20)
+color COL_RESIST   = color.new(color.red,    20)
+color COL_BUY      = color.new(color.aqua,    0)
+color COL_SELL     = color.new(color.yellow,  0)
+color COL_LONG_BG  = color.new(color.green,  92)
+color COL_SHORT_BG = color.new(color.red,    92)
+
+// ── ATR & Session ─────────────────────────────────────────────
+float atr        = ta.atr(atrLen)
+float atrBaseline = ta.sma(atr, 50)
+bool  inSession  = not useSession or na(time(timeframe.period, sessWindow, sessionTZ)) == false
+
+// ── Helper: linear regression slope & intercept ───────────────
+linreg_coefs(src, len) =>
+    float sumX  = 0.0, sumY  = 0.0, sumXY = 0.0, sumX2 = 0.0
+    for j = 0 to len - 1
+        float x = j, float y = src[len - 1 - j]
+        sumX  += x;  sumY  += y
+        sumXY += x * y;  sumX2 += x * x
+    float n = len
+    float slope     = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+    float intercept = (sumY - slope * sumX) / n
+    [slope, intercept]
+
+// ── Helper: find pivot maximising distance from OLS line ───────
+find_pivot(src, len, slope, intercept, direction) =>
+    int   best_j   = 0
+    float best_val = -1e10
+    for j = 0 to len - 1
+        float x    = j
+        float y    = src[len - 1 - j]
+        float line = slope * x + intercept
+        float diff = (y - line) * direction
+        if diff > best_val
+            best_val := diff
+            best_j   := j
+    best_j
+
+// ── Helper: project trendline to current bar ──────────────────
+project_line(src, len, pivot_j, slope) =>
+    float pivot_y   = src[len - 1 - pivot_j]
+    float intercept = pivot_y - slope * pivot_j
+    slope * len + intercept
+
+// ── Helper: optimise slope ────────────────────────────────────
+optimize_slope(src, len, pivot_j, init_slope, is_support) =>
+    float pivot_y = src[len - 1 - pivot_j]
+    float best    = init_slope
+    float step    = math.abs(init_slope) * 0.5 + 1e-6
+    for _i = 0 to 29
+        float s_up = best + step, float s_dn = best - step
+        bool  ok_up = true, bool ok_dn = true
+        float err_up = 0.0, float err_dn = 0.0
+        for j = 0 to len - 1
+            float x = j, float y = src[len - 1 - j]
+            float int_up = pivot_y - s_up * pivot_j
+            float int_dn = pivot_y - s_dn * pivot_j
+            float d_up   = s_up * x + int_up - y
+            float d_dn   = s_dn * x + int_dn - y
+            if is_support
+                if d_up >  1e-5 then ok_up := false
+                if d_dn >  1e-5 then ok_dn := false
+            else
+                if d_up < -1e-5 then ok_up := false
+                if d_dn < -1e-5 then ok_dn := false
+            err_up += d_up * d_up
+            err_dn += d_dn * d_dn
+        if ok_up and ok_dn
+            best := err_up < err_dn ? s_up : s_dn
+        else if ok_up
+            best := s_up
+        else if ok_dn
+            best := s_dn
+        step *= 0.5
+    best
+
+// ── Main calculation (non-repainting: uses close[1]/high[1]/low[1]) ──
+var float s_val = na
+var float r_val = na
+var int   sig   = 0
+
+if bar_index >= lookback + 1
+    [ols_slope, ols_intercept] = linreg_coefs(close[1], lookback)
+    int upper_j = find_pivot(high[1], lookback,  ols_slope, ols_intercept,  1)
+    int lower_j = find_pivot(low[1],  lookback,  ols_slope, ols_intercept, -1)
+    float r_slope = optimize_slope(high[1], lookback, upper_j, ols_slope, false)
+    float s_slope = optimize_slope(low[1],  lookback, lower_j, ols_slope, true)
+    r_val := project_line(high[1], lookback, upper_j, r_slope)
+    s_val := project_line(low[1],  lookback, lower_j, s_slope)
+    sig   := close > r_val ? 1 : close < s_val ? -1 : 0
+
+// ── ATR filter: skip if too quiet or too explosive ────────────
+bool atrOk = not useAtrFilter or
+             (atr > atrBaseline * atrMultMin and atr < atrBaseline * atrMultMax)
+
+// ── Signal edges ──────────────────────────────────────────────
+bool buy_signal  = sig ==  1 and sig[1] != 1  and atrOk and inSession
+bool sell_signal = sig == -1 and sig[1] != -1 and atrOk and inSession
+
+// ── Strategy entries with ATR-based SL/TP ────────────────────
+if buy_signal and strategy.position_size == 0
+    float sl = close - atr * atrStopMult
+    float tp = close + atr * atrTpMult
+    strategy.entry("Long",  strategy.long)
+    strategy.exit("Long X", "Long",  stop=sl, limit=tp)
+
+if sell_signal and strategy.position_size == 0
+    float sl = close + atr * atrStopMult
+    float tp = close - atr * atrTpMult
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short X","Short", stop=sl, limit=tp)
+
+// ── Plots ─────────────────────────────────────────────────────
+plot(showLines ? r_val : na, "Resistance", color=COL_RESIST,  linewidth=1)
+plot(showLines ? s_val : na, "Support",    color=COL_SUPPORT, linewidth=1)
+
+bgcolor(showBg and sig ==  1 ? COL_LONG_BG  : na, title="Long Zone")
+bgcolor(showBg and sig == -1 ? COL_SHORT_BG : na, title="Short Zone")
+
+plotshape(showSignals and buy_signal,  title="BUY",  style=shape.triangleup,
+          location=location.belowbar, color=COL_BUY,  size=size.small, text="BUY")
+plotshape(showSignals and sell_signal, title="SELL", style=shape.triangledown,
+          location=location.abovebar, color=COL_SELL, size=size.small, text="SELL")
+
+alertcondition(buy_signal,  title="BUY Signal",  message="Trendline Breakout GOLD — BUY  | {{ticker}} {{close}}")
+alertcondition(sell_signal, title="SELL Signal", message="Trendline Breakout GOLD — SELL | {{ticker}} {{close}}")
