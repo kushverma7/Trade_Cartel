@@ -2,8 +2,8 @@
   "mcpServers": {
     "tradingview": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/home/user/tradingview-mcp/src/server.js"],
+      "command": "npx",
+      "args": ["-y", "tradingview-mcp"],
       "env": {}
     },
     "mcp-search": {
