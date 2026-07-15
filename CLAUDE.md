@@ -1,5 +1,7 @@
 # Trade Cartel — Always-On Agent Instructions
 
+**IMPORTANT: At the start of EVERY session, read `MEMORY.md` in this directory first. It contains persistent context, backtest results, user preferences, and decisions from all previous sessions.**
+
 This project has the following tools, MCP servers, and skills installed and active in every session.
 
 ## MCP Servers (always active)
