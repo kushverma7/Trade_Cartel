@@ -1,0 +1,55 @@
+strategy("Gold Scalp - Channel Breakout",
+         symbol="XAU/USD",
+         timeframe="5m",
+         commission=0.07,
+         slippage=5,
+         default_qty=2)
+
+int   lookback    = input(22,   "Lookback",       minval=5, maxval=100)
+bool  useSession  = input(true, "London + NY Only")
+float atrStopMult = input(1.2,  "Stop ATR mult",  step=0.1)
+float atrTpMult   = input(2.0,  "TP ATR mult",    step=0.1)
+int   atrLen      = input(14,   "ATR Length")
+
+float atr_val = atr(atrLen)
+bool  inSess  = not useSession or (in_session("london") or in_session("new_york"))
+
+persist float r_val = na
+persist float s_val = na
+persist int   sig   = 0
+
+if bar_index >= lookback
+    float hi = high[1]
+    float lo = low[1]
+    for j = 2 to lookback
+        if high[j] > hi
+            hi = high[j]
+        if low[j] < lo
+            lo = low[j]
+    r_val = hi
+    s_val = lo
+    sig   = close > r_val ? 1 : close < s_val ? -1 : 0
+
+bool buy  = sig ==  1 and sig[1] !=  1 and inSess
+bool sell = sig == -1 and sig[1] != -1 and inSess
+
+if buy and position_size == 0
+    entry("Long", long)
+    exit("Long X", from_entry="Long",
+         stop  = close - atr_val * atrStopMult,
+         limit = close + atr_val * atrTpMult)
+
+if sell and position_size == 0
+    entry("Short", short)
+    exit("Short X", from_entry="Short",
+         stop  = close + atr_val * atrStopMult,
+         limit = close - atr_val * atrTpMult)
+
+plot(r_val, "Resistance", color=red,  linewidth=1)
+plot(s_val, "Support",    color=lime, linewidth=1)
+
+bgcolor(sig ==  1 ? color(green, 92) : na, title="Long Zone")
+bgcolor(sig == -1 ? color(red,   92) : na, title="Short Zone")
+
+shape(buy,  arrow_up,   location=below_bar, color=aqua,   size=small, text="BUY")
+shape(sell, arrow_down, location=above_bar, color=yellow, size=small, text="SELL")
