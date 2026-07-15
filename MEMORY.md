@@ -27,7 +27,9 @@ Update it whenever new decisions, results, or discoveries are made.
   git push -u origin claude/confident-fermi-qku0ic
   git remote set-url origin https://github.com/kushverma7/Trade_Cartel.git
   ```
-- PAT: ask user to provide fresh one each session (never store tokens here)
+- PAT: saved to `.pat` (gitignored) in repo root — read with `cat /home/user/Trade_Cartel/.pat`
+  - WARNING: cloud containers are ephemeral; .pat is lost when container restarts — ask user for new one if missing
+  - NEVER commit the PAT value into any tracked file (GitHub auto-revokes exposed tokens)
 - Always run: `git config user.email noreply@anthropic.com && git config user.name Claude` before committing
 - Hook at ~/.claude/stop-hook-git-check.sh fires on session end — it checks for unverified commits and untracked files
 
