@@ -1,0 +1,241 @@
+// ============================================================
+// REVERSAL SNIPER [Non-Repainting]
+// Clean top/bottom catcher — one arrow per setup, built for
+// moves of 5-10+ points. Works on gold, indices, FX.
+//
+// A signal REQUIRES ALL of (strict AND, not a score):
+//   1. LOCATION  — price is AT a wall: prev day/week H/L, Asia
+//                  range, major round number, or supply/demand
+//                  zone (pivot-confirmed, cannot repaint)
+//   2. SWEEP     — wick pierces the wall <= maxPoke ATR deep and
+//                  the body closes back inside (stop hunt, not
+//                  breakout)
+//   3. EXHAUSTION— RSI hit OB/OS within last N bars and is
+//                  turning back
+//   4. REJECTION — candle has real range and closes in the far
+//                  third (the reversal actually won the bar)
+//   5. ROOM      — >= minMove points of clear air to the next
+//                  opposing wall
+//   6. COOLDOWN  — one signal per direction per N bars
+//
+// Everything evaluates on CLOSED bars only — no repainting.
+// ============================================================
+//@version=6
+indicator("Reversal Sniper [Non-Repainting]", overlay=true,
+     max_lines_count=100, max_boxes_count=60, max_labels_count=60)
+
+// ══ INPUTS ════════════════════════════════════════════════════
+// Walls
+bool  useDayLvls = input.bool(true,  "Prev Day High/Low",        group="Walls")
+bool  useWkLvls  = input.bool(true,  "Prev Week High/Low",       group="Walls")
+bool  useAsia    = input.bool(true,  "Asia/Overnight Range",     group="Walls")
+string asiaSess  = input.session("1800-0300", "Asia Session",    group="Walls")
+string sessTz    = input.string("America/New_York", "Session TZ", group="Walls")
+bool  useRounds  = input.bool(true,  "Major Round Numbers",      group="Walls")
+float rnInc      = input.float(10.0, "Round Increment (gold 5-10, AU200 25-50)", step=0.5, group="Walls")
+bool  useZones   = input.bool(true,  "Supply/Demand Zones",      group="Walls")
+int   pivLen     = input.int(10,     "Zone Pivot Length", minval=3, maxval=30, group="Walls")
+float zoneAtr    = input.float(0.5,  "Zone Depth (x ATR)", step=0.1, group="Walls")
+int   maxZones   = input.int(4,      "Max Zones Per Side", minval=1, maxval=10, group="Walls")
+
+// Signal quality
+float maxPoke    = input.float(1.0,  "Max Sweep Depth (x ATR)",  step=0.1,  group="Signal Quality")
+int   rsiLen     = input.int(14,     "RSI Length",                          group="Signal Quality")
+int   rsiOb      = input.int(66,     "RSI Overbought", minval=55, maxval=85, group="Signal Quality")
+int   rsiOs      = input.int(34,     "RSI Oversold",   minval=15, maxval=45, group="Signal Quality")
+int   rsiWin     = input.int(5,      "RSI Extreme Within (bars)", minval=1, maxval=20, group="Signal Quality")
+float minRange   = input.float(0.6,  "Min Candle Range (x ATR)", step=0.1,  group="Signal Quality")
+float closePos   = input.float(0.35, "Close In Far Third (0.35 = bottom/top 35%)", step=0.05, group="Signal Quality")
+float minMove    = input.float(5.0,  "Min Room To Opposing Wall (points)", step=0.5, group="Signal Quality")
+int   cooldown   = input.int(15,     "Cooldown Bars Per Direction", minval=0, maxval=100, group="Signal Quality")
+bool  useSessFlt = input.bool(false, "Only London+NY Open (gold)",          group="Signal Quality")
+
+// Display
+bool showLevels = input.bool(true,  "Show Wall Levels",  group="Display")
+bool showZonesD = input.bool(true,  "Show Zones",        group="Display")
+bool showTarget = input.bool(true,  "Show Target Line",  group="Display")
+
+// ══ BASICS ════════════════════════════════════════════════════
+float atrVal = ta.atr(14)
+float rsiV   = ta.rsi(close, rsiLen)
+bool  inSess = not useSessFlt or not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York"))
+
+// Asia / overnight range (completed only)
+bool inAsia = not na(time(timeframe.period, asiaSess, sessTz))
+var float asiaHi = na
+var float asiaLo = na
+if inAsia and not inAsia[1]
+    asiaHi := high
+    asiaLo := low
+else if inAsia
+    asiaHi := math.max(asiaHi, high)
+    asiaLo := math.min(asiaLo, low)
+bool asiaDone = useAsia and not inAsia and not na(asiaHi)
+
+// ══ HTF LEVELS (non-repainting idiom) ═════════════════════════
+float prevDayHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+float prevDayLow  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+float prevWkHigh  = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+float prevWkLow   = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+
+// ══ SUPPLY / DEMAND ZONES (pivot-confirmed) ═══════════════════
+float ph = ta.pivothigh(high, pivLen, pivLen)
+float pl = ta.pivotlow(low,  pivLen, pivLen)
+
+var array<float> supTop = array.new_float()
+var array<float> supBtm = array.new_float()
+var array<float> demTop = array.new_float()
+var array<float> demBtm = array.new_float()
+var array<box>   supBox = array.new<box>()
+var array<box>   demBox = array.new<box>()
+
+if useZones and not na(ph)
+    array.unshift(supTop, ph)
+    array.unshift(supBtm, ph - atrVal * zoneAtr)
+    if showZonesD
+        array.unshift(supBox, box.new(bar_index - pivLen, ph, bar_index, ph - atrVal * zoneAtr,
+             border_color=na, bgcolor=color.new(color.red, 86), extend=extend.right))
+    if array.size(supTop) > maxZones
+        array.pop(supTop)
+        array.pop(supBtm)
+        if showZonesD and array.size(supBox) > maxZones
+            box.delete(array.pop(supBox))
+if useZones and not na(pl)
+    array.unshift(demBtm, pl)
+    array.unshift(demTop, pl + atrVal * zoneAtr)
+    if showZonesD
+        array.unshift(demBox, box.new(bar_index - pivLen, pl + atrVal * zoneAtr, bar_index, pl,
+             border_color=na, bgcolor=color.new(color.green, 86), extend=extend.right))
+    if array.size(demBtm) > maxZones
+        array.pop(demBtm)
+        array.pop(demTop)
+        if showZonesD and array.size(demBox) > maxZones
+            box.delete(array.pop(demBox))
+
+// invalidate zones price closed through
+if array.size(supTop) > 0
+    for i = array.size(supTop) - 1 to 0
+        if close > array.get(supTop, i)
+            array.remove(supTop, i)
+            array.remove(supBtm, i)
+            if showZonesD and array.size(supBox) > i
+                box.delete(array.get(supBox, i))
+                array.remove(supBox, i)
+if array.size(demBtm) > 0
+    for i = array.size(demBtm) - 1 to 0
+        if close < array.get(demBtm, i)
+            array.remove(demBtm, i)
+            array.remove(demTop, i)
+            if showZonesD and array.size(demBox) > i
+                box.delete(array.get(demBox, i))
+                array.remove(demBox, i)
+
+float nearestSupplyBtm = na
+if array.size(supBtm) > 0
+    for i = 0 to array.size(supBtm) - 1
+        float b = array.get(supBtm, i)
+        if b > close and (na(nearestSupplyBtm) or b < nearestSupplyBtm)
+            nearestSupplyBtm := b
+float nearestDemandTop = na
+if array.size(demTop) > 0
+    for i = 0 to array.size(demTop) - 1
+        float t = array.get(demTop, i)
+        if t < close and (na(nearestDemandTop) or t > nearestDemandTop)
+            nearestDemandTop := t
+
+// ══ ROUND LEVELS the bar actually touched ═════════════════════
+float rnAtHigh = useRounds ? math.floor(high / rnInc) * rnInc : na   // highest round at/below high
+float rnAtLow  = useRounds ? math.ceil(low  / rnInc) * rnInc : na    // lowest round at/above low
+
+// ══ SWEEP DETECTION (stop hunt, not breakout) ═════════════════
+sweepTop(float lvl) =>
+    not na(lvl) and high > lvl and close < lvl and close < open and (high - lvl) <= atrVal * maxPoke
+
+sweepBot(float lvl) =>
+    not na(lvl) and low < lvl and close > lvl and close > open and (lvl - low) <= atrVal * maxPoke
+
+// supply zone tap-and-reject counts as a top sweep of its bottom edge
+bool topSweep = (useDayLvls and sweepTop(prevDayHigh)) or
+     (useWkLvls and sweepTop(prevWkHigh)) or
+     (asiaDone and sweepTop(asiaHi)) or
+     sweepTop(rnAtHigh == high ? na : rnAtHigh > low ? rnAtHigh : na) or
+     (useZones and sweepTop(nearestSupplyBtm))
+
+bool botSweep = (useDayLvls and sweepBot(prevDayLow)) or
+     (useWkLvls and sweepBot(prevWkLow)) or
+     (asiaDone and sweepBot(asiaLo)) or
+     sweepBot(rnAtLow == low ? na : rnAtLow < high ? rnAtLow : na) or
+     (useZones and sweepBot(nearestDemandTop))
+
+// ══ EXHAUSTION — RSI was extreme, now turning ═════════════════
+bool rsiHot  = ta.highest(rsiV, rsiWin) >= rsiOb and rsiV < rsiV[1]
+bool rsiCold = ta.lowest(rsiV,  rsiWin) <= rsiOs and rsiV > rsiV[1]
+
+// ══ REJECTION CANDLE — the reversal won the bar ═══════════════
+float barRange = high - low
+bool rangeOk   = barRange >= atrVal * minRange
+bool rejectTop = rangeOk and (close - low) / math.max(barRange, syminfo.mintick) <= closePos
+bool rejectBot = rangeOk and (high - close) / math.max(barRange, syminfo.mintick) >= 1 - closePos
+
+// ══ ROOM — clear air to the opposing wall ═════════════════════
+f_below(float cand, float best) =>
+    not na(cand) and cand < close and (na(best) or cand > best) ? cand : best
+f_above(float cand, float best) =>
+    not na(cand) and cand > close and (na(best) or cand < best) ? cand : best
+
+float supportLvl = na
+supportLvl := f_below(nearestDemandTop, supportLvl)
+supportLvl := f_below(useDayLvls ? prevDayLow : na, supportLvl)
+supportLvl := f_below(useWkLvls ? prevWkLow : na, supportLvl)
+supportLvl := f_below(asiaDone ? asiaLo : na, supportLvl)
+
+float resistLvl = na
+resistLvl := f_above(nearestSupplyBtm, resistLvl)
+resistLvl := f_above(useDayLvls ? prevDayHigh : na, resistLvl)
+resistLvl := f_above(useWkLvls ? prevWkHigh : na, resistLvl)
+resistLvl := f_above(asiaDone ? asiaHi : na, resistLvl)
+
+bool roomDown = na(supportLvl) or (close - supportLvl) >= minMove
+bool roomUp   = na(resistLvl)  or (resistLvl - close) >= minMove
+
+// ══ SIGNAL — strict AND of everything + cooldown ══════════════
+var int lastSellBar = -100000
+var int lastBuyBar  = -100000
+
+bool sellRaw = topSweep and rsiHot  and rejectTop and roomDown and inSess
+bool buyRaw  = botSweep and rsiCold and rejectBot and roomUp   and inSess
+
+bool sell = sellRaw and (bar_index - lastSellBar) > cooldown
+bool buy  = buyRaw  and (bar_index - lastBuyBar)  > cooldown
+
+if sell
+    lastSellBar := bar_index
+if buy
+    lastBuyBar := bar_index
+
+// ══ TARGET LINE (to the opposing wall) ════════════════════════
+var line tgtLine = na
+if showTarget and sell and not na(supportLvl)
+    line.delete(tgtLine)
+    tgtLine := line.new(bar_index, close, bar_index + 30, supportLvl + atrVal * 0.1,
+         color=color.new(color.yellow, 30), style=line.style_dotted, width=1)
+if showTarget and buy and not na(resistLvl)
+    line.delete(tgtLine)
+    tgtLine := line.new(bar_index, close, bar_index + 30, resistLvl - atrVal * 0.1,
+         color=color.new(color.aqua, 30), style=line.style_dotted, width=1)
+
+// ══ VISUALS — minimal ═════════════════════════════════════════
+plot(showLevels and useDayLvls ? prevDayHigh : na, "PDH", color=color.new(color.red,    55), style=plot.style_linebr)
+plot(showLevels and useDayLvls ? prevDayLow  : na, "PDL", color=color.new(color.lime,   55), style=plot.style_linebr)
+plot(showLevels and useWkLvls  ? prevWkHigh  : na, "PWH", color=color.new(color.maroon, 65), style=plot.style_linebr)
+plot(showLevels and useWkLvls  ? prevWkLow   : na, "PWL", color=color.new(color.teal,   65), style=plot.style_linebr)
+plot(showLevels and asiaDone   ? asiaHi      : na, "Asia High", color=color.new(color.orange, 60), style=plot.style_linebr)
+plot(showLevels and asiaDone   ? asiaLo      : na, "Asia Low",  color=color.new(color.orange, 60), style=plot.style_linebr)
+
+plotshape(sell, title="TOP",    style=shape.triangledown, location=location.abovebar,
+     color=color.new(color.red,  0), size=size.small, text="TOP",    textcolor=color.red)
+plotshape(buy,  title="BOTTOM", style=shape.triangleup,   location=location.belowbar,
+     color=color.new(color.lime, 0), size=size.small, text="BOT",    textcolor=color.lime)
+
+alertcondition(sell, title="TOP — Sell Reversal",    message="Reversal Sniper — TOP swept, sell reversal")
+alertcondition(buy,  title="BOTTOM — Buy Reversal",  message="Reversal Sniper — BOTTOM swept, buy reversal")
