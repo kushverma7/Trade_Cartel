@@ -1,0 +1,318 @@
+// ============================================================
+// Gold Scalper Pro — Merged & Fixed
+// Source: Gold_Scalping_Strategy_Blueprint.pdf (Kimi.ai analysis)
+// Merges: Trendline Breakout + BigBeluga SMC + SpacemanBTC Key Levels
+//         + Victor Aimstar filters + Dave's Quarter Theory for Gold
+// Pine Script v6
+// ============================================================
+//@version=6
+strategy("Gold Scalper Pro — Merged & Fixed",
+     overlay                = true,
+     max_lines_count        = 500,
+     max_boxes_count        = 500,
+     max_labels_count       = 500,
+     default_qty_type       = strategy.percent_of_equity,
+     default_qty_value      = 2.0,
+     commission_type        = strategy.commission.cash_per_contract,
+     commission_value       = 0.05,
+     slippage               = 1)
+
+// ── Inputs ────────────────────────────────────────────────────
+string group_time      = "Timeframes & Sessions"
+string group_structure = "Market Structure (SMC)"
+string group_levels    = "Key Levels & Quarter Theory"
+string group_trend     = "Trend Confirmation"
+string group_risk      = "Risk Management"
+
+// Timeframes
+string tf_primary = input.string("5",  "Primary TF",      group=group_time)
+string tf_confirm = input.string("15", "Confirmation TF", group=group_time)
+string tf_context = input.string("60", "Context TF",      group=group_time)
+
+// Sessions
+bool use_london = input.bool(true,  "London Session (08:00-16:30 UTC)", group=group_time)
+bool use_ny     = input.bool(true,  "NY Session (14:30-21:00 UTC)",     group=group_time)
+bool use_asia   = input.bool(false, "Asia Session (00:00-06:00 UTC)",   group=group_time)
+
+// SMC
+bool show_ob     = input.bool(true,  "Show Order Blocks",   group=group_structure)
+int  ob_lookback = input.int(10,     "OB Swing Lookback",   minval=2,  maxval=50,  group=group_structure)
+int  ob_history  = input.int(5,      "OB History to Keep",  minval=1,  maxval=20,  group=group_structure)
+bool show_fvg    = input.bool(true,  "Show FVGs",           group=group_structure)
+int  fvg_history = input.int(5,      "FVG History",         minval=1,  maxval=20,  group=group_structure)
+
+// Quarter Theory
+bool  use_quarter_theory  = input.bool(true,  "Enable Quarter Theory",       group=group_levels)
+float quarter_tolerance   = input.float(0.2,  "Quarter Proximity (x ATR)",   minval=0.05, maxval=0.5, step=0.05, group=group_levels)
+bool  show_quarter_lines  = input.bool(true,  "Show Quarter Lines",           group=group_levels)
+
+// Key Levels
+bool show_daily_open    = input.bool(true, "Daily Open",           group=group_levels)
+bool show_prev_day_hl   = input.bool(true, "Previous Day H/L",     group=group_levels)
+bool show_session_ranges = input.bool(true, "Session High/Low",    group=group_levels)
+
+// Trend Filters
+string leading_indicator = input.string("Range Filter", "Leading Indicator",
+     options=["Range Filter", "Supertrend", "Trendline Breakout"], group=group_trend)
+int   rf_period  = input.int(100,  "RF Period",        group=group_trend)
+float rf_mult    = input.float(3.0, "RF Multiplier",   group=group_trend)
+int   st_period  = input.int(10,   "ST ATR Period",    group=group_trend)
+float st_mult    = input.float(3.0, "ST Multiplier",   group=group_trend)
+int   tl_lookback = input.int(24,  "Trendline Lookback", minval=5, maxval=100, group=group_trend)
+
+// Confirmation
+bool use_ema200      = input.bool(true, "200 EMA Filter",   group=group_trend)
+bool use_rsi         = input.bool(true, "RSI Filter",       group=group_trend)
+int  rsi_length      = input.int(14,   "RSI Length",        group=group_trend)
+int  rsi_overbought  = input.int(70,   "RSI Overbought",    group=group_trend)
+int  rsi_oversold    = input.int(30,   "RSI Oversold",      group=group_trend)
+bool use_adx         = input.bool(true, "ADX Filter",       group=group_trend)
+int  adx_length      = input.int(14,   "ADX Length",        group=group_trend)
+int  adx_threshold   = input.int(25,   "ADX Threshold",     group=group_trend)
+
+// Risk
+float risk_per_trade      = input.float(1.0, "Risk % Per Trade",   minval=0.1, maxval=5.0,  step=0.1, group=group_risk)
+float rr_target1          = input.float(1.0, "R:R Target 1",       minval=0.5, maxval=3.0,  step=0.1, group=group_risk)
+float rr_target2          = input.float(2.0, "R:R Target 2",       minval=0.5, maxval=5.0,  step=0.1, group=group_risk)
+int   max_trades_per_hour = input.int(2,     "Max Trades/Hour",    minval=1,   maxval=10,             group=group_risk)
+
+// ── Utilities ─────────────────────────────────────────────────
+float atr   = ta.atr(14)
+float atr_5 = ta.atr(5)
+
+// Quarter Theory helpers
+float get_nearest_quarter(float price) =>
+    math.round(price * 4) / 4
+
+float get_major_quarter(float price) =>
+    float whole = math.round(price)
+    float half  = whole + (price > whole ? 0.5 : -0.5)
+    math.abs(price - whole) < math.abs(price - half) ? whole : half
+
+float dist_to_quarter(float price) =>
+    float nearest = get_nearest_quarter(price)
+    math.abs(price - nearest)
+
+bool is_near_quarter(float price, float tolerance_atr) =>
+    dist_to_quarter(price) < atr * tolerance_atr
+
+// ── Layer 1: Market Structure (SMC — Simplified) ───────────────
+float swing_high = ta.pivothigh(high, ob_lookback, ob_lookback)
+float swing_low  = ta.pivotlow(low,  ob_lookback, ob_lookback)
+
+var float last_swing_high     = na
+var float last_swing_low      = na
+var int   last_swing_high_bar = na
+var int   last_swing_low_bar  = na
+
+if not na(swing_high)
+    last_swing_high     := swing_high
+    last_swing_high_bar := bar_index[ob_lookback]
+if not na(swing_low)
+    last_swing_low      := swing_low
+    last_swing_low_bar  := bar_index[ob_lookback]
+
+// Demand / Supply zones
+float demand_top = last_swing_low
+float demand_btm = last_swing_low - atr * 0.5
+float supply_top = last_swing_high + atr * 0.5
+float supply_btm = last_swing_high
+
+// FVG (3-candle imbalance)
+bool  fvg_up       = low[1]  > high[3]
+bool  fvg_down     = high[1] < low[3]
+float fvg_up_top   = low[1]
+float fvg_up_btm   = high[3]
+float fvg_down_top = low[3]
+float fvg_down_btm = high[1]
+
+// Market structure
+bool hh = not na(swing_high) and swing_high > nz(last_swing_high[1], swing_high)
+bool ll = not na(swing_low)  and swing_low  < nz(last_swing_low[1],  swing_low)
+bool hl = not na(swing_low)  and swing_low  > nz(last_swing_low[1],  swing_low)
+bool lh = not na(swing_high) and swing_high < nz(last_swing_high[1], swing_high)
+
+bool bullish_structure = hh or hl
+bool bearish_structure = ll or lh
+
+// ── Layer 2: Key Levels & Quarter Theory ──────────────────────
+// Daily levels (no lookahead)
+[daily_time, daily_open_price, prev_day_high, prev_day_low] =
+     request.security(syminfo.tickerid, "D", [time, open, high[1], low[1]], barmerge.lookahead_off)
+
+// Session detection
+bool london_session = use_london and not na(time(timeframe.period, "0800-1630"))
+bool ny_session     = use_ny     and not na(time(timeframe.period, "1430-2100"))
+bool asia_session   = use_asia   and not na(time(timeframe.period, "0000-0600"))
+bool active_session = london_session or ny_session or asia_session
+
+// Session High/Low tracking
+var float session_high = high
+var float session_low  = low
+
+if london_session and not london_session[1]
+    session_high := high
+    session_low  := low
+else if london_session
+    session_high := math.max(session_high, high)
+    session_low  := math.min(session_low,  low)
+
+// Quarter Theory
+float q_current   = get_nearest_quarter(close)
+float q_major     = get_major_quarter(close)
+float q_next_up   = q_current + 0.25
+float q_next_down = q_current - 0.25
+float q_dist      = dist_to_quarter(close)
+bool  near_quarter = is_near_quarter(close, quarter_tolerance)
+
+// ── Layer 3: Trend Confirmation ───────────────────────────────
+// 200 EMA
+float ema200       = ta.ema(close, 200)
+bool  above_ema200 = close > ema200
+bool  below_ema200 = close < ema200
+
+// RSI
+float rsi        = ta.rsi(close, rsi_length)
+bool  rsi_ok_long  = rsi < rsi_overbought
+bool  rsi_ok_short = rsi > rsi_oversold
+
+// ADX
+[float diplus, float diminus, float adx_value] = ta.dmi(adx_length, adx_length)
+bool adx_ok = adx_value > adx_threshold
+
+// Range Filter
+float rf_smoothrng = ta.ema(ta.ema(math.abs(close - close[1]), rf_period), rf_period * 2 - 1) * rf_mult
+var float rf_filt  = close
+rf_filt := close > nz(rf_filt[1])
+     ? (close - rf_smoothrng < nz(rf_filt[1]) ? nz(rf_filt[1]) : close - rf_smoothrng)
+     : (close + rf_smoothrng > nz(rf_filt[1]) ? nz(rf_filt[1]) : close + rf_smoothrng)
+
+float rf_upward   = rf_filt > rf_filt[1] ? nz(rf_upward[1])   + 1 : rf_filt < rf_filt[1] ? 0 : nz(rf_upward[1])
+float rf_downward = rf_filt < rf_filt[1] ? nz(rf_downward[1]) + 1 : rf_filt > rf_filt[1] ? 0 : nz(rf_downward[1])
+bool  rf_bullish  = close > rf_filt and rf_upward   > 0
+bool  rf_bearish  = close < rf_filt and rf_downward > 0
+
+// Supertrend
+float st_atr   = ta.atr(st_period)
+float st_up    = hl2 - st_mult * st_atr
+float st_dn    = hl2 + st_mult * st_atr
+var float st_upper = st_up
+var float st_lower = st_dn
+st_upper := close[1] > st_upper[1] ? math.max(st_up, st_upper[1]) : st_up
+st_lower := close[1] < st_lower[1] ? math.min(st_dn, st_lower[1]) : st_dn
+var int st_trend = 1
+st_trend  := st_trend == -1 and close > st_lower[1] ?  1 :
+             st_trend ==  1 and close < st_upper[1] ? -1 : st_trend
+bool st_bullish = st_trend ==  1
+bool st_bearish = st_trend == -1
+
+// Trendline Breakout (non-repainting via [1] offsets)
+slope_intercept(src, len) =>
+    float sumX  = 0.0
+    float sumY  = 0.0
+    float sumXY = 0.0
+    float sumX2 = 0.0
+    for j = 0 to len - 1
+        float x = j
+        float y = src[len - 1 - j]
+        sumX  += x
+        sumY  += y
+        sumXY += x * y
+        sumX2 += x * x
+    float n     = len
+    float denom = n * sumX2 - sumX * sumX
+    float s     = denom != 0 ? (n * sumXY - sumX * sumY) / denom : 0.0
+    float ic    = denom != 0 ? (sumY - s * sumX) / n : src[len / 2]
+    [s, ic]
+
+[tl_slope, tl_intercept] = slope_intercept(close[1], tl_lookback)
+float tl_value      = tl_slope * tl_lookback + tl_intercept
+bool  tl_break_up   = close > tl_value + atr_5 * 0.15
+bool  tl_break_down = close < tl_value - atr_5 * 0.15
+
+// Leading indicator selection
+bool lead_long  = false
+bool lead_short = false
+if leading_indicator == "Range Filter"
+    lead_long  := rf_bullish
+    lead_short := rf_bearish
+else if leading_indicator == "Supertrend"
+    lead_long  := st_bullish
+    lead_short := st_bearish
+else
+    lead_long  := tl_break_up
+    lead_short := tl_break_down
+
+// ── Layer 4: Signal Generation ────────────────────────────────
+var int trades_this_hour = 0
+var int current_hour     = hour
+if current_hour != hour
+    trades_this_hour := 0
+    current_hour     := hour
+
+bool long_structure  = close > demand_top or bullish_structure
+bool short_structure = close < supply_btm or bearish_structure
+
+bool long_level  = near_quarter or (show_daily_open and math.abs(close - daily_open_price) < atr * 0.3)
+bool short_level = near_quarter or (show_daily_open and math.abs(close - daily_open_price) < atr * 0.3)
+
+bool long_confirm  = (not use_ema200 or above_ema200) and (not use_rsi or rsi_ok_long)  and (not use_adx or adx_ok)
+bool short_confirm = (not use_ema200 or below_ema200) and (not use_rsi or rsi_ok_short) and (not use_adx or adx_ok)
+
+bool long_signal  = lead_long  and long_structure  and long_level  and long_confirm  and active_session and trades_this_hour < max_trades_per_hour
+bool short_signal = lead_short and short_structure and short_level and short_confirm and active_session and trades_this_hour < max_trades_per_hour
+
+// ── Execution ─────────────────────────────────────────────────
+float long_sl  = math.min(low,  demand_btm) - atr * 0.3
+float long_tp1 = close + (close - long_sl) * rr_target1
+float long_tp2 = close + (close - long_sl) * rr_target2
+float short_sl  = math.max(high, supply_top) + atr * 0.3
+float short_tp1 = close - (short_sl - close) * rr_target1
+float short_tp2 = close - (short_sl - close) * rr_target2
+
+// Quarter-adjusted targets (snap to nearest major/minor quarter)
+long_tp1  := get_major_quarter(long_tp1)
+long_tp2  := get_nearest_quarter(long_tp2)
+short_tp1 := get_major_quarter(short_tp1)
+short_tp2 := get_nearest_quarter(short_tp2)
+
+if long_signal and strategy.position_size <= 0
+    strategy.entry("Long",  strategy.long,  comment="GOLD LONG")
+    strategy.exit("Long TP1",  "Long",  limit=long_tp1,  stop=long_sl,  qty_percent=50)
+    strategy.exit("Long TP2",  "Long",  limit=long_tp2,  stop=long_sl)
+    trades_this_hour += 1
+
+if short_signal and strategy.position_size >= 0
+    strategy.entry("Short", strategy.short, comment="GOLD SHORT")
+    strategy.exit("Short TP1", "Short", limit=short_tp1, stop=short_sl, qty_percent=50)
+    strategy.exit("Short TP2", "Short", limit=short_tp2, stop=short_sl)
+    trades_this_hour += 1
+
+// ── Visuals ───────────────────────────────────────────────────
+// Quarter lines (draws on every bar — use barstate.islast for performance if needed)
+if show_quarter_lines and use_quarter_theory and barstate.islast
+    for i = -5 to 5
+        float q_line = get_nearest_quarter(close) + i * 0.25
+        bool  is_major = math.round(q_line * 2) == q_line * 2
+        line.new(bar_index - 50, q_line, bar_index, q_line,
+             color  = is_major ? color.new(color.white, 70) : color.new(color.gray, 85),
+             style  = line.style_dotted,
+             extend = extend.right)
+
+// Session backgrounds
+bgcolor(london_session ? color.new(color.blue,  90) : ny_session ? color.new(color.green, 90) : na)
+
+// Structure labels
+plotshape(bullish_structure, "Bullish Structure", style=shape.triangleup,   location=location.belowbar, color=color.green, size=size.tiny)
+plotshape(bearish_structure, "Bearish Structure", style=shape.triangledown, location=location.abovebar, color=color.red,   size=size.tiny)
+
+// 200 EMA
+plot(ema200, "200 EMA", color=color.orange, linewidth=2)
+
+// Entry signals
+plotshape(long_signal,  "Buy",  style=shape.labelup,   location=location.belowbar, color=color.green, text="BUY",  textcolor=color.white, size=size.small)
+plotshape(short_signal, "Sell", style=shape.labeldown, location=location.abovebar, color=color.red,   text="SELL", textcolor=color.white, size=size.small)
+
+// Alerts
+alertcondition(long_signal,  "GOLD LONG",  "Gold Scalper Pro — BUY signal")
+alertcondition(short_signal, "GOLD SHORT", "Gold Scalper Pro — SELL signal")
