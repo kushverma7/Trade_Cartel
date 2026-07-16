@@ -235,7 +235,7 @@ bool rsiWasCold = ta.lowest(rsiV,  rsiWin + reclaimWin) <= rsiOs
 float barRange = high - low
 bool rangeOk   = barRange >= atrVal * minRange
 bool rejectTop = rangeOk and (close - low) / math.max(barRange, syminfo.mintick) <= closePos
-bool rejectBot = rangeOk and (high - close) / math.max(barRange, syminfo.mintick) >= 1 - closePos
+bool rejectBot = rangeOk and (high - close) / math.max(barRange, syminfo.mintick) <= closePos
 
 // ══ ROOM — clear air to the opposing wall ═════════════════════
 f_below(float cand, float best) =>
