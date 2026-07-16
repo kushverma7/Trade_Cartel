@@ -44,6 +44,9 @@ Update it whenever new decisions, results, or discoveries are made.
 - Settings: ATR stop 1.2×, TP 2.0×, London open (3–5am ET) + NY open (8:30–11am ET)
 - Lookback 18 and filter OFF variants were requested but user did not report results back
 
+### Backtest log
+- 2026-07-16 Reversal Sniper Strategy v1 defaults, XAUUSD 5m OANDA, May 25-Jul 16: **PF 0.731 | Win 31.31% (98/313) | -5.26%** — FAILED. Leak: reclaim path fired on auto S/D zone breaks (zones regenerate constantly on LTF → longs into downtrends). Fixed: reclaim HTF walls only + 0.3 ATR flush depth + stopLkb 4. Re-test pending.
+
 ### Strategy files in repo
 - `strategies/gold_confluence_engine.pine` — **FLAGSHIP** (v6, 430 lines). 4-layer confluence: HTF key levels (daily/weekly open, prev D/W H/L) + gold round numbers ($2.5/$5) + pivot-confirmed supply/demand zones + dual triggers (proven trendline breakout OR liquidity sweep/SFP). Asia range sweeps, level-aware stops/targets, R:R veto, confluence score table, EOD flat. All non-repainting. UNTESTED — needs backtest.
 - `strategies/gold_scalper_final.pine` — simpler proven-baseline strategy (v6). Trendline-breakout core (lookback 22, sessions, ATR 1.2x/2.0x) + toggleable filters, all default OFF = exact proven PF 3.656 baseline. Test protocol: enable ONE filter at a time, re-backtest, keep only what raises PF.
