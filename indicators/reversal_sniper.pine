@@ -53,6 +53,7 @@ bool  useVeto    = input.bool(true,  "Strong Trend Veto (never fade ADX trend)",
 int   adxVeto    = input.int(30,     "Veto ADX Threshold", minval=15, maxval=60, group="Signal Quality")
 bool  useReclaim = input.bool(true,  "Failed-Break Reclaim (catches V tops/bottoms)", group="Signal Quality")
 int   reclaimWin = input.int(5,      "Reclaim Window (bars)", minval=1, maxval=20, group="Signal Quality")
+float flushDepth = input.float(0.3,  "Min Flush Depth Beyond Wall (x ATR)", step=0.05, group="Signal Quality")
 
 // Display
 bool showLevels = input.bool(true,  "Show Wall Levels",  group="Display")
@@ -188,18 +189,19 @@ f_breakUp(float lvl) =>
     not na(lvl) and close > lvl and close[1] <= lvl ? lvl : na
 
 // wall broken downward this bar (take the highest broken)
+// HTF walls ONLY — auto-zones regenerate too often on LTF charts
+// and turned every trend pause into a fake "failed break" (this
+// was the main leak found in the XAUUSD 5m backtest, PF 0.731)
 float brokeDnLvl = na
 brokeDnLvl := math.max(nz(f_breakDn(useDayLvls ? prevDayLow : na), -1e10),
      math.max(nz(f_breakDn(useWkLvls ? prevWkLow : na), -1e10),
-     math.max(nz(f_breakDn(asiaDone ? asiaLo : na), -1e10),
-              nz(f_breakDn(nearestDemandTop), -1e10))))
+              nz(f_breakDn(asiaDone ? asiaLo : na), -1e10)))
 brokeDnLvl := brokeDnLvl == -1e10 ? na : brokeDnLvl
 
 float brokeUpLvl = na
 brokeUpLvl := math.min(nz(f_breakUp(useDayLvls ? prevDayHigh : na), 1e10),
      math.min(nz(f_breakUp(useWkLvls ? prevWkHigh : na), 1e10),
-     math.min(nz(f_breakUp(asiaDone ? asiaHi : na), 1e10),
-              nz(f_breakUp(nearestSupplyBtm), 1e10))))
+              nz(f_breakUp(asiaDone ? asiaHi : na), 1e10)))
 brokeUpLvl := brokeUpLvl == 1e10 ? na : brokeUpLvl
 
 var float pendSupport = na
@@ -260,9 +262,16 @@ bool roomUp   = na(resistLvl)  or (resistLvl - close) >= minMove
 
 // ══ SIGNAL — strict AND of everything + cooldown ══════════════
 // reclaim path: pending broken wall reclosed within window,
-// bullish/bearish body, RSI was extreme during the flush
-bool reclaimBot = useReclaim and not na(pendSupport) and close > pendSupport and close > open and rsiWasCold
-bool reclaimTop = useReclaim and not na(pendResist)  and close < pendResist  and close < open and rsiWasHot
+// bullish/bearish body, RSI was extreme during the flush, and the
+// flush actually went >= flushDepth x ATR beyond the wall — a real
+// stop run, not a one-tick dribble
+float flushLo = ta.lowest(low,   reclaimWin + 1)
+float flushHi = ta.highest(high, reclaimWin + 1)
+
+bool reclaimBot = useReclaim and not na(pendSupport) and close > pendSupport and close > open and
+     rsiWasCold and flushLo <= pendSupport - atrVal * flushDepth
+bool reclaimTop = useReclaim and not na(pendResist)  and close < pendResist  and close < open and
+     rsiWasHot and flushHi >= pendResist + atrVal * flushDepth
 
 var int lastSellBar = -100000
 var int lastBuyBar  = -100000
