@@ -1,0 +1,226 @@
+// ============================================================
+// GOLD SCALPER — FINAL (Non-Repainting)
+// XAU/USD 5m — built from the proven backtest core:
+//   Lookback 22 + session filter -> PF 3.656 | Win 51.28% | DD 0.01%
+//   (tested May 18 - Jul 14 2026, Pepperstone feed)
+//
+// Core: bug-fixed OLS trendline breakout (all math on [1] data)
+// Exits: ATR stop 1.2x / TP 2.0x (proven), optional quarter-snap
+// Filters (default OFF = exact proven baseline; enable one at a
+// time and re-backtest to verify each actually adds profit):
+//   - ATR regime filter (skip dead + news-spike bars)
+//   - Breakout ATR buffer (fewer, cleaner breaks)
+//   - 200 EMA directional bias
+//   - ADX trending filter
+//   - Quarter Theory entry proximity + TP magnets
+// Pine Script v6
+// ============================================================
+//@version=6
+strategy("Gold Scalper FINAL [Non-Repainting]",
+     overlay            = true,
+     max_lines_count    = 500,
+     initial_capital    = 1000,
+     default_qty_type   = strategy.fixed,
+     default_qty_value  = 2,
+     commission_type    = strategy.commission.cash_per_contract,
+     commission_value   = 0.07,
+     slippage           = 5)
+
+// ── Inputs: proven core ───────────────────────────────────────
+int   lookback    = input.int(22,    "Lookback Period",        minval=5,   maxval=100, group="Core (proven)")
+bool  useSession  = input.bool(true, "London + NY Open Only",  group="Core (proven)")
+float atrStopMult = input.float(1.2, "Stop ATR mult",          step=0.1,   group="Core (proven)")
+float atrTpMult   = input.float(2.0, "TP ATR mult",            step=0.1,   group="Core (proven)")
+int   atrLen      = input.int(14,    "ATR Length",             group="Core (proven)")
+
+// ── Inputs: optional filters (OFF = proven baseline) ──────────
+bool  useRegime    = input.bool(false, "ATR Regime Filter (0.6x-2.5x baseline)", group="Filters")
+int   regimeLen    = input.int(100,    "Regime Baseline Length",                 group="Filters")
+bool  useBuffer    = input.bool(false, "Breakout ATR Buffer",                    group="Filters")
+float bufferMult   = input.float(0.15, "Buffer ATR mult", step=0.05,             group="Filters")
+bool  useEma       = input.bool(false, "200 EMA Bias",                           group="Filters")
+bool  useAdx       = input.bool(false, "ADX Filter",                             group="Filters")
+int   adxThresh    = input.int(25,     "ADX Threshold",                          group="Filters")
+bool  useQtEntry   = input.bool(false, "Quarter Proximity Entry Filter",         group="Quarter Theory")
+float qtEntryTol   = input.float(0.30, "Entry Proximity (x ATR)", step=0.05,     group="Quarter Theory")
+bool  useQtTargets = input.bool(false, "Snap TP to Quarter Levels",              group="Quarter Theory")
+bool  useSplitTp   = input.bool(false, "Split Exit: 50% at 1R, rest at TP",      group="Exits")
+
+// ── Inputs: display ───────────────────────────────────────────
+bool showLines   = input.bool(true, "Show Trendlines",       group="Display")
+bool showSignals = input.bool(true, "Show Buy/Sell Signals", group="Display")
+bool showBg      = input.bool(true, "Highlight Signal Zone", group="Display")
+
+// ── Session: London open + NY open (ET) — proven windows ──────
+bool inSession = not useSession or not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York"))
+
+// ── ATR + regime ──────────────────────────────────────────────
+float atrVal   = ta.atr(atrLen)
+float atrBase  = ta.sma(atrVal, regimeLen)
+bool  regimeOk = not useRegime or (atrVal > atrBase * 0.6 and atrVal < atrBase * 2.5)
+
+// ── Trend / strength filters ──────────────────────────────────
+float ema200 = ta.ema(close, 200)
+[_dip, _dim, adxVal] = ta.dmi(14, 14)
+bool emaOkLong   = not useEma or close > ema200
+bool emaOkShort  = not useEma or close < ema200
+bool adxOk       = not useAdx or adxVal > adxThresh
+
+// ── Quarter Theory helpers (gold: .25 grid + $2.5/$5 magnets) ──
+nearestQuarter(float price) =>
+    math.round(price * 4) / 4
+
+majorQuarter(float price) =>
+    float whole = math.round(price)
+    float half  = whole + (price > whole ? 0.5 : -0.5)
+    math.abs(price - whole) < math.abs(price - half) ? whole : half
+
+bool nearQuarter = math.abs(close - nearestQuarter(close)) < atrVal * qtEntryTol
+bool qtOk        = not useQtEntry or nearQuarter
+
+// ── OLS helpers (bug-fixed, from trendline_breakout_fixed) ─────
+linreg_coefs(src, len) =>
+    float sumX  = 0.0
+    float sumY  = 0.0
+    float sumXY = 0.0
+    float sumX2 = 0.0
+    for j = 0 to len - 1
+        float x = j
+        float y = src[len - 1 - j]
+        sumX  += x
+        sumY  += y
+        sumXY += x * y
+        sumX2 += x * x
+    float n     = len
+    float denom = n * sumX2 - sumX * sumX
+    float slope     = denom != 0 ? (n * sumXY - sumX * sumY) / denom : 0.0
+    float intercept = denom != 0 ? (sumY - slope * sumX) / n : src[math.floor(len / 2)]
+    [slope, intercept]
+
+find_pivot(src, len, slope, intercept, direction) =>
+    int   best_j   = 0
+    float best_val = -1e10
+    for j = 0 to len - 1
+        float x    = j
+        float y    = src[len - 1 - j]
+        float line = slope * x + intercept
+        float diff = (y - line) * direction
+        if diff > best_val
+            best_val := diff
+            best_j   := j
+    best_j
+
+project_line(src, len, pivot_j, slope) =>
+    float pivot_y   = src[len - 1 - pivot_j]
+    float intercept = pivot_y - slope * pivot_j
+    slope * len + intercept
+
+optimize_slope(src, len, pivot_j, init_slope, is_support) =>
+    float pivot_y = src[len - 1 - pivot_j]
+    float best    = init_slope
+    float step    = math.abs(init_slope) * 0.5 + 1e-6
+    for _i = 0 to 29
+        float s_up   = best + step
+        float s_dn   = best - step
+        bool  ok_up  = true
+        bool  ok_dn  = true
+        float err_up = 0.0
+        float err_dn = 0.0
+        for j = 0 to len - 1
+            float x = j
+            float y = src[len - 1 - j]
+            float int_up = pivot_y - s_up * pivot_j
+            float int_dn = pivot_y - s_dn * pivot_j
+            float d_up   = (s_up * x + int_up) - y
+            float d_dn   = (s_dn * x + int_dn) - y
+            if is_support
+                if d_up > 1e-5
+                    ok_up := false
+                if d_dn > 1e-5
+                    ok_dn := false
+            else
+                if d_up < -1e-5
+                    ok_up := false
+                if d_dn < -1e-5
+                    ok_dn := false
+            err_up += d_up * d_up
+            err_dn += d_dn * d_dn
+        if ok_up and ok_dn
+            best := err_up < err_dn ? s_up : s_dn
+        else if ok_up
+            best := s_up
+        else if ok_dn
+            best := s_dn
+        step *= 0.5
+    best
+
+// ── Main calculation — window ends at PREVIOUS bar ─────────────
+var float s_val = na
+var float r_val = na
+var int   sig   = 0
+
+if bar_index >= lookback + 1
+    [ols_slope, ols_intercept] = linreg_coefs(close[1], lookback)
+    int upper_j = find_pivot(high[1], lookback, ols_slope, ols_intercept,  1)
+    int lower_j = find_pivot(low[1],  lookback, ols_slope, ols_intercept, -1)
+    float r_slope = optimize_slope(high[1], lookback, upper_j, ols_slope, false)
+    float s_slope = optimize_slope(low[1],  lookback, lower_j, ols_slope, true)
+    r_val := project_line(high[1], lookback, upper_j, r_slope)
+    s_val := project_line(low[1],  lookback, lower_j, s_slope)
+    float buf = useBuffer ? atrVal * bufferMult : 0.0
+    if close > r_val + buf
+        sig := 1
+    else if close < s_val - buf
+        sig := -1
+
+// ── Signals: state flip + all filters (evaluated on close) ─────
+bool rawBuy  = sig ==  1 and sig[1] !=  1
+bool rawSell = sig == -1 and sig[1] != -1
+
+bool buy  = rawBuy  and inSession and regimeOk and emaOkLong  and adxOk and qtOk
+bool sell = rawSell and inSession and regimeOk and emaOkShort and adxOk and qtOk
+
+// ── Exits ─────────────────────────────────────────────────────
+float longStop  = close - atrVal * atrStopMult
+float longTp    = close + atrVal * atrTpMult
+float longTp1   = close + atrVal * atrStopMult          // 1R partial
+float shortStop = close + atrVal * atrStopMult
+float shortTp   = close - atrVal * atrTpMult
+float shortTp1  = close - atrVal * atrStopMult
+
+// Quarter magnets: snap final TP to the nearest .00/.50 beyond it
+if useQtTargets
+    longTp  := math.max(majorQuarter(longTp),  close + atrVal * 1.0)
+    shortTp := math.min(majorQuarter(shortTp), close - atrVal * 1.0)
+
+if buy and strategy.position_size == 0
+    strategy.entry("Long", strategy.long)
+    if useSplitTp
+        strategy.exit("L-TP1", "Long", stop=longStop, limit=longTp1, qty_percent=50)
+        strategy.exit("L-TP2", "Long", stop=longStop, limit=longTp)
+    else
+        strategy.exit("L-X",   "Long", stop=longStop, limit=longTp)
+
+if sell and strategy.position_size == 0
+    strategy.entry("Short", strategy.short)
+    if useSplitTp
+        strategy.exit("S-TP1", "Short", stop=shortStop, limit=shortTp1, qty_percent=50)
+        strategy.exit("S-TP2", "Short", stop=shortStop, limit=shortTp)
+    else
+        strategy.exit("S-X",   "Short", stop=shortStop, limit=shortTp)
+
+// ── Plots ─────────────────────────────────────────────────────
+plot(showLines ? r_val : na, "Resistance", color=color.new(color.red,  20), linewidth=1)
+plot(showLines ? s_val : na, "Support",    color=color.new(color.lime, 20), linewidth=1)
+plot(useEma ? ema200 : na,   "200 EMA",    color=color.orange, linewidth=2)
+
+bgcolor(showBg and sig ==  1 ? color.new(color.green, 92) : na, title="Long Zone")
+bgcolor(showBg and sig == -1 ? color.new(color.red,   92) : na, title="Short Zone")
+
+plotshape(showSignals and buy,  title="BUY",  style=shape.triangleup,
+          location=location.belowbar, color=color.aqua,   size=size.small, text="BUY")
+plotshape(showSignals and sell, title="SELL", style=shape.triangledown,
+          location=location.abovebar, color=color.yellow, size=size.small, text="SELL")
+
+alertcondition(buy,  title="BUY Signal",  message="Gold Scalper FINAL — BUY XAUUSD")
+alertcondition(sell, title="SELL Signal", message="Gold Scalper FINAL — SELL XAUUSD")

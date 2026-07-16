@@ -45,8 +45,10 @@ Update it whenever new decisions, results, or discoveries are made.
 - Lookback 18 and filter OFF variants were requested but user did not report results back
 
 ### Strategy files in repo
+- `strategies/gold_scalper_final.pine` — **THE main strategy** (v6). Proven trendline-breakout core (lookback 22, sessions, ATR 1.2x/2.0x) + toggleable filters (ATR regime, breakout buffer, 200 EMA, ADX, quarter theory entry/TP, split exits). All filters default OFF = exact proven baseline. Test protocol: enable ONE filter at a time, re-backtest, keep only what raises PF.
+- `strategies/gold_scalper_pro_merged.pine` — v6 merged blueprint from Kimi.ai PDF (SMC + levels + quarter theory), untested
 - `strategies/trendline_breakout_gold_optimized.pine` — Pine Script v5, full OLS trendline breakout
-- `strategies/trendline_breakout_gold_scalp.brue` — Brue (London Strategic Edge) port, simplified channel breakout
+- (Brue port deleted at user request)
 
 ---
 
