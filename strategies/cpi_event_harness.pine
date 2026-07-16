@@ -1,0 +1,125 @@
+// ============================================================
+// CPI / 8:30 NEWS EVENT BACKTEST HARNESS [Non-Repainting]
+//
+// Purpose: find which entry style actually makes money on CPI
+// (and other 8:30 ET releases) by testing all of them on every
+// detected event in your chart history.
+//
+// EVENT DETECTION (no calendar needed):
+//   - First bar of the 8:30 ET window
+//   - Range >= evMult x ATR(50)  (news candle signature)
+//   - Optional day-of-month 9-16 filter (CPI is mid-month;
+//     OFF = also catches NFP first-Friday, PPI, etc. = more data)
+//
+// ENTRY MODES (switch and compare in Strategy Tester):
+//   1. Follow Spike        — trade the event candle's direction
+//                            at its close
+//   2. Fade Spike          — trade against it at its close
+//   3. Confirm Continuation— enter only when a later close breaks
+//                            the event candle's extreme (the "real
+//                            move starts 5-15 min after" pattern)
+//
+// EXITS: stop at the event candle's opposite extreme (+buffer),
+//   TP at rr x risk, hard time exit after holdBars.
+//   One trade per event.
+//
+// RECOMMENDED: run on 30m or 1H (free-plan history covers 1-2
+// years = 12-24 CPI events). 5m only has ~2 months of history
+// without Premium = 2 events = meaningless sample.
+// ============================================================
+//@version=6
+strategy("CPI Event Harness [8:30 ET News]",
+     overlay                  = true,
+     initial_capital          = 1000,
+     default_qty_type         = strategy.fixed,
+     default_qty_value        = 2,
+     commission_type          = strategy.commission.cash_per_contract,
+     commission_value         = 0.07,
+     slippage                 = 10,
+     process_orders_on_close  = true)
+
+// ── Inputs ────────────────────────────────────────────────────
+string mode      = input.string("Confirm Continuation", "Entry Mode",
+     options=["Follow Spike", "Fade Spike", "Confirm Continuation"], group="Mode")
+float  evMult    = input.float(2.0, "Event Candle Range (x ATR50)", step=0.25, minval=1.0, group="Event Detection")
+bool   cpiOnly   = input.bool(false, "CPI-ish Days Only (9th-16th)", group="Event Detection")
+int    confirmBars = input.int(3,  "Confirmation Window (bars)", minval=1, maxval=12, group="Mode")
+float  stopBuf   = input.float(0.2, "Stop Buffer (x ATR)", step=0.05, group="Exits")
+float  rr        = input.float(1.5, "Take Profit (R multiple)", step=0.25, group="Exits")
+int    holdBars  = input.int(12,   "Max Hold (bars, time exit)", minval=1, maxval=100, group="Exits")
+
+// ── Event detection ───────────────────────────────────────────
+float atr50 = ta.atr(50)
+bool  evWindow = not na(time(timeframe.period, "0830-0935", "America/New_York"))
+bool  firstBar = evWindow and not evWindow[1]
+int   dom      = dayofmonth(time, "America/New_York")
+bool  dayOk    = not cpiOnly or (dom >= 9 and dom <= 16)
+bool  bigBar   = (high - low) >= atr50 * evMult
+
+bool  eventBar = firstBar and bigBar and dayOk
+int   spikeDir = close > open ? 1 : -1
+
+// ── One trade per event: pending state ────────────────────────
+var int   evBar   = na
+var int   evDir   = 0
+var float evHigh  = na
+var float evLow   = na
+var bool  traded  = false
+
+if eventBar
+    evBar  := bar_index
+    evDir  := spikeDir
+    evHigh := high
+    evLow  := low
+    traded := false
+
+bool pendActive = not na(evBar) and bar_index - evBar <= confirmBars and not traded
+
+// ── Entries ───────────────────────────────────────────────────
+var int entryBar = na
+bool flat = strategy.position_size == 0
+
+float longStop  = evLow  - atr50 * stopBuf
+float shortStop = evHigh + atr50 * stopBuf
+
+bool wantLong  = false
+bool wantShort = false
+
+if eventBar and flat and mode == "Follow Spike"
+    wantLong  := spikeDir == 1
+    wantShort := spikeDir == -1
+
+if eventBar and flat and mode == "Fade Spike"
+    wantLong  := spikeDir == -1
+    wantShort := spikeDir == 1
+
+// Confirmed continuation: a later CLOSE beyond the event extreme
+if mode == "Confirm Continuation" and pendActive and not eventBar and flat
+    wantLong  := evDir == 1  and close > evHigh
+    wantShort := evDir == -1 and close < evLow
+
+if wantLong
+    traded := true
+    entryBar := bar_index
+    strategy.entry("Long", strategy.long, comment="CPI L")
+    strategy.exit("L-X", "Long", stop=longStop, limit=close + (close - longStop) * rr)
+
+if wantShort
+    traded := true
+    entryBar := bar_index
+    strategy.entry("Short", strategy.short, comment="CPI S")
+    strategy.exit("S-X", "Short", stop=shortStop, limit=close - (shortStop - close) * rr)
+
+// ── Time exit ─────────────────────────────────────────────────
+if not na(entryBar) and strategy.position_size != 0 and bar_index - entryBar >= holdBars
+    strategy.close_all(comment="Time X")
+    entryBar := na
+
+// ── Visuals ───────────────────────────────────────────────────
+bgcolor(eventBar ? color.new(color.orange, 75) : na, title="Event Candle")
+plotshape(eventBar and spikeDir == 1,  "Event Up",   style=shape.flag, location=location.belowbar, color=color.new(color.orange, 0), size=size.tiny)
+plotshape(eventBar and spikeDir == -1, "Event Down", style=shape.flag, location=location.abovebar, color=color.new(color.orange, 0), size=size.tiny)
+plot(pendActive ? evHigh : na, "Event High", color=color.new(color.orange, 40), style=plot.style_linebr)
+plot(pendActive ? evLow  : na, "Event Low",  color=color.new(color.orange, 40), style=plot.style_linebr)
+
+alertcondition(eventBar, "8:30 Event Candle", "CPI Harness — 8:30 ET event candle detected on {{ticker}}")
