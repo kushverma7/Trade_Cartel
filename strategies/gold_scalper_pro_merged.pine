@@ -1,6 +1,11 @@
 // ============================================================
 // Gold Scalper Pro — Merged & Fixed
 // Source: Gold_Scalping_Strategy_Blueprint.pdf (Kimi.ai analysis)
+// !! VERIFICATION WARNING (see gold_scalper_final.pine instead):
+//    The PDF's quarter-theory grid (.25) is an FX concept — on gold
+//    at $3000+ the proximity filter is ALWAYS true (dead filter) and
+//    TP snapping barely moves targets. gold_scalper_final.pine uses
+//    $2.5/$5 increments instead. This file kept for reference only.
 // Merges: Trendline Breakout + BigBeluga SMC + SpacemanBTC Key Levels
 //         + Victor Aimstar filters + Dave's Quarter Theory for Gold
 // Pine Script v6

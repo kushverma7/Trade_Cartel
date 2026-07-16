@@ -41,9 +41,11 @@ float bufferMult   = input.float(0.15, "Buffer ATR mult", step=0.05,            
 bool  useEma       = input.bool(false, "200 EMA Bias",                           group="Filters")
 bool  useAdx       = input.bool(false, "ADX Filter",                             group="Filters")
 int   adxThresh    = input.int(25,     "ADX Threshold",                          group="Filters")
-bool  useQtEntry   = input.bool(false, "Quarter Proximity Entry Filter",         group="Quarter Theory")
-float qtEntryTol   = input.float(0.30, "Entry Proximity (x ATR)", step=0.05,     group="Quarter Theory")
-bool  useQtTargets = input.bool(false, "Snap TP to Quarter Levels",              group="Quarter Theory")
+bool  useQtEntry   = input.bool(false, "Round-Number Proximity Entry Filter",    group="Round Numbers (Gold)")
+float qtEntryTol   = input.float(0.30, "Entry Proximity (x ATR)", step=0.05,     group="Round Numbers (Gold)")
+bool  useQtTargets = input.bool(false, "Snap TP to Round Levels",                group="Round Numbers (Gold)")
+float qtMinorInc   = input.float(2.5,  "Minor Increment ($)",  step=0.5,         group="Round Numbers (Gold)")
+float qtMajorInc   = input.float(5.0,  "Major Increment ($)",  step=0.5,         group="Round Numbers (Gold)")
 bool  useSplitTp   = input.bool(false, "Split Exit: 50% at 1R, rest at TP",      group="Exits")
 
 // ── Inputs: display ───────────────────────────────────────────
@@ -66,14 +68,17 @@ bool emaOkLong   = not useEma or close > ema200
 bool emaOkShort  = not useEma or close < ema200
 bool adxOk       = not useAdx or adxVal > adxThresh
 
-// ── Quarter Theory helpers (gold: .25 grid + $2.5/$5 magnets) ──
+// ── Round-number helpers ───────────────────────────────────────
+// NOTE: classic ".25 quarter theory" is an FX (4-decimal) concept.
+// On gold at ~$3000+ a $0.25 grid is always within reach of a $2-8
+// ATR, making the filter meaningless. Gold's psychological levels
+// are $2.5 / $5 / $10 increments — verified against the blueprint's
+// own gold note, which contradicts its .25 grid code.
 nearestQuarter(float price) =>
-    math.round(price * 4) / 4
+    math.round(price / qtMinorInc) * qtMinorInc
 
 majorQuarter(float price) =>
-    float whole = math.round(price)
-    float half  = whole + (price > whole ? 0.5 : -0.5)
-    math.abs(price - whole) < math.abs(price - half) ? whole : half
+    math.round(price / qtMajorInc) * qtMajorInc
 
 bool nearQuarter = math.abs(close - nearestQuarter(close)) < atrVal * qtEntryTol
 bool qtOk        = not useQtEntry or nearQuarter
