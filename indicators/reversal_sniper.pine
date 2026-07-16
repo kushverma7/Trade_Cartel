@@ -49,6 +49,10 @@ float closePos   = input.float(0.35, "Close In Far Third (0.35 = bottom/top 35%)
 float minMove    = input.float(5.0,  "Min Room To Opposing Wall (points)", step=0.5, group="Signal Quality")
 int   cooldown   = input.int(15,     "Cooldown Bars Per Direction", minval=0, maxval=100, group="Signal Quality")
 bool  useSessFlt = input.bool(false, "Only London+NY Open (gold)",          group="Signal Quality")
+bool  useVeto    = input.bool(true,  "Strong Trend Veto (never fade ADX trend)", group="Signal Quality")
+int   adxVeto    = input.int(30,     "Veto ADX Threshold", minval=15, maxval=60, group="Signal Quality")
+bool  useReclaim = input.bool(true,  "Failed-Break Reclaim (catches V tops/bottoms)", group="Signal Quality")
+int   reclaimWin = input.int(5,      "Reclaim Window (bars)", minval=1, maxval=20, group="Signal Quality")
 
 // Display
 bool showLevels = input.bool(true,  "Show Wall Levels",  group="Display")
@@ -59,6 +63,12 @@ bool showTarget = input.bool(true,  "Show Target Line",  group="Display")
 float atrVal = ta.atr(14)
 float rsiV   = ta.rsi(close, rsiLen)
 bool  inSess = not useSessFlt or not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York"))
+[diPlus, diMinus, adxV] = ta.dmi(14, 14)
+
+// never fade a freight train: no TOPs in a strong uptrend,
+// no BOTTOMs in a strong downtrend
+bool vetoTop = useVeto and adxV > adxVeto and diPlus  > diMinus
+bool vetoBot = useVeto and adxV > adxVeto and diMinus > diPlus
 
 // Asia / overnight range (completed only)
 bool inAsia = not na(time(timeframe.period, asiaSess, sessTz))
@@ -167,9 +177,59 @@ bool botSweep = (useDayLvls and sweepBot(prevDayLow)) or
      sweepBot(rnAtLow == low ? na : rnAtLow < high ? rnAtLow : na) or
      (useZones and sweepBot(nearestDemandTop))
 
+// ══ FAILED-BREAK RECLAIM (V tops / V bottoms) ═════════════════
+// A violent flush CLOSES through the wall (so the one-bar sweep
+// can't fire), then price recloses back across it within the
+// window -> failed breakdown/breakout. Non-repainting: fires on
+// the reclaim bar's close.
+f_breakDn(float lvl) =>
+    not na(lvl) and close < lvl and close[1] >= lvl ? lvl : na
+f_breakUp(float lvl) =>
+    not na(lvl) and close > lvl and close[1] <= lvl ? lvl : na
+
+// wall broken downward this bar (take the highest broken)
+float brokeDnLvl = na
+brokeDnLvl := math.max(nz(f_breakDn(useDayLvls ? prevDayLow : na), -1e10),
+     math.max(nz(f_breakDn(useWkLvls ? prevWkLow : na), -1e10),
+     math.max(nz(f_breakDn(asiaDone ? asiaLo : na), -1e10),
+              nz(f_breakDn(nearestDemandTop), -1e10))))
+brokeDnLvl := brokeDnLvl == -1e10 ? na : brokeDnLvl
+
+float brokeUpLvl = na
+brokeUpLvl := math.min(nz(f_breakUp(useDayLvls ? prevDayHigh : na), 1e10),
+     math.min(nz(f_breakUp(useWkLvls ? prevWkHigh : na), 1e10),
+     math.min(nz(f_breakUp(asiaDone ? asiaHi : na), 1e10),
+              nz(f_breakUp(nearestSupplyBtm), 1e10))))
+brokeUpLvl := brokeUpLvl == 1e10 ? na : brokeUpLvl
+
+var float pendSupport = na
+var int   pendSupBar  = na
+var float pendResist  = na
+var int   pendResBar  = na
+
+if not na(brokeDnLvl)
+    pendSupport := brokeDnLvl
+    pendSupBar  := bar_index
+if not na(brokeUpLvl)
+    pendResist := brokeUpLvl
+    pendResBar := bar_index
+
+// expire stale pending breaks
+if not na(pendSupBar) and bar_index - pendSupBar > reclaimWin
+    pendSupport := na
+    pendSupBar  := na
+if not na(pendResBar) and bar_index - pendResBar > reclaimWin
+    pendResist := na
+    pendResBar := na
+
 // ══ EXHAUSTION — RSI was extreme, now turning ═════════════════
 bool rsiHot  = ta.highest(rsiV, rsiWin) >= rsiOb and rsiV < rsiV[1]
 bool rsiCold = ta.lowest(rsiV,  rsiWin) <= rsiOs and rsiV > rsiV[1]
+
+// looser variants for the reclaim path (RSI extreme during flush,
+// turn not required — the reclaim itself is the confirmation)
+bool rsiWasHot  = ta.highest(rsiV, rsiWin + reclaimWin) >= rsiOb
+bool rsiWasCold = ta.lowest(rsiV,  rsiWin + reclaimWin) <= rsiOs
 
 // ══ REJECTION CANDLE — the reversal won the bar ═══════════════
 float barRange = high - low
@@ -199,19 +259,30 @@ bool roomDown = na(supportLvl) or (close - supportLvl) >= minMove
 bool roomUp   = na(resistLvl)  or (resistLvl - close) >= minMove
 
 // ══ SIGNAL — strict AND of everything + cooldown ══════════════
+// reclaim path: pending broken wall reclosed within window,
+// bullish/bearish body, RSI was extreme during the flush
+bool reclaimBot = useReclaim and not na(pendSupport) and close > pendSupport and close > open and rsiWasCold
+bool reclaimTop = useReclaim and not na(pendResist)  and close < pendResist  and close < open and rsiWasHot
+
 var int lastSellBar = -100000
 var int lastBuyBar  = -100000
 
-bool sellRaw = topSweep and rsiHot  and rejectTop and roomDown and inSess
-bool buyRaw  = botSweep and rsiCold and rejectBot and roomUp   and inSess
+// veto applies only to the fade path — a failed break already
+// proved the trend move failed, so reclaims are exempt
+bool sellRaw = ((topSweep and rsiHot and rejectTop and not vetoTop) or reclaimTop) and roomDown and inSess
+bool buyRaw  = ((botSweep and rsiCold and rejectBot and not vetoBot) or reclaimBot) and roomUp  and inSess
 
 bool sell = sellRaw and (bar_index - lastSellBar) > cooldown
 bool buy  = buyRaw  and (bar_index - lastBuyBar)  > cooldown
 
 if sell
     lastSellBar := bar_index
+    pendResist  := na
+    pendResBar  := na
 if buy
-    lastBuyBar := bar_index
+    lastBuyBar  := bar_index
+    pendSupport := na
+    pendSupBar  := na
 
 // ══ TARGET LINE (to the opposing wall) ════════════════════════
 var line tgtLine = na
