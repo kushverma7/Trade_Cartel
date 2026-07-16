@@ -1,0 +1,226 @@
+// ============================================================
+// PRE-NEWS POSITION AUDIT — Trendline Breakout FLIP
+// Counts, across all chart history: how many 8:30 ET news event
+// candles occurred, how many times the flip system was already
+// positioned at least 1 bar BEFORE the event candle, and whether
+// that position was on the RIGHT side of the news move.
+// Table (top right) shows the tally. Event candles get a label:
+//   green check = positioned before news, aligned with the move
+//   red cross   = positioned before news, against the move
+// ============================================================
+// Based on: Trendline Breakout FLIP Indicator — Non-Repainting
+// Based on: strategies/trendline_breakout_fixed.pine (bug-fixed
+// OLS trendline breakout, proven core: lookback 22 on XAUUSD 5m)
+//
+// FLIP LOGIC: always-in reversal system.
+//   BUY signal  (breakout above resistance) -> flip short to long
+//   SELL signal (breakdown below support)   -> flip long to short
+//   No fixed TP — the opposite breakout IS the exit.
+//   Optional ATR disaster stop and session filter.
+//
+// Non-repainting: all trendline math on close[1]/high[1]/low[1],
+// signals evaluated on closed bars, fills on signal bar close.
+// ============================================================
+//@version=6
+indicator("Pre-News Position Audit [Trendline FLIP]", overlay=true, max_lines_count=500, max_labels_count=200)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   lookback    = input.int(22,    "Lookback Period",    minval=2, maxval=500, group="Core")
+float evMult      = input.float(2.0, "Event Candle Range (x ATR50)", step=0.25,   group="News Audit")
+bool  cpiOnly     = input.bool(false, "CPI-ish Days Only (9th-16th)",              group="News Audit")
+bool  useSession  = input.bool(false, "London + NY Open Only (gold)",            group="Core")
+
+bool  showLines   = input.bool(true, "Show Trendlines",       group="Display")
+bool  showSignals = input.bool(true, "Show Buy/Sell Signals", group="Display")
+bool  showBg      = input.bool(true, "Highlight Signal Zone", group="Display")
+
+// ── Colours ──────────────────────────────────────────────────
+color COL_SUPPORT  = input.color(color.new(color.lime,   20), "Support Line",    group="Display")
+color COL_RESIST   = input.color(color.new(color.red,    20), "Resistance Line", group="Display")
+color COL_BUY      = input.color(color.new(color.aqua,    0), "Buy Signal",      group="Display")
+color COL_SELL     = input.color(color.new(color.yellow,  0), "Sell Signal",     group="Display")
+
+// ── Session ──────────────────────────────────────────────────
+bool  inSession = not useSession or not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York"))
+
+// ── Helper: linear regression slope & intercept ──────────────
+linreg_coefs(src, len) =>
+    float sumX  = 0.0
+    float sumY  = 0.0
+    float sumXY = 0.0
+    float sumX2 = 0.0
+    for j = 0 to len - 1
+        float x = j
+        float y = src[len - 1 - j]
+        sumX  += x
+        sumY  += y
+        sumXY += x * y
+        sumX2 += x * x
+    float n     = len
+    float denom = n * sumX2 - sumX * sumX
+    float slope     = denom != 0 ? (n * sumXY - sumX * sumY) / denom : 0.0
+    float intercept = denom != 0 ? (sumY - slope * sumX) / n : src[math.floor(len / 2)]
+    [slope, intercept]
+
+// ── Helper: find pivot maximising distance from OLS line ──────
+find_pivot(src, len, slope, intercept, direction) =>
+    int   best_j   = 0
+    float best_val = -1e10
+    for j = 0 to len - 1
+        float x    = j
+        float y    = src[len - 1 - j]
+        float line = slope * x + intercept
+        float diff = (y - line) * direction
+        if diff > best_val
+            best_val := diff
+            best_j   := j
+    best_j
+
+// ── Helper: project trendline to current bar ──────────────────
+project_line(src, len, pivot_j, slope) =>
+    float pivot_y   = src[len - 1 - pivot_j]
+    float intercept = pivot_y - slope * pivot_j
+    slope * len + intercept
+
+// ── Helper: optimise slope (all prices on correct side) ───────
+optimize_slope(src, len, pivot_j, init_slope, is_support) =>
+    float pivot_y = src[len - 1 - pivot_j]
+    float best    = init_slope
+    float step    = math.abs(init_slope) * 0.5 + 1e-6
+    for _i = 0 to 29
+        float s_up   = best + step
+        float s_dn   = best - step
+        bool  ok_up  = true
+        bool  ok_dn  = true
+        float err_up = 0.0
+        float err_dn = 0.0
+        for j = 0 to len - 1
+            float x = j
+            float y = src[len - 1 - j]
+            float int_up = pivot_y - s_up * pivot_j
+            float int_dn = pivot_y - s_dn * pivot_j
+            float d_up   = (s_up * x + int_up) - y
+            float d_dn   = (s_dn * x + int_dn) - y
+            if is_support
+                if d_up > 1e-5
+                    ok_up := false
+                if d_dn > 1e-5
+                    ok_dn := false
+            else
+                if d_up < -1e-5
+                    ok_up := false
+                if d_dn < -1e-5
+                    ok_dn := false
+            err_up += d_up * d_up
+            err_dn += d_dn * d_dn
+        if ok_up and ok_dn
+            best := err_up < err_dn ? s_up : s_dn
+        else if ok_up
+            best := s_up
+        else if ok_dn
+            best := s_dn
+        step *= 0.5
+    best
+
+// ── Main calculation ──────────────────────────────────────────
+// close[1], high[1], low[1] -> window ends at PREVIOUS bar
+var float s_val = na
+var float r_val = na
+var int   sig   = 0
+
+if bar_index >= lookback + 1
+    [ols_slope, ols_intercept] = linreg_coefs(close[1], lookback)
+    int upper_j = find_pivot(high[1], lookback,  ols_slope, ols_intercept,  1)
+    int lower_j = find_pivot(low[1],  lookback,  ols_slope, ols_intercept, -1)
+    float r_slope = optimize_slope(high[1], lookback, upper_j, ols_slope, false)
+    float s_slope = optimize_slope(low[1],  lookback, lower_j, ols_slope, true)
+    r_val := project_line(high[1], lookback, upper_j, r_slope)
+    s_val := project_line(low[1],  lookback, lower_j, s_slope)
+    if close > r_val
+        sig := 1
+    else if close < s_val
+        sig := -1
+
+bool buy_signal  = sig ==  1 and sig[1] != 1
+bool sell_signal = sig == -1 and sig[1] != -1
+
+// ── FLIP STATE (indicator) ────────────────────────────────────
+// Tracks the side you would be holding: BUY flips to long,
+// SELL flips to short. Bar colour shows the current side.
+var int flipSide = 0
+bool buy  = buy_signal  and inSession and flipSide <= 0
+bool sell = sell_signal and inSession and flipSide >= 0
+if buy
+    flipSide := 1
+if sell
+    flipSide := -1
+
+barcolor(flipSide == 1 ? color.new(color.teal, 70) : flipSide == -1 ? color.new(color.maroon, 70) : na, title="Flip Side")
+
+// ── Track when the current position was opened ────────────────
+var int flipBar = na
+if buy or sell
+    flipBar := bar_index
+
+// ── NEWS EVENT AUDIT ──────────────────────────────────────────
+float atr50    = ta.atr(50)
+bool  evWindow = not na(time(timeframe.period, "0830-0935", "America/New_York"))
+bool  firstBar = evWindow and not evWindow[1]
+int   dom      = dayofmonth(time, "America/New_York")
+bool  dayOk    = not cpiOnly or (dom >= 9 and dom <= 16)
+bool  eventBar = firstBar and (high - low) >= atr50 * evMult and dayOk
+int   evDir    = close > open ? 1 : -1
+
+var int nEvents     = 0
+var int nPositioned = 0
+var int nAligned    = 0
+var int nAgainst    = 0
+
+if eventBar
+    nEvents += 1
+    // positioned at least 1 full bar before the news candle
+    bool preNews = flipSide != 0 and not na(flipBar) and bar_index - flipBar >= 1
+    if preNews
+        nPositioned += 1
+        if flipSide == evDir
+            nAligned += 1
+            label.new(bar_index, high, "✓ " + (flipSide == 1 ? "LONG" : "SHORT") + " before news",
+                 style=label.style_label_down, color=color.new(color.green, 20), textcolor=color.white, size=size.small)
+        else
+            nAgainst += 1
+            label.new(bar_index, high, "✗ " + (flipSide == 1 ? "LONG" : "SHORT") + " against news",
+                 style=label.style_label_down, color=color.new(color.red, 20), textcolor=color.white, size=size.small)
+    else
+        label.new(bar_index, high, "· no position", style=label.style_label_down,
+             color=color.new(color.gray, 40), textcolor=color.white, size=size.tiny)
+
+bgcolor(eventBar ? color.new(color.orange, 78) : na, title="News Event Candle")
+
+// ── Audit table ───────────────────────────────────────────────
+var table audit = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 25), border_width=1, border_color=color.new(color.gray, 60))
+if barstate.islast
+    table.cell(audit, 0, 0, "PRE-NEWS AUDIT",        text_color=color.orange, text_size=size.small)
+    table.cell(audit, 1, 0, "",                       text_color=color.white,  text_size=size.small)
+    table.cell(audit, 0, 1, "8:30 event candles",     text_color=color.silver, text_size=size.tiny)
+    table.cell(audit, 1, 1, str.tostring(nEvents),    text_color=color.white,  text_size=size.tiny)
+    table.cell(audit, 0, 2, "Positioned >=1 bar before", text_color=color.silver, text_size=size.tiny)
+    table.cell(audit, 1, 2, str.tostring(nPositioned),text_color=color.white,  text_size=size.tiny)
+    table.cell(audit, 0, 3, "Aligned with move",      text_color=color.silver, text_size=size.tiny)
+    table.cell(audit, 1, 3, str.tostring(nAligned) + (nPositioned > 0 ? "  (" + str.tostring(math.round(100.0 * nAligned / nPositioned)) + "%)" : ""), text_color=color.lime, text_size=size.tiny)
+    table.cell(audit, 0, 4, "Against the move",       text_color=color.silver, text_size=size.tiny)
+    table.cell(audit, 1, 4, str.tostring(nAgainst),   text_color=color.red,    text_size=size.tiny)
+
+// ── Plots ─────────────────────────────────────────────────────
+plot(showLines ? r_val : na, "Resistance", color=COL_RESIST,  linewidth=1)
+plot(showLines ? s_val : na, "Support",    color=COL_SUPPORT, linewidth=1)
+
+bgcolor(showBg and sig ==  1 ? color.new(color.green, 92) : na, title="Long Zone")
+bgcolor(showBg and sig == -1 ? color.new(color.red,   92) : na, title="Short Zone")
+
+plotshape(showSignals and buy,  title="BUY",  style=shape.triangleup,
+          location=location.belowbar, color=COL_BUY,  size=size.small, text="BUY")
+plotshape(showSignals and sell, title="SELL", style=shape.triangledown,
+          location=location.abovebar, color=COL_SELL, size=size.small, text="SELL")
+
+alertcondition(buy_signal,  title="BUY Signal",  message="Trendline Breakout FLIP — BUY")
+alertcondition(sell_signal, title="SELL Signal", message="Trendline Breakout FLIP — SELL")
