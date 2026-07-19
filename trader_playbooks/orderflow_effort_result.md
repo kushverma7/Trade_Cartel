@@ -48,3 +48,18 @@ indicators/effort_result_engine.pine — ABSORB/DRIVE/THIN/DRY-UP labels
 Candidates for MASTER ENGINE v2: ABSORB at extreme as reversal-side
 confluence; THIN as veto on breakout candles (hollow break = fake risk);
 DRY-UP as exit/de-risk trigger.
+
+---
+
+## v2 additions (same source, 2026-07-19)
+- TRUE FVG = the LVN inside a fixed-range profile of the impulse (often
+  ~1 tick wide), NOT the 3-candle price-action gap zone. Price rejects
+  at the volume hole, not the candle geometry. [pbd engine plots it]
+- CVD absorption divergence: CVD fresh low while price low HOLDS =
+  passive buyers eating aggression -> failed auction confirmed, day
+  direction set. Mirror for highs. Distinct from pivot divergence
+  (that one = price extreme unsupported; this one = level defended).
+  [effort_result engine detects both now]
+- Breakout-anticipation tell: repeated punches absorbed at both edges
+  with an aggression record candle = compression before expansion; the
+  side with absorbed AGGRESSORS loses, the absorbing side wins the break.

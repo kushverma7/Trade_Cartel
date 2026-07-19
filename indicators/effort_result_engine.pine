@@ -60,6 +60,20 @@ bool driveDn = volume >= avgVol * volMid and rng > 0 and body >= rng * bodyFr an
 bool thinUp = rng >= atrv * bigRng and volume <= avgVol * volLo and bullC
 bool thinDn = rng >= atrv * bigRng and volume <= avgVol * volLo and bearC
 
+// ── CVD ABSORPTION DIVERGENCE (price holds, delta drains) ────
+// CVD (candle-direction proxy) makes a fresh low while price low
+// HOLDS above its own low = passive buyers absorbing aggression.
+// Mirror for highs. Valentini: confirms the failed auction.
+var float cvd = 0.0
+cvd += bullC ? volume : bearC ? -volume : 0.0
+int cvdLen = 20
+bool cvdNewLo = cvd <= ta.lowest(cvd, cvdLen)
+bool cvdNewHi = cvd >= ta.highest(cvd, cvdLen)
+bool priceHeldLo = low  > ta.lowest(low, cvdLen)[1] + atrv * 0.1
+bool priceHeldHi = high < ta.highest(high, cvdLen)[1] - atrv * 0.1
+bool cvdAbsorbBull = cvdNewLo and priceHeldLo and nearLow == false
+bool cvdAbsorbBear = cvdNewHi and priceHeldHi and nearHigh == false
+
 // ── DRY-UP / EXHAUSTION (pushes on fading volume) ────────────
 bool pushesUp = close > close[1] and close[1] > close[2]
 bool pushesDn = close < close[1] and close[1] < close[2]
@@ -89,6 +103,12 @@ if showThin and thinDn
 if showDry and dryUp
     label.new(bar_index, high, "DRY-UP", style=label.style_label_down, color=color.new(color.orange, 30), textcolor=color.black, size=size.tiny,
          tooltip="Price pushing on fading volume: exhaustion. Reversal risk.")
+if showAbs and cvdAbsorbBull and not cvdAbsorbBull[1]
+    label.new(bar_index, low, "CVD ABSORB ▲", style=label.style_label_up, color=color.new(#2E7D32, 25), textcolor=color.white, size=size.tiny,
+         tooltip="Delta draining lower while price holds: passive buyers absorbing. Failed-auction confirmation.")
+if showAbs and cvdAbsorbBear and not cvdAbsorbBear[1]
+    label.new(bar_index, high, "CVD ABSORB ▼", style=label.style_label_down, color=color.new(#B71C1C, 25), textcolor=color.white, size=size.tiny,
+         tooltip="Delta climbing while price capped: passive sellers absorbing. Failed-auction confirmation.")
 if showDry and dryDn
     label.new(bar_index, low, "DRY-UP", style=label.style_label_up, color=color.new(color.orange, 30), textcolor=color.black, size=size.tiny,
          tooltip="Price pushing on fading volume: exhaustion. Reversal risk.")
@@ -99,3 +119,5 @@ alertcondition(absorbBear, "Bearish Absorption", "Effort/Result: ABSORB ▼ (abs
 alertcondition(driveUp,    "Initiative Drive Up",   "Effort/Result: DRIVE ▲ — {{ticker}} {{interval}}")
 alertcondition(driveDn,    "Initiative Drive Down", "Effort/Result: DRIVE ▼ — {{ticker}} {{interval}}")
 alertcondition(dryUp or dryDn, "Exhaustion Dry-Up", "Effort/Result: DRY-UP exhaustion — {{ticker}} {{interval}}")
+alertcondition(cvdAbsorbBull, "CVD Absorption Bull", "Effort/Result: CVD ABSORB ▲ — {{ticker}} {{interval}}")
+alertcondition(cvdAbsorbBear, "CVD Absorption Bear", "Effort/Result: CVD ABSORB ▼ — {{ticker}} {{interval}}")

@@ -74,6 +74,16 @@ float poc = winLo + (pocBin + 0.5) * step_
 float vah = winLo + (upB + 1) * step_
 float val = winLo + dnB * step_
 
+// LVN: minimum-volume bin INSIDE the value area = the "true FVG"
+// (precision inefficiency level; price tends to reject/rebalance here)
+int lvnBin = pocBin
+int lvnCnt = pocCnt
+for i = dnB to upB
+    if array.get(binCnt, i) < lvnCnt and i != pocBin
+        lvnCnt := array.get(binCnt, i)
+        lvnBin := i
+float lvn = winLo + (lvnBin + 0.5) * step_
+
 // ── P / b structure detection ────────────────────────────────
 // Balance = last balLen bars in a tight band. Impulse = the move
 // into that balance. P: up-impulse + balance holding upper half.
@@ -118,6 +128,7 @@ float bFailTarget = bFail ? impStartDn[1] : na
 
 // ── Chart printing ───────────────────────────────────────────
 plot(showVA ? poc : na, "POC", color.new(color.orange, 30), 2, plot.style_linebr)
+plot(showVA ? lvn : na, "LVN (true FVG)", color.new(#AA00FF, 40), 1, plot.style_circles)
 plot(showVA ? vah : na, "VAH", color.new(color.gray, 50), 1, plot.style_linebr)
 plot(showVA ? val : na, "VAL", color.new(color.gray, 50), 1, plot.style_linebr)
 bgcolor(dRegime ? color.new(color.blue, 96) : na, title="Balance (D) Regime")
