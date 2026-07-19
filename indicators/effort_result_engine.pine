@@ -1,0 +1,101 @@
+// ============================================================
+// EFFORT vs RESULT ENGINE [Real-Time]
+// Source: trader_playbooks/orderflow_effort_result.md
+// (Valentini orderflow foundations — same source family)
+//
+// Classifies every closed candle by the orderflow 2x2:
+//   ABSORB ▲/▼ — high effort, NO result at an extreme: big volume,
+//                dominant wick, close against the effort side.
+//                (footprint absorption proxy = stopping volume)
+//   DRIVE ▲/▼  — high effort, high result: above-avg volume,
+//                full-body close = initiative auction, continuation
+//   THIN ▲/▼   — low effort, high result: big range on weak volume
+//                = book sweep, hollow move, do not trust
+//   DRY-UP     — price pushing on declining volume = exhaustion
+//
+// Honest proxy note: true absorption needs bid/ask footprint data
+// Pine doesn't have. Volume + wick geometry approximates it.
+// All evaluation on bar close. Non-repainting.
+// ============================================================
+//@version=6
+indicator("Effort vs Result Engine [Real-Time]", overlay=true, max_labels_count=500)
+
+// ── Inputs ───────────────────────────────────────────────────
+float volHi   = input.float(2.0, "High Effort Volume (x avg)", step=0.25, group="Thresholds")
+float volMid  = input.float(1.5, "Drive Volume (x avg)",       step=0.25, group="Thresholds")
+float volLo   = input.float(0.8, "Thin Volume (x avg, below)", step=0.1,  group="Thresholds")
+float wickFr  = input.float(0.5, "Absorption Wick (fraction of range)", step=0.05, group="Thresholds")
+float bodyFr  = input.float(0.7, "Drive Body (fraction of range)",      step=0.05, group="Thresholds")
+float bigRng  = input.float(1.5, "Thin-Sweep Range (x ATR)",   step=0.25, group="Thresholds")
+int   extLen  = input.int(20, "Extreme Lookback (bars)", group="Thresholds")
+bool  showDrive = input.bool(true,  "Show DRIVE labels",  group="Display")
+bool  showAbs   = input.bool(true,  "Show ABSORB labels", group="Display")
+bool  showThin  = input.bool(true,  "Show THIN warnings", group="Display")
+bool  showDry   = input.bool(true,  "Show DRY-UP warnings", group="Display")
+
+// ── Building blocks ──────────────────────────────────────────
+float atrv   = ta.atr(14)
+float avgVol = ta.sma(volume, 20)
+float body   = math.abs(close - open)
+float rng    = high - low
+float upWick = high - math.max(close, open)
+float dnWick = math.min(close, open) - low
+bool  bullC  = close > open
+bool  bearC  = close < open
+
+bool nearLow  = low  <= ta.lowest(low, extLen)[1]  + atrv * 0.5
+bool nearHigh = high >= ta.highest(high, extLen)[1] - atrv * 0.5
+
+// ── ABSORPTION (stopping volume at an extreme) ───────────────
+// Sellers hammered the lows on big volume but price closed back
+// up = their effort was absorbed. Mirror for buyers at highs.
+bool absorbBull = volume >= avgVol * volHi and rng > 0 and dnWick >= rng * wickFr and close >= open and nearLow
+bool absorbBear = volume >= avgVol * volHi and rng > 0 and upWick >= rng * wickFr and close <= open and nearHigh
+
+// ── INITIATIVE DRIVE (effort rewarded) ───────────────────────
+bool driveUp = volume >= avgVol * volMid and rng > 0 and body >= rng * bodyFr and bullC and rng >= atrv
+bool driveDn = volume >= avgVol * volMid and rng > 0 and body >= rng * bodyFr and bearC and rng >= atrv
+
+// ── THIN SWEEP (result without effort — hollow move) ─────────
+bool thinUp = rng >= atrv * bigRng and volume <= avgVol * volLo and bullC
+bool thinDn = rng >= atrv * bigRng and volume <= avgVol * volLo and bearC
+
+// ── DRY-UP / EXHAUSTION (pushes on fading volume) ────────────
+bool pushesUp = close > close[1] and close[1] > close[2]
+bool pushesDn = close < close[1] and close[1] < close[2]
+bool volFade  = volume < volume[1] and volume[1] < volume[2] and volume < avgVol
+bool dryUp    = pushesUp and volFade
+bool dryDn    = pushesDn and volFade
+
+// ── Labels (bar close) ───────────────────────────────────────
+if showAbs and absorbBull
+    label.new(bar_index, low, "ABSORB ▲", style=label.style_label_up, color=color.new(#00C853, 5), textcolor=color.white, size=size.small,
+         tooltip="High sell effort, no result: stopping volume at the lows. Reversal fuel.")
+if showAbs and absorbBear
+    label.new(bar_index, high, "ABSORB ▼", style=label.style_label_down, color=color.new(#D50000, 5), textcolor=color.white, size=size.small,
+         tooltip="High buy effort, no result: absorbed at the highs. Reversal fuel.")
+if showDrive and driveUp
+    label.new(bar_index, low, "DRIVE ▲", style=label.style_label_up, color=color.new(#00C853, 55), textcolor=color.white, size=size.tiny,
+         tooltip="Initiative auction: effort rewarded. Continuation quality.")
+if showDrive and driveDn
+    label.new(bar_index, high, "DRIVE ▼", style=label.style_label_down, color=color.new(#D50000, 55), textcolor=color.white, size=size.tiny,
+         tooltip="Initiative auction: effort rewarded. Continuation quality.")
+if showThin and thinUp
+    label.new(bar_index, high, "THIN ▲", style=label.style_label_down, color=color.new(color.yellow, 30), textcolor=color.black, size=size.tiny,
+         tooltip="Big move, weak volume: book sweep through a thin book. Hollow — do not chase.")
+if showThin and thinDn
+    label.new(bar_index, low, "THIN ▼", style=label.style_label_up, color=color.new(color.yellow, 30), textcolor=color.black, size=size.tiny,
+         tooltip="Big move, weak volume: hollow — do not chase.")
+if showDry and dryUp
+    label.new(bar_index, high, "DRY-UP", style=label.style_label_down, color=color.new(color.orange, 30), textcolor=color.black, size=size.tiny,
+         tooltip="Price pushing on fading volume: exhaustion. Reversal risk.")
+if showDry and dryDn
+    label.new(bar_index, low, "DRY-UP", style=label.style_label_up, color=color.new(color.orange, 30), textcolor=color.black, size=size.tiny,
+         tooltip="Price pushing on fading volume: exhaustion. Reversal risk.")
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(absorbBull, "Bullish Absorption", "Effort/Result: ABSORB ▲ (stopping volume at lows) — {{ticker}} {{interval}}")
+alertcondition(absorbBear, "Bearish Absorption", "Effort/Result: ABSORB ▼ (absorbed at highs) — {{ticker}} {{interval}}")
+alertcondition(driveUp,    "Initiative Drive Up",   "Effort/Result: DRIVE ▲ — {{ticker}} {{interval}}")
+alertcondition(driveDn,    "Initiative Drive Down", "Effort/Result: DRIVE ▼ — {{ticker}} {{interval}}")
+alertcondition(dryUp or dryDn, "Exhaustion Dry-Up", "Effort/Result: DRY-UP exhaustion — {{ticker}} {{interval}}")

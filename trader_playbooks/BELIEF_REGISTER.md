@@ -64,6 +64,12 @@ breakout A/B — enter on break close vs break->test->full-body re-close.
 entries go green immediately (Valentini live).** Codeable (engine v2 rejection
 gate). Test: WR of JOIN signals at fresh vs over-rejected levels.
 
+**H9. Effort/result classification (absorption, initiative, thin sweep, dry-up)
+adds signal quality info (Valentini orderflow course — same source family).**
+Volume+wick proxy built (effort_result_engine). Test: do THIN breakout candles
+underperform DRIVE breakout candles on the trendline core? If yes, THIN becomes
+a master-engine veto and DRIVE a scoring layer.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 1 contradiction
   (Valentini tested & rejected sweep models as lower-WR than momentum-join).
