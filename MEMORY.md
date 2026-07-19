@@ -138,3 +138,19 @@ How it works:
 5. Future user-supplied material gets the same treatment: extract ->
    playbook -> confluence integration -> report accuracy impact from
    backtest, not code dumps (unless user asks for the code).
+
+---
+
+## COGNITIVE ARCHITECTURE ADOPTED (2026-07-19)
+
+User supplied trader_playbooks/COGNITIVE_ARCHITECTURE.md (v3.1) — now the
+operating system for all trading work. Key active protocols:
+- Three minds on every analysis; Profit Engine has veto
+- Conviction scoring 0-12 -> sizing (0-4 none / 5-7 B / 8-10 A / 11-12 A+)
+- Expectancy over win rate; unverified edge = exploratory size only
+- Pre-mortem on high-conviction trades (>40% combined fail prob -> shrink)
+- Scale-out 1/3@1R, 1/3@2R, 1/3 runner; never all-in/all-out
+- Flip protocol: thesis invalidated in-trade -> reverse, no ego
+- BELIEF_REGISTER.md and PLAYBOOK.md are live docs; update on evidence
+- Absolute rules: no fabricated data, no trade without stop, no averaging
+  down, always state the counter-case, calibrated confidence only

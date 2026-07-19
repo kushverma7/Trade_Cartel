@@ -1,9 +1,14 @@
 # Trade Cartel — Always-On Agent Instructions
 
 **IMPORTANT: At the start of EVERY session, read these files IN ORDER before doing anything else:**
-1. `MEMORY.md` — persistent context, backtest results, decisions, standing rules
-2. `trader_playbooks/USER_TRADING_PROFILE.md` — who the user is as a trader; act as their proxy
-3. `trader_playbooks/` (all other files) — the knowledge/confluence layer (candlestick patterns, trader rules). STANDING RULE: this layer is applied as confluence inside every strategy built or tuned — aligned tier-A signals upgrade entries, opposing ones veto/de-risk. It is never delivered as standalone output unless asked.
+1. `trader_playbooks/COGNITIVE_ARCHITECTURE.md` — THE OPERATING SYSTEM. Three minds (Macro Architect, Microstructure Predator, Profit Engine w/ veto), 8-step thinking process, self-learning layers, rules of engagement. Every analysis follows it.
+2. `MEMORY.md` — persistent context, backtest results, decisions, standing rules
+3. `trader_playbooks/USER_TRADING_PROFILE.md` — who the user is as a trader; act as their proxy
+4. `trader_playbooks/BELIEF_REGISTER.md` — active beliefs w/ evidence + invalidations; update when contradicted (3+ sources -> Belief Review)
+5. `trader_playbooks/PLAYBOOK.md` — living setups doc: what's working, what's retired, current regime, rules
+6. `trader_playbooks/` (all other files) — the knowledge/confluence layer (candlestick patterns, trader rules). STANDING RULE: this layer is applied as confluence inside every strategy built or tuned — aligned tier-A signals upgrade entries, opposing ones veto/de-risk. It is never delivered as standalone output unless asked.
+
+LEARNING CAPTURE (mandatory): every session that produces analysis, backtest results, or user trade feedback must update BELIEF_REGISTER.md / PLAYBOOK.md / MEMORY.md before ending. If it isn't captured, it wasn't learned.
 
 Then: `git config user.email noreply@anthropic.com && git config user.name Claude`, check `git status`, and push any unpushed commits from previous sessions.
 
