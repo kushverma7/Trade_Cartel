@@ -55,6 +55,8 @@ float stopMult  = input.float(2.0, "Stop (x ATR)",   step=0.25, group="⑤ Strat
 float tpMult    = input.float(4.0, "Target (x ATR)", step=0.25, group="⑤ Strategy")
 int   qtyA      = input.int(2, "Contracts on A+ Signal", minval=1, group="⑤ Strategy")
 int   qtyB      = input.int(1, "Contracts on B Signal",  minval=1, group="⑤ Strategy")
+bool  sessGate  = input.bool(true, "HARD Session Gate (trade only B1 windows) [v1.1]", group="⑤ Strategy")
+bool  aOnly     = input.bool(false, "A+ Signals Only [v1.1]", group="⑤ Strategy")
 
 // ═════════════════════════════════════════════════════════════
 // LAYER 0: shared building blocks
@@ -329,11 +331,14 @@ bool buyB  = cd and coreBuy  and not buyVeto  and buyScore >= minScore and buySc
 bool sellA = cd and coreSell and not sellVeto and sellScore >= 8
 bool sellB = cd and coreSell and not sellVeto and sellScore >= minScore and sellScore < 8
 
-// Core-only override for the A/B test
-bool cBuyA  = coreOnly ? (cd and coreBuy)  : buyA
-bool cBuyB  = coreOnly ? false             : buyB
-bool cSellA = coreOnly ? (cd and coreSell) : sellA
-bool cSellB = coreOnly ? false             : sellB
+// Core-only override for the A/B test + v1.1 hard gates
+// Backtest #1 (2026-07-19) verdict: session-as-score = PF 1.001.
+// B1 says session must GATE, not vote.
+bool gateOK = not sessGate or inSession
+bool cBuyA  = (coreOnly ? (cd and coreBuy)  : buyA) and gateOK
+bool cBuyB  = (coreOnly ? false : (buyB and not aOnly)) and gateOK
+bool cSellA = (coreOnly ? (cd and coreSell) : sellA) and gateOK
+bool cSellB = (coreOnly ? false : (sellB and not aOnly)) and gateOK
 
 if cBuyA or cBuyB or cSellA or cSellB
     lastSig := bar_index

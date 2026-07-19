@@ -122,6 +122,14 @@ source as H18).** Implemented (timebase_range.pine). Note: internally contradict
 his own price-over-time stance; externally aligns with QT true-open anchors.
 Test: tap/sweep signal outcomes on gold vs random hourly candles as control.
 
+## EVIDENCE LOG (our own backtests — outranks all testimony)
+- 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
+  May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
+  DIAGNOSIS: session built as +2 score, not gate -> traded 24h; off-
+  session B-grades diluted the edge. CONFIRMS B1 a third time from
+  our own data: session must GATE. Strategy v1.1 adds hard gate +
+  A+-only mode. Pending: gated re-run, Core Only control run.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 3 SUPPORT (PBD break-in,
   QT Judas swing, Dave sweep-prerequisite) vs 1 AGAINST (Valentini). THRESHOLD
