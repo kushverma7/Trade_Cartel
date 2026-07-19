@@ -1,0 +1,180 @@
+// ============================================================
+// CANDLESTICK ENGINE — Real-Time Pattern & Scenario Detector
+// Companion: trader_playbooks/candlestick_patterns.md
+//
+// Design contract:
+//   - Every pattern evaluates on BAR CLOSE (non-repainting).
+//     A label prints and the alert fires the moment the candle
+//     completes the scenario.
+//   - Nison context rules are FILTERS, not decoration: a reversal
+//     pattern only prints in a real trend, at a real swing.
+//   - Each pattern has its own toggle + alertcondition. New
+//     scenarios from user-supplied material get added as modules.
+// ============================================================
+//@version=6
+indicator("Candlestick Engine [Real-Time]", overlay=true, max_labels_count=500)
+
+// ── Context settings ─────────────────────────────────────────
+int   trendLen  = input.int(20,  "Trend EMA Length",            group="① Context (Nison rules)")
+int   swingLen  = input.int(20,  "Swing Lookback",              group="① Context (Nison rules)")
+float locAtr    = input.float(1.0, "Max Distance from Swing (x ATR)", step=0.25, group="① Context (Nison rules)")
+bool  useTrend  = input.bool(true,  "Require Prior Trend",      group="① Context (Nison rules)")
+bool  useLoc    = input.bool(true,  "Require Swing Location",   group="① Context (Nison rules)")
+bool  useConf   = input.bool(false, "Require Next-Candle Confirmation", group="① Context (Nison rules)",
+     tooltip="Signal prints one candle later, only if that candle closes beyond the pattern extreme. Fewer, better signals.")
+
+// ── Pattern geometry ─────────────────────────────────────────
+float shadowMult = input.float(2.0, "Hammer/Star Shadow (x body)", step=0.25, group="② Geometry")
+float bigBody    = input.float(1.0, "Engulfing/Star Big Body (x avg)", step=0.25, group="② Geometry")
+float dojiPct    = input.float(0.10, "Doji Body (fraction of range)", step=0.01, group="② Geometry")
+
+// ── Pattern toggles (tier from playbook) ─────────────────────
+bool en_engulf  = input.bool(true,  "Engulfing [A]",            group="③ Patterns")
+bool en_star3   = input.bool(true,  "Morning/Evening Star [A]", group="③ Patterns")
+bool en_sold3   = input.bool(true,  "3 Soldiers/Crows [A]",     group="③ Patterns")
+bool en_hammer  = input.bool(true,  "Hammer/Shooting Star [B]", group="③ Patterns")
+bool en_pierce  = input.bool(true,  "Piercing/Dark Cloud [B]",  group="③ Patterns")
+bool en_harami  = input.bool(false, "Harami [C]",               group="③ Patterns")
+bool en_tweez   = input.bool(false, "Tweezers [C]",             group="③ Patterns")
+bool en_doji    = input.bool(false, "Doji at Extreme [C]",      group="③ Patterns")
+
+// ── Building blocks ──────────────────────────────────────────
+float body    = math.abs(close - open)
+float rng     = high - low
+float upShad  = high - math.max(close, open)
+float dnShad  = math.min(close, open) - low
+float avgBody = ta.sma(body, 14)
+float atrv    = ta.atr(14)
+bool  bull    = close > open
+bool  bear    = close < open
+
+// Context: trend
+float emaT     = ta.ema(close, trendLen)
+bool  downtrend = not useTrend or (close[1] < emaT[1] and emaT < emaT[3])
+bool  uptrend   = not useTrend or (close[1] > emaT[1] and emaT > emaT[3])
+
+// Context: location near swing extreme
+float swingHi = ta.highest(high, swingLen)
+float swingLo = ta.lowest(low, swingLen)
+bool  atLow   = not useLoc or (low  <= swingLo + atrv * locAtr)
+bool  atHigh  = not useLoc or (high >= swingHi - atrv * locAtr)
+
+// ── Pattern geometry detection (raw, on closed bar) ──────────
+// Hammer / Shooting Star
+bool rawHammer = dnShad >= body * shadowMult and upShad <= rng * 0.25 and body > 0
+bool rawStar   = upShad >= body * shadowMult and dnShad <= rng * 0.25 and body > 0
+
+// Engulfing (body engulfs prior body, big body)
+bool rawBullEng = bull and bear[1] and body >= avgBody * bigBody and close >= math.max(close[1], open[1]) and open <= math.min(close[1], open[1])
+bool rawBearEng = bear and bull[1] and body >= avgBody * bigBody and open >= math.max(close[1], open[1]) and close <= math.min(close[1], open[1])
+
+// Piercing / Dark Cloud
+float mid1 = (open[1] + close[1]) / 2
+bool rawPierce = bull and bear[1] and open < low[1] and close > mid1 and close < open[1]
+bool rawCloud  = bear and bull[1] and open > high[1] and close < mid1 and close > open[1]
+
+// Morning / Evening Star (3-candle)
+bool rawMorn = bear[2] and body[2] >= avgBody[2] * bigBody and body[1] <= avgBody[1] * 0.5 and bull and close > (open[2] + close[2]) / 2
+bool rawEven = bull[2] and body[2] >= avgBody[2] * bigBody and body[1] <= avgBody[1] * 0.5 and bear and close < (open[2] + close[2]) / 2
+
+// Three White Soldiers / Black Crows
+bool rawSold = bull and bull[1] and bull[2] and close > close[1] and close[1] > close[2] and upShad <= body * 0.3 and upShad[1] <= body[1] * 0.3 and open > open[1] and open < close[1] and open[1] > open[2] and open[1] < close[2]
+bool rawCrow = bear and bear[1] and bear[2] and close < close[1] and close[1] < close[2] and dnShad <= body * 0.3 and dnShad[1] <= body[1] * 0.3 and open < open[1] and open > close[1] and open[1] < open[2] and open[1] > close[2]
+
+// Harami
+bool rawBullHar = bull and bear[1] and body[1] >= avgBody * bigBody and math.max(close, open) <= math.max(close[1], open[1]) and math.min(close, open) >= math.min(close[1], open[1])
+bool rawBearHar = bear and bull[1] and body[1] >= avgBody * bigBody and math.max(close, open) <= math.max(close[1], open[1]) and math.min(close, open) >= math.min(close[1], open[1])
+
+// Tweezers
+bool rawTwzBot = math.abs(low - low[1]) <= atrv * 0.1 and bear[1] and bull
+bool rawTwzTop = math.abs(high - high[1]) <= atrv * 0.1 and bull[1] and bear
+
+// Doji
+bool rawDoji = body <= rng * dojiPct and rng > 0
+
+// ── Apply context filters ────────────────────────────────────
+bool sHammer  = en_hammer and rawHammer  and downtrend and atLow
+bool sStar    = en_hammer and rawStar    and uptrend   and atHigh
+bool sBullEng = en_engulf and rawBullEng and downtrend and atLow
+bool sBearEng = en_engulf and rawBearEng and uptrend   and atHigh
+bool sPierce  = en_pierce and rawPierce  and downtrend and atLow
+bool sCloud   = en_pierce and rawCloud   and uptrend   and atHigh
+bool sMorn    = en_star3  and rawMorn    and downtrend[2] and atLow
+bool sEven    = en_star3  and rawEven    and uptrend[2]   and atHigh
+bool sSold    = en_sold3  and rawSold    and downtrend[2]
+bool sCrow    = en_sold3  and rawCrow    and uptrend[2]
+bool sBullHar = en_harami and rawBullHar and downtrend and atLow
+bool sBearHar = en_harami and rawBearHar and uptrend   and atHigh
+bool sTwzBot  = en_tweez  and rawTwzBot  and downtrend and atLow
+bool sTwzTop  = en_tweez  and rawTwzTop  and uptrend   and atHigh
+bool sDojiLo  = en_doji   and rawDoji    and downtrend and atLow
+bool sDojiHi  = en_doji   and rawDoji    and uptrend   and atHigh
+
+// ── Optional next-candle confirmation ────────────────────────
+// Pattern held from previous bar; this bar closes beyond its extreme.
+confirmBull(patPrev, extremePrev) => useConf ? (patPrev and close > extremePrev) : patPrev
+confirmBear(patPrev, extremePrev) => useConf ? (patPrev and close < extremePrev) : patPrev
+
+bool fHammer  = useConf ? confirmBull(sHammer[1],  high[1]) : sHammer
+bool fStar    = useConf ? confirmBear(sStar[1],    low[1])  : sStar
+bool fBullEng = useConf ? confirmBull(sBullEng[1], high[1]) : sBullEng
+bool fBearEng = useConf ? confirmBear(sBearEng[1], low[1])  : sBearEng
+bool fPierce  = useConf ? confirmBull(sPierce[1],  high[1]) : sPierce
+bool fCloud   = useConf ? confirmBear(sCloud[1],   low[1])  : sCloud
+bool fMorn    = useConf ? confirmBull(sMorn[1],    high[1]) : sMorn
+bool fEven    = useConf ? confirmBear(sEven[1],    low[1])  : sEven
+bool fSold    = sSold
+bool fCrow    = sCrow
+bool fBullHar = useConf ? confirmBull(sBullHar[1], high[1]) : sBullHar
+bool fBearHar = useConf ? confirmBear(sBearHar[1], low[1])  : sBearHar
+bool fTwzBot  = useConf ? confirmBull(sTwzBot[1],  high[1]) : sTwzBot
+bool fTwzTop  = useConf ? confirmBear(sTwzTop[1],  low[1])  : sTwzTop
+bool fDojiLo  = sDojiLo
+bool fDojiHi  = sDojiHi
+
+// ── Real-time chart printing ─────────────────────────────────
+mkBull(cond, txt) =>
+    if cond
+        label.new(bar_index, low, txt, style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small)
+mkBear(cond, txt) =>
+    if cond
+        label.new(bar_index, high, txt, style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small)
+mkWarn(cond, txt) =>
+    if cond
+        label.new(bar_index, high, txt, style=label.style_label_down, color=color.new(#FFD600, 20), textcolor=color.black, size=size.tiny)
+
+mkBull(fHammer,  "Hammer")
+mkBull(fBullEng, "Bull Engulf")
+mkBull(fPierce,  "Piercing")
+mkBull(fMorn,    "Morning★")
+mkBull(fSold,    "3 Soldiers")
+mkBull(fBullHar, "Bull Harami")
+mkBull(fTwzBot,  "Tweezer Bot")
+mkWarn(fDojiLo,  "Doji@Low")
+
+mkBear(fStar,    "Shooting★")
+mkBear(fBearEng, "Bear Engulf")
+mkBear(fCloud,   "Dark Cloud")
+mkBear(fEven,    "Evening★")
+mkBear(fCrow,    "3 Crows")
+mkBear(fBearHar, "Bear Harami")
+mkBear(fTwzTop,  "Tweezer Top")
+mkWarn(fDojiHi,  "Doji@High")
+
+// ── Master signals ───────────────────────────────────────────
+bool anyBull = fHammer or fBullEng or fPierce or fMorn or fSold or fBullHar or fTwzBot
+bool anyBear = fStar or fBearEng or fCloud or fEven or fCrow or fBearHar or fTwzTop
+
+bgcolor(anyBull ? color.new(color.green, 88) : anyBear ? color.new(color.red, 88) : na)
+
+// ── Real-time alerts (fire on bar close) ─────────────────────
+alertcondition(anyBull,  "ANY Bullish Pattern",  "Candlestick Engine: bullish pattern on {{ticker}} {{interval}}")
+alertcondition(anyBear,  "ANY Bearish Pattern",  "Candlestick Engine: bearish pattern on {{ticker}} {{interval}}")
+alertcondition(fBullEng, "Bullish Engulfing",    "Bull Engulfing — {{ticker}} {{interval}}")
+alertcondition(fBearEng, "Bearish Engulfing",    "Bear Engulfing — {{ticker}} {{interval}}")
+alertcondition(fMorn,    "Morning Star",         "Morning Star — {{ticker}} {{interval}}")
+alertcondition(fEven,    "Evening Star",         "Evening Star — {{ticker}} {{interval}}")
+alertcondition(fHammer,  "Hammer",               "Hammer — {{ticker}} {{interval}}")
+alertcondition(fStar,    "Shooting Star",        "Shooting Star — {{ticker}} {{interval}}")
+alertcondition(fSold,    "Three White Soldiers", "3 White Soldiers — {{ticker}} {{interval}}")
+alertcondition(fCrow,    "Three Black Crows",    "3 Black Crows — {{ticker}} {{interval}}")
