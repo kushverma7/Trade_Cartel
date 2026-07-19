@@ -21,6 +21,8 @@ int   pw        = input.int(5, "Pivot Width (bars)", minval=2, group="Swings")
 int   minSwings = input.int(4, "Mature Swing Count (reversal permitted)", minval=2, maxval=8, group="Swings")
 float wickMult  = input.float(2.0, "Prominent Wick (x ATR)", step=0.25, group="Wick Targets")
 bool  showWick  = input.bool(true, "Show Prominent Wick Targets", group="Wick Targets")
+bool  showZone  = input.bool(true, "Show Previous-Range Zone (30/50/70)", group="Zone")
+int   contMax   = input.int(3, "Continuation Caution After N Swings", minval=2, maxval=6, group="Zone")
 
 // ── Pivot tracking ───────────────────────────────────────────
 float ph = ta.pivothigh(high, pw, pw)
@@ -69,6 +71,49 @@ bool matureUp = dir == 1  and swingCt >= minSwings
 bool matureDn = dir == -1 and swingCt >= minSwings
 bgcolor(matureUp ? color.new(color.orange, 90) : matureDn ? color.new(color.orange, 92) : na, title="MATURE (reversal permitted)")
 
+// ── Previous-range ZONE with 30/50/70 (his entry map) ────────
+// On a BODY close beyond the last pivot extreme, the broken range
+// (prior swing low..high) becomes the zone; retrace ~50% expected.
+var box   zBox = na
+var line  z30 = na
+var line  z50 = na
+var line  z70 = na
+var int   zDir = 0
+
+newZone(hi, lo, dirIn) =>
+    if not na(zBox)
+        box.delete(zBox)
+        line.delete(z30)
+        line.delete(z50)
+        line.delete(z70)
+    b = box.new(bar_index, hi, bar_index + 100, lo, border_color=color.new(color.orange, 60), bgcolor=color.new(color.orange, 92))
+    // For an UP break, retrace measured from zone top down: 30/50/70
+    float l30 = dirIn == 1 ? hi - (hi - lo) * 0.3 : lo + (hi - lo) * 0.3
+    float l50 = (hi + lo) / 2
+    float l70 = dirIn == 1 ? hi - (hi - lo) * 0.7 : lo + (hi - lo) * 0.7
+    a = line.new(bar_index, l30, bar_index + 100, l30, color=color.new(color.gray, 50), style=line.style_dotted)
+    c = line.new(bar_index, l50, bar_index + 100, l50, color=color.new(color.orange, 30), style=line.style_dashed)
+    d = line.new(bar_index, l70, bar_index + 100, l70, color=color.new(color.gray, 50), style=line.style_dotted)
+    [b, a, c, d]
+
+// Body-close break of the tracked pivots defines the zone
+bool bodyBreakUp = not na(lastPH) and not na(lastPL) and math.min(close, open) > lastPH and zDir != 1
+bool bodyBreakDn = not na(lastPH) and not na(lastPL) and math.max(close, open) < lastPL and zDir != -1
+if showZone and bodyBreakUp
+    [b_, a_, c_, d_] = newZone(lastPH, lastPL, 1)
+    zBox := b_
+    z30 := a_
+    z50 := c_
+    z70 := d_
+    zDir := 1
+if showZone and bodyBreakDn
+    [b_, a_, c_, d_] = newZone(lastPH, lastPL, -1)
+    zBox := b_
+    z30 := a_
+    z50 := c_
+    z70 := d_
+    zDir := -1
+
 // ── Prominent wick targets ───────────────────────────────────
 float upWick = high - math.max(close, open)
 float dnWick = math.min(close, open) - low
@@ -88,3 +133,5 @@ if barstate.islast
 // ── Alerts ───────────────────────────────────────────────────
 alertcondition(matureUp and not matureUp[1], "Up-run Mature",   "Dave: up-run reached mature swing count — reversal watch — {{ticker}} {{interval}}")
 alertcondition(matureDn and not matureDn[1], "Down-run Mature", "Dave: down-run reached mature swing count — reversal watch — {{ticker}} {{interval}}")
+alertcondition(swingCt == contMax and swingCt[1] != contMax, "Continuation Caution", "Dave: swing count hit continuation caution level — no fresh continuations — {{ticker}} {{interval}}")
+alertcondition(showZone and (bodyBreakUp or bodyBreakDn), "New Zone (structure flip)", "Dave: body-close structure break — new previous-range zone drawn — {{ticker}} {{interval}}")

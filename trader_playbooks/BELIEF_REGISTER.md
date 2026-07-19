@@ -113,6 +113,8 @@ than the close-cluster VA (PBD) regime? A/B as master-engine regime layer.
 don't fade (Dave — voice #7, explicitly falsifiable).** Implemented as counter
 (dave_swing_count.pine). Test: WR of reversal signals (SUPER, JUDAS, reclaims)
 at mature (4+) vs immature (<4) swing counts on gold. Could become a veto.
+Refinements (same source): no fresh continuations after 3 swings; runaway count
+(5-6+) = HTF in control, demand consolidation at the extreme before countering.
 
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 3 SUPPORT (PBD break-in,

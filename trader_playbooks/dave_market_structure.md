@@ -49,3 +49,24 @@
 - Confirmation-before-entry: 7th source
 - First-hour-NY caution: 2 sources
 - H18 swing maturity: new, falsifiable, implemented
+
+---
+
+## v2 additions — DTFS teaching session (same source, 2026-07-19)
+- ZONE precisely defined: the PREVIOUS RANGE (prior swing high-to-low
+  that price body-broke out of). Fib on the ZONE, not the impulse:
+  0.3 / 0.5 / 0.7. Entry ~50%, stop behind 70% or zone extreme.
+- VALIDATED structure = BODY close beyond the prior opposing candle.
+  Wicks validate nothing (wick through a low != structure break).
+- Location over signal: the body-close trigger fires EVERYWHERE;
+  only count it INSIDE a zone. (Same law as Nison context gates.)
+- Swing-count refinements: personal rule = no fresh CONTINUATIONS
+  after 3 swings; count running past ~5-6 with no reversal = HTF in
+  control -> go up a timeframe; counter-trend requires CONSOLIDATION
+  at the extreme first ("consolidation = the buying ran out").
+- Weak-zone tell: price enters zone, FAILS to print the new extreme
+  -> exit, expect the flip through the opposite side.
+- BE rule: after 50% entry, once prior high breaks, price should not
+  return to entry (if it does, idea is degrading).
+- Engine v2: auto-drawn previous-range zone with 30/50/70 on each
+  body-close structure flip; continuation-caution alert at 3 swings.
