@@ -99,11 +99,17 @@ trade London or NY. Highly testable: classify each session's range vs average,
 measure alternation frequency on gold. Engine posts a forecast label at each Q
 open — score its hit rate visually before any deeper test.
 
+**H16. Real breakouts carry a volume tsunami; hollow breakouts fail (H9 restated
+with Roppel's independent support — 2 sources now: Valentini effort/result,
+Roppel/O'Neil school).** Promotion path: one gold backtest showing DRIVE-quality
+breaks outperform THIN breaks -> becomes a belief and a master-engine veto.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 2 SUPPORT (PBD break-in,
   Quarterly Theory Judas swing) vs 1 AGAINST (Valentini rejected sweep models).
-- H5 momentum-over-reversal: 2 counter-testimonies (Kurisko confirmed-divergence
-  reversals; Quarterly Theory reversal-at-true-opens school).
+- H5 momentum-over-reversal: CONTESTED 2v2 — support: Valentini (measured),
+  Roppel ("never buy weakness"); counter: Kurisko (confirmed divergence
+  reversals), QT school (true-open reversals). Only our own backtest splits this.
 
 ## Corroboration Ledger (independent sources per idea)
 - Confirmation-before-entry family: 4 independent (our CPI event study,
@@ -115,6 +121,9 @@ open — score its hit rate visually before any deeper test.
   mandatory structure-shift after PD-array tap).
 - B1 session windows (London + NY open): independent corroboration from
   Quarterly Theory Q2-expansion mapping (different reasoning, same windows).
+- Cushion-based risk escalation (risk profits, protect principal): 2
+  independent (Valentini, Roppel).
+- Round numbers as magnets/failure points: 2 independent (Valentini, Roppel).
 
 ## Retired Beliefs
 (none yet)

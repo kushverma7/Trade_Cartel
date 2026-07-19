@@ -53,3 +53,8 @@ indicators/trade_cartel_master_engine.pine
 - Conviction scoring (0-12) maps to size: 0-4 no trade, 5-7 = 0.5%,
   8-10 = 1-2%, 11-12 = 2-4% (Cognitive Architecture, Profit Engine)
 - Scale-out standard: 1/3 @ 1R, 1/3 @ 2R, 1/3 runner w/ BE stop
+- Scaled-stop option (Roppel 3-5-7 adapted): exit thirds at 0.5R /
+  0.75R / 1R adverse instead of full size at the stop — for future
+  strategy wrappers, A/B against single stop
+- Cushion protocol: escalate risk only against banked profit (day or
+  year level); no cushion = minimum size [2 independent sources]
