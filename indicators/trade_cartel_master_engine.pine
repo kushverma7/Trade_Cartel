@@ -119,8 +119,8 @@ if bar_index >= lookback + 1
     int lj = find_pivot(low[1],  lookback, ols_s, ols_i, -1)
     float rs = optimize_slope(high[1], lookback, uj, ols_s, false)
     float ss = optimize_slope(low[1],  lookback, lj, ols_s, true)
-    float py_r = high[1][lookback - 1 - uj]
-    float py_s = low[1][lookback - 1 - lj]
+    float py_r = high[lookback - uj]
+    float py_s = low[lookback - lj]
     r_val := rs * lookback + (py_r - rs * uj)
     s_val := ss * lookback + (py_s - ss * lj)
     if close > r_val
