@@ -111,3 +111,30 @@ Update it whenever new decisions, results, or discoveries are made.
 2. Read CLAUDE.md for tool/skill instructions
 3. Run `git config user.email noreply@anthropic.com && git config user.name Claude`
 4. Check `git status` — commit anything untracked before starting new work
+
+---
+
+## STANDING RULE: Internal Knowledge Base as Confluence (2026-07-19)
+
+User directive: material supplied by the user (books, trader transcripts,
+patterns, scenarios) is NOT to be delivered back as standalone indicators.
+Instead it becomes a PERMANENT internal knowledge layer that I apply as
+confluence inside every strategy/indicator I build or tune, to raise
+accuracy.
+
+How it works:
+1. Knowledge lives in `trader_playbooks/` (mechanical rules, context
+   requirements, reliability tiers). Currently: candlestick_patterns.md
+   (16 Nison patterns + context gates, Bulkowski tiers).
+2. When building or improving ANY strategy: consult playbooks, add
+   relevant rules as confluence conditions (e.g., entry requires or is
+   upgraded by a tier-A candlestick agreeing with the signal direction;
+   counter-signal patterns veto or de-risk).
+3. Weighting by tier: A patterns = full confluence vote; B = only with
+   trend+location context; C = ignore unless user asks.
+4. `indicators/candlestick_engine.pine` remains in repo as the reference
+   implementation of the pattern logic, to be inlined into strategies as
+   needed — not as a user-facing deliverable.
+5. Future user-supplied material gets the same treatment: extract ->
+   playbook -> confluence integration -> report accuracy impact from
+   backtest, not code dumps (unless user asks for the code).
