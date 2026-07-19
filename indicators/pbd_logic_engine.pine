@@ -1,0 +1,145 @@
+// ============================================================
+// PBD LOGIC ENGINE [Real-Time] — from user-supplied transcript
+// Source rules: trader_playbooks/pbd_logic.md
+//
+// Auction-theory shorthand: value area approximated by CLOSING
+// PRICE clusters (speaker's core trick), P/b impulse+balance
+// structures for trend phases, D balance for range phases.
+//
+// Scenarios detected (all bar-close, non-repainting):
+//   P-CONT  — up-impulse, balance holds upper half, close breaks
+//             balance high -> trend continuation long
+//   P-FAIL  — same structure, close breaks balance low -> reversal
+//             short, target = impulse origin
+//   b-CONT  — mirror: continuation short
+//   b-FAIL  — mirror: reversal long
+//   BREAK-IN— close pokes outside value area then closes back
+//             inside -> rotation trade toward POC (balance regime)
+//   D-FADE  — balance regime: close at value edge rejecting ->
+//             fade toward POC
+// ============================================================
+//@version=6
+indicator("PBD Logic Engine [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   vaLen    = input.int(120, "Value Window (bars)",  minval=40, maxval=400, group="① Value Area (close-based)")
+int   vaBins   = input.int(24,  "Profile Bins",         minval=10, maxval=50,  group="① Value Area (close-based)")
+float vaPct    = input.float(0.70, "Value Area %", step=0.05, minval=0.5, maxval=0.9, group="① Value Area (close-based)")
+
+int   impLen   = input.int(12,  "Impulse Length (bars)",  minval=3,  group="② P / b Structure")
+float impMult  = input.float(2.5, "Min Impulse (x ATR14)", step=0.25, group="② P / b Structure")
+int   balLen   = input.int(10,  "Balance Length (bars)",  minval=4,  group="② P / b Structure")
+float balMult  = input.float(1.5, "Max Balance Range (x ATR14)", step=0.25, group="② P / b Structure")
+
+int   cooldown = input.int(10, "Signal Cooldown (bars)", minval=1, group="③ Engine")
+bool  showVA   = input.bool(true, "Show Value Area / POC", group="③ Engine")
+
+// ── Value area from closing-price distribution ───────────────
+float atrv = ta.atr(14)
+float winHi = ta.highest(close, vaLen)
+float winLo = ta.lowest(close, vaLen)
+float step_ = math.max((winHi - winLo) / vaBins, syminfo.mintick)
+
+var int[] binCnt = array.new_int()
+array.clear(binCnt)
+for i = 0 to vaBins - 1
+    array.push(binCnt, 0)
+for i = 0 to vaLen - 1
+    int b = math.min(vaBins - 1, math.max(0, int((close[i] - winLo) / step_)))
+    array.set(binCnt, b, array.get(binCnt, b) + 1)
+
+int pocBin = 0
+int pocCnt = 0
+for i = 0 to vaBins - 1
+    if array.get(binCnt, i) > pocCnt
+        pocCnt := array.get(binCnt, i)
+        pocBin := i
+
+// Expand around POC until vaPct of closes covered
+int need = int(math.ceil(vaLen * vaPct))
+int have = pocCnt
+int upB  = pocBin
+int dnB  = pocBin
+while have < need and (upB < vaBins - 1 or dnB > 0)
+    int upNext = upB < vaBins - 1 ? array.get(binCnt, upB + 1) : -1
+    int dnNext = dnB > 0 ? array.get(binCnt, dnB - 1) : -1
+    if upNext >= dnNext
+        upB += 1
+        have += math.max(upNext, 0)
+    else
+        dnB -= 1
+        have += math.max(dnNext, 0)
+
+float poc = winLo + (pocBin + 0.5) * step_
+float vah = winLo + (upB + 1) * step_
+float val = winLo + dnB * step_
+
+// ── P / b structure detection ────────────────────────────────
+// Balance = last balLen bars in a tight band. Impulse = the move
+// into that balance. P: up-impulse + balance holding upper half.
+float balHi  = ta.highest(high, balLen)
+float balLo  = ta.lowest(low,  balLen)
+bool  tightBal = (balHi - balLo) <= atrv * balMult
+
+float impStartUp = close[balLen + impLen]
+float impMoveUp  = close[balLen] - impStartUp
+bool  upImpulse  = impMoveUp >= atrv * impMult
+bool  pShape     = tightBal and upImpulse and balLo > impStartUp + impMoveUp * 0.5
+
+float impStartDn = close[balLen + impLen]
+float impMoveDn  = impStartDn - close[balLen]
+bool  dnImpulse  = impMoveDn >= atrv * impMult
+bool  bShape     = tightBal and dnImpulse and balHi < impStartDn - impMoveDn * 0.5
+
+// ── Regime: D (balance) when price lives inside value ────────
+bool dRegime = close <= vah and close >= val and not pShape and not bShape
+
+// ── Cooldown ─────────────────────────────────────────────────
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── Scenario signals (bar close) ─────────────────────────────
+// P/b evaluated on the PRIOR bar's structure, triggered by this close
+bool pCont = cd and pShape[1] and close > balHi[1]
+bool pFail = cd and pShape[1] and close < balLo[1]
+bool bCont = cd and bShape[1] and close < balLo[1]
+bool bFail = cd and bShape[1] and close > balHi[1]
+
+// Break-in: closed outside value, now closes back inside (balance rotation)
+bool breakInLong  = cd and dRegime and close[1] < val[1] and close > val
+bool breakInShort = cd and dRegime and close[1] > vah[1] and close < vah
+
+if pCont or pFail or bCont or bFail or breakInLong or breakInShort
+    lastSig := bar_index
+
+// Reversal targets (impulse origin) for the FAIL scenarios
+float pFailTarget = pFail ? impStartUp[1] : na
+float bFailTarget = bFail ? impStartDn[1] : na
+
+// ── Chart printing ───────────────────────────────────────────
+plot(showVA ? poc : na, "POC", color.new(color.orange, 30), 2, plot.style_linebr)
+plot(showVA ? vah : na, "VAH", color.new(color.gray, 50), 1, plot.style_linebr)
+plot(showVA ? val : na, "VAL", color.new(color.gray, 50), 1, plot.style_linebr)
+bgcolor(dRegime ? color.new(color.blue, 96) : na, title="Balance (D) Regime")
+
+if pCont
+    label.new(bar_index, low, "P-CONT ▲", style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small)
+if pFail
+    label.new(bar_index, high, "P-FAIL ▼ tgt " + str.tostring(pFailTarget, format.mintick), style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small)
+if bCont
+    label.new(bar_index, high, "b-CONT ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small)
+if bFail
+    label.new(bar_index, low, "b-FAIL ▲ tgt " + str.tostring(bFailTarget, format.mintick), style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small)
+if breakInLong
+    label.new(bar_index, low, "BREAK-IN ▲ tgt POC", style=label.style_label_up, color=color.new(#00B0FF, 10), textcolor=color.white, size=size.small)
+if breakInShort
+    label.new(bar_index, high, "BREAK-IN ▼ tgt POC", style=label.style_label_down, color=color.new(#FF6D00, 10), textcolor=color.white, size=size.small)
+
+// ── Alerts (fire on bar close) ───────────────────────────────
+alertcondition(pCont,        "P Continuation Long",  "PBD: P-CONT long — {{ticker}} {{interval}}")
+alertcondition(pFail,        "P Failure Short",      "PBD: P-FAIL short (tgt impulse origin) — {{ticker}} {{interval}}")
+alertcondition(bCont,        "b Continuation Short", "PBD: b-CONT short — {{ticker}} {{interval}}")
+alertcondition(bFail,        "b Failure Long",       "PBD: b-FAIL long (tgt impulse origin) — {{ticker}} {{interval}}")
+alertcondition(breakInLong,  "Break-In Long",        "PBD: break-in long toward POC — {{ticker}} {{interval}}")
+alertcondition(breakInShort, "Break-In Short",       "PBD: break-in short toward POC — {{ticker}} {{interval}}")
+alertcondition(pCont or pFail or bCont or bFail or breakInLong or breakInShort, "ANY PBD Signal", "PBD signal — {{ticker}} {{interval}}")

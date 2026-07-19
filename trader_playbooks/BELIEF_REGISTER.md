@@ -39,5 +39,13 @@ tier-A (engulfing, stars, soldiers/crows) >> tier-C (harami, tweezers, doji).**
 **H2. The flip system's side going into 8:30 news is near coin-flip.** Pre-news audit
 indicator built; awaiting the user's table numbers.
 
+**H3. Markets balance ~70% / trend ~30% (PBD transcript claim).** Asserted without
+data by profile trader; plausible per auction theory folklore. Test: PBD engine's
+D-regime bar share on XAUUSD 5m/1H. Do not size on it until measured.
+
+**H4. Close-cluster value areas + P/b structures add filter value to the trendline
+breakout.** Corroborating overlap: PBD break-in == our reclaim; close-count
+confirmation == CPI continuation mode. Needs A/B backtest with/without PBD gate.
+
 ## Retired Beliefs
 (none yet)
