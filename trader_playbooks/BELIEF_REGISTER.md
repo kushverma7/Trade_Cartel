@@ -109,9 +109,16 @@ measure (Ario, educator — no track record).** Implemented as intent_reader
 scoreboard. Test: does its BULL/BEAR/CONSOL state classify gold regimes better
 than the close-cluster VA (PBD) regime? A/B as master-engine regime layer.
 
+**H18. Swing maturity: reversals at POIs require ~4-6 matured swings; fewer =
+don't fade (Dave — voice #7, explicitly falsifiable).** Implemented as counter
+(dave_swing_count.pine). Test: WR of reversal signals (SUPER, JUDAS, reclaims)
+at mature (4+) vs immature (<4) swing counts on gold. Could become a veto.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
-- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 2 SUPPORT (PBD break-in,
-  Quarterly Theory Judas swing) vs 1 AGAINST (Valentini rejected sweep models).
+- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 3 SUPPORT (PBD break-in,
+  QT Judas swing, Dave sweep-prerequisite) vs 1 AGAINST (Valentini). THRESHOLD
+  CROSSED: register-supported doctrine, final promotion pending our own backtest
+  of Reversal Sniper v3 / JUDAS on gold.
 - H5 momentum-over-reversal: CONTESTED 2v2 — support: Valentini (measured),
   Roppel ("never buy weakness"); counter: Kurisko (confirmed divergence
   reversals), QT school (true-open reversals). Only our own backtest splits this.
@@ -122,8 +129,10 @@ than the close-cluster VA (PBD) regime? A/B as master-engine regime layer.
   STRONGEST idea in the register.
 - Multi-timeframe alignment before sizing: 3 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands).
-- Confirmation-before-entry: now 6 independent (add Ario's tested-move
-  evidence rule to CPI study, PBD, Valentini, Kurisko, QT).
+- Confirmation-before-entry: now 7 independent (add Dave's post-sweep
+  close-confirmation to CPI study, PBD, Valentini, Kurisko, QT, Ario).
+- First-NY-hour caution: 2 independent (Valentini, Dave) — formal A/B needed
+  vs our backtested 8:30-11 B1 window (does excluding 9:30-10:30 help?).
 - H8 rejection-weakening / failure counting: 2 independent (Valentini
   live rules; Ario stacked-wick failure counting).
 - B1 session windows (London + NY open): independent corroboration from

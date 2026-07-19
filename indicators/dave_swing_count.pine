@@ -1,0 +1,90 @@
+// ============================================================
+// DAVE SWING COUNT ENGINE [Real-Time]
+// Source: trader_playbooks/dave_market_structure.md
+// (fractal market-structure scalper — INDEPENDENT voice #7)
+//
+// His falsifiable claim: price needs ~4-6 matured swings (HH+HL
+// into supply / LL+LH into demand) before a reversal is expected.
+// Fewer swings -> do NOT fade the level.
+//
+// Outputs (bar close; pivots confirm after `pw` bars):
+//   Numbered swing labels  — count of the current directional run
+//   MATURE background      — count >= minSwings: reversal permitted
+//   IMMATURE state         — fading here = "you are the sweep"
+//   Prominent wick lines   — standout wick origins as targets
+// ============================================================
+//@version=6
+indicator("Dave Swing Count [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=50)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   pw        = input.int(5, "Pivot Width (bars)", minval=2, group="Swings")
+int   minSwings = input.int(4, "Mature Swing Count (reversal permitted)", minval=2, maxval=8, group="Swings")
+float wickMult  = input.float(2.0, "Prominent Wick (x ATR)", step=0.25, group="Wick Targets")
+bool  showWick  = input.bool(true, "Show Prominent Wick Targets", group="Wick Targets")
+
+// ── Pivot tracking ───────────────────────────────────────────
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+float atrv = ta.atr(14)
+
+var float lastPH = na
+var float lastPL = na
+var int   dir     = 0   // 1 = up-run (HH+HL), -1 = down-run (LL+LH)
+var int   swingCt = 0
+
+if not na(ph)
+    bool hh = na(lastPH) or ph > lastPH
+    if hh
+        if dir == 1
+            swingCt += 1
+        else
+            dir := 1
+            swingCt := 1
+        label.new(bar_index - pw, ph, str.tostring(swingCt), style=label.style_label_down,
+             color=color.new(dir == 1 and swingCt >= minSwings ? color.orange : color.teal, 30),
+             textcolor=color.white, size=size.tiny)
+    else
+        if dir == 1
+            dir := -1
+            swingCt := 1
+    lastPH := ph
+if not na(pl)
+    bool ll = na(lastPL) or pl < lastPL
+    if ll
+        if dir == -1
+            swingCt += 1
+        else
+            dir := -1
+            swingCt := 1
+        label.new(bar_index - pw, pl, str.tostring(swingCt), style=label.style_label_up,
+             color=color.new(dir == -1 and swingCt >= minSwings ? color.orange : color.maroon, 30),
+             textcolor=color.white, size=size.tiny)
+    else
+        if dir == -1
+            dir := 1
+            swingCt := 1
+    lastPL := pl
+
+bool matureUp = dir == 1  and swingCt >= minSwings
+bool matureDn = dir == -1 and swingCt >= minSwings
+bgcolor(matureUp ? color.new(color.orange, 90) : matureDn ? color.new(color.orange, 92) : na, title="MATURE (reversal permitted)")
+
+// ── Prominent wick targets ───────────────────────────────────
+float upWick = high - math.max(close, open)
+float dnWick = math.min(close, open) - low
+if showWick and upWick >= atrv * wickMult
+    line.new(bar_index, math.max(close, open), bar_index + 50, math.max(close, open), color=color.new(color.red, 50), style=line.style_dotted)
+if showWick and dnWick >= atrv * wickMult
+    line.new(bar_index, math.min(close, open), bar_index + 50, math.min(close, open), color=color.new(color.lime, 50), style=line.style_dotted)
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.bottom_left, 2, 2, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "SWINGS", text_color=color.orange, text_size=size.tiny)
+    table.cell(tb, 1, 0, (dir == 1 ? "UP run: " : dir == -1 ? "DOWN run: " : "—") + str.tostring(swingCt), text_color=color.white, text_size=size.tiny)
+    table.cell(tb, 0, 1, "Reversal", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, (matureUp or matureDn) ? "PERMITTED (mature)" : "NOT YET (immature)", text_color=(matureUp or matureDn) ? color.orange : color.gray, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(matureUp and not matureUp[1], "Up-run Mature",   "Dave: up-run reached mature swing count — reversal watch — {{ticker}} {{interval}}")
+alertcondition(matureDn and not matureDn[1], "Down-run Mature", "Dave: down-run reached mature swing count — reversal watch — {{ticker}} {{interval}}")
