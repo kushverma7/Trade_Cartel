@@ -84,11 +84,20 @@ is a high-quality reversal entry (Kurisko — INDEPENDENT source #3).** His "95%
 claim is marketing; mechanics exact-coded in kurisko_quad_rotation.pine. Test:
 SUPER signals vs plain divergence signals on XAUUSD 5m.
 
+**H13. Time quarters + True Opens structure intraday behavior (Quarterly Theory —
+INDEPENDENT source #4, ICT lineage).** Zero stats in source; testable claims:
+reversals cluster near true opens; manipulation sweeps concentrate in Q2/NY-open
+windows. Engine built for observation.
+
+**H14. SMT divergence (gold sweeps, silver/DXY doesn't confirm) marks manipulation
+sweeps worth fading.** Codeable, implemented with real second-symbol feed. Test:
+JUDAS signals (sweep+reclaim+SMT) vs plain reclaims on XAUUSD 5m.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
-- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 1 contradiction
-  (Valentini tested & rejected sweep models as lower-WR than momentum-join).
-- H5 momentum-over-reversal: 1 counter-testimony (Kurisko, 27yr, trades
-  confirmed divergence reversals professionally with multi-TF alignment).
+- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 2 SUPPORT (PBD break-in,
+  Quarterly Theory Judas swing) vs 1 AGAINST (Valentini rejected sweep models).
+- H5 momentum-over-reversal: 2 counter-testimonies (Kurisko confirmed-divergence
+  reversals; Quarterly Theory reversal-at-true-opens school).
 
 ## Corroboration Ledger (independent sources per idea)
 - Confirmation-before-entry family: 4 independent (our CPI event study,
@@ -96,6 +105,10 @@ SUPER signals vs plain divergence signals on XAUUSD 5m.
   STRONGEST idea in the register.
 - Multi-timeframe alignment before sizing: 3 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands).
+- Confirmation-before-entry: now 5 independent (add Quarterly Theory's
+  mandatory structure-shift after PD-array tap).
+- B1 session windows (London + NY open): independent corroboration from
+  Quarterly Theory Q2-expansion mapping (different reasoning, same windows).
 
 ## Retired Beliefs
 (none yet)

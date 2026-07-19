@@ -1,0 +1,117 @@
+// ============================================================
+// QUARTERLY THEORY ENGINE [Real-Time]
+// Source: trader_playbooks/quarterly_theory.md
+// (Trader Daye / ICT lineage — INDEPENDENT source #4)
+//
+// Codeable skeleton of the theory (mysticism discarded):
+//   - Daily quarters (ET): Q1 Asia 18-00, Q2 London 00-06,
+//     Q3 NY AM 06-12, Q4 NY PM 12-18. Q2/Q3 opens = expansion.
+//   - True Opens: Daily 00:00 ET, Weekly Tue 00:00, NY AM 07:30.
+//     Price above/below = premium/discount frame.
+//   - JUDAS: manipulation-window sweep of prior day's high/low
+//     that closes back inside, backed by SMT divergence.
+//   - SMT: correlated symbol (default silver for gold) fails to
+//     confirm our sweep -> the sweep was manipulation.
+//
+// EDGE STATUS: theory, zero stats in source. For observation and
+// confluence testing only. All signals bar-close, non-repainting.
+// ============================================================
+//@version=6
+indicator("Quarterly Theory Engine [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ── Inputs ───────────────────────────────────────────────────
+string refSym   = input.symbol("OANDA:XAGUSD", "SMT Reference Symbol (silver for gold)", group="① SMT")
+bool   refInv   = input.bool(false, "Reference is Inverse (e.g. DXY)", group="① SMT")
+int    smtLen   = input.int(30, "SMT Sweep Lookback (bars)", minval=10, group="① SMT")
+int    smtWin   = input.int(10, "SMT Valid Window (bars)", minval=1, group="① SMT")
+bool   showQ    = input.bool(true, "Shade Daily Quarters", group="② Time Structure")
+bool   showTO   = input.bool(true, "Show True Opens", group="② Time Structure")
+string manip1   = input.session("0000-0600", "Manipulation Window 1 (London/Q2, ET)", group="③ Judas")
+string manip2   = input.session("0730-0900", "Manipulation Window 2 (NY AM open, ET)", group="③ Judas")
+int    cooldown = input.int(10, "Signal Cooldown (bars)", minval=1, group="③ Judas")
+
+// ── Daily quarters (ET) ──────────────────────────────────────
+bool q1 = not na(time(timeframe.period, "1800-0000", "America/New_York"))
+bool q2 = not na(time(timeframe.period, "0000-0600", "America/New_York"))
+bool q3 = not na(time(timeframe.period, "0600-1200", "America/New_York"))
+bool q4 = not na(time(timeframe.period, "1200-1800", "America/New_York"))
+bgcolor(showQ and q1 ? color.new(color.gray,   96) : na, title="Q1 Asia")
+bgcolor(showQ and q2 ? color.new(color.blue,   96) : na, title="Q2 London")
+bgcolor(showQ and q3 ? color.new(color.teal,   96) : na, title="Q3 NY AM")
+bgcolor(showQ and q4 ? color.new(color.purple, 97) : na, title="Q4 NY PM")
+
+// ── True Opens ───────────────────────────────────────────────
+var float trueDailyOpen  = na
+var float trueWeeklyOpen = na
+var float trueNyamOpen   = na
+bool newDailyTO = q2 and not q2[1]
+if newDailyTO
+    trueDailyOpen := open
+if newDailyTO and dayofweek(time, "America/New_York") == dayofweek.tuesday
+    trueWeeklyOpen := open
+bool nyamTO = not na(time(timeframe.period, "0730-0735", "America/New_York"))
+if nyamTO and not nyamTO[1]
+    trueNyamOpen := open
+
+plot(showTO ? trueDailyOpen  : na, "True Daily Open (00:00 ET)",  color.new(color.orange, 20), 1, plot.style_linebr)
+plot(showTO ? trueWeeklyOpen : na, "True Weekly Open (Tue 00:00)", color.new(color.fuchsia, 35), 2, plot.style_linebr)
+plot(showTO ? trueNyamOpen   : na, "True NY AM Open (07:30)",      color.new(color.aqua, 35), 1, plot.style_linebr)
+
+// ── Prior day levels (liquidity pools) ───────────────────────
+float pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+float pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+plot(pdh, "Prev Day High", color.new(color.red,  60), 1, plot.style_linebr)
+plot(pdl, "Prev Day Low",  color.new(color.lime, 60), 1, plot.style_linebr)
+
+// ── SMT divergence vs reference symbol ───────────────────────
+[rHigh, rLow] = request.security(refSym, timeframe.period, [high, low])
+float rH = refInv ? -rLow  : rHigh
+float rL = refInv ? -rHigh : rLow
+
+bool mySweepLo  = low  < ta.lowest(low, smtLen)[1]
+bool mySweepHi  = high > ta.highest(high, smtLen)[1]
+bool refSweepLo = rL   < ta.lowest(rL, smtLen)[1]
+bool refSweepHi = rH   > ta.highest(rH, smtLen)[1]
+
+var int bullSmtBar = -9999
+var int bearSmtBar = -9999
+if mySweepLo and not refSweepLo
+    bullSmtBar := bar_index
+if mySweepHi and not refSweepHi
+    bearSmtBar := bar_index
+bool bullSmt = bar_index - bullSmtBar <= smtWin
+bool bearSmt = bar_index - bearSmtBar <= smtWin
+
+if mySweepLo and not refSweepLo and (bar_index - bullSmtBar[1] > smtWin)
+    label.new(bar_index, low, "SMT ▲", style=label.style_label_up, color=color.new(#7B1FA2, 25), textcolor=color.white, size=size.tiny,
+         tooltip="We swept the low; reference symbol did not confirm. Sweep = likely manipulation.")
+if mySweepHi and not refSweepHi and (bar_index - bearSmtBar[1] > smtWin)
+    label.new(bar_index, high, "SMT ▼", style=label.style_label_down, color=color.new(#7B1FA2, 25), textcolor=color.white, size=size.tiny,
+         tooltip="We swept the high; reference symbol did not confirm. Sweep = likely manipulation.")
+
+// ── JUDAS signals (manipulation-window sweep + reclaim + SMT) ─
+bool inManip = not na(time(timeframe.period, manip1, "America/New_York")) or not na(time(timeframe.period, manip2, "America/New_York"))
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool judasBull = cd and inManip and low  < pdl and close > pdl and bullSmt
+bool judasBear = cd and inManip and high > pdh and close < pdh and bearSmt
+if judasBull or judasBear
+    lastSig := bar_index
+
+if judasBull
+    label.new(bar_index, low, "JUDAS ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="Manipulation-window sweep of prev day low, closed back above, SMT confirms non-participation. Stop below the sweep low.")
+if judasBear
+    label.new(bar_index, high, "JUDAS ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="Manipulation-window sweep of prev day high, closed back below, SMT confirms. Stop above the sweep high.")
+
+// ── Premium/discount frame vs True Daily Open ────────────────
+bool aboveTO = not na(trueDailyOpen) and close > trueDailyOpen
+barcolor(judasBull ? color.lime : judasBear ? color.red : na)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(judasBull, "JUDAS Bull", "Quarterly: JUDAS ▲ sweep+reclaim+SMT — {{ticker}} {{interval}}")
+alertcondition(judasBear, "JUDAS Bear", "Quarterly: JUDAS ▼ sweep+reclaim+SMT — {{ticker}} {{interval}}")
+alertcondition(mySweepLo and not refSweepLo, "Bullish SMT", "Quarterly: bullish SMT divergence — {{ticker}} {{interval}}")
+alertcondition(mySweepHi and not refSweepHi, "Bearish SMT", "Quarterly: bearish SMT divergence — {{ticker}} {{interval}}")
