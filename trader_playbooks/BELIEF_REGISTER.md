@@ -79,9 +79,23 @@ unverified on gold). Test: gold 5m trendline signals by session phase.
 longs +67k in a rebuild week).** Test: split any strategy's long vs short PnL
 curves; disable the bleeding side when curves diverge hard. Strategy-wrapper TODO.
 
+**H12. Quad rotation (4 stochastic bands aligned) + divergence + confirmed turn
+is a high-quality reversal entry (Kurisko — INDEPENDENT source #3).** His "95%"
+claim is marketing; mechanics exact-coded in kurisko_quad_rotation.pine. Test:
+SUPER signals vs plain divergence signals on XAUUSD 5m.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 1 contradiction
   (Valentini tested & rejected sweep models as lower-WR than momentum-join).
+- H5 momentum-over-reversal: 1 counter-testimony (Kurisko, 27yr, trades
+  confirmed divergence reversals professionally with multi-TF alignment).
+
+## Corroboration Ledger (independent sources per idea)
+- Confirmation-before-entry family: 4 independent (our CPI event study,
+  PBD close-count, Valentini break-and-test, Kurisko confirmed turn).
+  STRONGEST idea in the register.
+- Multi-timeframe alignment before sizing: 3 independent (Cognitive
+  Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands).
 
 ## Retired Beliefs
 (none yet)

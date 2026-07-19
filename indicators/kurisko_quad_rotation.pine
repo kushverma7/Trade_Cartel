@@ -1,0 +1,126 @@
+// ============================================================
+// KURISKO QUAD ROTATION ENGINE [Real-Time]
+// Source: trader_playbooks/kurisko_quad_rotation.md
+// (John Kurisko, Day Trading Radio — INDEPENDENT source #3)
+//
+// Fully exact implementation (stochastics + EMAs — no proxies).
+//
+// Scenarios (bar close, non-repainting):
+//   SUPER ▲/▼  — quad rotation (all 4 stochastic %D bands OS/OB)
+//                + price/stochastic divergence + 9-3 %D turning
+//                back through the 20/80 line. His "holy grail".
+//   FLAG ▲     — 2020 bull flag: 60-10 %D embedded >80, 9-3 %D
+//                rotates to 20, price holds the 20 EMA
+//   FLAG ▼     — mirror bear flag
+//   EXIT-ROT   — bear-flag rule: 60-10 pinned low, 9-3 rotates
+//                >80 = sell/exit every rotation (loser killer)
+// ============================================================
+//@version=6
+indicator("Kurisko Quad Rotation [Real-Time]", overlay=true, max_labels_count=500)
+
+// ── Inputs ───────────────────────────────────────────────────
+int  k1 = input.int(9,  "Stoch 1 K", group="① Quad Bands")
+int  d1 = input.int(3,  "Stoch 1 D", group="① Quad Bands")
+int  k2 = input.int(14, "Stoch 2 K", group="① Quad Bands")
+int  d2 = input.int(3,  "Stoch 2 D", group="① Quad Bands")
+int  k3 = input.int(40, "Stoch 3 K", group="① Quad Bands")
+int  d3 = input.int(4,  "Stoch 3 D", group="① Quad Bands")
+int  k4 = input.int(60, "Stoch 4 K", group="① Quad Bands")
+int  d4 = input.int(10, "Stoch 4 D", group="① Quad Bands")
+float osLvl = input.float(20, "Oversold Line",  group="① Quad Bands")
+float obLvl = input.float(80, "Overbought Line", group="① Quad Bands")
+float embLvl = input.float(80, "Embedded Level (60-10)", group="② Flags")
+int  emaLen  = input.int(20, "Flag EMA", group="② Flags")
+int  quadWin = input.int(10, "Quad->Signal Window (bars)", minval=1, group="③ Engine")
+int  divLb   = input.int(5,  "Divergence Pivot Width", minval=2, group="③ Engine")
+int  cooldown= input.int(6,  "Signal Cooldown (bars)", minval=1, group="③ Engine")
+
+// ── Stochastic %D bands ──────────────────────────────────────
+stochD(kLen, dLen) => ta.sma(ta.stoch(close, high, low, kLen), dLen)
+float s1 = stochD(k1, d1)
+float s2 = stochD(k2, d2)
+float s3 = stochD(k3, d3)
+float s4 = stochD(k4, d4)
+
+bool quadOS = s1 < osLvl and s2 < osLvl and s3 < osLvl and s4 < osLvl
+bool quadOB = s1 > obLvl and s2 > obLvl and s3 > obLvl and s4 > obLvl
+
+// Quad active within the recent window
+bool quadOSrecent = ta.barssince(quadOS) <= quadWin
+bool quadOBrecent = ta.barssince(quadOB) <= quadWin
+
+// ── Price/stochastic divergence (pivot-based, on 9-3 band) ───
+float pl = ta.pivotlow(low, divLb, divLb)
+float ph = ta.pivothigh(high, divLb, divLb)
+var float lastPlPrice = na
+var float lastPlStoch = na
+var float lastPhPrice = na
+var float lastPhStoch = na
+var int bullDivBar = -9999
+var int bearDivBar = -9999
+if not na(pl)
+    if not na(lastPlPrice) and pl <= lastPlPrice and s1[divLb] > lastPlStoch
+        bullDivBar := bar_index
+    lastPlPrice := pl
+    lastPlStoch := s1[divLb]
+if not na(ph)
+    if not na(lastPhPrice) and ph >= lastPhPrice and s1[divLb] < lastPhStoch
+        bearDivBar := bar_index
+    lastPhPrice := ph
+    lastPhStoch := s1[divLb]
+bool bullDivRecent = bar_index - bullDivBar <= quadWin
+bool bearDivRecent = bar_index - bearDivBar <= quadWin
+
+// ── Triggers: 9-3 %D turning back through the line ───────────
+bool turnUp = ta.crossover(s1, osLvl)
+bool turnDn = ta.crossunder(s1, obLvl)
+
+// ── Cooldown ─────────────────────────────────────────────────
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── SUPER SIGNALS (quad + divergence + trigger) ──────────────
+bool superBuy  = cd and quadOSrecent and bullDivRecent and turnUp
+bool superSell = cd and quadOBrecent and bearDivRecent and turnDn
+
+// ── 2020 FLAGS (embedded 60-10 + 9-3 rotation + EMA hold) ────
+float ema20 = ta.ema(close, emaLen)
+bool flagBuy  = cd and s4 >= embLvl        and s1 <= osLvl + 5 and close >= ema20 and ta.crossover(s1, osLvl)
+bool flagSell = cd and s4 <= 100 - embLvl  and s1 >= obLvl - 5 and close <= ema20 and ta.crossunder(s1, obLvl)
+
+// ── EXIT ROTATION (bear-flag rule — loser eliminator) ────────
+bool exitRotShort = s4 <= osLvl + 10 and ta.crossunder(s1, obLvl)
+bool exitRotLong  = s4 >= obLvl - 10 and ta.crossover(s1, osLvl)
+
+if superBuy or superSell or flagBuy or flagSell
+    lastSig := bar_index
+
+// ── Output ───────────────────────────────────────────────────
+plot(ema20, "EMA 20", color.new(color.orange, 40), 1)
+bgcolor(quadOS ? color.new(color.green, 88) : quadOB ? color.new(color.red, 88) : na, title="Quad Rotation")
+
+if superBuy
+    label.new(bar_index, low, "SUPER ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="Quad rotation + bull divergence + 9-3 turn-up. Stop 1-2 ticks under pattern low.")
+if superSell
+    label.new(bar_index, high, "SUPER ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="Quad rotation + bear divergence + 9-3 turn-down. Stop above pattern high.")
+if flagBuy
+    label.new(bar_index, low, "FLAG ▲", style=label.style_label_up, color=color.new(#00C853, 50), textcolor=color.white, size=size.small,
+         tooltip="2020 bull flag: 60-10 embedded, 9-3 rotated to 20, EMA20 held.")
+if flagSell
+    label.new(bar_index, high, "FLAG ▼", style=label.style_label_down, color=color.new(#D50000, 50), textcolor=color.white, size=size.small,
+         tooltip="2020 bear flag: 60-10 embedded low, 9-3 rotated to 80, EMA20 rejected.")
+if exitRotShort
+    label.new(bar_index, high, "ROT-X ▼", style=label.style_label_down, color=color.new(color.gray, 40), textcolor=color.white, size=size.tiny,
+         tooltip="Downtrend rotation: 60-10 pinned low, 9-3 rotated high. Exit longs / short every rotation.")
+if exitRotLong
+    label.new(bar_index, low, "ROT-X ▲", style=label.style_label_up, color=color.new(color.gray, 40), textcolor=color.white, size=size.tiny,
+         tooltip="Uptrend rotation: 60-10 pinned high, 9-3 rotated low. Exit shorts / buy every rotation.")
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(superBuy,  "SUPER Signal Buy",  "Kurisko: SUPER ▲ quad+divergence — {{ticker}} {{interval}}")
+alertcondition(superSell, "SUPER Signal Sell", "Kurisko: SUPER ▼ quad+divergence — {{ticker}} {{interval}}")
+alertcondition(flagBuy,   "2020 Bull Flag",    "Kurisko: FLAG ▲ — {{ticker}} {{interval}}")
+alertcondition(flagSell,  "2020 Bear Flag",    "Kurisko: FLAG ▼ — {{ticker}} {{interval}}")
+alertcondition(superBuy or superSell or flagBuy or flagSell, "ANY Kurisko Signal", "Kurisko signal — {{ticker}} {{interval}}")
