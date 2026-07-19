@@ -29,6 +29,8 @@ bool   showTO   = input.bool(true, "Show True Opens", group="② Time Structure"
 string manip1   = input.session("0000-0600", "Manipulation Window 1 (London/Q2, ET)", group="③ Judas")
 string manip2   = input.session("0730-0900", "Manipulation Window 2 (NY AM open, ET)", group="③ Judas")
 int    cooldown = input.int(10, "Signal Cooldown (bars)", minval=1, group="③ Judas")
+bool   showAlt  = input.bool(true, "Show Q-Alternation Forecast", group="④ QT v2")
+int    ssmtWin  = input.int(12, "SSMT Window After Q Open (bars)", minval=1, group="④ QT v2")
 
 // ── Daily quarters (ET) ──────────────────────────────────────
 bool q1 = not na(time(timeframe.period, "1800-0000", "America/New_York"))
@@ -39,6 +41,32 @@ bgcolor(showQ and q1 ? color.new(color.gray,   96) : na, title="Q1 Asia")
 bgcolor(showQ and q2 ? color.new(color.blue,   96) : na, title="Q2 London")
 bgcolor(showQ and q3 ? color.new(color.teal,   96) : na, title="Q3 NY AM")
 bgcolor(showQ and q4 ? color.new(color.purple, 97) : na, title="Q4 NY PM")
+
+// ── Quarter boundary + Q-alternation forecast [QT v2] ────────
+// Rule: consolidating Q -> expect expansion next; expanding Q ->
+// expect consolidation next. Range measured vs average Q range.
+bool newQ = (q1 and not q1[1]) or (q2 and not q2[1]) or (q3 and not q3[1]) or (q4 and not q4[1])
+var float qHi = na
+var float qLo = na
+var float avgQR = na
+var int   qStartBar = na
+if newQ
+    float prevQR = not na(qHi) ? qHi - qLo : na
+    if not na(prevQR)
+        avgQR := na(avgQR) ? prevQR : avgQR * 0.8 + prevQR * 0.2
+        if showAlt and not na(avgQR)
+            bool wasExpansion = prevQR > avgQR * 1.2
+            bool wasConsol    = prevQR < avgQR * 0.8
+            if wasConsol
+                label.new(bar_index, high, "Q→ EXPECT EXPANSION", style=label.style_label_left, color=color.new(color.teal, 30), textcolor=color.white, size=size.tiny)
+            else if wasExpansion
+                label.new(bar_index, high, "Q→ EXPECT CONSOLIDATION", style=label.style_label_left, color=color.new(color.gray, 30), textcolor=color.white, size=size.tiny)
+    qHi := high
+    qLo := low
+    qStartBar := bar_index
+else
+    qHi := math.max(nz(qHi, high), high)
+    qLo := math.min(nz(qLo, low), low)
 
 // ── True Opens ───────────────────────────────────────────────
 var float trueDailyOpen  = na
@@ -82,12 +110,15 @@ if mySweepHi and not refSweepHi
 bool bullSmt = bar_index - bullSmtBar <= smtWin
 bool bearSmt = bar_index - bearSmtBar <= smtWin
 
+// SSMT: SMT within the window after a quarter open = sequential
+// SMT (claimed higher probability — engages the time factor)
+bool inSsmtWin = not na(qStartBar) and bar_index - qStartBar <= ssmtWin
 if mySweepLo and not refSweepLo and (bar_index - bullSmtBar[1] > smtWin)
-    label.new(bar_index, low, "SMT ▲", style=label.style_label_up, color=color.new(#7B1FA2, 25), textcolor=color.white, size=size.tiny,
-         tooltip="We swept the low; reference symbol did not confirm. Sweep = likely manipulation.")
+    label.new(bar_index, low, inSsmtWin ? "SSMT ▲" : "SMT ▲", style=label.style_label_up, color=color.new(#7B1FA2, inSsmtWin ? 0 : 40), textcolor=color.white, size=inSsmtWin ? size.small : size.tiny,
+         tooltip="We swept the low; reference did not confirm. " + (inSsmtWin ? "SEQUENTIAL (after Q open) — higher grade. PSP entry = this candle close." : "Sweep = likely manipulation."))
 if mySweepHi and not refSweepHi and (bar_index - bearSmtBar[1] > smtWin)
-    label.new(bar_index, high, "SMT ▼", style=label.style_label_down, color=color.new(#7B1FA2, 25), textcolor=color.white, size=size.tiny,
-         tooltip="We swept the high; reference symbol did not confirm. Sweep = likely manipulation.")
+    label.new(bar_index, high, inSsmtWin ? "SSMT ▼" : "SMT ▼", style=label.style_label_down, color=color.new(#7B1FA2, inSsmtWin ? 0 : 40), textcolor=color.white, size=inSsmtWin ? size.small : size.tiny,
+         tooltip="We swept the high; reference did not confirm. " + (inSsmtWin ? "SEQUENTIAL (after Q open) — higher grade. PSP entry = this candle close." : "Sweep = likely manipulation."))
 
 // ── JUDAS signals (manipulation-window sweep + reclaim + SMT) ─
 bool inManip = not na(time(timeframe.period, manip1, "America/New_York")) or not na(time(timeframe.period, manip2, "America/New_York"))
@@ -115,3 +146,4 @@ alertcondition(judasBull, "JUDAS Bull", "Quarterly: JUDAS ▲ sweep+reclaim+SMT 
 alertcondition(judasBear, "JUDAS Bear", "Quarterly: JUDAS ▼ sweep+reclaim+SMT — {{ticker}} {{interval}}")
 alertcondition(mySweepLo and not refSweepLo, "Bullish SMT", "Quarterly: bullish SMT divergence — {{ticker}} {{interval}}")
 alertcondition(mySweepHi and not refSweepHi, "Bearish SMT", "Quarterly: bearish SMT divergence — {{ticker}} {{interval}}")
+alertcondition(newQ, "New Quarter Open", "Quarterly: new Q open (true open) — {{ticker}} {{interval}}")

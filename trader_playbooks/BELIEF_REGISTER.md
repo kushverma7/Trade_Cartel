@@ -93,6 +93,12 @@ windows. Engine built for observation.
 sweeps worth fading.** Codeable, implemented with real second-symbol feed. Test:
 JUDAS signals (sweep+reclaim+SMT) vs plain reclaims on XAUUSD 5m.
 
+**H15. Q-alternation: consolidation quarters are followed by expansion quarters and
+vice versa (QT school, doc #2).** Session form: Asia range size decides whether to
+trade London or NY. Highly testable: classify each session's range vs average,
+measure alternation frequency on gold. Engine posts a forecast label at each Q
+open — score its hit rate visually before any deeper test.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 2 SUPPORT (PBD break-in,
   Quarterly Theory Judas swing) vs 1 AGAINST (Valentini rejected sweep models).

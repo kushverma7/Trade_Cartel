@@ -40,3 +40,23 @@ indicators/quarterly_theory_engine.pine — daily quarter shading, true
 opens, prev-day liquidity lines, real SMT vs reference symbol (silver
 default, DXY-inverse toggle), JUDAS sweep+reclaim+SMT signals, alerts.
 NOTE: SMT needs the reference symbol available on user's data plan.
+
+---
+
+## v2 additions — second QT compilation (2026-07-19)
+Source: community doc (mostly chart images; text layer extracted;
+image examples not recoverable). Same school, richer mechanics.
+
+- Q-ALTERNATION RULE [H15, highly testable]: consolidating Q ->
+  expect expansion next Q; expanding Q -> expect consolidation next.
+  Session form: Asia consolidates -> trade London; Asia expands ->
+  skip London, trade NY. [engine: forecast label at each Q open]
+- Every Q open is a True Open (not only Q2).
+- TF pairing model: 1m entry <- 15m context, 5m <- 1h, 15m <- 4h.
+- SSMT (sequential SMT): SMT across/just after a Q boundary =
+  higher probability than generic SMT ("time factor engaged").
+  Mapping: Monthly SSMT->4h PSP, Weekly->1h, Daily->15m,
+  Session/90m->5m, Micro->1m. [engine: SSMT vs SMT label grades]
+- PSP (Precision Swing Point): the swing candle formed at the SSMT
+  (correlated triad diverges). ENTRY = CLOSE of that candle ->
+  confirmation-before-entry family, 5th source holds here too.
