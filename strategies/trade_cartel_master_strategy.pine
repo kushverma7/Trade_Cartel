@@ -1,0 +1,396 @@
+// ============================================================
+// TRADE CARTEL MASTER ENGINE [Real-Time]
+// The final synthesis: proven core signal + full knowledge layer
+// as confluence voting, per COGNITIVE_ARCHITECTURE conviction
+// scoring. Built from: trendline breakout (PF 3.656 core),
+// Nison candlestick tiers, PBD value-area logic, Valentini
+// momentum/confirmation/rejection/CVD rules, CPI news discipline.
+//
+// SIGNAL FLOW:
+//   1. CORE: OLS trendline breakout (lookback 22, non-repainting,
+//      close-based, optional full-body break-and-confirm [H7])
+//   2. CONFLUENCE VOTE (0-12): each knowledge layer scores it
+//   3. GRADE: 8+ = A+ signal, 5-7 = B signal, <5 = suppressed
+//   4. VETOES: opposing tier-A candle, CVD divergence against,
+//      news window, over-rejected level -> signal killed/demoted
+//
+// All evaluation on bar close. Labels show grade + score.
+// Alerts per grade. Dashboard shows live layer states.
+// ============================================================
+// STRATEGY VERSION — for the Strategy Tester A/B:
+//   "Core Only" mode  = bare proven trendline core (control)
+//   "Full Confluence" = knowledge layer scores + vetoes + graded size
+// Exits: proven baseline bracket (2x ATR stop, 4x ATR target).
+// Fills on signal bar close. Gold costs pre-set.
+//@version=6
+strategy("Trade Cartel MASTER ENGINE [Strategy]",
+     overlay                  = true,
+     max_labels_count         = 500,
+     max_lines_count          = 100,
+     initial_capital          = 1000,
+     default_qty_type         = strategy.fixed,
+     default_qty_value        = 1,
+     commission_type          = strategy.commission.cash_per_contract,
+     commission_value         = 0.07,
+     slippage                 = 5,
+     process_orders_on_close  = true)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   lookback  = input.int(22, "Trendline Lookback (proven: 22)", minval=5, maxval=100, group="① Core Signal")
+bool  useH7     = input.bool(true, "Require Full-Body Break Candle [H7]", group="① Core Signal")
+bool  useSess   = input.bool(true, "Score London+NY-Open Session [B1]", group="② Confluence Layers")
+bool  useVA     = input.bool(true, "Score Value-Area Regime [PBD]", group="② Confluence Layers")
+bool  useCandle = input.bool(true, "Score Tier-A Candlesticks [Nison]", group="② Confluence Layers")
+bool  useAggr   = input.bool(true, "Score Volume Aggression [Valentini]", group="② Confluence Layers")
+bool  useVwap   = input.bool(true, "Score VWAP Side + SD [Valentini]", group="② Confluence Layers")
+bool  useRej    = input.bool(true, "Veto Over-Rejected Levels [H8]", group="③ Vetoes")
+bool  useCvdV   = input.bool(true, "Veto CVD Divergence Against [v2]", group="③ Vetoes")
+bool  useNews   = input.bool(true, "Block 8:25-8:45 ET News Window [B3]", group="③ Vetoes")
+bool  usePower  = input.bool(false, "Also Score NY Power Hour 15-16 ET [H10, unverified]", group="② Confluence Layers")
+int   minScore  = input.int(5, "Min Score to Print (B grade)", minval=1, maxval=12, group="④ Engine")
+int   cooldown  = input.int(6, "Signal Cooldown (bars)", minval=1, group="④ Engine")
+bool  showDash  = input.bool(true, "Show Layer Dashboard", group="④ Engine")
+bool  coreOnly  = input.bool(false, "A/B: Core Only (ignore confluence)", group="⑤ Strategy")
+float stopMult  = input.float(2.0, "Stop (x ATR)",   step=0.25, group="⑤ Strategy")
+float tpMult    = input.float(4.0, "Target (x ATR)", step=0.25, group="⑤ Strategy")
+int   qtyA      = input.int(2, "Contracts on A+ Signal", minval=1, group="⑤ Strategy")
+int   qtyB      = input.int(1, "Contracts on B Signal",  minval=1, group="⑤ Strategy")
+
+// ═════════════════════════════════════════════════════════════
+// LAYER 0: shared building blocks
+// ═════════════════════════════════════════════════════════════
+float atrv   = ta.atr(14)
+float avgVol = ta.sma(volume, 20)
+float body   = math.abs(close - open)
+float rng    = high - low
+
+// ═════════════════════════════════════════════════════════════
+// LAYER 1: CORE — OLS trendline breakout (bug-fixed, proven)
+// ═════════════════════════════════════════════════════════════
+linreg_coefs(src, len) =>
+    float sumX = 0.0
+    float sumY = 0.0
+    float sumXY = 0.0
+    float sumX2 = 0.0
+    for j = 0 to len - 1
+        float x = j
+        float y = src[len - 1 - j]
+        sumX += x
+        sumY += y
+        sumXY += x * y
+        sumX2 += x * x
+    float n = len
+    float denom = n * sumX2 - sumX * sumX
+    float slope = denom != 0 ? (n * sumXY - sumX * sumY) / denom : 0.0
+    float intercept = denom != 0 ? (sumY - slope * sumX) / n : src[math.floor(len / 2)]
+    [slope, intercept]
+
+find_pivot(src, len, slope, intercept, direction) =>
+    int best_j = 0
+    float best_val = -1e10
+    for j = 0 to len - 1
+        float diff = (src[len - 1 - j] - (slope * j + intercept)) * direction
+        if diff > best_val
+            best_val := diff
+            best_j := j
+    best_j
+
+optimize_slope(src, len, pivot_j, init_slope, is_support) =>
+    float pivot_y = src[len - 1 - pivot_j]
+    float best = init_slope
+    float step = math.abs(init_slope) * 0.5 + 1e-6
+    for _i = 0 to 29
+        float s_up = best + step
+        float s_dn = best - step
+        bool ok_up = true
+        bool ok_dn = true
+        float err_up = 0.0
+        float err_dn = 0.0
+        for j = 0 to len - 1
+            float y = src[len - 1 - j]
+            float d_up = (s_up * j + (pivot_y - s_up * pivot_j)) - y
+            float d_dn = (s_dn * j + (pivot_y - s_dn * pivot_j)) - y
+            if is_support
+                if d_up > 1e-5
+                    ok_up := false
+                if d_dn > 1e-5
+                    ok_dn := false
+            else
+                if d_up < -1e-5
+                    ok_up := false
+                if d_dn < -1e-5
+                    ok_dn := false
+            err_up += d_up * d_up
+            err_dn += d_dn * d_dn
+        if ok_up and ok_dn
+            best := err_up < err_dn ? s_up : s_dn
+        else if ok_up
+            best := s_up
+        else if ok_dn
+            best := s_dn
+        step *= 0.5
+    best
+
+var float r_val = na
+var float s_val = na
+var int   sig   = 0
+if bar_index >= lookback + 1
+    [ols_s, ols_i] = linreg_coefs(close[1], lookback)
+    int uj = find_pivot(high[1], lookback, ols_s, ols_i, 1)
+    int lj = find_pivot(low[1],  lookback, ols_s, ols_i, -1)
+    float rs = optimize_slope(high[1], lookback, uj, ols_s, false)
+    float ss = optimize_slope(low[1],  lookback, lj, ols_s, true)
+    float py_r = high[lookback - uj]
+    float py_s = low[lookback - lj]
+    r_val := rs * lookback + (py_r - rs * uj)
+    s_val := ss * lookback + (py_s - ss * lj)
+    if close > r_val
+        sig := 1
+    else if close < s_val
+        sig := -1
+
+bool fullBody = rng > 0 and body >= rng * 0.5
+bool coreBuy  = sig == 1  and sig[1] != 1  and (not useH7 or fullBody)
+bool coreSell = sig == -1 and sig[1] != -1 and (not useH7 or fullBody)
+
+// ═════════════════════════════════════════════════════════════
+// LAYER 2: Session [B1 — the proven edge lever]
+// ═════════════════════════════════════════════════════════════
+bool inSession = not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York")) or (usePower and not na(time(timeframe.period, "1500-1600", "America/New_York")))
+
+// ═════════════════════════════════════════════════════════════
+// LAYER 3: Value area regime [PBD — close-cluster profile]
+// ═════════════════════════════════════════════════════════════
+int VA_LEN  = 120
+int VA_BINS = 24
+float winHi = ta.highest(close, VA_LEN)
+float winLo = ta.lowest(close, VA_LEN)
+float vstep = math.max((winHi - winLo) / VA_BINS, syminfo.mintick)
+var int[] vbins = array.new_int()
+array.clear(vbins)
+for i = 0 to VA_BINS - 1
+    array.push(vbins, 0)
+for i = 0 to VA_LEN - 1
+    int b = math.min(VA_BINS - 1, math.max(0, int((close[i] - winLo) / vstep)))
+    array.set(vbins, b, array.get(vbins, b) + 1)
+int pb = 0
+int pc = 0
+for i = 0 to VA_BINS - 1
+    if array.get(vbins, i) > pc
+        pc := array.get(vbins, i)
+        pb := i
+int need = int(math.ceil(VA_LEN * 0.7))
+int have = pc
+int uB = pb
+int dB = pb
+while have < need and (uB < VA_BINS - 1 or dB > 0)
+    int un = uB < VA_BINS - 1 ? array.get(vbins, uB + 1) : -1
+    int dn2 = dB > 0 ? array.get(vbins, dB - 1) : -1
+    if un >= dn2
+        uB += 1
+        have += math.max(un, 0)
+    else
+        dB -= 1
+        have += math.max(dn2, 0)
+float vah = winLo + (uB + 1) * vstep
+float val = winLo + dB * vstep
+// Out of balance in signal direction = trend regime supports it
+bool obUp = close > vah
+bool obDn = close < val
+
+// ═════════════════════════════════════════════════════════════
+// LAYER 4: Tier-A candlesticks [Nison, context-gated]
+// ═════════════════════════════════════════════════════════════
+float avgBody = ta.sma(body, 14)
+bool bullC = close > open
+bool bearC = close < open
+bool bullEng = bullC and bearC[1] and body >= avgBody and close >= math.max(close[1], open[1]) and open <= math.min(close[1], open[1])
+bool bearEng = bearC and bullC[1] and body >= avgBody and open >= math.max(close[1], open[1]) and close <= math.min(close[1], open[1])
+bool morn = bearC[2] and body[2] >= avgBody[2] and body[1] <= avgBody[1] * 0.5 and bullC and close > (open[2] + close[2]) / 2
+bool even = bullC[2] and body[2] >= avgBody[2] and body[1] <= avgBody[1] * 0.5 and bearC and close < (open[2] + close[2]) / 2
+// Any tier-A pattern within the last 3 bars
+bool tierA_bull = bullEng or morn or bullEng[1] or morn[1] or bullEng[2] or morn[2]
+bool tierA_bear = bearEng or even or bearEng[1] or even[1] or bearEng[2] or even[2]
+
+// ═════════════════════════════════════════════════════════════
+// LAYER 5: Aggression + session VWAP/SD [Valentini]
+// ═════════════════════════════════════════════════════════════
+bool aggUp = volume >= avgVol * 1.5 and rng > 0 and body >= rng * 0.6 and bullC
+bool aggDn = volume >= avgVol * 1.5 and rng > 0 and body >= rng * 0.6 and bearC
+
+bool nySess  = not na(time(timeframe.period, "0930-1600", "America/New_York"))
+bool newNy   = nySess and not nySess[1]
+var float cPV = 0.0
+var float cV  = 0.0
+var float cPV2 = 0.0
+if newNy
+    cPV := 0.0
+    cV := 0.0
+    cPV2 := 0.0
+if nySess
+    cPV += hlc3 * volume
+    cV += volume
+    cPV2 += hlc3 * hlc3 * volume
+float vwap = cV > 0 ? cPV / cV : na
+float vsd  = cV > 0 ? math.sqrt(math.max(cPV2 / cV - vwap * vwap, 0.0)) : na
+bool vwapUp = not na(vwap) and close > vwap
+bool vwapDn = not na(vwap) and close < vwap
+bool beyond2up = not na(vwap) and close > vwap + 2 * vsd
+bool beyond2dn = not na(vwap) and close < vwap - 2 * vsd
+
+// ═════════════════════════════════════════════════════════════
+// LAYER 6: Vetoes — rejections [H8], CVD divergence, news [B3]
+// ═════════════════════════════════════════════════════════════
+float atkHi = ta.highest(high, 20)[1]
+float atkLo = ta.lowest(low, 20)[1]
+var int rejUp = 0
+var int rejDn = 0
+if high >= atkHi - atrv * 0.1 and close < atkHi
+    rejUp += 1
+if close > atkHi
+    rejUp := 0
+if low <= atkLo + atrv * 0.1 and close > atkLo
+    rejDn += 1
+if close < atkLo
+    rejDn := 0
+bool weakUp = rejUp >= 3
+bool weakDn = rejDn >= 3
+
+var float cvd = 0.0
+cvd += bullC ? volume : bearC ? -volume : 0.0
+float ph = ta.pivothigh(high, 5, 5)
+float pl = ta.pivotlow(low, 5, 5)
+var float lPhP = na
+var float lPhC = na
+var float lPlP = na
+var float lPlC = na
+var int bearDivBar = -9999
+var int bullDivBar = -9999
+if not na(ph)
+    if not na(lPhP) and ph > lPhP and cvd[5] < lPhC
+        bearDivBar := bar_index
+    lPhP := ph
+    lPhC := cvd[5]
+if not na(pl)
+    if not na(lPlP) and pl < lPlP and cvd[5] > lPlC
+        bullDivBar := bar_index
+    lPlP := pl
+    lPlC := cvd[5]
+bool recentBearDiv = bar_index - bearDivBar <= 10
+bool recentBullDiv = bar_index - bullDivBar <= 10
+
+int hhmmNY = hour(time, "America/New_York") * 100 + minute(time, "America/New_York")
+bool newsWindow = hhmmNY >= 825 and hhmmNY < 845
+
+// ═════════════════════════════════════════════════════════════
+// CONVICTION SCORING (0-12, Cognitive Architecture)
+// ═════════════════════════════════════════════════════════════
+score_of(dir) =>
+    int s = 0
+    // Session timing [0-2]
+    s += useSess ? (inSession ? 2 : 0) : 2
+    // Regime alignment: out of balance in signal direction [0-2]
+    s += useVA ? ((dir == 1 and obUp) or (dir == -1 and obDn) ? 2 : 0) : 2
+    // Tier-A candle aligned [0-2]
+    s += useCandle ? ((dir == 1 and tierA_bull) or (dir == -1 and tierA_bear) ? 2 : 0) : 2
+    // Aggression on signal candle [0-2]
+    s += useAggr ? ((dir == 1 and aggUp) or (dir == -1 and aggDn) ? 2 : 0) : 2
+    // VWAP side [0-2]: aligned +2, unless overextended beyond 2SD (chasing) 0
+    bool vwapOk = (dir == 1 and vwapUp and not beyond2up) or (dir == -1 and vwapDn and not beyond2dn)
+    s += useVwap ? (vwapOk ? 2 : 0) : 2
+    // Fresh level [0-2]: not over-rejected in signal direction
+    bool fresh = (dir == 1 and not weakUp) or (dir == -1 and not weakDn)
+    s += fresh ? 2 : 0
+    s
+
+// Hard vetoes
+veto_of(dir) =>
+    bool v = false
+    if useCandle and ((dir == 1 and tierA_bear) or (dir == -1 and tierA_bull))
+        v := true
+    if useCvdV and ((dir == 1 and recentBearDiv) or (dir == -1 and recentBullDiv))
+        v := true
+    if useNews and newsWindow
+        v := true
+    if useRej and ((dir == 1 and weakUp) or (dir == -1 and weakDn))
+        v := true
+    v
+
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+int buyScore  = coreBuy  ? score_of(1)  : 0
+int sellScore = coreSell ? score_of(-1) : 0
+bool buyVeto  = coreBuy  and veto_of(1)
+bool sellVeto = coreSell and veto_of(-1)
+
+bool buyA  = cd and coreBuy  and not buyVeto  and buyScore >= 8
+bool buyB  = cd and coreBuy  and not buyVeto  and buyScore >= minScore and buyScore < 8
+bool sellA = cd and coreSell and not sellVeto and sellScore >= 8
+bool sellB = cd and coreSell and not sellVeto and sellScore >= minScore and sellScore < 8
+
+// Core-only override for the A/B test
+bool cBuyA  = coreOnly ? (cd and coreBuy)  : buyA
+bool cBuyB  = coreOnly ? false             : buyB
+bool cSellA = coreOnly ? (cd and coreSell) : sellA
+bool cSellB = coreOnly ? false             : sellB
+
+if cBuyA or cBuyB or cSellA or cSellB
+    lastSig := bar_index
+
+// ── Strategy execution (bracket = proven baseline) ───────────
+if (cBuyA or cBuyB) and strategy.position_size == 0
+    strategy.entry("Long", strategy.long, qty=cBuyA ? qtyA : qtyB, comment=cBuyA ? "BUY A+" : "BUY B")
+    strategy.exit("L-X", "Long", stop=close - atrv * stopMult, limit=close + atrv * tpMult)
+if (cSellA or cSellB) and strategy.position_size == 0
+    strategy.entry("Short", strategy.short, qty=cSellA ? qtyA : qtyB, comment=cSellA ? "SELL A+" : "SELL B")
+    strategy.exit("S-X", "Short", stop=close + atrv * stopMult, limit=close - atrv * tpMult)
+
+// ═════════════════════════════════════════════════════════════
+// OUTPUT
+// ═════════════════════════════════════════════════════════════
+plot(r_val, "Resistance", color.new(color.red, 30), 1)
+plot(s_val, "Support", color.new(color.lime, 30), 1)
+plot(useVA ? vah : na, "VAH", color.new(color.gray, 65), 1, plot.style_linebr)
+plot(useVA ? val : na, "VAL", color.new(color.gray, 65), 1, plot.style_linebr)
+plot(useVwap and nySess ? vwap : na, "VWAP", color.new(color.orange, 40), 1, plot.style_linebr)
+bgcolor(useNews and newsWindow ? color.new(color.orange, 88) : na, title="News Blackout")
+
+if buyA
+    label.new(bar_index, low, "BUY A+ [" + str.tostring(buyScore) + "/12]", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal)
+if buyB
+    label.new(bar_index, low, "BUY B [" + str.tostring(buyScore) + "/12]", style=label.style_label_up, color=color.new(#00C853, 55), textcolor=color.white, size=size.small)
+if sellA
+    label.new(bar_index, high, "SELL A+ [" + str.tostring(sellScore) + "/12]", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal)
+if sellB
+    label.new(bar_index, high, "SELL B [" + str.tostring(sellScore) + "/12]", style=label.style_label_down, color=color.new(#D50000, 55), textcolor=color.white, size=size.small)
+if (coreBuy and (buyVeto or buyScore < minScore)) or (coreSell and (sellVeto or sellScore < minScore))
+    label.new(bar_index, coreBuy ? low : high, coreBuy ? "×buy" : "×sell", style=coreBuy ? label.style_label_up : label.style_label_down, color=color.new(color.gray, 70), textcolor=color.white, size=size.tiny,
+         tooltip="Core signal suppressed: " + (coreBuy ? (buyVeto ? "VETO" : "score " + str.tostring(buyScore)) : (sellVeto ? "VETO" : "score " + str.tostring(sellScore))))
+
+// Dashboard
+var table dash = table.new(position.bottom_right, 2, 8, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showDash and barstate.islast
+    table.cell(dash, 0, 0, "MASTER ENGINE", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "", text_color=color.white, text_size=size.small)
+    table.cell(dash, 0, 1, "Session [B1]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, inSession ? "ACTIVE +2" : "off", text_color=inSession ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Regime [PBD]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, obUp ? "OUT-BAL ▲" : obDn ? "OUT-BAL ▼" : "balance", text_color=obUp ? color.lime : obDn ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Tier-A candle", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, tierA_bull ? "BULL" : tierA_bear ? "BEAR" : "—", text_color=tierA_bull ? color.lime : tierA_bear ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 4, "VWAP side", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, vwapUp ? (beyond2up ? ">+2SD ext." : "above") : vwapDn ? (beyond2dn ? "<-2SD ext." : "below") : "—", text_color=vwapUp ? color.lime : vwapDn ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 5, "Level fresh [H8]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, weakUp ? "HIGH weak (" + str.tostring(rejUp) + ")" : weakDn ? "LOW weak (" + str.tostring(rejDn) + ")" : "fresh", text_color=weakUp or weakDn ? color.orange : color.lime, text_size=size.tiny)
+    table.cell(dash, 0, 6, "CVD", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, recentBearDiv ? "DIV ▼" : recentBullDiv ? "DIV ▲" : "clean", text_color=recentBearDiv ? color.red : recentBullDiv ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 7, "News [B3]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, newsWindow ? "BLACKOUT" : "clear", text_color=newsWindow ? color.orange : color.gray, text_size=size.tiny)
+
+// Alerts
+alertcondition(buyA,  "BUY A+",  "MASTER: BUY A+ — {{ticker}} {{interval}}")
+alertcondition(sellA, "SELL A+", "MASTER: SELL A+ — {{ticker}} {{interval}}")
+alertcondition(buyB,  "BUY B",   "MASTER: BUY B — {{ticker}} {{interval}}")
+alertcondition(sellB, "SELL B",  "MASTER: SELL B — {{ticker}} {{interval}}")
+alertcondition(buyA or buyB or sellA or sellB, "ANY Master Signal", "MASTER signal — {{ticker}} {{interval}}")
