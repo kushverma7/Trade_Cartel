@@ -1,6 +1,11 @@
 # Trade Cartel — Always-On Agent Instructions
 
-**IMPORTANT: At the start of EVERY session, read `MEMORY.md` in this directory first. It contains persistent context, backtest results, user preferences, and decisions from all previous sessions.**
+**IMPORTANT: At the start of EVERY session, read these files IN ORDER before doing anything else:**
+1. `MEMORY.md` — persistent context, backtest results, decisions, standing rules
+2. `trader_playbooks/USER_TRADING_PROFILE.md` — who the user is as a trader; act as their proxy
+3. `trader_playbooks/` (all other files) — the knowledge/confluence layer (candlestick patterns, trader rules). STANDING RULE: this layer is applied as confluence inside every strategy built or tuned — aligned tier-A signals upgrade entries, opposing ones veto/de-risk. It is never delivered as standalone output unless asked.
+
+Then: `git config user.email noreply@anthropic.com && git config user.name Claude`, check `git status`, and push any unpushed commits from previous sessions.
 
 This project has the following tools, MCP servers, and skills installed and active in every session.
 
