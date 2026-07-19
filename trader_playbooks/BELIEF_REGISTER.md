@@ -47,5 +47,17 @@ D-regime bar share on XAUUSD 5m/1H. Do not size on it until measured.
 breakout.** Corroborating overlap: PBD break-in == our reclaim; close-count
 confirmation == CPI continuation mode. Needs A/B backtest with/without PBD gate.
 
+**H5. Momentum-join beats reversal-hunting for scalps (Valentini).** His measured
+sample: trend-join WR 50-60% vs reversal WR 40%; rejected sweep models after
+testing. Verified competition trader = strong testimony, but NASDAQ orderflow
+context. Test on gold: JOIN vs REVERT signal performance in his engine.
+
+**H6. ~2SD VWAP excursions revert to fair value; 3rd SD hit only ~7% of sessions
+(Valentini's stats).** Directly codeable and testable on XAUUSD sessions.
+
+## Contradiction Tallies (3+ independent -> Belief Review)
+- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 1 contradiction
+  (Valentini tested & rejected sweep models as lower-WR than momentum-join).
+
 ## Retired Beliefs
 (none yet)
