@@ -53,3 +53,39 @@ Aggression = proxy (no footprint data in Pine) — stated honestly.
 - TENSION: skips session open; our gold edge trades 8:30-11. Different
   asset; B1 backtested, stands.
 - TENSION: rejects sweep-reversal models. Logged against B2/v3 reclaim.
+
+---
+
+## v2 additions — live-session transcript (same source, 2026-07-19)
+NOT a new independent source; execution detail for the same model.
+
+### Entry mechanics (his exact live rules)
+- Break-and-test, second drive only: never the first breakout. Break ->
+  test -> FULL-BODY candle closing beyond the level. Breaks-and-returns
+  = invalid, cancel the order.
+- Squeeze logic: aggressive orders absorbed with no follow-through =
+  trapped traders. When the opposing level breaks, forced covering
+  accelerates price. Enter with the squeeze, stop behind the absorbed
+  cluster. His highest-conviction entry.
+- Failed-auction weakening: each rejection at a level weakens the setup;
+  after ~3, demand more or skip. [Engine v2: rejection counter + gate]
+- Good setups go green immediately (zero-drawdown entries). If it sits,
+  be suspicious; his 250-loss exits came from setups that hesitated.
+- Stop placement: 1-2 ticks INSIDE the obvious extreme (slippage saves,
+  tested). For strategies: stop = extreme -/+ 2 ticks, not beyond.
+
+### Exit mechanics
+- Reversion target = previous POC: take FULL position off (market
+  reverses from POC ~70% of time — his claim). No runners there.
+- Continuation first target = previous daily high (highest-WR target).
+- CVD rising with price = can move to BE early; CVD divergence at highs
+  = unsupported move, exit/secure. [Engine v2: CVD proxy + divergence]
+- Failed auction at target while in profit -> secure profit rather than
+  hold for full target ("not giving this money back").
+
+### Regime discipline (observed live)
+- Compression/rebalance days (Mondays, Fridays, post-gap): trend model
+  off; he banked $1k and quit while green. Model-off is a position.
+- Round numbers (e.g. 22,000 NQ) act as accumulate/distribute magnets.
+- Session direction usually clear within first 15-30 min; skip pre-open
+  entirely (whipsaw liquidation both sides is normal at the bell).

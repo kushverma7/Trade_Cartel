@@ -34,6 +34,11 @@ float  poiTol    = input.float(0.3, "POI Touch Tolerance (x ATR)", step=0.05, gr
 int    cooldown  = input.int(6, "Signal Cooldown (bars)", minval=1, group="③ Engine")
 bool   showBands = input.bool(true, "Show VWAP + SD Bands", group="③ Engine")
 
+// v2 — from live-session transcript: failed-auction weakening + CVD
+int    rejMax    = input.int(3, "Max Level Rejections (then setup = weak)", minval=1, maxval=10, group="④ Execution Quality v2")
+bool   useRejGate= input.bool(true, "Suppress JOIN at weak (over-rejected) levels", group="④ Execution Quality v2")
+bool   useCvd    = input.bool(true, "CVD Divergence Warnings", group="④ Execution Quality v2")
+
 // ── Session state ────────────────────────────────────────────
 bool inSess  = not na(time(timeframe.period, sessStr, "America/New_York"))
 bool newSess = inSess and not inSess[1]
@@ -105,9 +110,57 @@ bool pulledBackS   = poiTouchShort or poiTouchShort[1] or poiTouchShort[2]
 var int lastSig = -9999
 bool cd = bar_index - lastSig > cooldown
 
+// ── v2: Failed-auction weakening (rejection counter) ─────────
+// Valentini: every rejection at the attacked level weakens the
+// setup. After rejMax rejections, JOINs are suppressed until the
+// level actually breaks (acceptance resets the count).
+float atkHi = ta.highest(high, 20)[1]
+float atkLo = ta.lowest(low, 20)[1]
+var int rejUp = 0
+var int rejDn = 0
+if newSess
+    rejUp := 0
+    rejDn := 0
+if inSess
+    if high >= atkHi - atrv * 0.1 and close < atkHi
+        rejUp += 1
+    if close > atkHi
+        rejUp := 0
+    if low <= atkLo + atrv * 0.1 and close > atkLo
+        rejDn += 1
+    if close < atkLo
+        rejDn := 0
+bool weakUp = rejUp >= rejMax
+bool weakDn = rejDn >= rejMax
+
+// ── v2: CVD (candle-direction proxy) + divergence warning ────
+var float cvd = 0.0
+if newSess
+    cvd := 0.0
+cvd += close > open ? volume : close < open ? -volume : 0.0
+
+float ph = ta.pivothigh(high, 5, 5)
+float pl = ta.pivotlow(low, 5, 5)
+var float lastPhPrice = na
+var float lastPhCvd   = na
+var float lastPlPrice = na
+var float lastPlCvd   = na
+bool bearDiv = false
+bool bullDiv = false
+if not na(ph)
+    if not na(lastPhPrice) and ph > lastPhPrice and cvd[5] < lastPhCvd
+        bearDiv := true
+    lastPhPrice := ph
+    lastPhCvd   := cvd[5]
+if not na(pl)
+    if not na(lastPlPrice) and pl < lastPlPrice and cvd[5] > lastPlCvd
+        bullDiv := true
+    lastPlPrice := pl
+    lastPlCvd   := cvd[5]
+
 // ── JOIN signals: bias + pullback to POI + aggression resume ─
-bool joinLong  = cd and ibDone and bias == 1  and pulledBackL and aggUp  and close > vwap
-bool joinShort = cd and ibDone and bias == -1 and pulledBackS and aggDn  and close < vwap
+bool joinLong  = cd and ibDone and bias == 1  and pulledBackL and aggUp  and close > vwap and (not useRejGate or not weakUp)
+bool joinShort = cd and ibDone and bias == -1 and pulledBackS and aggDn  and close < vwap and (not useRejGate or not weakDn)
 
 // ── REVERT signals: late session, back inside 2nd SD band ────
 bool revWindow   = inSess and hhmm >= revStart
@@ -136,9 +189,21 @@ if revertLong
 if revertShort
     label.new(bar_index, high, "REVERT ▼ tgt VWAP", style=label.style_label_down, color=color.new(#FF6D00, 10), textcolor=color.white, size=size.small)
 
+// v2 warnings
+if useRejGate and weakUp and not weakUp[1]
+    label.new(bar_index, high, "WEAK HIGH (" + str.tostring(rejUp) + " rejections)", style=label.style_label_down, color=color.new(color.gray, 30), textcolor=color.white, size=size.tiny)
+if useRejGate and weakDn and not weakDn[1]
+    label.new(bar_index, low, "WEAK LOW (" + str.tostring(rejDn) + " rejections)", style=label.style_label_up, color=color.new(color.gray, 30), textcolor=color.white, size=size.tiny)
+if useCvd and bearDiv
+    label.new(bar_index, high, "CVD DIV ▼", style=label.style_label_down, color=color.new(#AA00FF, 20), textcolor=color.white, size=size.tiny)
+if useCvd and bullDiv
+    label.new(bar_index, low, "CVD DIV ▲", style=label.style_label_up, color=color.new(#AA00FF, 20), textcolor=color.white, size=size.tiny)
+
 // ── Alerts (bar close) ───────────────────────────────────────
 alertcondition(joinLong,    "JOIN Long",    "Valentini: momentum-join long — {{ticker}} {{interval}}")
 alertcondition(joinShort,   "JOIN Short",   "Valentini: momentum-join short — {{ticker}} {{interval}}")
 alertcondition(revertLong,  "REVERT Long",  "Valentini: 2SD revert long to VWAP — {{ticker}} {{interval}}")
 alertcondition(revertShort, "REVERT Short", "Valentini: 2SD revert short to VWAP — {{ticker}} {{interval}}")
 alertcondition(joinLong or joinShort or revertLong or revertShort, "ANY Valentini Signal", "Valentini signal — {{ticker}} {{interval}}")
+alertcondition(bearDiv, "CVD Bearish Divergence", "Valentini v2: CVD bearish divergence — {{ticker}} {{interval}}")
+alertcondition(bullDiv, "CVD Bullish Divergence", "Valentini v2: CVD bullish divergence — {{ticker}} {{interval}}")

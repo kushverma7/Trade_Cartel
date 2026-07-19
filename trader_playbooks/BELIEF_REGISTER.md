@@ -55,6 +55,15 @@ context. Test on gold: JOIN vs REVERT signal performance in his engine.
 **H6. ~2SD VWAP excursions revert to fair value; 3rd SD hit only ~7% of sessions
 (Valentini's stats).** Directly codeable and testable on XAUUSD sessions.
 
+**H7. Break-and-test (second drive) with full-body close beats first-drive entries
+(Valentini live session).** Same source as H5 (no new tally), but now with exact
+mechanics. Already converges with our confirmation family. Test: trendline
+breakout A/B — enter on break close vs break->test->full-body re-close.
+
+**H8. Setups weaken with each level rejection; ~3 rejections = stand down; good
+entries go green immediately (Valentini live).** Codeable (engine v2 rejection
+gate). Test: WR of JOIN signals at fresh vs over-rejected levels.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 1 contradiction
   (Valentini tested & rejected sweep models as lower-WR than momentum-join).
