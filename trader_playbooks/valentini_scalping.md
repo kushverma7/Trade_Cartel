@@ -89,3 +89,39 @@ NOT a new independent source; execution detail for the same model.
 - Round numbers (e.g. 22,000 NQ) act as accumulate/distribute magnets.
 - Session direction usually clear within first 15-30 min; skip pre-open
   entirely (whipsaw liquidation both sides is normal at the bell).
+
+---
+
+## v3 additions — live NY session podcast (same source, 2026-07-19)
+
+### Verified account statistics (his own numbers, stated on stream)
+- Win rate 43-49%; avg win $1,000/contract vs avg loss $600/contract
+- Max win $10,000/contract vs max loss $3,200 (losses hard-capped ~3x avg)
+- Daily drawdown cap: fixed dollars ~1% of account; stop when hit
+- Risk per trade after cushion built: ~10% of the day's banked profit
+- LAW: high R:R and high WR trade off — one must be sacrificed. Pick
+  balance (his) or accept red streaks (home-run hunters).
+
+### NY session structure map [H10 — codeable]
+- ~90% of sessions that EXPAND in the first hour REBALANCE (consolidate)
+  through midday, then expand again in the POWER HOUR (15:00-16:00 ET).
+- Implication: trend model ON at open drive + power hour, OFF midday.
+- ORB stat: once directional, opening-range low untouched ~80% of time.
+- Elastic-band rule: expansion with zero retracement -> consolidation
+  next; never chase the second arrow before the bow is redrawn.
+
+### Side-equity filter [H11 — codeable]
+- Track LONG equity and SHORT equity separately. His week: shorts -1.7k,
+  longs +67k. Post-squeeze rebuild regimes pay ONE side only. Disable
+  the bleeding side; re-enable when its curve turns.
+
+### Statistical calendar pruning
+- Export trades -> test by hour/day -> cut hours/days with dead WR
+  (his cuts: after ~19:00 European, Fridays 3-of-4 losers).
+- Compression days (esp. after expansion weeks) = model-off.
+
+### Operational rules confirmed live
+- One position at a time, fractional entries with one common stop
+- Sick/tired/bad sleep = no trading (discretionary edge lives in you)
+- 3 stops mid-session = done; slightly more room at open (4-5)
+- Walk away at day target; ego trades after the AAA are rented, not owned

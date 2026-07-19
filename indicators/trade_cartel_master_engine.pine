@@ -31,6 +31,7 @@ bool  useVwap   = input.bool(true, "Score VWAP Side + SD [Valentini]", group="�
 bool  useRej    = input.bool(true, "Veto Over-Rejected Levels [H8]", group="③ Vetoes")
 bool  useCvdV   = input.bool(true, "Veto CVD Divergence Against [v2]", group="③ Vetoes")
 bool  useNews   = input.bool(true, "Block 8:25-8:45 ET News Window [B3]", group="③ Vetoes")
+bool  usePower  = input.bool(false, "Also Score NY Power Hour 15-16 ET [H10, unverified]", group="② Confluence Layers")
 int   minScore  = input.int(5, "Min Score to Print (B grade)", minval=1, maxval=12, group="④ Engine")
 int   cooldown  = input.int(6, "Signal Cooldown (bars)", minval=1, group="④ Engine")
 bool  showDash  = input.bool(true, "Show Layer Dashboard", group="④ Engine")
@@ -135,7 +136,7 @@ bool coreSell = sig == -1 and sig[1] != -1 and (not useH7 or fullBody)
 // ═════════════════════════════════════════════════════════════
 // LAYER 2: Session [B1 — the proven edge lever]
 // ═════════════════════════════════════════════════════════════
-bool inSession = not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York"))
+bool inSession = not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York")) or (usePower and not na(time(timeframe.period, "1500-1600", "America/New_York")))
 
 // ═════════════════════════════════════════════════════════════
 // LAYER 3: Value area regime [PBD — close-cluster profile]

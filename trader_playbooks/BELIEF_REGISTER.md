@@ -70,6 +70,15 @@ Volume+wick proxy built (effort_result_engine). Test: do THIN breakout candles
 underperform DRIVE breakout candles on the trendline core? If yes, THIN becomes
 a master-engine veto and DRIVE a scoring layer.
 
+**H10. NY session structure: first-hour expansion -> midday rebalance -> power-hour
+(15:00-16:00 ET) re-expansion, ~90% of expansion days (Valentini live, same source).**
+Codeable. Master engine has optional power-hour window (default OFF, NASDAQ claim,
+unverified on gold). Test: gold 5m trendline signals by session phase.
+
+**H11. Side-equity divergence marks one-sided regimes (Valentini: shorts -1.7k vs
+longs +67k in a rebuild week).** Test: split any strategy's long vs short PnL
+curves; disable the bleeding side when curves diverge hard. Strategy-wrapper TODO.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 1 contradiction
   (Valentini tested & rejected sweep models as lower-WR than momentum-join).
