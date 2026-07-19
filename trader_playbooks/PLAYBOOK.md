@@ -35,6 +35,17 @@
   ($4,594 Jan -> $5,177 Mar -> $4,164 Jun). Event-driven regime: session
   discipline and news windows matter more than trend-following.
 
+=== MASTER ENGINE (final synthesis, 2026-07-19) ===
+indicators/trade_cartel_master_engine.pine
+- Core: proven trendline breakout (22) + optional H7 full-body confirm
+- Confluence vote 0-12: session [B1] +2, out-of-balance regime [PBD] +2,
+  tier-A candle [Nison] +2, aggression [Valentini] +2, VWAP side (not
+  beyond 2SD) +2, fresh level [H8] +2
+- Grades: 8+ = A+, 5-7 = B, below = suppressed (grey x with tooltip)
+- Hard vetoes: opposing tier-A candle, recent CVD divergence against,
+  8:25-8:45 ET news window, over-rejected level
+- Dashboard shows all layer states live; alerts per grade
+
 === UPDATED RULES ===
 - Flat into CPI/8:30 prints; trade the confirmation after (B3)
 - Every strategy ships with: non-repainting math, realistic costs,
