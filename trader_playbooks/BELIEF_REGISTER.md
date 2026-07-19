@@ -116,6 +116,12 @@ at mature (4+) vs immature (<4) swing counts on gold. Could become a veto.
 Refinements (same source): no fresh continuations after 3 swings; runaway count
 (5-6+) = HTF in control, demand consolidation at the extreme before countering.
 
+**H19. Time-based ranges: the 09:00/15:00 ET hourly candles act as POIs — bias
+from subsequent closes, 50% taps reject, far-side sweeps reverse (Dave, same
+source as H18).** Implemented (timebase_range.pine). Note: internally contradicts
+his own price-over-time stance; externally aligns with QT true-open anchors.
+Test: tap/sweep signal outcomes on gold vs random hourly candles as control.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 3 SUPPORT (PBD break-in,
   QT Judas swing, Dave sweep-prerequisite) vs 1 AGAINST (Valentini). THRESHOLD

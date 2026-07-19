@@ -1,0 +1,124 @@
+// ============================================================
+// TIME-BASED RANGE ENGINE [Real-Time] — 9AM / 3PM ET candles
+// Source: trader_playbooks/dave_market_structure.md (v3)
+// (DTFS — same source as swing count; his intraday POI gift)
+//
+// Rules: the 09:00 and 15:00 ET hourly candles become POIs.
+//   1. Candle completes -> first close beyond its range sets BIAS
+//   2. Price tends to TAP back into the range (fib 30/50/70 on
+//      the candle) and reject in the bias direction
+//   3. SWEEP of the far side tends to reverse back into range
+// All bar-close, non-repainting. Works on any intraday TF.
+// ============================================================
+//@version=6
+indicator("Time-Based Range 9AM/3PM [Real-Time]", overlay=true, max_boxes_count=20, max_lines_count=60, max_labels_count=200)
+
+// ── Inputs ───────────────────────────────────────────────────
+bool use9  = input.bool(true, "Track 09:00 ET Candle", group="Windows")
+bool use15 = input.bool(true, "Track 15:00 ET Candle", group="Windows")
+float tol  = input.float(0.1, "Tap Tolerance (x ATR)", step=0.05, group="Engine")
+float atrv = ta.atr(14)
+
+// ── 09:00 window ─────────────────────────────────────────────
+bool w9 = not na(time(timeframe.period, "0900-1000", "America/New_York"))
+var float h9 = na
+var float l9 = na
+var int   b9 = 0      // bias: 0 unset, 1 up, -1 down
+var bool  done9 = false
+var bool  tapped9 = false
+var bool  swept9 = false
+if w9 and not w9[1]
+    h9 := high
+    l9 := low
+    b9 := 0
+    done9 := false
+    tapped9 := false
+    swept9 := false
+if w9
+    h9 := math.max(h9, high)
+    l9 := math.min(l9, low)
+if not w9 and w9[1]
+    done9 := true
+    if use9
+        box.new(bar_index, h9, bar_index + 200, l9, border_color=color.new(color.aqua, 50), bgcolor=color.new(color.aqua, 94))
+
+bool bias9set = done9 and b9 == 0
+if bias9set and close > h9
+    b9 := 1
+if bias9set and close < l9
+    b9 := -1
+
+float f950 = (h9 + l9) / 2
+bool tap9Long  = use9 and done9 and b9 == 1  and not tapped9 and low  <= f950 + atrv * tol and close > f950
+bool tap9Short = use9 and done9 and b9 == -1 and not tapped9 and high >= f950 - atrv * tol and close < f950
+bool sweep9Long  = use9 and done9 and b9 == 1  and not swept9 and low  < l9 and close > l9
+bool sweep9Short = use9 and done9 and b9 == -1 and not swept9 and high > h9 and close < h9
+if tap9Long or tap9Short
+    tapped9 := true
+if sweep9Long or sweep9Short
+    swept9 := true
+
+// ── 15:00 window ─────────────────────────────────────────────
+bool w15 = not na(time(timeframe.period, "1500-1600", "America/New_York"))
+var float h15 = na
+var float l15 = na
+var int   b15 = 0
+var bool  done15 = false
+var bool  tapped15 = false
+var bool  swept15 = false
+if w15 and not w15[1]
+    h15 := high
+    l15 := low
+    b15 := 0
+    done15 := false
+    tapped15 := false
+    swept15 := false
+if w15
+    h15 := math.max(h15, high)
+    l15 := math.min(l15, low)
+if not w15 and w15[1]
+    done15 := true
+    if use15
+        box.new(bar_index, h15, bar_index + 200, l15, border_color=color.new(color.orange, 50), bgcolor=color.new(color.orange, 94))
+
+bool bias15set = done15 and b15 == 0
+if bias15set and close > h15
+    b15 := 1
+if bias15set and close < l15
+    b15 := -1
+
+float f1550 = (h15 + l15) / 2
+bool tap15Long  = use15 and done15 and b15 == 1  and not tapped15 and low  <= f1550 + atrv * tol and close > f1550
+bool tap15Short = use15 and done15 and b15 == -1 and not tapped15 and high >= f1550 - atrv * tol and close < f1550
+bool sweep15Long  = use15 and done15 and b15 == 1  and not swept15 and low  < l15 and close > l15
+bool sweep15Short = use15 and done15 and b15 == -1 and not swept15 and high > h15 and close < h15
+if tap15Long or tap15Short
+    tapped15 := true
+if sweep15Long or sweep15Short
+    swept15 := true
+
+// ── Labels ───────────────────────────────────────────────────
+if tap9Long
+    label.new(bar_index, low, "9AM TAP ▲", style=label.style_label_up, color=color.new(#00B0FF, 10), textcolor=color.white, size=size.small,
+         tooltip="Tapped the 9AM candle 50% with bias up; rejection close. Target: out of the range (1:1).")
+if tap9Short
+    label.new(bar_index, high, "9AM TAP ▼", style=label.style_label_down, color=color.new(#00B0FF, 10), textcolor=color.white, size=size.small)
+if sweep9Long
+    label.new(bar_index, low, "9AM SWEEP ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small,
+         tooltip="Swept the 9AM candle low and closed back inside. Expect run back through the range.")
+if sweep9Short
+    label.new(bar_index, high, "9AM SWEEP ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small)
+if tap15Long
+    label.new(bar_index, low, "3PM TAP ▲", style=label.style_label_up, color=color.new(#FF6D00, 10), textcolor=color.white, size=size.small)
+if tap15Short
+    label.new(bar_index, high, "3PM TAP ▼", style=label.style_label_down, color=color.new(#FF6D00, 10), textcolor=color.white, size=size.small)
+if sweep15Long
+    label.new(bar_index, low, "3PM SWEEP ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small)
+if sweep15Short
+    label.new(bar_index, high, "3PM SWEEP ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(tap9Long or tap9Short,     "9AM Range Tap",   "TBR: 9AM candle 50% tap + rejection — {{ticker}} {{interval}}")
+alertcondition(sweep9Long or sweep9Short, "9AM Range Sweep", "TBR: 9AM candle swept and reclaimed — {{ticker}} {{interval}}")
+alertcondition(tap15Long or tap15Short,     "3PM Range Tap",   "TBR: 3PM candle 50% tap + rejection — {{ticker}} {{interval}}")
+alertcondition(sweep15Long or sweep15Short, "3PM Range Sweep", "TBR: 3PM candle swept and reclaimed — {{ticker}} {{interval}}")

@@ -70,3 +70,45 @@
   return to entry (if it does, idea is degrading).
 - Engine v2: auto-drawn previous-range zone with 30/50/70 on each
   body-close structure flip; continuation-caution alert at 3 swings.
+
+---
+
+## v3 additions — teaching batch (same source, 2026-07-19)
+
+### Multi-TF swing counting (precision)
+- Internal swings do NOT count toward the run; an internal swing is
+  INVALIDATED when price takes its high/low and replaces it.
+- Count from exactly TWO timeframes: the one you trade + one above.
+  Smaller swings belong to lower TFs; each leg has its own count that
+  facilitates the higher-TF count. Never mix counts across TFs.
+
+### Candlestick structure flip (exact template)
+- Low -> high -> lower low -> BODY close above the prior high = flip.
+- Zone = old high into the pre-reversal low; tap ~50% -> target 1:1
+  out of the zone (not the high — highs invite full retraces).
+- A flip is a REVERSAL only inside a higher-TF zone; otherwise it's
+  just facilitating a higher-TF pullback. HTF zones need 2-3 candles
+  of their TF to leave — manage lower-TF entries accordingly.
+
+### TIME-BASED RANGES [H19 — new, testable]
+- The 09:00 ET and 15:00 ET hourly candles are POIs. Next closes set
+  bias; price tends to tap back into the candle range (fib 30/50/70
+  ON the candle) and reject with bias. Sweeps of the far side tend
+  to reverse back through the range. 9AM serves NY; 3PM serves next
+  London. [timebase_range.pine implements]
+- INTERNAL TENSION: contradicts his own "structure doesn't need
+  time" stance; corroborates the QT time-anchor family (true opens).
+
+### 21-EMA trailing (exact algorithm)
+- Trail stop ONLY to lows that closed below the 21 EMA and were then
+  reclaimed (per traded TF). BE when the high that made your low is
+  taken. After swing 3-4 of the run, switch to aggressive candle-low
+  trailing (reversal imminent per swing count).
+
+### Craft / psychology (from his story)
+- Discipline should match desperation; honoring the plan = honoring
+  the family. 10-minute no-touch timer after every entry.
+- What you don't kill on the way up (ego, impulse, revenge) kills
+  you on the way down. Slow markets (Asia) are the classroom.
+- Losses have patterns too: find where you repeatedly lose, remove
+  that environment entirely.
