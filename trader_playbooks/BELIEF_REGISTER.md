@@ -104,6 +104,11 @@ with Roppel's independent support — 2 sources now: Valentini effort/result,
 Roppel/O'Neil school).** Promotion path: one gold backtest showing DRIVE-quality
 breaks outperform THIN breaks -> becomes a belief and a master-engine veto.
 
+**H17. Leg-size ratio (avg up-leg vs down-leg) is a usable continuous regime
+measure (Ario, educator — no track record).** Implemented as intent_reader
+scoreboard. Test: does its BULL/BEAR/CONSOL state classify gold regimes better
+than the close-cluster VA (PBD) regime? A/B as master-engine regime layer.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 2 SUPPORT (PBD break-in,
   Quarterly Theory Judas swing) vs 1 AGAINST (Valentini rejected sweep models).
@@ -117,8 +122,10 @@ breaks outperform THIN breaks -> becomes a belief and a master-engine veto.
   STRONGEST idea in the register.
 - Multi-timeframe alignment before sizing: 3 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands).
-- Confirmation-before-entry: now 5 independent (add Quarterly Theory's
-  mandatory structure-shift after PD-array tap).
+- Confirmation-before-entry: now 6 independent (add Ario's tested-move
+  evidence rule to CPI study, PBD, Valentini, Kurisko, QT).
+- H8 rejection-weakening / failure counting: 2 independent (Valentini
+  live rules; Ario stacked-wick failure counting).
 - B1 session windows (London + NY open): independent corroboration from
   Quarterly Theory Q2-expansion mapping (different reasoning, same windows).
 - Cushion-based risk escalation (risk profits, protect principal): 2

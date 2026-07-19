@@ -1,0 +1,123 @@
+// ============================================================
+// INTENT READER [Real-Time] — leg-size momentum scoreboard
+// Source: trader_playbooks/ario_intent_reading.md
+// (price-action educator — independent voice #6, low-credibility
+// tier: no track record; mechanics codeable and register-aligned)
+//
+// Core idea: trend = bullish legs bigger than bearish legs.
+// Momentum is a ratio, never binary. A move is trustworthy only
+// after the opposite side TESTED it and FAILED.
+//
+// Outputs (bar close, non-repainting; pivots confirm after `pw` bars):
+//   Scoreboard  — bull% vs bear% from last legs; state BULL /
+//                 BEAR / CONSOLIDATION with background tint
+//   SHIFT ▲/▼   — scoreboard state flips (early regime change)
+//   TESTED ▲/▼  — impulse, counter-leg failed small, close resumes
+//                 beyond the extreme = evidence-confirmed continuation
+// ============================================================
+//@version=6
+indicator("Intent Reader [Real-Time]", overlay=true, max_labels_count=500)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   pw       = input.int(5,  "Pivot Width (bars)", minval=2, group="Legs")
+int   legN     = input.int(3,  "Legs Per Side (avg)", minval=1, maxval=6, group="Legs")
+float trendTh  = input.float(0.60, "Trend Threshold (bull share)", step=0.05, minval=0.55, maxval=0.8, group="Legs")
+float failFr   = input.float(0.5, "Failed Counter-Leg (max fraction of impulse)", step=0.05, group="Tested Moves")
+int   cooldown = input.int(8, "Signal Cooldown (bars)", minval=1, group="Engine")
+bool  showTab  = input.bool(true, "Show Momentum Scoreboard", group="Engine")
+
+// ── Pivot / leg tracking ─────────────────────────────────────
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+
+var float lastPivPrice = na
+var int   lastPivType  = 0   // 1 = high, -1 = low
+var float lastPH = na
+var float lastPL = na
+var float[] upLegs = array.new_float()
+var float[] dnLegs = array.new_float()
+var float lastUpLeg = na
+var float lastDnLeg = na
+
+addLeg(arr, v) =>
+    array.push(arr, v)
+    if array.size(arr) > legN
+        array.shift(arr)
+
+if not na(ph)
+    if lastPivType == -1 and not na(lastPivPrice)
+        float leg = ph - lastPivPrice
+        if leg > 0
+            addLeg(upLegs, leg)
+            lastUpLeg := leg
+    lastPivPrice := ph
+    lastPivType  := 1
+    lastPH := ph
+if not na(pl)
+    if lastPivType == 1 and not na(lastPivPrice)
+        float leg = lastPivPrice - pl
+        if leg > 0
+            addLeg(dnLegs, leg)
+            lastDnLeg := leg
+    lastPivPrice := pl
+    lastPivType  := -1
+    lastPL := pl
+
+// ── Momentum scoreboard ──────────────────────────────────────
+float avgUp = array.size(upLegs) > 0 ? array.avg(upLegs) : na
+float avgDn = array.size(dnLegs) > 0 ? array.avg(dnLegs) : na
+float bullShare = not na(avgUp) and not na(avgDn) and (avgUp + avgDn) > 0 ? avgUp / (avgUp + avgDn) : na
+
+int state = na(bullShare) ? 0 : bullShare >= trendTh ? 1 : bullShare <= 1 - trendTh ? -1 : 0
+var int prevState = 0
+
+bgcolor(state == 1 ? color.new(color.green, 94) : state == -1 ? color.new(color.red, 94) : na, title="Intent State")
+
+// ── SHIFT signals (state flip) ───────────────────────────────
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool shiftUp = cd and state == 1  and prevState != 1  and prevState != 0
+bool shiftDn = cd and state == -1 and prevState != -1 and prevState != 0
+if state != prevState and state != 0
+    prevState := state
+if state != 0 and prevState == 0
+    prevState := state
+
+// ── TESTED-MOVE continuation ─────────────────────────────────
+// Impulse up (last up-leg), counter-leg failed small (< failFr of
+// impulse), close breaks the impulse high = evidence-confirmed.
+bool testedUp = cd and not na(lastUpLeg) and not na(lastDnLeg) and not na(lastPH) and lastPivType == -1 and lastDnLeg <= lastUpLeg * failFr and ta.crossover(close, lastPH)
+bool testedDn = cd and not na(lastDnLeg) and not na(lastUpLeg) and not na(lastPL) and lastPivType == 1  and lastUpLeg <= lastDnLeg * failFr and ta.crossunder(close, lastPL)
+
+if shiftUp or shiftDn or testedUp or testedDn
+    lastSig := bar_index
+
+if shiftUp
+    label.new(bar_index, low, "SHIFT ▲", style=label.style_label_up, color=color.new(#00C853, 20), textcolor=color.white, size=size.small,
+         tooltip="Leg momentum flipped bullish: up-legs now dominate.")
+if shiftDn
+    label.new(bar_index, high, "SHIFT ▼", style=label.style_label_down, color=color.new(#D50000, 20), textcolor=color.white, size=size.small,
+         tooltip="Leg momentum flipped bearish: down-legs now dominate.")
+if testedUp
+    label.new(bar_index, low, "TESTED ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="Impulse up, counter-leg failed small, close resumed above the pivot high. Evidence-confirmed continuation.")
+if testedDn
+    label.new(bar_index, high, "TESTED ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="Impulse down, counter-leg failed small, close resumed below the pivot low. Evidence-confirmed continuation.")
+
+// ── Scoreboard table ─────────────────────────────────────────
+var table tb = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showTab and barstate.islast and not na(bullShare)
+    table.cell(tb, 0, 0, "INTENT", text_color=color.orange, text_size=size.small)
+    table.cell(tb, 1, 0, state == 1 ? "BULL TREND" : state == -1 ? "BEAR TREND" : "CONSOLIDATION", text_color=state == 1 ? color.lime : state == -1 ? color.red : color.gray, text_size=size.small)
+    table.cell(tb, 0, 1, "Bull share", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, str.tostring(math.round(bullShare * 100)) + "%", text_color=color.lime, text_size=size.tiny)
+    table.cell(tb, 0, 2, "Bear share", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 2, str.tostring(math.round((1 - bullShare) * 100)) + "%", text_color=color.red, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(shiftUp,  "Momentum Shift Bull", "Intent: SHIFT ▲ — {{ticker}} {{interval}}")
+alertcondition(shiftDn,  "Momentum Shift Bear", "Intent: SHIFT ▼ — {{ticker}} {{interval}}")
+alertcondition(testedUp, "Tested Continuation Up",   "Intent: TESTED ▲ — {{ticker}} {{interval}}")
+alertcondition(testedDn, "Tested Continuation Down", "Intent: TESTED ▼ — {{ticker}} {{interval}}")
