@@ -81,3 +81,37 @@ Primary outranks compilations. Corrections + precision:
   4H->W.
 - Lineage note: he states openly it is reverse-engineered ICT. Still
   zero statistics offered in the primary source either.
+
+---
+
+## v4 — second full video, same primary lineage (2026-07-20)
+Fuller restatement with two genuinely new, codeable pieces:
+
+- **Exact 90-minute sub-quarters for all four sessions (ET)**, not just
+  the daily quarters:
+  - Asia:   6:00-7:30p / 7:30-9:00p / 9:00-10:30p / 10:30p-12:00a
+  - London: 12:00-1:30a / 1:30-3:00a / 3:00-4:30a / 4:30-6:00a
+  - NY AM:  6:00-7:30a / 7:30-9:00a / 9:00-10:30a / 10:30a-12:00p
+  - PM:     12:00-1:30p / 1:30-3:00p / 3:00-4:30p / 4:30-6:00p
+  Each session's Q2 (2nd 90-min block) = that session's true open,
+  confirming what was already coded (19:30/01:30/07:30/13:30).
+- **AMDX vs XAMD, exact quarter-to-phase mapping** (previously only
+  described as "shifted one quarter" — now precise):
+  - AMDX: Q1=Accumulate (tight range) -> Q2=Manipulate (Judas swing) ->
+    Q3=Distribute (trend already set, easiest phase to trade) ->
+    Q4=X (continuation OR reversal, resolved at HTF PD arrays/key levels).
+  - XAMD: Q1=X (continuation/reversal of the PRIOR cycle) -> Q2=Accumulate
+    (uses that quarter's true open as the reference even though
+    accumulation, not manipulation, happens here — true opens are
+    static regardless of phase) -> Q3=Manipulate (Judas swing, referenced
+    to Q2's true open) -> Q4=Distribute.
+- Weekly quarters explicit: Mon=Q1, Tue=Q2, Wed=Q3, Thu=Q4 — **Friday is
+  excluded**, stated to have "its own specific function" (source doesn't
+  elaborate; matches Steve/MMM4x's independent friday-is-different rule
+  from voice #8 — different lineage, same observation).
+- Liquidity/PD-array induction restated as one line: liquidity is
+  induced when price breaches old highs/lows while trading into a
+  higher-timeframe key level — this is the SMT/JUDAS mechanism already
+  coded, now stated as the general case.
+- Still zero statistics. Same primary source lineage as v3 (reverse-
+  engineered ICT, openly stated).

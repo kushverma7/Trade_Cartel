@@ -12,6 +12,8 @@
 //     that closes back inside, backed by SMT divergence.
 //   - SMT: correlated symbol (default silver for gold) fails to
 //     confirm our sweep -> the sweep was manipulation.
+//   - v4: 90-min sub-quarter markers per session; AMDX/XAMD phase
+//     heuristic (range-based proxy for the source's judgment call).
 //
 // EDGE STATUS: theory, zero stats in source. For observation and
 // confluence testing only. All signals bar-close, non-repainting.
@@ -31,6 +33,8 @@ string manip2   = input.session("0730-0900", "Manipulation Window 2 (NY AM open,
 int    cooldown = input.int(10, "Signal Cooldown (bars)", minval=1, group="③ Judas")
 bool   showAlt  = input.bool(true, "Show Q-Alternation Forecast", group="④ QT v2")
 int    ssmtWin  = input.int(12, "SSMT Window After Q Open (bars)", minval=1, group="④ QT v2")
+bool   show90   = input.bool(true, "Mark 90-Minute Sub-Quarter Opens", group="⑤ QT v4")
+bool   showAmd  = input.bool(true, "Label AMDX / XAMD Phase per Daily Quarter", group="⑤ QT v4")
 
 // ── Daily quarters (ET) ──────────────────────────────────────
 bool q1 = not na(time(timeframe.period, "1800-0000", "America/New_York"))
@@ -61,12 +65,36 @@ if newQ
                 label.new(bar_index, high, "Q→ EXPECT EXPANSION", style=label.style_label_left, color=color.new(color.teal, 30), textcolor=color.white, size=size.tiny)
             else if wasExpansion
                 label.new(bar_index, high, "Q→ EXPECT CONSOLIDATION", style=label.style_label_left, color=color.new(color.gray, 30), textcolor=color.white, size=size.tiny)
+        // AMDX vs XAMD profile heuristic [QT v4] — proxy only, not the
+        // source's own rule (source determines this by judgment: does
+        // the closed Q look like fresh accumulation, or a directional
+        // continuation/reversal of the prior cycle?). Tight range vs
+        // the running average = AMDX-leaning (next Q = Manipulate);
+        // wide directional range = XAMD-leaning (this Q was X).
+        if showAmd and not na(avgQR)
+            string prof = prevQR < avgQR * 0.7 ? "AMDX-leaning (next Q=Manipulate)" : prevQR > avgQR * 1.3 ? "XAMD-leaning (this Q was X)" : ""
+            if prof != ""
+                label.new(bar_index, low, prof, style=label.style_label_left, color=color.new(color.navy, 40), textcolor=color.white, size=size.tiny,
+                     tooltip="Heuristic range-based proxy for the source's judgment call, not a stated rule. AMDX: Q1=Accumulate, Q2=Manipulate, Q3=Distribute, Q4=X. XAMD: Q1=X, Q2=Accumulate (uses Q2 true open), Q3=Manipulate, Q4=Distribute.")
     qHi := high
     qLo := low
     qStartBar := bar_index
 else
     qHi := math.max(nz(qHi, high), high)
     qLo := math.min(nz(qLo, low), low)
+
+// ── 90-minute sub-quarter opens [QT v4] ──────────────────────
+// Q2 of each session's own 90-min cycle is that session's true open
+// (already plotted below); this just marks all four sub-quarter
+// boundaries per session for visual reference.
+mk90(sess) =>
+    w = not na(time(timeframe.period, sess, "America/New_York"))
+    w and not w[1]
+bool asia90  = mk90("1800-1930") or mk90("1930-2100") or mk90("2100-2230") or mk90("2230-0000")
+bool ldn90   = mk90("0000-0130") or mk90("0130-0300") or mk90("0300-0430") or mk90("0430-0600")
+bool nyam90  = mk90("0600-0730") or mk90("0730-0900") or mk90("0900-1030") or mk90("1030-1200")
+bool pm90    = mk90("1200-1330") or mk90("1330-1500") or mk90("1500-1630") or mk90("1630-1800")
+plotchar(show90 and (asia90 or ldn90 or nyam90 or pm90) ? high : na, "90-min Sub-Q Open", "·", location.abovebar, color.new(color.gray, 40), size=size.tiny)
 
 // ── True Opens ───────────────────────────────────────────────
 // v3 correction (primary source): True Weekly Open = MONDAY 18:00 ET

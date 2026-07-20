@@ -206,6 +206,17 @@ true weekly open is Monday 18:00 ET, not Tuesday midnight. Engine fixed. When
 sources within a school conflict, the primary wins; logged as a reminder that
 compilations garble.
 
+INTRA-SCHOOL NOTE v2 (H13, 2026-07-20): second primary-source video, same
+lineage, adds exact 90-min sub-quarter windows for all 4 sessions (engine
+now marks them) and the precise AMDX vs XAMD quarter-to-phase mapping
+(previously only "shifted one quarter" — now: AMDX Q1=Accumulate/Q2=
+Manipulate/Q3=Distribute/Q4=X; XAMD Q1=X/Q2=Accumulate/Q3=Manipulate/Q4=
+Distribute). Also states Friday is excluded from the weekly quarter count
+("its own specific function," unexplained) — independently echoes Steve/
+MMM4x's (voice #8) unrelated Friday-is-different rule. Engine's AMDX/XAMD
+label is our own range-based heuristic proxy for the source's stated
+judgment call, not a rule from the source — flagged as such in-code.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Break-of-structure / swing-failure family (B2 fix, PBD break-in, now
   including plain ABC/123): 5 SUPPORT (PBD break-in, QT Judas swing, Dave
