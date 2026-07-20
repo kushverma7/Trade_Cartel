@@ -412,6 +412,42 @@ same subject, genuinely useful implementation upgrade rather than new
 theory. Test: do the new measured-move targets actually get hit more
 often than a fixed-ATR target on the same breakout signals, on gold?
 
+**H45. A volume-weighted price histogram's shape (D/P/b/Thin) classifies
+regime: balanced POC near the middle = accumulation before a move
+(D), POC skewed toward the range top/bottom = trending/rotating (P/b),
+thin and even = strong trend with little accumulation time (Trader
+Dale — INDEPENDENT voice #14, MEDIUM credibility: stated formal
+finance credentials, no independently verified track record).**
+Directly comparable to PBD's close-cluster value area (voice #3) --
+same underlying concept, different weighting (volume vs. close-count).
+Test: does the volume-weighted version (trader_dale_volume_profile_
+engine.pine) classify regime more accurately than PBD's close-count
+proxy on gold? If so, prefer it as the master engine's regime layer.
+
+**H46. Heavy-volume price zones (HVN/Volume Clusters) work as S/R
+because of accumulated positions being defended on retest, but ONLY
+on the FIRST test -- later tests are explicitly lower probability
+(Trader Dale, voice #14).** This is the SAME "leftover orders" logic
+already dominant in the register (PBD, Wendell, MM Cycle) now
+independently re-derived a fourth time with real volume as the
+selection criterion instead of price structure or close-clustering.
+The "first-test-only" rule specifically converges with Wendell's
+freshness-decays-on-each-retest concept (H30) and Wendell's own
+zone-quality checklist. Test: does volume-weighted HVN selection find
+different (better or worse) zones than Wendell's candle-count/
+departure-speed criteria on the same gold data?
+
+**H47. Stop-loss placement in a low-volume pocket just beyond the
+nearest heavy-volume zone is more informative than a fixed-distance
+stop: if price actually reaches the low-volume area, that itself
+signals real momentum against the trade, not noise (Trader Dale,
+voice #14).** New, portable SL-placement idea -- distinct from every
+existing stop rule in the register (ATR multiples, day-extreme
+stops, scaled thirds). Paired with an explicit ADR-width guard
+(10-20% of ADR) that's directly compatible with the ADR-based sizing
+framework already used by Steve/MMM4x (voice #8). Test: A/B this SL
+method against the master strategy's existing ATR-based stop.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -530,6 +566,21 @@ refinement, not a new independent claim).
 - Cushion-based risk escalation (risk profits, protect principal): 2
   independent (Valentini, Roppel).
 - Round numbers as magnets/failure points: 2 independent (Valentini, Roppel).
+- Absorption (heavy two-sided volume without price progress = reversal
+  tell): 2 independent (Valentini's effort/result volume+wick proxy,
+  Trader Dale's Confirmation Setup #2) — same concept, same underlying
+  data limitation (both are proxies for footprint data we don't have).
+- Price/CVD divergence at S/R as a reversal confirmation: 2 independent
+  (Valentini's CVD-divergence veto in the master engine, Trader Dale's
+  Cumulative Delta Divergence, Confirmation Setup #4) — Trader Dale's
+  book independently validates the CVD-from-candle-direction proxy's
+  design intent by explaining the real footprint data it approximates.
+- "Leftover orders defend on retest, first test only" family (S/R
+  zone mechanism): now 4 independent constructions (PBD value area,
+  Wendell zone freshness, MM Cycle stop-hunt zones, Trader Dale's
+  volume-weighted HVN) — same causal story, four different selection
+  criteria (auction close-count, candle-count/departure-speed, time-
+  of-day/ADR geometry, real traded volume).
 
 ## Retired Beliefs
 (none yet)

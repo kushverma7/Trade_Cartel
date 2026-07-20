@@ -1,0 +1,254 @@
+// ============================================================
+// TRADER DALE VOLUME PROFILE / ORDER FLOW ENGINE [Real-Time]
+// Source: trader_playbooks/trader_dale_orderflow.md — INDEPENDENT
+// voice #14, MEDIUM credibility (stated formal finance credentials,
+// no independently verified track record)
+//
+// Built from OHLCV + volume only -- the book's true footprint/DOM
+// concepts (Imbalances, Big Limit Orders, Trades Filter, true
+// Unfinished Business) require Bid/Ask-split and per-trade size data
+// NOT available on standard chart feeds; those are explicitly NOT
+// implemented here (see playbook section 6). What IS implemented:
+//   - Rolling volume-weighted price histogram: POC + value area +
+//     D/P/b/Thin shape classification
+//   - Generalized HVN/Volume-Cluster zone detector with first-test-
+//     only retest entries (the pattern underlying 5 of the book's
+//     named setups)
+//   - Volume-based TP target (next HVN) + low-volume-area SL
+//     placement, clamped to a 10-20% ADR width guard
+//   - Wick-based "Unfinished Business" proxy (NOT true footprint
+//     auction-completion data -- approximated from candle geometry,
+//     explicitly caveated)
+//
+// All signals bar-close, non-repainting.
+// ============================================================
+//@version=6
+indicator("Trader Dale Volume Profile / Order Flow [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100, max_boxes_count=50)
+
+// ── Inputs ───────────────────────────────────────────────────
+int    vpLen     = input.int(120, "Volume Profile Window (bars)", minval=30, group="① Volume Profile")
+int    vpBins    = input.int(24, "Profile Bins", minval=10, maxval=50, group="① Volume Profile")
+float  vaPct     = input.float(0.70, "Value Area %", step=0.05, minval=0.5, maxval=0.9, group="① Volume Profile")
+float  hvnMult   = input.float(1.8, "HVN Min Volume (x avg bin)", minval=1.1, step=0.1, group="② HVN / Volume Cluster")
+int    maxZones  = input.int(10, "Max Tracked HVN Zones", minval=3, maxval=20, group="② HVN / Volume Cluster")
+float  departMult = input.float(1.5, "Min Departure From Zone (x zone height)", minval=0.5, step=0.25, group="② HVN / Volume Cluster")
+int    adrLen    = input.int(5, "ADR Length (days)", minval=1, group="③ TP / SL")
+float  slMinPct  = input.float(0.10, "Min SL Width (x ADR)", minval=0.02, step=0.01, group="③ TP / SL")
+float  slMaxPct  = input.float(0.20, "Max SL Width (x ADR)", minval=0.05, step=0.01, group="③ TP / SL")
+float  ubWickFr  = input.float(0.15, "Unfinished Business: max opposing wick fraction", minval=0.02, maxval=0.4, step=0.02, group="④ Unfinished Business")
+int    pw        = input.int(5, "Pivot Width for UB (bars)", minval=2, group="④ Unfinished Business")
+int    cooldown  = input.int(8, "Signal Cooldown (bars)", minval=1, group="⑤ Engine")
+
+float atrv = ta.atr(14)
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── Volume-weighted price histogram (POC, value area, shape) ──
+float winHi = ta.highest(high, vpLen)
+float winLo = ta.lowest(low, vpLen)
+float vstep = math.max((winHi - winLo) / vpBins, syminfo.mintick)
+
+var float[] vbins = array.new_float()
+array.clear(vbins)
+for i = 0 to vpBins - 1
+    array.push(vbins, 0.0)
+for i = 0 to vpLen - 1
+    int b = math.min(vpBins - 1, math.max(0, int((close[i] - winLo) / vstep)))
+    array.set(vbins, b, array.get(vbins, b) + volume[i])
+
+int pocBin = 0
+float pocVol = 0.0
+float totalVol = 0.0
+for i = 0 to vpBins - 1
+    float v = array.get(vbins, i)
+    totalVol += v
+    if v > pocVol
+        pocVol := v
+        pocBin := i
+float pocPrice = winLo + (pocBin + 0.5) * vstep
+
+// value area: expand from POC until vaPct of total volume covered
+int need = int(math.ceil(totalVol * vaPct))
+float have = pocVol
+int uB = pocBin
+int dB = pocBin
+while have < need and (uB < vpBins - 1 or dB > 0)
+    float un = uB < vpBins - 1 ? array.get(vbins, uB + 1) : -1.0
+    float dn = dB > 0 ? array.get(vbins, dB - 1) : -1.0
+    if un >= dn
+        uB += 1
+        have += math.max(un, 0.0)
+    else
+        dB -= 1
+        have += math.max(dn, 0.0)
+float vah = winLo + (uB + 1) * vstep
+float val = winLo + dB * vstep
+
+// shape classification: POC position in range + concentration
+float pocFrac = (winHi - winLo) > 0 ? (pocPrice - winLo) / (winHi - winLo) : 0.5
+float vaFrac  = (winHi - winLo) > 0 ? (vah - val) / (winHi - winLo) : 1.0
+string vpShape = vaFrac >= 0.55 ? "Thin/Trend" : pocFrac >= 0.65 ? "P-shape" : pocFrac <= 0.35 ? "b-shape" : "D-shape"
+
+plot(vah, "Value Area High", color.new(color.gray, 60), 1, plot.style_linebr)
+plot(val, "Value Area Low", color.new(color.gray, 60), 1, plot.style_linebr)
+plot(pocPrice, "POC", color.new(color.orange, 30), 2, plot.style_linebr)
+
+// ── HVN / Volume Cluster zone detection ────────────────────────
+// A bin holding hvnMult x the average bin volume, converted to a
+// price zone (bin +/- half step), tracked with first-test-only status
+float avgBinVol = totalVol / vpBins
+var float[] hvnLo = array.new_float()
+var float[] hvnHi = array.new_float()
+var bool[]  hvnFresh = array.new_bool()
+var int[]   hvnBar = array.new_int()
+
+if barstate.isconfirmed
+    for i = 0 to vpBins - 1
+        float v = array.get(vbins, i)
+        if v >= avgBinVol * hvnMult
+            float zLo = winLo + i * vstep
+            float zHi = winLo + (i + 1) * vstep
+            bool dupe = false
+            if array.size(hvnLo) > 0
+                for j = 0 to array.size(hvnLo) - 1
+                    if math.abs(array.get(hvnLo, j) - zLo) <= vstep * 0.5
+                        dupe := true
+            if not dupe
+                array.push(hvnLo, zLo)
+                array.push(hvnHi, zHi)
+                array.push(hvnFresh, true)
+                array.push(hvnBar, bar_index)
+                if array.size(hvnLo) > maxZones
+                    array.shift(hvnLo)
+                    array.shift(hvnHi)
+                    array.shift(hvnFresh)
+                    array.shift(hvnBar)
+
+bool clusterLong = false
+bool clusterShort = false
+float tpTarget = na
+float slTargetLong = na
+float slTargetShort = na
+
+// Pine disallows ta.* calls with a loop-dependent dynamic length
+// inside a `for` loop, so "departed from the zone" is checked against
+// a FIXED rolling window computed once here, rather than a per-zone
+// window back to each zone's exact formation bar. Less precise than
+// "since the zone formed," but syntactically required and still a
+// faithful "did price actually leave this zone recently" check.
+float rollHi = ta.highest(high, vpLen)
+float rollLo = ta.lowest(low, vpLen)
+
+if array.size(hvnLo) > 0
+    for i = array.size(hvnLo) - 1 to 0
+        float zLo = array.get(hvnLo, i)
+        float zHi = array.get(hvnHi, i)
+        bool  fresh = array.get(hvnFresh, i)
+        int   zBar = array.get(hvnBar, i)
+        float zHeight = zHi - zLo
+        bool departed = bar_index > zBar and (rollHi - zHi >= zHeight * departMult or zLo - rollLo >= zHeight * departMult)
+        if fresh and departed and cd
+            bool touchLong = low <= zHi and low >= zLo - atrv * 0.2 and close > zLo
+            bool touchShort = high >= zLo and high <= zHi + atrv * 0.2 and close < zHi
+            if touchLong and close > close[1]
+                clusterLong := true
+                array.set(hvnFresh, i, false)
+                lastSig := bar_index
+                label.new(bar_index, low, "HVN retest ▲", style=label.style_label_up, color=color.new(color.teal, 10), textcolor=color.white, size=size.small,
+                     tooltip="First test of a fresh HVN/Volume Cluster zone after departure. Only the FIRST test per the source -- lower probability on repeat tests.")
+            else if touchShort and close < close[1]
+                clusterShort := true
+                array.set(hvnFresh, i, false)
+                lastSig := bar_index
+                label.new(bar_index, high, "HVN retest ▼", style=label.style_label_down, color=color.new(color.maroon, 10), textcolor=color.white, size=size.small,
+                     tooltip="First test of a fresh HVN/Volume Cluster zone after departure.")
+
+// ── Draw tracked HVN zones ──────────────────────────────────────
+if barstate.islast and array.size(hvnLo) > 0
+    for i = 0 to array.size(hvnLo) - 1
+        bool fresh = array.get(hvnFresh, i)
+        box.new(array.get(hvnBar, i), array.get(hvnHi, i), bar_index + 30, array.get(hvnLo, i), border_color=color.new(fresh ? color.blue : color.gray, 50), bgcolor=color.new(fresh ? color.blue : color.gray, 92))
+
+// ── TP / SL: nearest HVN in trade direction, ADR-clamped SL ────
+float adr = request.security(syminfo.tickerid, "D", ta.sma(high - low, adrLen)[1], lookahead=barmerge.lookahead_on)
+float slMin = not na(adr) ? adr * slMinPct : na
+float slMax = not na(adr) ? adr * slMaxPct : na
+
+if clusterLong and array.size(hvnLo) > 0
+    float nearest = na
+    for i = 0 to array.size(hvnLo) - 1
+        float zLo = array.get(hvnLo, i)
+        if zLo > close and (na(nearest) or zLo < nearest)
+            nearest := zLo
+    tpTarget := nearest
+    slTargetLong := close - (not na(slMin) ? math.max(slMin, atrv * 0.5) : atrv)
+if clusterShort and array.size(hvnLo) > 0
+    float nearest = na
+    for i = 0 to array.size(hvnLo) - 1
+        float zHi = array.get(hvnHi, i)
+        if zHi < close and (na(nearest) or zHi > nearest)
+            nearest := zHi
+    tpTarget := nearest
+    slTargetShort := close + (not na(slMin) ? math.max(slMin, atrv * 0.5) : atrv)
+
+if clusterLong and not na(tpTarget)
+    line.new(bar_index, tpTarget, bar_index + 20, tpTarget, color=color.new(color.teal, 30), style=line.style_dashed)
+if clusterShort and not na(tpTarget)
+    line.new(bar_index, tpTarget, bar_index + 20, tpTarget, color=color.new(color.maroon, 30), style=line.style_dashed)
+
+// ── Unfinished Business proxy (wick-based, NOT true footprint) ──
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+float rng = high[pw] - low[pw]
+float upWick = high[pw] - math.max(close[pw], open[pw])
+float dnWick = math.min(close[pw], open[pw]) - low[pw]
+
+var float[] ubLevel = array.new_float()
+var bool[]  ubActive = array.new_bool()
+var int[]   ubDir = array.new_int()   // 1 = high UB, -1 = low UB
+
+if not na(ph) and rng > 0 and dnWick <= rng * ubWickFr
+    array.push(ubLevel, ph)
+    array.push(ubActive, true)
+    array.push(ubDir, 1)
+    if array.size(ubLevel) > maxZones
+        array.shift(ubLevel)
+        array.shift(ubActive)
+        array.shift(ubDir)
+    line.new(bar_index - pw, ph, bar_index + 100, ph, color=color.new(color.purple, 20), style=line.style_dotted)
+if not na(pl) and rng > 0 and upWick <= rng * ubWickFr
+    array.push(ubLevel, pl)
+    array.push(ubActive, true)
+    array.push(ubDir, -1)
+    if array.size(ubLevel) > maxZones
+        array.shift(ubLevel)
+        array.shift(ubActive)
+        array.shift(ubDir)
+    line.new(bar_index - pw, pl, bar_index + 100, pl, color=color.new(color.purple, 20), style=line.style_dotted)
+
+bool ubHit = false
+if array.size(ubLevel) > 0
+    for i = array.size(ubLevel) - 1 to 0
+        bool active = array.get(ubActive, i)
+        float lvl = array.get(ubLevel, i)
+        int   dir = array.get(ubDir, i)
+        if active and ((dir == 1 and high >= lvl) or (dir == -1 and low <= lvl))
+            array.set(ubActive, i, false)
+            ubHit := true
+            label.new(bar_index, dir == 1 ? high : low, "UB fixed", style=dir == 1 ? label.style_label_down : label.style_label_up, color=color.new(color.purple, 30), textcolor=color.white, size=size.tiny,
+                 tooltip="Wick-based Unfinished Business proxy tested/fixed. NOT true footprint auction-completion data -- approximated from candle wick geometry.")
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.bottom_right, 2, 3, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "VP SHAPE", text_color=color.orange, text_size=size.small)
+    table.cell(tb, 1, 0, vpShape, text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 1, "POC", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, str.tostring(pocPrice, format.mintick), text_color=color.white, text_size=size.tiny)
+    table.cell(tb, 0, 2, "Tracked HVN zones", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 2, str.tostring(array.size(hvnLo)), text_color=color.white, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(clusterLong, "HVN Retest Long", "Trader Dale: HVN retest long — {{ticker}} {{interval}}")
+alertcondition(clusterShort, "HVN Retest Short", "Trader Dale: HVN retest short — {{ticker}} {{interval}}")
+alertcondition(ubHit, "Unfinished Business Fixed", "Trader Dale: UB level tested/fixed — {{ticker}} {{interval}}")

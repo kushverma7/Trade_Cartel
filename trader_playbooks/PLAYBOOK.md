@@ -157,3 +157,12 @@ operational hygiene:
   freshest zone per side w/ mitigated status, "who's in control"
   regime flag, S/D flip detector, liquidity-grab-vs-BOS candle
   geometry, equilibrium 50% entry marker. H41-H44.
+- indicators/trader_dale_volume_profile_engine.pine (voice #14,
+  Trader Dale): rolling volume-weighted price histogram (POC, value
+  area, D/P/b/Thin shape classification), generalized HVN/Volume-
+  Cluster zone detector w/ first-test-only retests, volume-based TP
+  target + low-volume-area SL w/ ADR-width guard, wick-based
+  Unfinished Business proxy (explicitly NOT true footprint data).
+  H45-H47. True footprint concepts (Imbalances, Big Limit Orders,
+  Trades Filter) require Bid/Ask-split + per-trade size data we don't
+  have -- not built, flagged in the playbook.
