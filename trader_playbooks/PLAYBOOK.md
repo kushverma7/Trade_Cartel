@@ -89,6 +89,16 @@ operational hygiene:
   reason to abandon the approach, but it is a real, named risk that
   should factor into position sizing and broker selection for live
   execution — flagged explicitly rather than silently absorbed.
+- Pure PA/SMC source (voice #13, 2026-07-20) risk rules, consistent
+  with and adding to the above: 1% risk/trade, hard stop at -2%/day
+  (then stop trading and backtest the mistakes), always flat before
+  session end (corroborates Steve/MMM4x's identical rule), immediate
+  move to breakeven ahead of high-impact news if already in a
+  position, and spread buffering — widen both the entry limit AND the
+  stop loss by the spread amount when spreads run wide, to avoid
+  missed fills or premature stop-outs. Their 1.5-2 pip fixed stops are
+  NOT a generic sizing rule to copy — that only makes sense paired
+  with their precision 1m-refined zone entries, not looser setups.
 
 === KNOWLEDGE ENGINES (observation layer) ===
 - indicators/mm_cycle_engine.pine (voice #8, Steve/MMM4x): ET time grid
@@ -138,3 +148,9 @@ operational hygiene:
   geometric pattern detection with neckline/breakout triggers. H40.
   Cup & Handle and Diamond Top/Bottom explicitly not built (no robust
   mechanical trigger without curve-fitting noise).
+- indicators/pure_pa_smc_engine.pine (voice #13, Pure PA/SMC): IFC
+  (3-candle gap) detection, strong/weak structural point
+  classification (opposite-zone break test, non-retroactive), single
+  freshest zone per side w/ mitigated status, "who's in control"
+  regime flag, S/D flip detector, liquidity-grab-vs-BOS candle
+  geometry, equilibrium 50% entry marker. H41-H44.

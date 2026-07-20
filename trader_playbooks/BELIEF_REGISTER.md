@@ -352,6 +352,55 @@ them in slower form? Cup & Handle and Diamond Top/Bottom explicitly
 NOT built (no robust mechanical trigger without curve-fitting) —
 logged, not guessed at.
 
+**H41. A structural swing point is only STRONG once price breaks the
+most recent OPPOSITE-type S/D zone; rejection without that break marks
+it WEAK, and weakness never resolves retroactively (Pure PA/SMC —
+INDEPENDENT voice #13, LOW-MED-to-MED credibility: no verified stats,
+unusually precise mechanics).** A third distinct lens on structure
+quality alongside Dave's swing-maturity count (H18) and Alchemist's
+IDM-gated BOS (H36) -- three schools, three different tests for
+"is this swing point trustworthy." Test: does STRONG-tagged structure
+(pure_pa_smc_engine.pine) predict continuation better than untagged
+breaks, independent of IDM or swing-count gating?
+
+**H42. A valid S/D zone requires THREE factors together: IFC (a real
+3-candle gap), a structure break/CHoCH, and a liquidity grab on the
+way -- missing any one lowers probability (Pure PA/SMC, voice #13).**
+Different checklist axis than Wendell's freshness/candle-count/
+departure-speed (H30) -- this is about what the impulse LEFT BEHIND,
+not how the base formed. Test: does a 3-factor-confirmed zone
+(pure_pa_smc_engine.pine "DEM/SUP (fresh)") outperform a Wendell zone
+lacking IFC confirmation, on gold?
+
+**H43. Market regime can be tracked as "who's in control" -- whichever
+side (supply/demand) most recently WON a zone interaction (broke the
+opposing zone vs got rejected by it) -- and only the controlling side
+should be traded without a confirmed flip (Pure PA/SMC, voice #13).**
+A fourth distinct regime-classification construct in the register
+(alongside PBD balance/imbalance, EMA-stack bias, HTF bias in FX
+Master Pattern) -- this one is defined purely by the outcome of the
+last zone fight. Test: does gating any structure-break signal by
+"controlling side agrees" raise WR vs ungated, on gold?
+
+**H44. Liquidity grabs and BOS are geometrically distinguishable: a
+grab is a single wick-dominant candle, a real BOS is a body-close
+break (often multi-candle) (Pure PA/SMC, voice #13).** Converges with
+Steve/MMM4x's (voice #8) wick-vs-body-close distinction from an
+unrelated lineage -- same observable, independently arrived at twice.
+Already implemented as the lqGrabUp/lqGrabDn veto on BOS signals in
+pure_pa_smc_engine.pine (a wick-dominant candle does NOT count as a
+confirmed BOS). Test: does filtering out wick-dominant "BOS" claims
+reduce false signals on gold?
+
+INTRA-SCHOOL NOTE (H30, H13, 2026-07-20): Pure PA/SMC's mitigated/
+unmitigated zone concept and its full MTF top-down workflow (H4 bias
+-> 15m zones -> 5m refine -> 1m execute) are the SAME underlying ideas
+as Wendell's zone-freshness (H30) and the register's dominant MTF-
+alignment idea (now 7 independent constructions) -- logged as
+corroboration there, not double-counted. The one genuine extension:
+this source applies "unmitigated" to TP SELECTION as well as entries,
+which Wendell's source doesn't make explicit.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -445,12 +494,13 @@ refinement, not a new independent claim).
 - Confirmation-before-entry family: 4 independent (our CPI event study,
   PBD close-count, Valentini break-and-test, Kurisko confirmed turn).
   STRONGEST idea in the register.
-- Multi-timeframe alignment before sizing: 6 independent (Cognitive
+- Multi-timeframe alignment before sizing: 7 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands, voice #9
   nested Renko brick-size stack, Wendell walls-vs-chairs, voice #11's
-  HTF-bias/LTF-entry pattern — six schools, six different mechanics,
-  same structural conclusion: never size a trade without checking a
-  higher timeframe first).
+  HTF-bias/LTF-entry pattern, voice #13's H4-direction/15m-zone/5m-refine/
+  1m-execute cascade — seven schools, seven different mechanics, same
+  structural conclusion: never size a trade without checking a higher
+  timeframe first).
 - Confirmation-before-entry: now 8 independent (add Steve's confirmed-hammer-
   close + zone-shift confirmation to CPI study, PBD, Valentini, Kurisko, QT,
   Ario, Dave).

@@ -1,0 +1,186 @@
+// ============================================================
+// PURE PRICE ACTION / SMC ENGINE [Real-Time]
+// Source: trader_playbooks/pure_pa_smc.md — INDEPENDENT voice #13,
+// LOW-MED-to-MED credibility (no verified stats, unusually precise
+// and internally consistent mechanics)
+//
+// Mechanics implemented:
+//   - IFC (3-candle gap / imbalance) detection
+//   - Strong/Weak structural point classification: a swing extreme
+//     is STRONG only once price breaks the most recent OPPOSITE zone;
+//     non-retroactive (a later weak point never strengthens an
+//     earlier one)
+//   - Single freshest zone per side + mitigated/unmitigated status
+//   - "Who's in control": regime flag = whichever side most recently
+//     WON a zone interaction (broke the opposing zone vs got rejected)
+//   - S/D FLIP: failed new-extreme attempt that reverses through the
+//     opposing zone, flipping control
+//   - Liquidity-grab (wick-dominant single candle) vs BOS (body-close,
+//     multi-candle) tagging
+//   - Equilibrium 50% entry marker when the zone candle's wick > 50%
+//     of its range
+//
+// All signals bar-close, non-repainting (pivots confirm after `pw`
+// bars; zone/control state only updates on already-closed bars).
+// ============================================================
+//@version=6
+indicator("Pure PA / SMC Engine [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100, max_boxes_count=20)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   pw        = input.int(3, "Pivot Width (bars)", minval=2, maxval=8, group="① Structure")
+float ifcMinAtr = input.float(0.15, "Min IFC Gap Size (x ATR)", minval=0.0, step=0.05, group="② IFC / Zones")
+int   cooldown  = input.int(5, "Signal Cooldown (bars)", minval=1, group="③ Engine")
+bool  showZones = input.bool(true, "Draw Freshest Zone Per Side", group="② IFC / Zones")
+float eqWickFr  = input.float(0.5, "Equilibrium Entry: Min Wick Fraction", minval=0.3, maxval=0.8, step=0.05, group="④ Equilibrium")
+
+float atrv = ta.atr(14)
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── IFC (3-candle gap / fair value gap) ────────────────────────
+bool ifcUp = low > high[2] and (low - high[2]) >= atrv * ifcMinAtr
+bool ifcDn = high < low[2] and (low[2] - high) >= atrv * ifcMinAtr
+
+// ── Pivot skeleton ───────────────────────────────────────────
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+
+// ── Freshest zone per side (origin candle of the impulse that
+//    created an IFC, satisfies the 3-factor checklist loosely: IFC +
+//    a structure break test applied at signal time) ────────────────
+var float demZoneHi = na
+var float demZoneLo = na
+var bool  demMitigated = true
+var float supZoneHi = na
+var float supZoneLo = na
+var bool  supMitigated = true
+
+// origin candle = the bar 2 back from the IFC gap (the last down/up
+// candle before the impulse), matching "most recent IFC-creating
+// candle" from the source
+if ifcUp
+    demZoneHi := math.max(open[2], close[2])
+    demZoneLo := low[2]
+    demMitigated := false
+if ifcDn
+    supZoneLo := math.min(open[2], close[2])
+    supZoneHi := high[2]
+    supMitigated := false
+
+bool demTouch = not demMitigated and not na(demZoneLo) and low <= demZoneHi and low >= demZoneLo - atrv
+bool supTouch = not supMitigated and not na(supZoneLo) and high >= supZoneLo and high <= supZoneHi + atrv
+if demTouch
+    demMitigated := true
+if supTouch
+    supMitigated := true
+
+if showZones and ifcUp
+    box.new(bar_index - 2, demZoneHi, bar_index + 60, demZoneLo, border_color=color.new(color.teal, 40), bgcolor=color.new(color.teal, 90))
+if showZones and ifcDn
+    box.new(bar_index - 2, supZoneHi, bar_index + 60, supZoneLo, border_color=color.new(color.maroon, 40), bgcolor=color.new(color.maroon, 90))
+
+// ── Strong / Weak structural points ────────────────────────────
+// A pivot high is STRONG once price later closes below the most
+// recent opposing (demand) zone's low; WEAK if price approaches it
+// and rejects without doing so. Non-retroactive: tracked per-pivot,
+// never re-evaluated backward once resolved.
+var float lastPH = na
+var int   phStrength = 0   // 0 = unresolved, 1 = strong, -1 = weak
+var float lastPL = na
+var int   plStrength = 0
+
+if not na(ph)
+    lastPH := ph
+    phStrength := 0
+if not na(pl)
+    lastPL := pl
+    plStrength := 0
+
+if not na(lastPH) and phStrength == 0
+    if not na(demZoneLo) and close < demZoneLo
+        phStrength := 1
+    else if high >= lastPH - atrv * 0.1 and close < lastPH
+        phStrength := -1
+if not na(lastPL) and plStrength == 0
+    if not na(supZoneHi) and close > supZoneHi
+        plStrength := 1
+    else if low <= lastPL + atrv * 0.1 and close > lastPL
+        plStrength := -1
+
+// ── "Who's in control" regime ──────────────────────────────────
+var int control = 0   // 1 = demand in control, -1 = supply in control
+bool demandWon = not na(supZoneHi) and close > supZoneHi and close[1] <= supZoneHi[1]
+bool supplyWon = not na(demZoneLo) and close < demZoneLo and close[1] >= demZoneLo[1]
+if demandWon
+    control := 1
+if supplyWon
+    control := -1
+bgcolor(control == 1 ? color.new(color.blue, 95) : control == -1 ? color.new(color.red, 95) : na, title="Control regime")
+
+// ── S/D FLIP: failed new-extreme attempt reversing through the
+//    opposing zone ───────────────────────────────────────────────
+var float attemptExtreme = na
+var int   attemptDir = 0   // 1 = attempting new high, -1 = attempting new low
+if not na(ph) and (na(attemptExtreme) or attemptDir != 1 or ph > attemptExtreme)
+    attemptExtreme := ph
+    attemptDir := 1
+if not na(pl) and (na(attemptExtreme) or attemptDir != -1 or pl < attemptExtreme)
+    attemptExtreme := pl
+    attemptDir := -1
+
+bool flipBear = cd and attemptDir == 1 and not na(demZoneLo) and close < demZoneLo and close[1] >= demZoneLo[1] and high < ta.highest(high, 20)[1]
+bool flipBull = cd and attemptDir == -1 and not na(supZoneHi) and close > supZoneHi and close[1] <= supZoneHi[1] and low > ta.lowest(low, 20)[1]
+
+// ── Liquidity grab vs BOS candle geometry ──────────────────────
+float rng = high - low
+float upWick = high - math.max(close, open)
+float dnWick = math.min(close, open) - low
+bool  lqGrabUp = rng > 0 and dnWick >= rng * 0.6 and close > open
+bool  lqGrabDn = rng > 0 and upWick >= rng * 0.6 and close < open
+bool  bosUp = cd and not na(supZoneHi) and close > supZoneHi and close[1] <= supZoneHi[1] and not lqGrabUp
+bool  bosDn = cd and not na(demZoneLo) and close < demZoneLo and close[1] >= demZoneLo[1] and not lqGrabDn
+
+// ── Equilibrium 50% entry marker ───────────────────────────────
+bool eqCandle = rng > 0 and (upWick >= rng * eqWickFr or dnWick >= rng * eqWickFr)
+float eqLevelDem = not na(demZoneHi) ? (demZoneHi + demZoneLo) / 2 : na
+float eqLevelSup = not na(supZoneHi) ? (supZoneHi + supZoneLo) / 2 : na
+
+// ── Labels ───────────────────────────────────────────────────
+if cd and demTouch and not demMitigated[1]
+    label.new(bar_index, low, "DEM (fresh)" + (eqCandle ? " EQ:" + str.tostring(eqLevelDem, format.mintick) : ""), style=label.style_label_up, color=color.new(color.teal, 10), textcolor=color.white, size=size.small,
+         tooltip="Unmitigated demand zone tapped. Enter at zone edge, or the 50% equilibrium level if the origin candle's wick exceeds " + str.tostring(eqWickFr * 100) + "% of its range.")
+    lastSig := bar_index
+if cd and supTouch and not supMitigated[1]
+    label.new(bar_index, high, "SUP (fresh)" + (eqCandle ? " EQ:" + str.tostring(eqLevelSup, format.mintick) : ""), style=label.style_label_down, color=color.new(color.maroon, 10), textcolor=color.white, size=size.small,
+         tooltip="Unmitigated supply zone tapped.")
+    lastSig := bar_index
+if flipBull
+    label.new(bar_index, low, "S/D FLIP ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="Failed new low, reversed through the last supply zone -- control flips to demand.")
+    lastSig := bar_index
+if flipBear
+    label.new(bar_index, high, "S/D FLIP ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="Failed new high, reversed through the last demand zone -- control flips to supply.")
+    lastSig := bar_index
+if bosUp
+    label.new(bar_index, low, "BOS ▲", style=label.style_label_up, color=color.new(color.lime, 30), textcolor=color.white, size=size.tiny)
+if bosDn
+    label.new(bar_index, high, "BOS ▼", style=label.style_label_down, color=color.new(color.red, 30), textcolor=color.white, size=size.tiny)
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.bottom_left, 2, 3, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "IN CONTROL", text_color=color.orange, text_size=size.small)
+    table.cell(tb, 1, 0, control == 1 ? "DEMAND" : control == -1 ? "SUPPLY" : "unresolved", text_color=control == 1 ? color.lime : control == -1 ? color.red : color.gray, text_size=size.small)
+    table.cell(tb, 0, 1, "Last PH", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, phStrength == 1 ? "STRONG" : phStrength == -1 ? "WEAK" : "unresolved", text_color=phStrength == 1 ? color.lime : phStrength == -1 ? color.orange : color.gray, text_size=size.tiny)
+    table.cell(tb, 0, 2, "Last PL", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 2, plStrength == 1 ? "STRONG" : plStrength == -1 ? "WEAK" : "unresolved", text_color=plStrength == 1 ? color.lime : plStrength == -1 ? color.orange : color.gray, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(demTouch, "Fresh Demand Zone Tap", "Pure PA: DEM fresh zone tapped — {{ticker}} {{interval}}")
+alertcondition(supTouch, "Fresh Supply Zone Tap", "Pure PA: SUP fresh zone tapped — {{ticker}} {{interval}}")
+alertcondition(flipBull, "S/D Flip Bullish", "Pure PA: S/D FLIP ▲ — {{ticker}} {{interval}}")
+alertcondition(flipBear, "S/D Flip Bearish", "Pure PA: S/D FLIP ▼ — {{ticker}} {{interval}}")
+alertcondition(bosUp, "BOS Long",  "Pure PA: BOS ▲ — {{ticker}} {{interval}}")
+alertcondition(bosDn, "BOS Short", "Pure PA: BOS ▼ — {{ticker}} {{interval}}")
