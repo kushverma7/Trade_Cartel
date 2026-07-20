@@ -136,7 +136,17 @@ operational hygiene:
   pattern. H36-H38. The PDF's Quarterly Theory content was folded into
   the EXISTING quarterly_theory.md/engine as same-lineage corroboration,
   not duplicated here -- this file is only the genuinely new SMC
-  material. STANDING RULE (2026-07-20): one engine file per voice/
+  material.
+  v2 (2026-07-20, re-review of the source PDF's page IMAGES, not just
+  text -- see BELIEF_REGISTER H60-H61): Fibo Storyline (custom
+  ratio-set retracement KEY-zone entry + same-timeframe scale-in) and
+  Fibo Circle (1.893x/2.0x extension of an internal post-leg
+  retracement, KEY-level retest entry) RECLASSIFIED from "too garbled
+  to codify" to built, both off by default as a lower-confidence tier.
+  OCL remains not built -- geometry is now clear (HTF candle level ->
+  inducement trendline -> LTF order block) but the anchor-candle
+  selection rule is still unstated by the source.
+  STANDING RULE (2026-07-20): one engine file per voice/
   school, extended in place for future transcripts from the same
   source -- never fork a new .pine for the same author.
 - indicators/candlestick_engine.pine EXTENDED (2026-07-20,

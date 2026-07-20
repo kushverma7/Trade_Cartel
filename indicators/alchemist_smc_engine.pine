@@ -14,8 +14,40 @@
 //     new LL, retracement that FAILS to reclaim the original HH,
 //     then reversal (mirror for bullish)
 //
+// v2 (2026-07-20, re-review of the source PDF's page IMAGES -- the
+// original pass read text/captions only and flagged Fibo Circle, Fibo
+// Storyline and OCL as "too garbled to codify"; the diagrams turned
+// out to give concrete numeric ratios the text/captions alone did
+// not). Two of the three reclassified from "not built" to built:
+//   - Fibo Storyline: a custom (non-standard) Fibonacci retracement
+//     ratio set is visible on the source's own tool-settings page --
+//     0, .109, .127, .145, .214, .232, .25, .618, .636, .654, .786,
+//     .804, .822, 1 -- with a dense "KEY" cluster at .618-.822 and a
+//     shallower continuation-pullback cluster at .109-.25. Entry =
+//     price retraces into the KEY band on the dominant swing leg and
+//     closes back through it. "Adding wood" (scale-in) = after that
+//     first entry, a SECOND retracement zone tap on the NEXT swing leg
+//     as the trend continues -- source describes shifting to a lower
+//     timeframe for this; implemented here as the same mechanic
+//     re-applied to the next same-timeframe leg instead, for
+//     simplicity (flagged in-code, not a literal implementation).
+//   - Fibo Circle: an internal (smaller) retracement swing that forms
+//     just after the dominant leg -- its two extremes ("LOW CONSO" /
+//     "HIGH CONSO") anchor a Fibonacci EXTENSION using the source's
+//     own stated ratios 1.893 and 2.0. The projected level is a
+//     retest-entry point of interest in the direction of the
+//     dominant trend, not a target.
+// OCL remains NOT built -- the diagram clarifies the geometry (an
+// HTF candle-body level, connected by a diagonal inducement trendline
+// to an LTF order block) but not the anchor-candle SELECTION rule,
+// so implementing it would still mean guessing a mechanic the source
+// never states. See playbook section 9 for the full writeup.
+// Both new sections are a lower-confidence tier than sections 1-4 --
+// the source material itself remains a poor machine translation, just
+// less garbled than first assessed. Test standalone before trusting.
+//
 // All signals bar-close, non-repainting (pivots confirm after `pw`
-// bars; structure/role-flip/QML checks only use already-closed data).
+// bars; structure/role-flip/QML/fib checks only use already-closed data).
 // ============================================================
 //@version=6
 indicator("Alchemist SMC Engine [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100)
@@ -27,6 +59,11 @@ bool  showIdm   = input.bool(true, "Show IDM-Gated BOS/CHOCH", group="① Struct
 bool  showSbr   = input.bool(true, "Show SBR/RBS Role-Flip Retests", group="③ SBR/RBS")
 int   maxLevels = input.int(15, "Max Tracked Flipped Levels", minval=5, maxval=40, group="③ SBR/RBS")
 bool  showQml   = input.bool(true, "Show Quasimodo (QML) Pattern", group="④ Quasimodo")
+bool  showStory = input.bool(false, "Show Fibo Storyline KEY-Zone Entries [v2]", group="⑤ Fibo Storyline/Circle (v2, lower confidence)")
+float keyLo     = input.float(0.618, "KEY Zone Low Ratio", group="⑤ Fibo Storyline/Circle (v2, lower confidence)")
+float keyHi     = input.float(0.822, "KEY Zone High Ratio", group="⑤ Fibo Storyline/Circle (v2, lower confidence)")
+bool  showCircle = input.bool(false, "Show Fibo Circle KEY Extension Levels [v2]", group="⑤ Fibo Storyline/Circle (v2, lower confidence)")
+int   circleRetestWin = input.int(15, "Fibo Circle Retest Window (bars)", minval=3, group="⑤ Fibo Storyline/Circle (v2, lower confidence)")
 
 float atrv = ta.atr(14)
 var int lastSig = -9999
@@ -188,8 +225,119 @@ if qStage3 == 3 and not na(pl) and pl > qLL2
         lastSig := bar_index
         qStage3 := 0
 
+// ── FIBO STORYLINE (v2) ──────────────────────────────────────
+// Track the most recent completed swing leg from the shared ph/pl
+// pivot series (older opposite pivot -> newer pivot = the dominant
+// leg). Apply the source's own custom retracement ratio set to that
+// leg; a retrace into the KEY band (default .618-.822) that closes
+// back through the band's outer edge is ORDER 1. A second leg's own
+// KEY-band tap after ORDER 1 is ORDER 2 (same-timeframe re-application,
+// see header note -- source's literal LTF-shift is not implemented).
+var float legA = na   // older pivot of the dominant leg
+var float legB = na   // newer pivot (leg endpoint)
+var bool  legUp = true
+var int   legBBar = na
+
+// leg tracker: any new pivot (either side) becomes the new leg
+// endpoint; the previous endpoint becomes the new leg's origin
+var float prevPivot = na
+var bool  prevWasHigh = false
+if not na(ph)
+    if not na(prevPivot) and not prevWasHigh
+        legA := prevPivot
+        legB := ph
+        legUp := ph > prevPivot
+        legBBar := bar_index - pw
+    prevPivot := ph
+    prevWasHigh := true
+if not na(pl)
+    if not na(prevPivot) and prevWasHigh
+        legA := prevPivot
+        legB := pl
+        legUp := pl > prevPivot
+        legBBar := bar_index - pw
+    prevPivot := pl
+    prevWasHigh := false
+
+float legLo = not na(legA) and not na(legB) ? math.min(legA, legB) : na
+float legHi = not na(legA) and not na(legB) ? math.max(legA, legB) : na
+float legRange = not na(legLo) and not na(legHi) ? legHi - legLo : na
+
+// KEY band: retraced FROM the leg's endpoint back toward its origin
+float keyBandLo = legUp and not na(legRange) ? legHi - legRange * keyHi : (not legUp and not na(legRange) ? legLo + legRange * keyLo : na)
+float keyBandHi = legUp and not na(legRange) ? legHi - legRange * keyLo : (not legUp and not na(legRange) ? legLo + legRange * keyHi : na)
+
+var bool order1Done = false
+var int  order1Bar  = -9999
+bool inKeyBand = not na(keyBandLo) and not na(keyBandHi) and low <= keyBandHi and high >= keyBandLo
+bool storyOrder1Long  = showStory and cd and legUp  and inKeyBand and close > keyBandHi and close[1] <= keyBandHi
+bool storyOrder1Short = showStory and cd and not legUp and inKeyBand and close < keyBandLo and close[1] >= keyBandLo
+
+if storyOrder1Long or storyOrder1Short
+    order1Done := true
+    order1Bar := bar_index
+    lastSig := bar_index
+    label.new(bar_index, storyOrder1Long ? low : high, storyOrder1Long ? "Storyline ORDER1 ▲" : "Storyline ORDER1 ▼", style=storyOrder1Long ? label.style_label_up : label.style_label_down, color=color.new(#FF6D00, 10), textcolor=color.white, size=size.small,
+         tooltip="Retrace into the KEY zone (" + str.tostring(keyLo) + "-" + str.tostring(keyHi) + ") of the dominant swing leg, closed back through -- source's custom Fib ratio set, lower-confidence section (translation-derived).")
+
+// ORDER 2: after ORDER1, the NEXT completed leg's own KEY-band tap
+var bool waitingOrder2 = false
+if order1Done and bar_index == order1Bar
+    waitingOrder2 := true
+bool freshLeg = not na(legBBar) and legBBar > order1Bar
+bool storyOrder2 = showStory and waitingOrder2 and freshLeg and inKeyBand and cd and ((legUp and close > keyBandHi and close[1] <= keyBandHi) or (not legUp and close < keyBandLo and close[1] >= keyBandLo))
+if storyOrder2
+    waitingOrder2 := false
+    lastSig := bar_index
+    label.new(bar_index, legUp ? low : high, "Storyline ORDER2 (add)", style=legUp ? label.style_label_up : label.style_label_down, color=color.new(#FF6D00, 40), textcolor=color.white, size=size.tiny,
+         tooltip="Second KEY-zone tap on a fresh leg after ORDER1 -- source's 'adding wood' scale-in, applied same-timeframe rather than the source's literal LTF-shift.")
+
+// ── FIBO CIRCLE (v2) ─────────────────────────────────────────
+// The pivot immediately AFTER the dominant leg's endpoint is the start
+// of the internal retracement (LOW/HIGH CONSO); the pivot after that
+// closes it. Extension ratios (1.893, 2.0) are the source's own stated
+// values, not fitted.
+var float consoA = na
+var float consoB = na
+var bool  consoUp = true
+if not na(legBBar) and bar_index - pw == legBBar
+    consoA := legB
+    consoB := na   // a fresh dominant leg resets the internal-retracement search
+if not na(consoA) and na(consoB) and (not na(ph) or not na(pl))
+    float newPiv = not na(ph) ? ph : pl
+    if newPiv != consoA
+        consoB := newPiv
+        consoUp := newPiv > consoA
+
+float consoLo = not na(consoA) and not na(consoB) ? math.min(consoA, consoB) : na
+float consoHi = not na(consoA) and not na(consoB) ? math.max(consoA, consoB) : na
+float consoRange = not na(consoLo) and not na(consoHi) ? consoHi - consoLo : na
+
+float circleKey1 = showCircle and not na(consoRange) ? (consoUp ? consoLo + consoRange * 1.893 : consoHi - consoRange * 1.893) : na
+float circleKey2 = showCircle and not na(consoRange) ? (consoUp ? consoLo + consoRange * 2.0   : consoHi - consoRange * 2.0)   : na
+
+var bool  circleArmed = false
+var int   circleArmedBar = -9999
+bool circleFirstTouch = showCircle and not na(circleKey1) and not circleArmed and ((consoUp and ta.crossover(close, circleKey1)) or (not consoUp and ta.crossunder(close, circleKey1)))
+if circleFirstTouch
+    circleArmed := true
+    circleArmedBar := bar_index
+    line.new(bar_index, circleKey1, bar_index + circleRetestWin, circleKey1, color=color.new(#00B8D4, 30), style=line.style_dashed)
+    if not na(circleKey2)
+        line.new(bar_index, circleKey2, bar_index + circleRetestWin, circleKey2, color=color.new(#00B8D4, 60), style=line.style_dotted)
+
+bool circleRetest = showCircle and circleArmed and bar_index - circleArmedBar <= circleRetestWin and bar_index - circleArmedBar >= 1 and ((consoUp and low <= circleKey1 and close > circleKey1) or (not consoUp and high >= circleKey1 and close < circleKey1))
+if circleRetest
+    circleArmed := false
+    lastSig := bar_index
+    label.new(bar_index, consoUp ? low : high, "Fibo Circle KEY retest", style=consoUp ? label.style_label_up : label.style_label_down, color=color.new(#00B8D4, 10), textcolor=color.white, size=size.small,
+         tooltip="Price reached the 1.893x extension of the internal (post-leg) retracement and retested it -- source's Fibo Circle KEY level, lower-confidence section (translation-derived).")
+
 // ── Alerts ───────────────────────────────────────────────────
 alertcondition(bosUp, "IDM-Confirmed BOS Long",  "Alchemist: BOS ▲ IDM-confirmed — {{ticker}} {{interval}}")
 alertcondition(bosDn, "IDM-Confirmed BOS Short", "Alchemist: BOS ▼ IDM-confirmed — {{ticker}} {{interval}}")
 alertcondition(rbsTouch, "RBS Retest", "Alchemist: RBS retest (resistance->support) — {{ticker}} {{interval}}")
 alertcondition(sbrTouch, "SBR Retest", "Alchemist: SBR retest (support->resistance) — {{ticker}} {{interval}}")
+alertcondition(storyOrder1Long or storyOrder1Short, "Fibo Storyline ORDER1", "Alchemist: Fibo Storyline KEY-zone entry — {{ticker}} {{interval}}")
+alertcondition(storyOrder2, "Fibo Storyline ORDER2", "Alchemist: Fibo Storyline scale-in (adding wood) — {{ticker}} {{interval}}")
+alertcondition(circleRetest, "Fibo Circle KEY Retest", "Alchemist: Fibo Circle KEY extension retest — {{ticker}} {{interval}}")

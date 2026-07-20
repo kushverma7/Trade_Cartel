@@ -7,9 +7,11 @@
 # XAMD, 90-min cycles, SMT) are the SAME ICT lineage as voice #4/#13's
 # existing Quarterly Theory school -- logged as corroboration there,
 # NOT double-counted as a new voice. Credibility tier: LOW-MEDIUM --
-# anonymous poster, zero stats, translation quality is poor enough
-# that some sections (Fibo Circle, Fibo Storyline, OCL) are too
-# garbled to confidently codify and are flagged rather than guessed.
+# anonymous poster, zero stats, translation quality is poor. Fibo
+# Circle and Fibo Storyline were reclassified from "too garbled" to
+# buildable after re-reviewing the source's page IMAGES (2026-07-20,
+# see sections 9a/9b) -- they carry exact numeric ratios the text/
+# captions alone did not preserve. OCL remains not built (section 9).
 
 ## 1. IDM (INDUCEMENT) — GATES BOS/CHOCH CONFIRMATION [the key new idea]
 - A "valid pullback" is a retracement that (a) forms a clear local
@@ -117,19 +119,61 @@ for a candle close."
   rule cannot be confidently reconstructed. NOT implemented -- would
   require guessing mechanics the source doesn't clearly state, which
   violates the register's "no fabricated data" rule.
-- **Fibo Circle**: "identify LOW consolidation to find HIGH
-  consolidation" (buy) / mirror (sell) -- too vague to derive exact
-  geometry. Possibly related to Gann/Fibonacci time-price circles but
-  not stated clearly enough to implement.
-- **Fibo Storyline**: appears to describe scaling into a trend across
-  multiple legs using repeated Fibonacci retracement zones per leg
-  ("cut the stem and leaves," "neck to shoulder" -- garbled idiom),
-  but exact ratios and re-entry rules are not extractable from the
-  translation. Conceptually adjacent to standard fib-retracement
-  scale-ins already implicit elsewhere; not separately coded.
+  **v2 update (2026-07-20, page IMAGES re-reviewed, not just
+  text/captions)**: the diagram clarifies the GEOMETRY -- an HTF
+  candle-body level, connected by a diagonal "inducement" trendline,
+  down to an intersection point that lines up with an LTF order block
+  -- and confirms OCL is reused later (pages 63/66) as the actual
+  M5/M15 entry trigger in the source's own trading checklist, in the
+  same setup slot as SBR/RBS or Trendline Key. Still NOT built: the
+  rule for WHICH HTF candle anchors the level is not stated anywhere
+  in the source, image or text -- implementing it would still mean
+  guessing that one piece. Upgraded from "too garbled" to "geometry
+  clear, one rule still missing" -- worth revisiting if a future
+  Alchemist source clarifies the anchor-candle selection.
+
+## 9a. FIBO STORYLINE — v2, RECLASSIFIED as buildable
+(2026-07-20, page IMAGES re-reviewed): the source's own Fibonacci-tool
+settings page (p.61) shows the EXACT ratio set used throughout, a
+custom set, not the standard 0.236/0.382/0.5/0.618/0.786:
+**0, 0.109, 0.127, 0.145, 0.214, 0.232, 0.25, 0.618, 0.636, 0.654,
+0.786, 0.804, 0.822, 1**. Dense cluster at 0.618-0.822 (read as the
+"KEY" entry zone, confirmed by a small reversal candle in the worked
+examples -- "cut the stem and leaves"); shallower cluster at
+0.109-0.25 (a shallower continuation-pullback band, used less
+prominently in the examples). A second stage, "adding wood" (pp.
+59-60): after the first Fib-KEY entry (ORDER 1) triggers and price
+continues, the trader shifts to a LOWER TIMEFRAME, finds a fresh
+Fib/liquidity pullback zone there, and adds a second position
+(ORDER 2) -- this is the scale-in mechanic this playbook had only
+speculated about before; now confirmed with a name and a diagram.
+**Implemented** in alchemist_smc_engine.pine v2: KEY-band retracement
+entry on the dominant swing leg (ORDER 1), plus a same-timeframe
+re-application on the next leg for ORDER 2 (the source's literal
+LTF-shift is NOT implemented -- flagged in-code as a simplification,
+not a literal match). Lower-confidence tier than sections 1-4: the
+underlying translation is still poor, just less garbled than first
+assessed -- off by default, test standalone.
+
+## 9b. FIBO CIRCLE — v2, RECLASSIFIED as buildable
+(2026-07-20, page IMAGES re-reviewed): after a dominant swing leg,
+price forms a small INTERNAL retracement/zigzag; that internal swing's
+two extremes are labeled "LOW CONSO" / "HIGH CONSO" ("low/high
+consolidation") in the source's own diagram. A Fibonacci EXTENSION is
+drawn from that internal swing using the source's own stated ratios
+**1.893 and 2.0** (page 53) -- a projected level ("KEY ENTRY"/"KEY
+CIRCLE") that price is expected to reach and retest before the larger
+continuation move resumes. Buy/sell setups (pp. 53-54) are exact
+mirrors of each other. **Implemented** in alchemist_smc_engine.pine
+v2: the pivot pair immediately following the dominant leg's endpoint
+is treated as the internal LOW/HIGH CONSO swing; the 1.893x extension
+level is plotted and a retest (first cross, then a pullback that holds
+beyond it) is tagged as the entry signal. Same lower-confidence tier
+as Fibo Storyline -- off by default, test standalone.
 
 ## 10. ENGINE
 indicators/alchemist_smc_engine.pine — IDM-gated BOS/CHOCH detector,
-SBR/RBS role-flip tracker, Quasimodo (QML) pattern detector. All
-bar-close, non-repainting (pivots confirm with a lag, structure
-breaks and role flips only fire on closed bars).
+SBR/RBS role-flip tracker, Quasimodo (QML) pattern detector, Fibo
+Storyline KEY-zone entry + scale-in (v2), Fibo Circle KEY extension
+retest (v2). All bar-close, non-repainting (pivots confirm with a lag,
+structure breaks/role flips/fib checks only fire on closed bars).

@@ -633,6 +633,40 @@ statement about the text-extraction pass, not necessarily about the
 source itself -- always check whether an unrendered image is the
 actual reason before concluding a mechanic can't be built.
 
+**H60. Fibo Storyline: retracing into a dense 0.618-0.822 band of a
+custom (non-standard) Fibonacci ratio set, on the dominant swing leg,
+marks a high-probability continuation entry ("White Seraph"/Alchemist
+PDF, voice #12 -- LOW-MEDIUM credibility, anonymous, zero stats, poor
+machine translation).** RECLASSIFIED from "not built" after re-
+reviewing the source's page images turned up its exact tool-settings
+screenshot (ratio set: 0, .109, .127, .145, .214, .232, .25, .618,
+.636, .654, .786, .804, .822, 1) -- the text/caption extraction alone
+had preserved none of these numbers. A second stage ("adding wood"):
+after the first entry, shifting to a lower timeframe and taking a
+second Fib-zone entry as the trend continues -- implemented here as a
+same-timeframe re-application instead of a literal timeframe shift,
+flagged as a simplification. Distinct from every other fib-based idea
+in this register (none use this specific ratio set or a two-stage
+same-leg-family scale-in).
+
+**H61. Fibo Circle: a Fibonacci EXTENSION (ratios 1.893 and 2.0) of
+the small internal retracement that forms just after a dominant swing
+leg projects a retest-entry level in the direction of that leg
+("White Seraph"/Alchemist PDF, voice #12, same credibility tier as
+H60).** Also reclassified from "too vague" after the page-image
+re-review recovered the source's own stated extension ratios (1.893,
+2.0 -- both non-standard, not the usual 1.618/2.618). Conceptually
+adjacent to this register's other measured-move/extension ideas
+(chart-pattern targets, QT price-time squaring) but the specific
+mechanism -- extending an INTERNAL post-leg retracement rather than
+the leg itself -- is new.
+
+Both H60 and H61 sit in the same lower-confidence tier as the rest of
+this source (translated, not fully unambiguous even after the image
+re-review per the research agent's own report) -- shipped off by
+default in alchemist_smc_engine.pine, meant for standalone A/B testing
+before any confluence-stack inclusion.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
