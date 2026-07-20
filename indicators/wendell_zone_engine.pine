@@ -1,0 +1,151 @@
+// ============================================================
+// WENDELL SUPPLY/DEMAND ZONE ENGINE [Real-Time]
+// Source: trader_playbooks/wendell_supply_demand.md (Online Trading
+// Academy / Wyckoff lineage — INDEPENDENT voice #10, MEDIUM-HIGH
+// credibility: institutional education firm, no backtest in source)
+//
+// Direct B2 rework candidate: our original auto-generated 5m S/D
+// zones (Reversal Sniper v2, PF 0.731) had no freshness filter, no
+// basing-candle-count cap, no departure-strength filter, and no
+// retest-depth confirmation. This engine implements all four.
+//
+// Zone construction (drop-base-rally / rally-base-drop):
+//   - Base window = pivot-confirmed swing extreme +/- pw bars
+//     (caps candle count via pw; default pw=2 -> 5-bar base, close
+//     to the source's "4 candles or less" rule)
+//   - Distal = wick extreme of the base window
+//   - Proximal = body extreme (close/open, not wick) of the base
+//   - Departure filter = move away from proximal >= depMult x zone
+//     height within the confirmation window
+//   - Freshness = zone has NEVER been revisited since it formed;
+//     demoted (not deleted) on first retest, dropped after that
+//   - Retest depth = how far price penetrates the zone on revisit;
+//     shallow penetration (<=50%) = confirmation, deep/full = zone
+//     spent
+//
+// All signals bar-close, non-repainting (a zone only exists once its
+// pivot has confirmed pw bars back and departure is measured on
+// already-closed bars).
+// ============================================================
+//@version=6
+indicator("Wendell Supply/Demand Zones [Real-Time]", overlay=true, max_boxes_count=100, max_lines_count=100, max_labels_count=500)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   pw         = input.int(2, "Base Window Half-Width (bars)", minval=1, maxval=4, group="① Zone Construction", tooltip="Caps basing-candle count. 2 = 5-bar base, close to the source's '4 or less' rule.")
+float depMult    = input.float(1.0, "Min Departure (x zone height)", minval=0.3, step=0.1, group="① Zone Construction")
+int   maxZones   = input.int(15, "Max Tracked Zones Per Side", minval=5, maxval=40, group="② Freshness")
+float retestPct  = input.float(0.5, "Shallow-Retest Threshold (fraction of zone)", minval=0.1, maxval=0.9, step=0.05, group="③ Retest")
+string htfTF     = input.timeframe("60", "HTF Wall Reference Timeframe", group="④ Multi-TF")
+int    htfLen    = input.int(20, "HTF Swing Lookback (bars)", minval=5, group="④ Multi-TF")
+int    cooldown  = input.int(3, "Signal Cooldown (bars)", minval=1, group="⑤ Engine")
+
+float atrv = ta.atr(14)
+
+// ── Pivot-confirmed base windows ────────────────────────────
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+
+// distal/proximal from the pw-bar window straddling the pivot
+demDistal   = ta.lowest(low, pw * 2 + 1)                          // computed only when pl confirms (offset pw)
+demProximal = ta.highest(math.max(close, open), pw * 2 + 1)       // top of basing candle BODIES
+supDistal   = ta.highest(high, pw * 2 + 1)
+supProximal = ta.lowest(math.min(close, open), pw * 2 + 1)        // bottom of basing candle BODIES
+
+// ── Zone arrays (fixed-size ring buffers) ───────────────────
+var float[] demProx = array.new_float()
+var float[] demDist = array.new_float()
+var bool[]  demFresh = array.new_bool()
+var int[]   demBar   = array.new_int()
+
+var float[] supProx = array.new_float()
+var float[] supDist = array.new_float()
+var bool[]  supFresh = array.new_bool()
+var int[]   supBar   = array.new_int()
+
+pushZone(arrProx, arrDist, arrFresh, arrBar, prox, dist, capN) =>
+    array.push(arrProx, prox)
+    array.push(arrDist, dist)
+    array.push(arrFresh, true)
+    array.push(arrBar, bar_index)
+    if array.size(arrProx) > capN
+        array.shift(arrProx)
+        array.shift(arrDist)
+        array.shift(arrFresh)
+        array.shift(arrBar)
+
+// New demand zone: pivot low confirmed pw bars back, departure up satisfied
+bool newDemand = not na(pl) and (demProximal - demDistal) > 0 and (close - demProximal) >= depMult * (demProximal - demDistal)
+if newDemand
+    pushZone(demProx, demDist, demFresh, demBar, demProximal, demDistal, maxZones)
+
+bool newSupply = not na(ph) and (supDistal - supProximal) > 0 and (supProximal - close) >= depMult * (supDistal - supProximal)
+if newSupply
+    pushZone(supProx, supDist, supFresh, supBar, supProximal, supDistal, maxZones)
+
+// ── Freshness + retest detection on every bar ───────────────
+var int   lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+bool demandTouch = false
+bool supplyTouch = false
+
+if array.size(demProx) > 0
+    for i = array.size(demProx) - 1 to 0
+        float prox = array.get(demProx, i)
+        float dist = array.get(demDist, i)
+        bool  fresh = array.get(demFresh, i)
+        if fresh and low <= prox and bar_index > array.get(demBar, i) + pw
+            float pen = math.min(prox - math.max(low, dist), prox - dist)
+            float frac = (prox - dist) > 0 ? pen / (prox - dist) : 1.0
+            if cd and frac <= retestPct
+                label.new(bar_index, low, "DEMAND ▲ " + str.tostring(math.round(frac * 100)) + "%", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small,
+                     tooltip="Fresh demand zone, shallow retest (" + str.tostring(math.round(frac * 100)) + "% penetration). Basing width " + str.tostring(pw * 2 + 1) + " bars. Stop below distal line.")
+                demandTouch := true
+                lastSig := bar_index
+            array.set(demFresh, i, false)  // any touch consumes freshness, regardless of grade
+
+if array.size(supProx) > 0
+    for i = array.size(supProx) - 1 to 0
+        float prox = array.get(supProx, i)
+        float dist = array.get(supDist, i)
+        bool  fresh = array.get(supFresh, i)
+        if fresh and high >= prox and bar_index > array.get(supBar, i) + pw
+            float pen = math.min(math.min(high, dist) - prox, dist - prox)
+            float frac = (dist - prox) > 0 ? pen / (dist - prox) : 1.0
+            if cd and frac <= retestPct
+                label.new(bar_index, high, "SUPPLY ▼ " + str.tostring(math.round(frac * 100)) + "%", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small,
+                     tooltip="Fresh supply zone, shallow retest (" + str.tostring(math.round(frac * 100)) + "% penetration). Basing width " + str.tostring(pw * 2 + 1) + " bars. Stop above distal line.")
+                supplyTouch := true
+                lastSig := bar_index
+            array.set(supFresh, i, false)
+
+// ── Draw the most recent fresh zone of each side ─────────────
+var box demBox = na
+var box supBox = na
+if newDemand
+    if not na(demBox)
+        box.delete(demBox)
+    demBox := box.new(bar_index - pw, demProximal, bar_index + 60, demDistal, border_color=color.new(color.lime, 40), bgcolor=color.new(color.lime, 90))
+if newSupply
+    if not na(supBox)
+        box.delete(supBox)
+    supBox := box.new(bar_index - pw, supDistal, bar_index + 60, supProximal, border_color=color.new(color.red, 40), bgcolor=color.new(color.red, 90))
+
+// ── HTF wall reference (higher-timeframe swing extremes) ─────
+[htfHi, htfLo] = request.security(syminfo.tickerid, htfTF, [ta.highest(high, htfLen)[1], ta.lowest(low, htfLen)[1]], lookahead=barmerge.lookahead_off)
+plot(htfHi, "HTF Wall (Supply side)", color.new(color.maroon, 30), 2, plot.style_linebr)
+plot(htfLo, "HTF Wall (Demand side)", color.new(color.teal, 30), 2, plot.style_linebr)
+bool nearHtfWallDn = not na(htfLo) and math.abs(low - htfLo) <= atrv
+bool nearHtfWallUp = not na(htfHi) and math.abs(high - htfHi) <= atrv
+
+if demandTouch and nearHtfWallDn
+    label.new(bar_index, low, "WALL CONFLUENCE", style=label.style_label_up, color=color.new(color.orange, 10), textcolor=color.white, size=size.tiny,
+         tooltip="Demand zone touch aligns with the HTF wall -- higher-grade per 'walls vs chairs.'")
+if supplyTouch and nearHtfWallUp
+    label.new(bar_index, high, "WALL CONFLUENCE", style=label.style_label_down, color=color.new(color.orange, 10), textcolor=color.white, size=size.tiny,
+         tooltip="Supply zone touch aligns with the HTF wall -- higher-grade per 'walls vs chairs.'")
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(demandTouch, "Fresh Demand Touch", "Wendell: DEMAND shallow retest — {{ticker}} {{interval}}")
+alertcondition(supplyTouch, "Fresh Supply Touch", "Wendell: SUPPLY shallow retest — {{ticker}} {{interval}}")
+alertcondition(newDemand, "New Demand Zone", "Wendell: new drop-base-rally zone formed — {{ticker}} {{interval}}")
+alertcondition(newSupply, "New Supply Zone", "Wendell: new rally-base-drop zone formed — {{ticker}} {{interval}}")

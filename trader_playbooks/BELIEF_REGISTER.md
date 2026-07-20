@@ -14,6 +14,13 @@
 - Evidence: Reversal Sniper v2, PF 0.731 over 313 trades.
 - Invalidation: reworked zone logic showing PF > 1.5 on matched sample.
 - Status: HIGH conviction (backtested, painful).
+- REWORK CANDIDATE LOGGED (2026-07-20, H30): Wendell/OTA zone rules
+  (voice #10) give the precise quality filters v2 lacked -- freshness
+  (untested-only), basing-candle-count cap, departure-strength filter,
+  retest-depth confirmation. indicators/wendell_zone_engine.pine
+  implements all four. Backtest this BEFORE writing off S/D zones
+  entirely -- v2's failure may be a rules-implementation gap, not
+  proof the concept fails on gold.
 
 **B3. CPI direction is unknowable pre-print; the tradeable edge is post-spike.**
 - Evidence: matched 7 CPI events 2025-2026: follow won 3, fade won 2, muted 1, unclear 1.
@@ -193,6 +200,29 @@ Dave, QT Judas) transfers to gold at standard settings, or needs regime-
 adaptive box/ATR sizing. Test before trusting float signals sized on FX-
 calibrated brick constants.
 
+**H30. Supply/demand zone quality is separable and filterable: freshness
+(untested only), basing-candle count (fewer = stronger), departure speed/
+size (bigger = stronger), and retest penetration depth (shallower = 
+stronger leftover interest) (Wendell/OTA — INDEPENDENT voice #10, MEDIUM-
+HIGH credibility: institutional education firm, ex-hedge-fund instructor,
+explicit order-flow rationale, no backtest in source).** This is the
+direct rework target for B2. Test: backtest wendell_zone_engine.pine
+signals (DEMAND/SUPPLY shallow-retest touches) standalone on XAUUSD 5m;
+compare PF against the retired v2 zone logic (0.731) and against B2's
+invalidation bar (PF > 1.5).
+
+**H31. Institutional zones are "walls" (higher-timeframe, hold/reverse
+price) vs "chairs" (lower-timeframe, momentum pushes through); only trade
+the timeframe you're on when price is AT one of its own fresh zones --
+otherwise no trade regardless of setup quality ("don't trade in the
+middle") (Wendell/OTA).** Converges with existing MTF-alignment
+corroboration (now 5 independent: Cognitive Architecture, Valentini,
+Kurisko, voice #9 Renko nesting, now Wendell walls/chairs) from yet
+another angle -- but adds a hard NO-TRADE rule the others don't state
+explicitly. Test: does gating the master engine to fire only when price
+sits inside a wendell zone reduce trade count and raise PF, vs the
+existing session-gate-only baseline?
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -219,11 +249,12 @@ judgment call, not a rule from the source — flagged as such in-code.
 
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Break-of-structure / swing-failure family (B2 fix, PBD break-in, now
-  including plain ABC/123): 5 SUPPORT (PBD break-in, QT Judas swing, Dave
-  sweep-prerequisite, Steve/MMM4x stop-hunt-reverse, voice #9 ABC/123) vs
-  1 AGAINST (Valentini). THRESHOLD CROSSED, now doubly so: register-
-  supported doctrine, final promotion pending our own backtest of Reversal
-  Sniper v3 / JUDAS on gold.
+  including plain ABC/123 and Wendell drop-base-rally/rally-base-drop):
+  6 SUPPORT (PBD break-in, QT Judas swing, Dave sweep-prerequisite,
+  Steve/MMM4x stop-hunt-reverse, voice #9 ABC/123, voice #10 Wendell
+  zones) vs 1 AGAINST (Valentini). THRESHOLD CROSSED, decisively:
+  register-supported doctrine, final promotion pending our own backtest
+  of Reversal Sniper v3 / JUDAS / Wendell zones on gold.
 - Consecutive-opposing-bar counting as a decision trigger (entry OR exit):
   3 independent, 3 different thresholds (Valentini ~3 rejections -> stand
   down, Dave 4-6 matured swings -> reversal permitted, voice #9 4 counter-
@@ -243,9 +274,10 @@ judgment call, not a rule from the source — flagged as such in-code.
 - Confirmation-before-entry family: 4 independent (our CPI event study,
   PBD close-count, Valentini break-and-test, Kurisko confirmed turn).
   STRONGEST idea in the register.
-- Multi-timeframe alignment before sizing: 4 independent (Cognitive
+- Multi-timeframe alignment before sizing: 5 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands, voice #9
-  nested Renko brick-size stack — same idea via construct granularity).
+  nested Renko brick-size stack, Wendell walls-vs-chairs — this one adds
+  a hard no-trade rule the others lack, see H31).
 - Confirmation-before-entry: now 8 independent (add Steve's confirmed-hammer-
   close + zone-shift confirmation to CPI study, PBD, Valentini, Kurisko, QT,
   Ario, Dave).

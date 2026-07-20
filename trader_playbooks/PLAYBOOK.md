@@ -72,3 +72,9 @@ indicators/trade_cartel_master_engine.pine
   swing-failure structure break, "floating brick" entry trigger,
   counter-color run exit counter. Hypotheses H25-H29 — H29 flags gold
   applicability as unresolved (source's own student doubted it).
+- indicators/wendell_zone_engine.pine (voice #10, Online Trading Academy):
+  precise proximal/distal S/D zone construction, freshness filter
+  (untested-only), basing-candle-count cap, departure-strength filter,
+  retest-depth confirmation, HTF wall / LTF chair overlay. H30-H31 —
+  **direct rework candidate for B2** (our failed auto-zone logic, PF
+  0.731); backtest before concluding S/D zones don't work on gold.
