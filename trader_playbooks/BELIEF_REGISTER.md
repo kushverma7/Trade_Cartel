@@ -667,6 +667,74 @@ re-review per the research agent's own report) -- shipped off by
 default in alchemist_smc_engine.pine, meant for standalone A/B testing
 before any confluence-stack inclusion.
 
+**H62. Trend position measured against a fixed-rate geometric angle
+fan (1x1/2x1/4x1/8x1, "the death angle" at 45°) predicts trend
+strength/weakness -- holding above steeper angles is a stronger
+position, breaking below any held angle indicates a decline to the
+next angle below it (W.D. Gann, "Master Commodities Course," voice
+#16, same LOW-MEDIUM credibility tier as the rest of this source).**
+Genuinely new mechanism relative to everything already in this
+register -- nothing else here derives a trend-strength LADDER (not
+just a single line) from a fixed price-per-time rate. This is the one
+piece of classical "Gann Angles" the earlier TradingFives book
+explicitly declined to cover ("we make no claims... W.D. Gann made
+all his charts by hand"). The 1x1 rate itself is NOT source-given for
+gold -- implemented as `ATR(14) x 0.25` by default, our own
+convention matching Gann's own stated discretion ("pick a scale where
+the 45° looks right"), not a literal transcription. Untested whether
+an angle fan calibrated this way behaves sensibly on 5m gold at all;
+every worked example in the source is daily/weekly/monthly grain,
+cotton, or egg futures.
+
+**H63. A single bar making a new N-bar extreme that closes in the
+weak half of its own range (or beyond the open) is a standalone
+reversal signal, no confirmation bar required ("Signal Day," W.D.
+Gann, same source as H62).** Notable for what it CONTRADICTS about
+this repo's own design discipline, not just the market: nearly every
+other single-bar/pattern signal in this register requires a
+confirmation close (the confirmation-before-entry family is the
+STRONGEST idea here, 8+ independent sources) — Signal Day is Gann's
+own explicit exception, treated as immediately actionable. Implemented
+as its own tagged signal, NOT folded into the confirmation-required
+default path, so it can be A/B tested on its own terms rather than
+diluted by a discipline the source itself doesn't apply to it.
+
+**H64. UNRESOLVED TENSION: a level tested a FOURTH time nearly always
+breaks through, not fades again (W.D. Gann, same source as H62-H63)
+— directly opposed to every double/triple-tap fade idea already in
+this register (MM Cycle's 3-tap fade H22, PBD, Wendell), all of which
+treat the 3rd tap as the STRONGEST fade signal and say nothing about
+a 4th.** Not adjudicated here. Possible reconciliation: the existing
+3-tap-fade sources may simply not have tested what happens on a 4th
+touch (survivorship in the data they drew from, not necessarily a
+real contradiction) — or Gann's rule may be right and the existing
+3-tap conviction ceiling should itself be revisited. Flagged for our
+own backtest: track win rate specifically on trades taken AT a 4th
+touch of a level vs. the existing 3rd-touch-fade baseline.
+
+INTRA-SCHOOL NOTE (Gann, 2026-07-20): the Master Commodities Course's
+extensive numbered trading-rule lists (29-rule Trend Line/3-Day-Chart
+system, pyramiding rules, money-management sizing) are structurally
+close to this register's existing swing/structure-break family (IDM-
+gated BOS, Dave's swing count, MM Cycle's tap-fade) and to the
+existing scale-in idea (H50) -- logged as corroboration of those
+existing mechanisms, not new H-numbers, since the numeric thresholds
+(cents-per-bushel, dollars-per-contract, 1940s-50s commodity scale)
+don't transfer to XAUUSD and the underlying structural idea (trade
+with the swing chart's main trend, add on favorable moves, cut on the
+first break of the last swing point) is already represented. The
+extensive Great/Minor Time Cycle and seasonal-anniversary material
+(90/60/49-50/30/20/13-year cycles; commodity-specific planting/
+harvest/crop-report calendars) is explicitly agricultural-commodity
+seasonality with no mechanical analogue for a non-seasonal, 24/7-traded
+metal -- preserved in the playbook per the never-discard rule but not
+built, and not logged as a hypothesis since applying it to gold would
+be fabrication, not extension. The Hexagon Chart, Master 12/144
+squares, and letter-count-modulus squares (Chapter 17-19) are genuinely
+new geometric constructions but sit well past this register's
+falsifiability bar without a clearer trigger than what the existing
+squares-1-to-19 watchlist already provides -- documented, not built.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.

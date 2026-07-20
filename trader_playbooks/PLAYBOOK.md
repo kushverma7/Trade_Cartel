@@ -216,3 +216,27 @@ operational hygiene:
   Gann's own appendix explicitly NOT built -- no falsifiable trigger,
   preserved verbatim in trader_playbooks/gann_square_of_nine.md per
   standing rule.
+  v2 (2026-07-20, "The W.D. Gann Master Commodities Course" -- Gann's
+  own original grain/cotton/egg/soybean courses, 16,230 lines, read in
+  full; SAME voice, extended in place): true Gann Angle fan (1x1/2x1/
+  4x1/8x1 + weak-side mirrors) from the shared major-pivot anchor,
+  ATR-scaled 1x1 rate (our own convention, source is explicitly
+  discretionary about scale), angle-position trend-strength readout,
+  "death angle" (1x1) break alert; Signal Day single-bar reversal tag
+  (new N-bar extreme closing in the weak half of its range, no
+  confirmation bar -- an explicit exception to this project's usual
+  confirmation-before-entry default, kept as its own separate signal
+  rather than folded in); a second, source-distinct minor time-rule
+  bar-count watchlist (7/10/14/20/21/28/30/45/49/63/66/70/84/90) tied
+  to the most recent swing pivot rather than the major anchor. H62-H64.
+  Large amounts of course material deliberately NOT built (29+ numbered
+  trading/pyramiding rules -- corroborates the existing swing/
+  structure-break family rather than adding new code, since the
+  numeric thresholds are 1940s-50s commodity-dollar-specific; decades
+  of seasonal/anniversary time cycles -- explicitly agricultural,
+  no analogue for a non-seasonal 24/7 metal; Hexagon Chart, Master
+  12/144 squares, letter-count-modulus squares -- genuinely new
+  geometry but past this register's falsifiability bar without a
+  clearer trigger; astrological forecasting content -- out of scope
+  regardless of source credibility). Full writeup in
+  trader_playbooks/gann_square_of_nine.md section 11.

@@ -7,6 +7,18 @@ indicator("Trade Cartel - Gann Square of Nine Engine", shorttitle="TC-GannSQ9", 
 // the Master-144 numerology is explicitly NOT implemented, see playbook).
 // One brain per voice -- extend this file in place for future Gann
 // material, never fork a second Gann .pine.
+//
+// v2 (2026-07-20, "The W.D. Gann Master Commodities Course" -- Gann's
+// own original grain/cotton/egg/soybean courses, 16,230 lines, read in
+// full). Two genuinely new mechanics added, both explicitly absent from
+// the TradingFives book (which said outright it makes "no claims" about
+// Gann Angles): a true Gann Angle fan (1x1/2x1/4x1/8x1) from the shared
+// major-pivot anchor, and a Signal Day single-bar reversal tag. A wide
+// range of other course material (numbered trading/pyramiding rules,
+// decades of seasonal/anniversary time-cycle tables for grains/cotton/
+// eggs, the Hexagon Chart, Master 12/144 charts) is deliberately NOT
+// built -- see trader_playbooks/gann_square_of_nine.md for the full
+// writeup of what's there and why each piece was or wasn't coded.
 // =====================================================================
 
 grpAnchor = "Anchor / Major Pivot"
@@ -28,8 +40,18 @@ showSquaring = input.bool(true, "Detect price-range = time squaring at swing piv
 pivotWidth = input.int(10, "Pivot width (bars) for swing detection", minval = 2, group = grpSquare)
 degTol = input.float(5.0, "Degree tolerance for a 'square' hit", minval = 1.0, maxval = 15.0, group = grpSquare)
 
-grpTime = "Gann Time Counts (squares 1-19 watchlist, source appendix)"
+grpTime = "Gann Time Counts (source watchlists)"
 showTimeCounts = input.bool(true, "Flag bars-since-anchor on Gann's own squares watchlist", group = grpTime)
+showMinorTime = input.bool(true, "Flag bars-since-last-swing on Gann's minor time-rule counts (v2)", group = grpTime)
+
+grpAngle = "Gann Angle Fan (v2, Master Commodities Course Ch.5A/5B)"
+showAngles = input.bool(true, "Show 1x1/2x1/4x1/8x1 angle fan from anchor", group = grpAngle)
+angle1x1Rate = input.float(0.0, "1x1 rate, price/bar (0 = auto from ATR)", group = grpAngle)
+autoAngleMult = input.float(0.25, "Auto rate = ATR(14) x this", minval = 0.05, step = 0.05, group = grpAngle)
+
+grpSignal = "Signal Day (v2, Master Commodities Course)"
+showSignalDay = input.bool(true, "Show Signal Day reversal tags", group = grpSignal)
+signalLookback = input.int(5, "New-extreme lookback (bars)", minval = 2, group = grpSignal)
 
 grpShow = "Display"
 showTable = input.bool(true, "Show status table", group = grpShow)
@@ -211,6 +233,105 @@ breachCount := channelBreachRaw ? breachCount + 1 : 0
 channelInvalidated = breachCount >= 2
 
 // ---------------------------------------------------------------------
+// v2: Gann Angle Fan (1x1, 2x1, 4x1, 8x1 -- the "geometric angles" the
+// TradingFives Square-of-Nine book explicitly did not cover). Drawn
+// from the SAME major-pivot anchor as the Roadmap chart. Gann's own
+// rule was to pick a price-per-bar scale where the 45-degree (1x1)
+// angle "looks right" against the chart -- an explicit discretionary
+// choice, same spirit as the three-digit-controversy normalization
+// already used elsewhere in this engine. Default here: ATR(14) x a
+// user multiplier, our own convention, not a source-given constant.
+// ---------------------------------------------------------------------
+var line[] angleLines = array.new_line()
+var label[] angleLabels = array.new_label()
+var float vAngleRate = na
+
+if anchorChanged
+    if array.size(angleLines) > 0
+        for i = 0 to array.size(angleLines) - 1
+            line.delete(array.get(angleLines, i))
+        array.clear(angleLines)
+    if array.size(angleLabels) > 0
+        for i = 0 to array.size(angleLabels) - 1
+            label.delete(array.get(angleLabels, i))
+        array.clear(angleLabels)
+
+    vAngleRate := angle1x1Rate > 0 ? angle1x1Rate : atrv * autoAngleMult
+
+    if showAngles and vAngleRate > 0
+        dir2 = vAnchorIsLow ? 1 : -1
+        angleEndBar = vAnchorBarIdx + vVertSpacing * (numRotations + 2)
+        angleMults = array.from(0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0)
+        for i = 0 to array.size(angleMults) - 1
+            mult = array.get(angleMults, i)
+            rate = vAngleRate * mult * dir2
+            endY = vAnchorPrice + rate * (angleEndBar - vAnchorBarIdx)
+            aLine = line.new(vAnchorBarIdx, vAnchorPrice, angleEndBar, endY, color = color.new(mult == 1.0 ? color.red : color.fuchsia, mult == 1.0 ? 0 : 55), width = mult == 1.0 ? 2 : 1)
+            array.push(angleLines, aLine)
+            angleName = mult >= 1.0 ? str.tostring(math.round(mult)) + "x1" : "1x" + str.tostring(math.round(1.0 / mult))
+            aLbl = label.new(angleEndBar, endY, angleName, style = label.style_label_left, color = color.new(color.fuchsia, 100), textcolor = color.fuchsia, size = size.tiny)
+            array.push(angleLabels, aLbl)
+
+f_angleAtBar(_mult) =>
+    float result = na
+    if not na(vAngleRate) and not na(vAnchorBarIdx)
+        dir2 = vAnchorIsLow ? 1 : -1
+        result := vAnchorPrice + vAngleRate * _mult * dir2 * (bar_index - vAnchorBarIdx)
+    result
+
+// position-in-the-fan readout: highest angle multiple currently held
+// (bull anchor) or lowest multiple currently broken below (bear anchor)
+f_angleStrength() =>
+    string strength = "below 1x1 (weak)"
+    if showAngles and not na(vAngleRate)
+        if vAnchorIsLow
+            if close > f_angleAtBar(8.0)
+                strength := "above 8x1 (strongest)"
+            else if close > f_angleAtBar(4.0)
+                strength := "above 4x1"
+            else if close > f_angleAtBar(2.0)
+                strength := "above 2x1"
+            else if close > f_angleAtBar(1.0)
+                strength := "above 1x1"
+        else
+            if close < f_angleAtBar(8.0)
+                strength := "below -8x1 (weakest)"
+            else if close < f_angleAtBar(4.0)
+                strength := "below -4x1"
+            else if close < f_angleAtBar(2.0)
+                strength := "below -2x1"
+            else if close < f_angleAtBar(1.0)
+                strength := "below -1x1"
+            else
+                strength := "above -1x1 (strong)"
+    strength
+
+angleStrength = f_angleStrength()
+
+// "rule of all angles": breaking below any held angle indicates decline
+// to the next angle below it (source, verbatim, quoted in playbook)
+angle1x1Val = f_angleAtBar(1.0)
+angleBreak = showAngles and not na(angle1x1Val) and ((vAnchorIsLow and ta.crossunder(close, angle1x1Val)) or (not vAnchorIsLow and ta.crossover(close, angle1x1Val)))
+
+// ---------------------------------------------------------------------
+// v2: Signal Day -- single-bar reversal tag, quoted verbatim across the
+// Master Commodities Course (grain/cotton/egg chapters alike): a new
+// N-bar extreme that closes in the WEAK half of its own range (or
+// beyond the open) is read as a reversal, no confirmation bar needed.
+// ---------------------------------------------------------------------
+newHighBar = high >= ta.highest(high, signalLookback)
+newLowBar = low <= ta.lowest(low, signalLookback)
+midBar = (high + low) / 2.0
+
+signalDayBear = showSignalDay and newHighBar and (close < midBar or close < open)
+signalDayBull = showSignalDay and newLowBar and (close > midBar or close > open)
+
+if signalDayBear
+    label.new(bar_index, high, "Signal Day ▼", style = label.style_label_down, color = color.new(color.orange, 20), textcolor = color.white, size = size.tiny, tooltip = "New " + str.tostring(signalLookback) + "-bar high, closed in the weak half of its range or below the open -- Gann's Signal Day, source treats as an immediate reversal cue, no confirmation bar required.")
+if signalDayBull
+    label.new(bar_index, low, "Signal Day ▲", style = label.style_label_up, color = color.new(color.orange, 20), textcolor = color.white, size = size.tiny, tooltip = "New " + str.tostring(signalLookback) + "-bar low, closed in the strong half of its range or above the open -- Gann's Signal Day.")
+
+// ---------------------------------------------------------------------
 // Squaring price with time at confirmed swing pivots
 // ---------------------------------------------------------------------
 ph = ta.pivothigh(pivotWidth, pivotWidth)
@@ -266,10 +387,27 @@ if isTimeCountHit
     label.new(bar_index, high, "T=" + str.tostring(barsSinceAnchor), style = label.style_label_down, color = color.new(color.yellow, 30), textcolor = color.black, size = size.tiny)
 
 // ---------------------------------------------------------------------
+// v2: Gann's "minor time rule" bar counts (Master Commodities Course --
+// distinct list from the 1953-letter squares watchlist above; tied to
+// the most recent confirmed swing pivot, not the major anchor, matching
+// the source's own framing ("watch for a minor change every 7, 10, 14,
+// 20-21, 28, 30 days... seven weeks or 49 days usually marks the
+// culmination of a rapid move"). Bars stand in for the source's days --
+// untested whether that translation holds on a 5m chart, same caveat
+// as the rest of this engine's timeframe-jump risk.
+// ---------------------------------------------------------------------
+var int[] minorTimeNums = array.from(7, 10, 14, 20, 21, 28, 30, 45, 49, 63, 66, 70, 84, 90)
+barsSincePivot = na(lastPivotBar) ? na : bar_index - lastPivotBar
+isMinorTimeHit = showMinorTime and not na(barsSincePivot) and barsSincePivot > 0 and array.includes(minorTimeNums, barsSincePivot)
+
+if isMinorTimeHit
+    label.new(bar_index, low, "t=" + str.tostring(barsSincePivot), style = label.style_label_up, color = color.new(color.aqua, 40), textcolor = color.black, size = size.tiny, tooltip = "Bars since last confirmed swing pivot landed on one of Gann's minor time-rule counts (7,10,14,20,21,28,30,45,49,63,66,70,84,90).")
+
+// ---------------------------------------------------------------------
 // Status table
 // ---------------------------------------------------------------------
 if showTable and barstate.islast
-    var table dash = table.new(position.top_right, 2, 5, border_width = 1)
+    var table dash = table.new(position.top_right, 2, 6, border_width = 1)
     table.cell(dash, 0, 0, "Gann Sq9", bgcolor = color.new(color.blue, 60), text_color = color.white)
     table.cell(dash, 1, 0, vAnchorIsLow ? "UP roadmap" : "DOWN roadmap", bgcolor = color.new(color.blue, 60), text_color = color.white)
     table.cell(dash, 0, 1, "Anchor price")
@@ -278,6 +416,8 @@ if showTable and barstate.islast
     table.cell(dash, 1, 2, na(vVertSpacing) ? "n/a" : str.tostring(vVertSpacing))
     table.cell(dash, 0, 3, "Bars since anchor")
     table.cell(dash, 1, 3, na(barsSinceAnchor) ? "n/a" : str.tostring(barsSinceAnchor))
+    table.cell(dash, 0, 5, "Angle position")
+    table.cell(dash, 1, 5, angleStrength)
     table.cell(dash, 0, 4, "Channel")
     table.cell(dash, 1, 4, channelInvalidated ? "BREACHED" : "intact", text_color = channelInvalidated ? color.red : color.green)
 
@@ -287,3 +427,7 @@ if showTable and barstate.islast
 alertcondition(channelInvalidated, "Gann Roadmap Channel Breach", "Square of Nine roadmap channel invalidated on 2 consecutive closes -- possible trend change")
 alertcondition(squareHitBar, "Gann Price=Time Squaring", "Price range and elapsed time squared within tolerance at a confirmed swing pivot")
 alertcondition(isTimeCountHit, "Gann Master Number Time Count", "Bars-since-anchor landed on one of Gann's own squares-1-to-19 watchlist numbers")
+alertcondition(isMinorTimeHit, "Gann Minor Time Rule Count", "Bars-since-last-pivot landed on one of Gann's minor time-rule counts (7,10,14,20,21,28,30,45,49,63,66,70,84,90)")
+alertcondition(angleBreak, "Gann 1x1 Angle Break", "Price crossed the 1x1 (45-degree, 'death angle') from the current anchor -- 'the rule of all angles': indicates a move to the next angle below")
+alertcondition(signalDayBear, "Gann Signal Day (bearish)", "New N-bar high closed in the weak half of its range or below the open -- Gann's Signal Day")
+alertcondition(signalDayBull, "Gann Signal Day (bullish)", "New N-bar low closed in the strong half of its range or above the open -- Gann's Signal Day")
