@@ -98,5 +98,89 @@ one-candle "zone shift" away from the trap (25-50 pips in 1-2 candles).
 ## 7. ENGINE
 indicators/mm_cycle_engine.pine — time grid shading, Asia-range box +
 stop-hunt zone tiers, Brinks-window second-leg detection, triple-tap
-counter, ADR-thirds level counter, HOD/LOD lock timer. All bar-close,
+counter, ADR-thirds level counter, HOD/LOD lock timer, peak-to-peak
+ADR box stack, EMA level-cross state, daily pivots, ID50 reentry, and
+railroad-track candle tagging (v2 additions below). All bar-close,
 non-repainting.
+
+---
+
+## v2 — student mentoring call, SAME LINEAGE (2026-07-20)
+Source: live webinar, two practitioners ("Nick" and "GP") teaching
+newer traders. NOT a new independent voice — one of them explicitly
+attributes core terminology to Steve by name ("how Steve says a big
+fat... W formation"), and the whole framework (asian box <=50 pips,
+25-50 pip stop-hunt zones, peak formation, three-level cycle, DNC)
+is this same school. Logged as an elaboration of voice #8, not a new
+tally entry -- inflating independence counts with same-lineage
+sources would corrupt the register's evidentiary discipline.
+
+Genuinely new, codeable mechanics this call adds on top of the base
+model:
+
+- **Peak-to-peak ADR box stacking**: from a locked peak (HOD/LOD that
+  held), stack FULL ADR-sized boxes (not ADR/3 like the base level
+  count) outward: 1x ADR, 2x ADR, 3x ADR. Price tends to consolidate
+  almost exactly at each box boundary. "Locked in" = price traveled
+  >= 1x ADR from the peak within one day. Reversal expectation
+  strengthens heavily at 3x ADR ("extended ADR" if it overshoots,
+  common per the source -- most cycles run 1 ADR past 3x before
+  actually turning). NOTE: this is a DIFFERENT box unit than the
+  base model's ADR/3 per-level count already coded -- both are kept
+  as separate, clearly-labeled measures; do not conflate them.
+- **EMA level-classification stack**: 5/13/50/200/800 EMA (H1 chart
+  in source). 13-over-50 cross = "Level 1" confirmation; 50-over-200
+  cross = "Level 2" confirmation. 200 and 800 EMA act as moving
+  support/resistance (price bounces off them repeatedly before a
+  real break); 50 EMA is the "trend EMA" -- its curve direction is
+  itself a bias tell. EMAs bunched together (no separation) = stay
+  out, expect chop; EMAs fanned/separated = trending, trade it.
+- **ID50 (intraday-50) reentry**: after an initial peak-formation
+  entry, a pullback/rotation back to the 200 EMA on the entry
+  timeframe (source uses M15) that then resumes in the original
+  direction is an explicitly favored LOW-DRAWDOWN reentry -- described
+  by one participant as consistently working "third and fourth
+  rotation" after the initial signal.
+- **TDI (Traders Dynamic Index) confluence**: RSI-based oscillator
+  with a fast "trade signal" line, a slow "market baseline" line, and
+  volatility bands. A "shark fin" (RSI spike to the band extreme and
+  sharp reversal) at a level-3/peak-formation zone is called out
+  repeatedly as very high-conviction confirmation, especially on H4
+  ("if you see a shark fin on H4 at a peak formation, you're good").
+  We do not fully reproduce the proprietary TDI; we implement the
+  well-documented public-domain Dean Malone TDI formula (RSI +
+  signal-line smoothing + volatility bands) as the confluence proxy.
+- **Railroad tracks**: two consecutive, opposite-colored candles of
+  similar size forming a sharp V/inverted-V, especially at a stop-hunt
+  zone or EMA level -- treated as a standalone reversal signal, no TDI
+  needed. Direction = color of the second (closing) candle.
+- **Daily pivot points (M-system)**: classic floor-trader pivots
+  (PP/R1-3/S1-3) computed from the prior "most significant candle"
+  (usually daily). Source's own M0-M5 numbering is internally
+  ambiguous/undocumented in the transcript (never states which M =
+  which formula level) -- we implement STANDARD classic pivots
+  instead and flag the M-numbering as unresolved. Stated behavior
+  regardless of numbering: projections move odd-to-even (a stop hunt
+  at one pivot targets the adjacent even/odd pivot); center pivot
+  (PP) acts as a major support/resistance once price is clearly on
+  one side of it; works notably well on exotics (wide-spread pairs)
+  per the source, less reliable on majors.
+- **Psychological support/resistance**: a zone the dealer works
+  (accumulates/distributes) repeatedly across a session or day,
+  independent of any single candle pattern -- identified only by price
+  revisiting the same small range 3+ times with EMA-bunching. Purely
+  qualitative in source; not separately coded (already covered by the
+  existing triple-tap logic).
+- **Correlation caution**: source explicitly demonstrates that naive
+  cross-asset correlation (e.g. USD-quoted pair vs gold "should" move
+  inverse) frequently fails to hold over short windows and should NOT
+  be traded directly -- trust the peak-formation/level framework over
+  correlation assumptions. Direct, if informal, caution against
+  over-weighting SMT-style divergence (QT, H14) without also checking
+  it against this school's own structural read.
+- **Session/pair matching**: explicit reminder to trade pairs whose
+  ADR is actually large enough to be worth the risk, and to match
+  trading hours to the sessions genuinely open in your timezone
+  (Asia+Oceania pairs for off-hours traders, majors/EU crosses for
+  London/NY-hours traders) -- operational hygiene, not a new edge
+  claim.

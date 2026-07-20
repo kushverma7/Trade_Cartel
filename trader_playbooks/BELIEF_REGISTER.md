@@ -243,6 +243,23 @@ CPI event study: does pre-print phase classification add predictive
 power beyond surprise magnitude alone? If not, B4 stands unchallenged;
 if yes, phase-aware news filtering becomes a master-engine input.
 
+**H34. Peak-to-peak FULL-ADR box stacking (1x/2x/3x from a locked
+extreme, distinct from the existing ADR/3 per-level count) marks
+consolidation/reversal zones (same lineage as voice #8/Steve — a
+student mentoring call, NOT counted as a new independent voice).**
+Test: does price actually cluster/consolidate at 1x/2x/3x full-ADR
+distance from a locked peak on XAUUSD, independent of the ADR/3 level
+count already coded? If both measures show real clustering, they may
+be capturing the same effect at different granularities -- compare
+directly rather than assume additive value.
+
+**H35. EMA-stack bunching (13/50/200 within ~0.5x ATR of each other)
+predicts low-quality chop; fanned/separated EMAs predict tradeable
+trend (same lineage as voice #8).** Simple, cheap filter. Test: WR/PF
+of every existing structure-break signal (PBD, Dave, QT Judas, Wendell,
+this engine's own BRINKS/3-TAP) gated by emaBunched == false vs
+ungated, on gold.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -255,6 +272,18 @@ INTRA-SCHOOL NOTE (H13): primary source (Daye video) corrects compilation #1 —
 true weekly open is Monday 18:00 ET, not Tuesday midnight. Engine fixed. When
 sources within a school conflict, the primary wins; logged as a reminder that
 compilations garble.
+
+INTRA-SCHOOL NOTE (voice #8, 2026-07-20): a second transcript (student
+mentoring call, "Nick" and "GP") teaches the SAME school as Steve/MMM4x —
+one participant explicitly attributes the "big fat M/W" terminology to
+Steve by name. Logged as a v2 elaboration of voice #8 in steve_mm_cycle.md
+and folded into mm_cycle_engine.pine (EMA stack, peak-to-peak full-ADR
+box stack, TDI shark-fin proxy, railroad tracks, ID50 reentry, standard
+pivots) — deliberately NOT counted as a new independent voice or added
+to any corroboration tally. Same-lineage sources restate/elaborate; only
+genuinely independent lineages should move the corroboration counts,
+or the register's "independent voices" become a vanity metric instead
+of real evidentiary weight.
 
 INTRA-SCHOOL NOTE v2 (H13, 2026-07-20): second primary-source video, same
 lineage, adds exact 90-min sub-quarter windows for all 4 sessions (engine

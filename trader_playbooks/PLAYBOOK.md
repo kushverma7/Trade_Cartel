@@ -66,7 +66,10 @@ indicators/trade_cartel_master_engine.pine
 - indicators/mm_cycle_engine.pine (voice #8, Steve/MMM4x): ET time grid
   w/ Brinks windows 03:30-03:45 & 09:30-09:45, Asia-range stop-hunt
   zone tiers, 3-tap fade signals, ADR-thirds level counter, H/L lock
-  timer. Hypotheses H20-H24 — observe/score before any sizing.
+  timer. Hypotheses H20-H24 — observe/score before any sizing. v2
+  (same lineage, not a new voice): EMA 5/13/50/200/800 level stack,
+  peak-to-peak full-ADR box stack, TDI shark-fin proxy, railroad-track
+  tags, ID50 rotation reentry, standard daily pivots. H34-H35.
 - indicators/renko_abc_scalper.pine (voice #9, Renko/HA mentor): synthetic
   non-repainting Renko+HA construct, 12/24/36 EMA cluster, ABC/123
   swing-failure structure break, "floating brick" entry trigger,
