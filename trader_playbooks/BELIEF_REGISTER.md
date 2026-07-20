@@ -154,6 +154,45 @@ explicit time-stop in the register; directly portable to every strategy as
 an exit wrapper. Test: A/B the master strategy with/without a 24-bar (5m)
 time-stop on flat trades.
 
+**H25. The ABC/123 swing-failure structure (fail to extend, break the prior
+swing extreme) is a portable reversal AND continuation trigger, independent
+of the instrument's noise level, when read off a noise-filtered construct
+(Steve's price action / Renko mentor — INDEPENDENT voice #9, LOW credibility:
+anecdotal PnL only).** This is the FIFTH independent voice landing on the
+same break-of-structure shape (PBD break-in, QT Judas, Dave sweep-prerequisite,
+Steve/MMM4x stop-hunt-reverse, now this). Promotion candidate for Belief
+Review once our own backtest confirms on gold.
+
+**H26. A "floating" candle/brick — the first bar to fully clear a moving-
+average cluster after a structure break — is a valid, low-lag continuation
+trigger (voice #9).** Directly codeable (renko_abc_scalper.pine). Test:
+compare FLOAT-only signals vs ABC+FLOAT confluence signals for WR/PF on gold.
+
+**H27. Counter-trend/counter-color run counting (tolerate ~3-4 opposing
+bars as retracement, treat the 5th as thesis-broken) is a portable exit
+rule (voice #9).** Converges with H8 (Valentini rejection-weakening) and
+Dave's swing-maturity counts (H18) from a third independent angle — three
+schools now count consecutive opposing structure as a decision trigger,
+each with a different threshold (3, 3-4, 4-6). Test: does a fixed
+counter-run exit outperform ATR-stop-only on the trendline core?
+
+**H28. Nested-scale entries (coarse structure sets bias, fine structure
+gives the entry with materially less stop distance) reduce risk without
+changing the trade thesis (voice #9, his repeated point).** Not new in
+principle -- multi-timeframe alignment (already 3 independent, see ledger)
+-- but this is the first source proposing it via CONSTRUCT GRANULARITY
+(box size) rather than time compression. Worth testing as an alternative
+framing for the master engine's MTF layer.
+
+**H29. Gold does not follow the clean ABC/123 float the way FX majors do --
+"bipolar," chops for days then moves violently (voice #9's own STUDENT,
+inside the transcript, contradicting his mentor in real time).** This is a
+user-adjacent skeptical data point, not a school claim -- logged because it
+directly bears on whether ANY of the ABC/123-family engines (this one, PBD,
+Dave, QT Judas) transfers to gold at standard settings, or needs regime-
+adaptive box/ATR sizing. Test before trusting float signals sized on FX-
+calibrated brick constants.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -168,11 +207,18 @@ sources within a school conflict, the primary wins; logged as a reminder that
 compilations garble.
 
 ## Contradiction Tallies (3+ independent -> Belief Review)
-- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 4 SUPPORT (PBD break-in,
-  QT Judas swing, Dave sweep-prerequisite, Steve stop-hunt-then-reverse — his
-  entire model is sweep-fade) vs 1 AGAINST (Valentini). THRESHOLD CROSSED:
-  register-supported doctrine, final promotion pending our own backtest of
-  Reversal Sniper v3 / JUDAS on gold.
+- Break-of-structure / swing-failure family (B2 fix, PBD break-in, now
+  including plain ABC/123): 5 SUPPORT (PBD break-in, QT Judas swing, Dave
+  sweep-prerequisite, Steve/MMM4x stop-hunt-reverse, voice #9 ABC/123) vs
+  1 AGAINST (Valentini). THRESHOLD CROSSED, now doubly so: register-
+  supported doctrine, final promotion pending our own backtest of Reversal
+  Sniper v3 / JUDAS on gold.
+- Consecutive-opposing-bar counting as a decision trigger (entry OR exit):
+  3 independent, 3 different thresholds (Valentini ~3 rejections -> stand
+  down, Dave 4-6 matured swings -> reversal permitted, voice #9 4 counter-
+  bricks -> exit). Same observable, three uses (entry veto, entry permit,
+  exit). Worth its own comparison study once master engine has all three
+  wired in.
 - Static S/R levels as standalone edge: 1 AGAINST (Steve: consolidation zones
   are manufactured to bait line-drawers) vs level-based entries used by PBD
   (value areas) and Dave (POIs). Note: Steve still trades LEVELS (day extremes,
@@ -186,8 +232,9 @@ compilations garble.
 - Confirmation-before-entry family: 4 independent (our CPI event study,
   PBD close-count, Valentini break-and-test, Kurisko confirmed turn).
   STRONGEST idea in the register.
-- Multi-timeframe alignment before sizing: 3 independent (Cognitive
-  Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands).
+- Multi-timeframe alignment before sizing: 4 independent (Cognitive
+  Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands, voice #9
+  nested Renko brick-size stack — same idea via construct granularity).
 - Confirmation-before-entry: now 8 independent (add Steve's confirmed-hammer-
   close + zone-shift confirmation to CPI study, PBD, Valentini, Kurisko, QT,
   Ario, Dave).

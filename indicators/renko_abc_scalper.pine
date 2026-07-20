@@ -1,0 +1,195 @@
+// ============================================================
+// RENKO/HA ABC-123 SCALPER [Real-Time]
+// Source: trader_playbooks/renko_ha_abc_scalper.md (mentoring call
+// transcript — INDEPENDENT voice #9, LOW credibility: anecdotal PnL,
+// no track record, mechanics kept)
+//
+// Synthetic non-repainting Renko (ATR-scaled box) with Heikin-Ashi
+// coloring applied to the bricks, a 12/24/36 EMA cluster on the
+// Renko close, an ABC/123 pivot structure-break detector on the
+// underlying chart, and a "floating brick" entry trigger (first
+// brick to clear the EMA cluster after structure breaks).
+//
+// Renko caveat (ours): the CURRENT forming brick is provisional
+// until price completes a full box move. All signals below fire only
+// on a brick that has already closed -- never on the live/forming
+// brick -- so the engine is non-repainting like the rest of the repo.
+// ============================================================
+//@version=6
+indicator("Renko/HA ABC-123 Scalper [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ── Inputs ───────────────────────────────────────────────────
+float boxMult   = input.float(0.5, "Renko Box Size (x ATR14)", minval=0.1, step=0.1, group="① Synthetic Renko")
+int   atrLen    = input.int(14, "ATR Length", minval=5, group="① Synthetic Renko")
+int   emaFast   = input.int(12, "EMA Fast", minval=2, group="② EMA Cluster")
+int   emaMid    = input.int(24, "EMA Mid", minval=2, group="② EMA Cluster")
+int   emaSlow   = input.int(36, "EMA Slow", minval=2, group="② EMA Cluster")
+float floatMult = input.float(0.15, "Floating Brick Min Separation (x box)", minval=0.05, step=0.05, group="③ Entry")
+int   pw        = input.int(5, "ABC Pivot Width (bars, underlying chart)", minval=2, group="④ Structure")
+int   exitRun   = input.int(4, "Counter-Color Bricks Before Exit Warning", minval=2, maxval=8, group="⑤ Exit")
+int   cooldown  = input.int(5, "Signal Cooldown (Renko bricks)", minval=1, group="⑥ Engine")
+
+// ── Synthetic Renko state machine (updates once per underlying bar,
+//    but only ever reports on a COMPLETED brick) ───────────────────
+float atrv = ta.atr(atrLen)
+var float box       = na
+if barstate.isfirst or na(box)
+    box := atrv * boxMult
+
+var float rHi       = na   // top of current brick zone
+var float rLo       = na   // bottom of current brick zone
+var int   rDir       = 0    // 1 = up bricks, -1 = down bricks
+var float rClose     = na   // last COMPLETED brick close
+var float rOpen      = na   // last COMPLETED brick open
+var bool  brickClosed = false
+var float prevRClose = na
+
+if barstate.isfirst
+    rHi := close + box / 2
+    rLo := close - box / 2
+    rClose := close
+    rOpen := close
+
+brickClosed := false
+// price can complete more than one box per underlying bar; loop it out
+newDir = rDir
+while close - rLo >= box or rHi - close >= box
+    if close - rLo >= box
+        prevRClose := rClose
+        rOpen := rDir == -1 ? rHi : rLo
+        rClose := rLo + box
+        rLo := rLo + box
+        rHi := rLo + box
+        newDir := 1
+        brickClosed := true
+    else if rHi - close >= box
+        prevRClose := rClose
+        rOpen := rDir == 1 ? rLo : rHi
+        rClose := rHi - box
+        rHi := rHi - box
+        rLo := rHi - box
+        newDir := -1
+        brickClosed := true
+rDir := newDir
+
+// ── Heikin-Ashi applied to the synthetic Renko bricks ─────────
+var float haOpen  = na
+var float haClose = na
+if brickClosed
+    haClose := rClose  // brick body is monotonic (renko), so HA close == renko close
+    haOpen  := na(haOpen) ? rOpen : (haOpen + nz(haClose[1], haOpen)) / 2
+bool haBull = brickClosed and haClose > haOpen
+bool haBear = brickClosed and haClose < haOpen
+
+// ── EMA cluster on Renko close (only recompute on brick close) ─
+var float ef = na
+var float em = na
+var float es = na
+if brickClosed
+    af = 2.0 / (emaFast + 1)
+    am = 2.0 / (emaMid  + 1)
+    as_ = 2.0 / (emaSlow + 1)
+    ef := na(ef) ? rClose : ef + af * (rClose - ef)
+    em := na(em) ? rClose : em + am * (rClose - em)
+    es := na(es) ? rClose : es + as_ * (rClose - es)
+
+float clusterHi = na(ef) ? na : math.max(ef, em, es)
+float clusterLo = na(ef) ? na : math.min(ef, em, es)
+
+// ── Floating brick: first completed brick to clear the cluster ─
+var bool wasFloating = false
+bool floatingUp = brickClosed and not na(clusterHi) and rClose > clusterHi + box * floatMult
+bool floatingDn = brickClosed and not na(clusterLo) and rClose < clusterLo - box * floatMult
+bool floatUpEntry = floatingUp and not wasFloating[1]
+bool floatDnEntry = floatingDn and not wasFloating[1]
+if brickClosed
+    wasFloating := floatingUp or floatingDn
+
+// ── Counter-color run counter (exit warning) ────────────────────
+var int sameRun    = 0
+var int counterRun = 0
+var int lastHaBull = 0
+if brickClosed
+    curDir = haBull ? 1 : haBear ? -1 : 0
+    if curDir != 0 and curDir == lastHaBull
+        sameRun += 1
+        counterRun := 0
+    else if curDir != 0
+        counterRun := lastHaBull != 0 ? counterRun + 1 : 0
+        sameRun := 1
+    if curDir != 0
+        lastHaBull := curDir
+bool exitWarn = brickClosed and counterRun >= exitRun
+
+// ── ABC / 123 structure break on the underlying chart ──────────
+// Bearish 1-2-3: uptrend fails to make a fresh pivot high, instead
+// prints a lower pivot low (point 1) than the prior swing low, then
+// retraces to a pivot high (point 2/B); a close back below point 1
+// is the short trigger. Bullish is the exact mirror.
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+var float lastSwingLow  = na
+var float lastSwingHigh = na
+var float bearP1 = na   // active bearish-reversal trigger level
+var float bullP1 = na   // active bullish-reversal trigger level
+var int   lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+if not na(pl)
+    if not na(lastSwingLow) and pl < lastSwingLow
+        bearP1 := pl
+    lastSwingLow := pl
+if not na(ph)
+    if not na(lastSwingHigh) and ph > lastSwingHigh
+        bullP1 := ph
+    lastSwingHigh := ph
+
+bool abcBearBreak = cd and not na(bearP1) and close < bearP1 and close[1] >= bearP1
+bool abcBullBreak = cd and not na(bullP1) and close > bullP1 and close[1] <= bullP1
+if abcBearBreak
+    bearP1 := na
+if abcBullBreak
+    bullP1 := na
+
+// ── Confluence signal: structure break + floating brick agree ──
+bool longSig  = cd and (abcBullBreak or floatUpEntry) and floatingUp
+bool shortSig = cd and (abcBearBreak or floatDnEntry) and floatingDn
+if longSig or shortSig
+    lastSig := bar_index
+
+plot(clusterHi, "EMA Cluster Hi", color.new(color.orange, 40), 1)
+plot(clusterLo, "EMA Cluster Lo", color.new(color.orange, 40), 1)
+barcolor(brickClosed ? (haBull ? color.lime : haBear ? color.red : color.gray) : na, title="Synthetic Renko/HA")
+
+if floatUpEntry
+    label.new(bar_index, low, "FLOAT ▲", style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small,
+         tooltip="First Renko/HA brick to clear the 12/24/36 cluster upward. Stop below EMA36.")
+if floatDnEntry
+    label.new(bar_index, high, "FLOAT ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small,
+         tooltip="First Renko/HA brick to clear the 12/24/36 cluster downward. Stop above EMA36.")
+if longSig
+    label.new(bar_index, low, "ABC ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="ABC/123 structure break + floating brick confluence. Long. Trail stop under EMA36, watch 12/24 band for exit.")
+if shortSig
+    label.new(bar_index, high, "ABC ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="ABC/123 structure break + floating brick confluence. Short. Trail stop above EMA36, watch 12/24 band for exit.")
+if exitWarn
+    label.new(bar_index, haBull ? low : high, "4x COUNTER", style=haBull ? label.style_label_up : label.style_label_down, color=color.new(color.gray, 20), textcolor=color.white, size=size.tiny,
+         tooltip="4+ consecutive counter-color bricks. Thesis likely broken per the source's rule -- consider exit.")
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.top_left, 2, 3, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "RENKO/HA", text_color=color.orange, text_size=size.tiny)
+    table.cell(tb, 1, 0, haBull ? "BULL brick" : haBear ? "BEAR brick" : "—", text_color=haBull ? color.lime : haBear ? color.red : color.gray, text_size=size.tiny)
+    table.cell(tb, 0, 1, "Box size", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, str.tostring(box, format.mintick), text_color=color.white, text_size=size.tiny)
+    table.cell(tb, 0, 2, "Counter run", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 2, str.tostring(counterRun), text_color=exitWarn ? color.red : color.white, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(longSig,  "ABC Long",  "Renko/HA: ABC ▲ structure break + float — {{ticker}} {{interval}}")
+alertcondition(shortSig, "ABC Short", "Renko/HA: ABC ▼ structure break + float — {{ticker}} {{interval}}")
+alertcondition(floatUpEntry, "Floating Brick Up",   "Renko/HA: FLOAT ▲ — {{ticker}} {{interval}}")
+alertcondition(floatDnEntry, "Floating Brick Down", "Renko/HA: FLOAT ▼ — {{ticker}} {{interval}}")
+alertcondition(exitWarn, "Counter-Color Exit Warning", "Renko/HA: 4+ counter bricks — thesis check — {{ticker}} {{interval}}")
