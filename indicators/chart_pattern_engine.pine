@@ -1,0 +1,239 @@
+// ============================================================
+// CLASSIC CHART PATTERN ENGINE [Real-Time]
+// Source: trader_playbooks/candlestick_patterns.md "CLASSIC CHART
+// PATTERNS" section ("@Thechartcornerr" cheat sheet -- names/shapes
+// only, no numeric criteria in source; public-domain classical TA
+// definitions applied, same treatment as the candlestick engine).
+//
+// Distinct subject from candlestick_engine.pine (multi-swing
+// geometric patterns built from pivot sequences, not single/few-bar
+// candle shapes) -- separate file per the one-brain-per-source rule.
+//
+// Implemented: Double/Triple Top/Bottom, Head & Shoulders (+inverse),
+// Ascending/Descending/Symmetrical Triangle, Rising/Falling Wedge,
+// Bull/Bear Flag, Bull/Bear Pennant, Bull/Bear Rectangle.
+// NOT implemented (too subjective to codify reliably, see playbook):
+// Cup & Handle, Diamond Top/Bottom.
+//
+// All signals bar-close, non-repainting (pivots confirm after `pw`
+// bars; breakout triggers only use already-closed bars).
+// ============================================================
+//@version=6
+indicator("Classic Chart Pattern Engine [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=200, max_boxes_count=50)
+
+// ── Inputs ───────────────────────────────────────────────────
+int    pw        = input.int(5, "Pivot Width (bars)", minval=2, maxval=15, group="① Swings")
+int    maxPiv     = input.int(6, "Tracked Pivots Per Side", minval=3, maxval=10, group="① Swings")
+float  tolAtr     = input.float(0.5, "Equal-Level Tolerance (x ATR)", minval=0.1, step=0.1, group="② Tolerance")
+float  headMinAtr = input.float(0.5, "Min Head Prominence (x ATR, H&S)", minval=0.1, step=0.1, group="② Tolerance")
+int    poleBars   = input.int(6, "Flag/Pennant Pole Length (bars)", minval=2, group="③ Flag/Pennant")
+float  poleMult   = input.float(2.5, "Min Pole Size (x ATR)", minval=0.5, step=0.25, group="③ Flag/Pennant")
+int    consolWin  = input.int(8, "Flag/Pennant Consolidation Window (bars)", minval=3, group="③ Flag/Pennant")
+float  consolMult = input.float(1.5, "Max Consolidation Range (x ATR)", minval=0.3, step=0.1, group="③ Flag/Pennant")
+int    cooldown   = input.int(10, "Signal Cooldown (bars)", minval=1, group="④ Engine")
+
+float atrv = ta.atr(14)
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── Pivot buffers (ring buffers, oldest shifted out) ──────────
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+
+var float[] hiP = array.new_float()   // pivot high prices, oldest first
+var int[]   hiB = array.new_int()     // their bar indices
+var float[] loP = array.new_float()
+var int[]   loB = array.new_int()
+
+push(arrP, arrB, p, b, capN) =>
+    array.push(arrP, p)
+    array.push(arrB, b)
+    if array.size(arrP) > capN
+        array.shift(arrP)
+        array.shift(arrB)
+
+if not na(ph)
+    push(hiP, hiB, ph, bar_index - pw, maxPiv)
+if not na(pl)
+    push(loP, loB, pl, bar_index - pw, maxPiv)
+
+int nH = array.size(hiP)
+int nL = array.size(loP)
+
+// helper: last-N getter (i=0 is most recent)
+lastP(arr, i) => array.get(arr, array.size(arr) - 1 - i)
+lastB(arr, i) => array.get(arr, array.size(arr) - 1 - i)
+
+// ── DOUBLE / TRIPLE TOP & BOTTOM + HEAD & SHOULDERS ───────────
+bool dblTop = false
+bool dblBot = false
+bool tplTop = false
+bool tplBot = false
+bool hns    = false
+bool ihns   = false
+float necklineTop = na
+float necklineBot = na
+float hnsNeckline  = na
+float ihnsNeckline = na
+
+if nH >= 2
+    float h1 = lastP(hiP, 0)
+    float h2 = lastP(hiP, 1)
+    if math.abs(h1 - h2) <= atrv * tolAtr
+        dblTop := true
+        // neckline = lowest low between the two top pivots
+        int b1 = lastB(hiB, 1)
+        int b2 = lastB(hiB, 0)
+        necklineTop := ta.lowest(low, math.min(math.max(b2 - b1, 1), 400))
+if nL >= 2
+    float l1 = lastP(loP, 0)
+    float l2 = lastP(loP, 1)
+    if math.abs(l1 - l2) <= atrv * tolAtr
+        dblBot := true
+        int b1 = lastB(loB, 1)
+        int b2 = lastB(loB, 0)
+        necklineBot := ta.highest(high, math.min(math.max(b2 - b1, 1), 400))
+
+if nH >= 3
+    float h1 = lastP(hiP, 0)
+    float h2 = lastP(hiP, 1)
+    float h3 = lastP(hiP, 2)
+    if math.abs(h1 - h2) <= atrv * tolAtr and math.abs(h2 - h3) <= atrv * tolAtr
+        tplTop := true
+    // Head & Shoulders: h3=left shoulder, h2=head, h1=right shoulder
+    if h2 > h3 + atrv * headMinAtr and h2 > h1 + atrv * headMinAtr and math.abs(h1 - h3) <= atrv * tolAtr * 1.5
+        hns := true
+        hnsNeckline := ta.lowest(low, math.min(math.max(lastB(hiB, 0) - lastB(hiB, 2), 1), 400))
+if nL >= 3
+    float l1 = lastP(loP, 0)
+    float l2 = lastP(loP, 1)
+    float l3 = lastP(loP, 2)
+    if math.abs(l1 - l2) <= atrv * tolAtr and math.abs(l2 - l3) <= atrv * tolAtr
+        tplBot := true
+    if l2 < l3 - atrv * headMinAtr and l2 < l1 - atrv * headMinAtr and math.abs(l1 - l3) <= atrv * tolAtr * 1.5
+        ihns := true
+        ihnsNeckline := ta.highest(high, math.min(math.max(lastB(loB, 0) - lastB(loB, 2), 1), 400))
+
+bool sigDblTop  = cd and dblTop  and not na(necklineTop) and ta.crossunder(close, necklineTop)
+bool sigDblBot  = cd and dblBot  and not na(necklineBot) and ta.crossover(close, necklineBot)
+bool sigTplTop  = cd and tplTop  and not na(necklineTop) and ta.crossunder(close, necklineTop)
+bool sigTplBot  = cd and tplBot  and not na(necklineBot) and ta.crossover(close, necklineBot)
+bool sigHns     = cd and hns     and not na(hnsNeckline)  and ta.crossunder(close, hnsNeckline)
+bool sigIhns    = cd and ihns    and not na(ihnsNeckline) and ta.crossover(close, ihnsNeckline)
+
+if sigDblTop or sigTplTop or sigHns
+    lastSig := bar_index
+    label.new(bar_index, high, sigHns ? "H&S ▼" : sigTplTop ? "Triple Top ▼" : "Double Top ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small,
+         tooltip="Neckline break -- target = pattern height projected from the break, per classical TA measured-move convention.")
+if sigDblBot or sigTplBot or sigIhns
+    lastSig := bar_index
+    label.new(bar_index, low, sigIhns ? "Inv H&S ▲" : sigTplBot ? "Triple Bottom ▲" : "Double Bottom ▲", style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small,
+         tooltip="Neckline break -- target = pattern height projected from the break.")
+
+// ── TRIANGLES / WEDGES / RECTANGLES (slope classification) ───
+// Uses the last 3 pivot highs and last 3 pivot lows: flat = within
+// tolerance band; rising/falling = monotonic beyond tolerance.
+string hiSlope = "flat"
+string loSlope = "flat"
+if nH >= 3
+    float h1 = lastP(hiP, 0)
+    float h2 = lastP(hiP, 1)
+    float h3 = lastP(hiP, 2)
+    if h1 > h2 + atrv * tolAtr and h2 > h3 + atrv * tolAtr
+        hiSlope := "up"
+    else if h1 < h2 - atrv * tolAtr and h2 < h3 - atrv * tolAtr
+        hiSlope := "down"
+if nL >= 3
+    float l1 = lastP(loP, 0)
+    float l2 = lastP(loP, 1)
+    float l3 = lastP(loP, 2)
+    if l1 > l2 + atrv * tolAtr and l2 > l3 + atrv * tolAtr
+        loSlope := "up"
+    else if l1 < l2 - atrv * tolAtr and l2 < l3 - atrv * tolAtr
+        loSlope := "down"
+
+string shape = "none"
+if hiSlope == "flat" and loSlope == "up"
+    shape := "ascTri"        // ascending triangle -> bullish break
+else if hiSlope == "down" and loSlope == "flat"
+    shape := "descTri"       // descending triangle -> bearish break
+else if hiSlope == "down" and loSlope == "up"
+    shape := "symTri"        // symmetrical triangle -> breakout dir
+else if hiSlope == "up" and loSlope == "up"
+    shape := "risingWedge"   // both up, converging -> bearish resolution
+else if hiSlope == "down" and loSlope == "down"
+    shape := "fallingWedge"  // both down, converging -> bullish resolution
+else if hiSlope == "flat" and loSlope == "flat"
+    shape := "rectangle"
+
+float boundHi = nH >= 1 ? lastP(hiP, 0) : na
+float boundLo = nL >= 1 ? lastP(loP, 0) : na
+
+bool brkUp = cd and not na(boundHi) and ta.crossover(close, boundHi)
+bool brkDn = cd and not na(boundLo) and ta.crossunder(close, boundLo)
+
+bool sigAscTri  = shape == "ascTri"       and brkUp
+bool sigDescTri = shape == "descTri"      and brkDn
+bool sigSymTriU = shape == "symTri"       and brkUp
+bool sigSymTriD = shape == "symTri"       and brkDn
+bool sigWedgeR  = shape == "risingWedge"  and brkDn   // bearish resolution
+bool sigWedgeF  = shape == "fallingWedge" and brkUp   // bullish resolution
+bool sigRectU   = shape == "rectangle"    and brkUp
+bool sigRectD   = shape == "rectangle"    and brkDn
+
+if sigAscTri or sigSymTriU or sigWedgeF or sigRectU
+    lastSig := bar_index
+    string txt = sigAscTri ? "Asc. Triangle ▲" : sigSymTriU ? "Sym. Triangle ▲" : sigWedgeF ? "Falling Wedge ▲" : "Rectangle ▲"
+    label.new(bar_index, low, txt, style=label.style_label_up, color=color.new(#00C853, 20), textcolor=color.white, size=size.small)
+if sigDescTri or sigSymTriD or sigWedgeR or sigRectD
+    lastSig := bar_index
+    string txt = sigDescTri ? "Desc. Triangle ▼" : sigSymTriD ? "Sym. Triangle ▼" : sigWedgeR ? "Rising Wedge ▼" : "Rectangle ▼"
+    label.new(bar_index, high, txt, style=label.style_label_down, color=color.new(#D50000, 20), textcolor=color.white, size=size.small)
+
+// ── FLAG / PENNANT (impulse pole + tight consolidation) ───────
+float poleMove = close[consolWin] - close[consolWin + poleBars]
+bool  poleUp   = poleMove >= atrv * poleMult
+bool  poleDn   = poleMove <= -atrv * poleMult
+float consolRng = ta.highest(high, consolWin) - ta.lowest(low, consolWin)
+bool  tightConsol = consolRng <= atrv * consolMult
+
+// pennant vs flag distinguished by whether the consolidation itself is
+// narrowing (pennant, converging highs/lows) or roughly parallel (flag)
+// Note: Pine's `/` always returns float even for int/int, so the half-
+// window bar counts are explicitly cast back to int before use as a
+// history-offset or ta.highest/lowest length argument.
+int halfWin  = int(consolWin / 2)
+int restWin  = consolWin - halfWin
+float firstHalfRng  = ta.highest(high[halfWin], restWin) - ta.lowest(low[halfWin], restWin)
+float secondHalfRng = ta.highest(high, halfWin) - ta.lowest(low, halfWin)
+bool  narrowing = secondHalfRng < firstHalfRng * 0.7
+
+bool sigFlagBull = cd and poleUp and tightConsol and not narrowing and ta.crossover(close, ta.highest(high, consolWin))
+bool sigFlagBear = cd and poleDn and tightConsol and not narrowing and ta.crossunder(close, ta.lowest(low, consolWin))
+bool sigPennBull = cd and poleUp and tightConsol and narrowing and ta.crossover(close, ta.highest(high, consolWin))
+bool sigPennBear = cd and poleDn and tightConsol and narrowing and ta.crossunder(close, ta.lowest(low, consolWin))
+
+if sigFlagBull or sigPennBull
+    lastSig := bar_index
+    label.new(bar_index, low, sigPennBull ? "Bull Pennant ▲" : "Bull Flag ▲", style=label.style_label_up, color=color.new(color.teal, 10), textcolor=color.white, size=size.small,
+         tooltip="Impulse pole + tight consolidation breakout continuing the pole's direction. Target = pole length projected from breakout.")
+if sigFlagBear or sigPennBear
+    lastSig := bar_index
+    label.new(bar_index, high, sigPennBear ? "Bear Pennant ▼" : "Bear Flag ▼", style=label.style_label_down, color=color.new(color.maroon, 10), textcolor=color.white, size=size.small,
+         tooltip="Impulse pole + tight consolidation breakout continuing the pole's direction.")
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.top_right, 2, 2, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "SHAPE", text_color=color.orange, text_size=size.small)
+    table.cell(tb, 1, 0, shape, text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 1, "Slopes (hi/lo)", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, hiSlope + " / " + loSlope, text_color=color.white, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(sigDblTop or sigTplTop or sigHns, "Top Reversal Pattern", "Chart Pattern: bearish reversal (top/H&S) — {{ticker}} {{interval}}")
+alertcondition(sigDblBot or sigTplBot or sigIhns, "Bottom Reversal Pattern", "Chart Pattern: bullish reversal (bottom/inv H&S) — {{ticker}} {{interval}}")
+alertcondition(sigAscTri or sigSymTriU or sigWedgeF or sigRectU, "Bullish Breakout", "Chart Pattern: bullish breakout — {{ticker}} {{interval}}")
+alertcondition(sigDescTri or sigSymTriD or sigWedgeR or sigRectD, "Bearish Breakout", "Chart Pattern: bearish breakout — {{ticker}} {{interval}}")
+alertcondition(sigFlagBull or sigPennBull, "Bull Flag/Pennant", "Chart Pattern: bull flag/pennant breakout — {{ticker}} {{interval}}")
+alertcondition(sigFlagBear or sigPennBear, "Bear Flag/Pennant", "Chart Pattern: bear flag/pennant breakout — {{ticker}} {{interval}}")

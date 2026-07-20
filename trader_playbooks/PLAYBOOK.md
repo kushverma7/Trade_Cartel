@@ -124,3 +124,17 @@ operational hygiene:
   material. STANDING RULE (2026-07-20): one engine file per voice/
   school, extended in place for future transcripts from the same
   source -- never fork a new .pine for the same author.
+- indicators/candlestick_engine.pine EXTENDED (2026-07-20,
+  "@Thechartcornerr" cheat sheet): added Kicker, Marubozu, Three
+  Inside/Outside Up/Down, Rising/Falling Three Methods, Inverted
+  Hammer/Hanging Man, Dragonfly/Gravestone Doji, Spinning Top,
+  Long-Legged Doji -- same file, same subject, extended in place
+  rather than forked. H39.
+- indicators/chart_pattern_engine.pine (NEW -- genuinely new pattern
+  category, not an extension of candlesticks): Double/Triple Top/
+  Bottom, Head & Shoulders (+inverse), Ascending/Descending/
+  Symmetrical Triangle, Rising/Falling Wedge, Bull/Bear Flag, Bull/
+  Bear Pennant, Bull/Bear Rectangle -- pivot-buffer-based multi-swing
+  geometric pattern detection with neckline/breakout triggers. H40.
+  Cup & Handle and Diamond Top/Bottom explicitly not built (no robust
+  mechanical trigger without curve-fitting noise).

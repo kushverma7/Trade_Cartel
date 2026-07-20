@@ -326,6 +326,32 @@ worse than backtest. No belief promoted/demoted; flagged as a live-
 execution caveat on B3/B4 (CPI beliefs) and on the whole scalping
 approach generally.
 
+**H39. Missing candlestick patterns (Kicker, Marubozu, Three Inside/
+Outside Up/Down, Rising/Falling Three Methods, Inverted Hammer/Hanging
+Man, Dragonfly/Gravestone Doji, Spinning Top, Long-Legged Doji) carry
+the same tiered reliability logic as the original Nison set — Kicker
+and Marubozu in particular are historically well-regarded (Bulkowski)
+despite being rare ("@Thechartcornerr" cheat sheet — public-domain
+classical TA, names-only source, same credibility tier as the
+original candlestick_patterns.md).** Extends the existing candlestick
+engine in place, not a new voice. Test: do Kicker/Marubozu signals
+(tier A/B) actually outperform tier-C additions (Spinning Top, plain
+Long-Legged Doji) on gold, matching the reliability ranking assumed
+here from general TA literature rather than this specific source?
+
+**H40. Classic multi-swing chart patterns (Double/Triple Top/Bottom,
+Head & Shoulders, triangles, wedges, flags, pennants, rectangles) add
+signal beyond the single-candle and swing-structure patterns already
+in the register (same source as H39).** Genuinely new pattern
+CATEGORY for this repo (multi-pivot geometric patterns vs single-bar
+candles or simple 2-3 point swing structures). Test: overlap and
+incremental value vs. existing structure-break family (7+ sources) —
+do chart-pattern breakouts fire at meaningfully different times/
+locations than PBD/Dave/Wendell/Alchemist signals, or mostly restate
+them in slower form? Cup & Handle and Diamond Top/Bottom explicitly
+NOT built (no robust mechanical trigger without curve-fitting) —
+logged, not guessed at.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.

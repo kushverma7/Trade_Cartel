@@ -37,6 +37,15 @@ bool en_pierce  = input.bool(true,  "Piercing/Dark Cloud [B]",  group="③ Patte
 bool en_harami  = input.bool(false, "Harami [C]",               group="③ Patterns")
 bool en_tweez   = input.bool(false, "Tweezers [C]",             group="③ Patterns")
 bool en_doji    = input.bool(false, "Doji at Extreme [C]",      group="③ Patterns")
+bool en_invham  = input.bool(false, "Inverted Hammer/Hanging Man [C]", group="③ Patterns")
+bool en_dgdoji  = input.bool(false, "Dragonfly/Gravestone Doji [C]",   group="③ Patterns")
+bool en_spintop = input.bool(false, "Spinning Top [C]",         group="③ Patterns")
+bool en_llgdoji = input.bool(false, "Long-Legged Doji [C]",     group="③ Patterns")
+bool en_marub   = input.bool(true,  "Marubozu [B]",             group="③ Patterns")
+bool en_kicker  = input.bool(true,  "Kicker [A]",               group="③ Patterns")
+bool en_3method = input.bool(true,  "Rising/Falling 3 Methods [B]", group="③ Patterns")
+bool en_3in     = input.bool(true,  "Three Inside Up/Down [B]", group="③ Patterns")
+bool en_3out    = input.bool(true,  "Three Outside Up/Down [B]", group="③ Patterns")
 
 // ── Building blocks ──────────────────────────────────────────
 float body    = math.abs(close - open)
@@ -92,6 +101,45 @@ bool rawTwzTop = math.abs(high - high[1]) <= atrv * 0.1 and bull[1] and bear
 // Doji
 bool rawDoji = body <= rng * dojiPct and rng > 0
 
+// v2: Dragonfly / Gravestone Doji (doji body + one long, one short shadow)
+bool rawDragon = rawDoji and dnShad >= rng * 0.60 and upShad <= rng * 0.10
+bool rawGrave  = rawDoji and upShad >= rng * 0.60 and dnShad <= rng * 0.10
+
+// v2: Spinning Top (small body, both shadows substantial and roughly equal)
+bool rawSpinBull = bull and body <= rng * 0.30 and rng > 0 and upShad >= rng * 0.25 and dnShad >= rng * 0.25
+bool rawSpinBear = bear and body <= rng * 0.30 and rng > 0 and upShad >= rng * 0.25 and dnShad >= rng * 0.25
+
+// v2: Long-Legged Doji (doji body, BOTH shadows long)
+bool rawLLDojiBull = rawDoji and upShad >= rng * 0.35 and dnShad >= rng * 0.35 and close >= open
+bool rawLLDojiBear = rawDoji and upShad >= rng * 0.35 and dnShad >= rng * 0.35 and close < open
+
+// v2: Marubozu (near-zero shadows)
+bool rawMarubBull = bull and body >= rng * 0.90 and rng > 0
+bool rawMarubBear = bear and body >= rng * 0.90 and rng > 0
+
+// v2: Kicker (zero body overlap, opposite colors -- a "gap" without
+// needing a literal session gap, works on 24h markets like gold)
+bool rawKickBull = bear[1] and bull and low > high[1]
+bool rawKickBear = bull[1] and bear and high < low[1]
+
+// v2: Rising/Falling Three Methods (5-candle continuation)
+bool rawRise3 = bull[4] and body[4] >= avgBody[4] * bigBody and
+     math.max(math.max(close[3], close[2]), close[1]) <= high[4] and
+     math.min(math.min(open[3], open[2]), open[1]) >= low[4] and
+     bull and close > close[4]
+bool rawFall3 = bear[4] and body[4] >= avgBody[4] * bigBody and
+     math.max(math.max(close[3], close[2]), close[1]) <= high[4] and
+     math.min(math.min(open[3], open[2]), open[1]) >= low[4] and
+     bear and close < close[4]
+
+// v2: Three Inside Up/Down (Harami + confirming third candle)
+bool raw3InUp   = bear[2] and body[2] >= avgBody[2] * bigBody and math.max(close[1], open[1]) <= math.max(close[2], open[2]) and math.min(close[1], open[1]) >= math.min(close[2], open[2]) and bull[1] and bull and close > open[2]
+bool raw3InDown = bull[2] and body[2] >= avgBody[2] * bigBody and math.max(close[1], open[1]) <= math.max(close[2], open[2]) and math.min(close[1], open[1]) >= math.min(close[2], open[2]) and bear[1] and bear and close < open[2]
+
+// v2: Three Outside Up/Down (Engulfing + confirming third candle)
+bool raw3OutUp   = bear[2] and bull[1] and close[1] >= math.max(close[2], open[2]) and open[1] <= math.min(close[2], open[2]) and bull and close > close[1]
+bool raw3OutDown = bull[2] and bear[1] and open[1] >= math.max(close[2], open[2]) and close[1] <= math.min(close[2], open[2]) and bear and close < close[1]
+
 // ── Apply context filters ────────────────────────────────────
 bool sHammer  = en_hammer and rawHammer  and downtrend and atLow
 bool sStar    = en_hammer and rawStar    and uptrend   and atHigh
@@ -109,6 +157,26 @@ bool sTwzBot  = en_tweez  and rawTwzBot  and downtrend and atLow
 bool sTwzTop  = en_tweez  and rawTwzTop  and uptrend   and atHigh
 bool sDojiLo  = en_doji   and rawDoji    and downtrend and atLow
 bool sDojiHi  = en_doji   and rawDoji    and uptrend   and atHigh
+
+// v2: Inverted Hammer (Star shape at a LOW in a downtrend) / Hanging Man (Hammer shape at a HIGH in an uptrend)
+bool sInvHam  = en_invham and rawStar    and downtrend and atLow
+bool sHangMan = en_invham and rawHammer  and uptrend   and atHigh
+bool sDragon  = en_dgdoji and rawDragon  and downtrend and atLow
+bool sGrave   = en_dgdoji and rawGrave   and uptrend   and atHigh
+bool sSpinLo  = en_spintop and rawSpinBull and downtrend and atLow
+bool sSpinHi  = en_spintop and rawSpinBear and uptrend   and atHigh
+bool sLLDojiLo = en_llgdoji and rawLLDojiBull and downtrend and atLow
+bool sLLDojiHi = en_llgdoji and rawLLDojiBear and uptrend   and atHigh
+bool sMarubBull = en_marub and rawMarubBull
+bool sMarubBear = en_marub and rawMarubBear
+bool sKickBull = en_kicker and rawKickBull
+bool sKickBear = en_kicker and rawKickBear
+bool sRise3   = en_3method and rawRise3
+bool sFall3   = en_3method and rawFall3
+bool s3InUp   = en_3in and raw3InUp and downtrend[2] and atLow[2]
+bool s3InDown = en_3in and raw3InDown and uptrend[2] and atHigh[2]
+bool s3OutUp  = en_3out and raw3OutUp and downtrend[2] and atLow[2]
+bool s3OutDown = en_3out and raw3OutDown and uptrend[2] and atHigh[2]
 
 // ── Optional next-candle confirmation ────────────────────────
 // Pattern held from previous bar; this bar closes beyond its extreme.
@@ -131,6 +199,24 @@ bool fTwzBot  = useConf ? confirmBull(sTwzBot[1],  high[1]) : sTwzBot
 bool fTwzTop  = useConf ? confirmBear(sTwzTop[1],  low[1])  : sTwzTop
 bool fDojiLo  = sDojiLo
 bool fDojiHi  = sDojiHi
+bool fInvHam  = useConf ? confirmBull(sInvHam[1],  high[1]) : sInvHam
+bool fHangMan = useConf ? confirmBear(sHangMan[1], low[1])  : sHangMan
+bool fDragon  = sDragon
+bool fGrave   = sGrave
+bool fSpinLo  = sSpinLo
+bool fSpinHi  = sSpinHi
+bool fLLDojiLo = sLLDojiLo
+bool fLLDojiHi = sLLDojiHi
+bool fMarubBull = sMarubBull
+bool fMarubBear = sMarubBear
+bool fKickBull = sKickBull
+bool fKickBear = sKickBear
+bool fRise3   = sRise3
+bool fFall3   = sFall3
+bool f3InUp   = s3InUp
+bool f3InDown = s3InDown
+bool f3OutUp  = s3OutUp
+bool f3OutDown = s3OutDown
 
 // ── Real-time chart printing ─────────────────────────────────
 mkBull(cond, txt) =>
@@ -151,6 +237,15 @@ mkBull(fSold,    "3 Soldiers")
 mkBull(fBullHar, "Bull Harami")
 mkBull(fTwzBot,  "Tweezer Bot")
 mkWarn(fDojiLo,  "Doji@Low")
+mkBull(fInvHam,  "Inv. Hammer")
+mkWarn(fDragon,  "Dragonfly")
+mkWarn(fSpinLo,  "Spin Top")
+mkWarn(fLLDojiLo, "LL Doji")
+mkBull(fMarubBull, "Marubozu")
+mkBull(fKickBull, "Kicker")
+mkBull(fRise3,   "Rise 3M")
+mkBull(f3InUp,   "3 In Up")
+mkBull(f3OutUp,  "3 Out Up")
 
 mkBear(fStar,    "Shooting★")
 mkBear(fBearEng, "Bear Engulf")
@@ -160,10 +255,19 @@ mkBear(fCrow,    "3 Crows")
 mkBear(fBearHar, "Bear Harami")
 mkBear(fTwzTop,  "Tweezer Top")
 mkWarn(fDojiHi,  "Doji@High")
+mkBear(fHangMan, "Hanging Man")
+mkWarn(fGrave,   "Gravestone")
+mkWarn(fSpinHi,  "Spin Top")
+mkWarn(fLLDojiHi, "LL Doji")
+mkBear(fMarubBear, "Marubozu")
+mkBear(fKickBear, "Kicker")
+mkBear(fFall3,   "Fall 3M")
+mkBear(f3InDown, "3 In Down")
+mkBear(f3OutDown, "3 Out Down")
 
 // ── Master signals ───────────────────────────────────────────
-bool anyBull = fHammer or fBullEng or fPierce or fMorn or fSold or fBullHar or fTwzBot
-bool anyBear = fStar or fBearEng or fCloud or fEven or fCrow or fBearHar or fTwzTop
+bool anyBull = fHammer or fBullEng or fPierce or fMorn or fSold or fBullHar or fTwzBot or fInvHam or fMarubBull or fKickBull or fRise3 or f3InUp or f3OutUp
+bool anyBear = fStar or fBearEng or fCloud or fEven or fCrow or fBearHar or fTwzTop or fHangMan or fMarubBear or fKickBear or fFall3 or f3InDown or f3OutDown
 
 bgcolor(anyBull ? color.new(color.green, 88) : anyBear ? color.new(color.red, 88) : na)
 
@@ -178,3 +282,9 @@ alertcondition(fHammer,  "Hammer",               "Hammer — {{ticker}} {{interv
 alertcondition(fStar,    "Shooting Star",        "Shooting Star — {{ticker}} {{interval}}")
 alertcondition(fSold,    "Three White Soldiers", "3 White Soldiers — {{ticker}} {{interval}}")
 alertcondition(fCrow,    "Three Black Crows",    "3 Black Crows — {{ticker}} {{interval}}")
+alertcondition(fKickBull, "Bullish Kicker",      "Bullish Kicker — {{ticker}} {{interval}}")
+alertcondition(fKickBear, "Bearish Kicker",      "Bearish Kicker — {{ticker}} {{interval}}")
+alertcondition(fMarubBull, "Bullish Marubozu",   "Bullish Marubozu — {{ticker}} {{interval}}")
+alertcondition(fMarubBear, "Bearish Marubozu",   "Bearish Marubozu — {{ticker}} {{interval}}")
+alertcondition(f3InUp or f3OutUp,   "Three Inside/Outside Up",   "3 In/Out Up — {{ticker}} {{interval}}")
+alertcondition(f3InDown or f3OutDown, "Three Inside/Outside Down", "3 In/Out Down — {{ticker}} {{interval}}")
