@@ -1,0 +1,146 @@
+// ============================================================
+// HOUGAARD 4-BAR FRACTAL ENGINE [Real-Time]
+// Source: trader_playbooks/hougaard_price_action.md — INDEPENDENT
+// voice #15 (Tom Hougaard), MEDIUM-HIGH credibility for this
+// register (audited multi-year competition track record cited,
+// still no verified backtest of these specific mechanics)
+//
+// Mechanics implemented:
+//   - 4-Bar Fractal: close beats BOTH the prior bar's high/low AND
+//     the bar-3-back's high/low -- simplest structure signal in the
+//     whole repo, no pivot detection required
+//   - 3-Bar Swing: trend state flips when price closes beyond the
+//     high/low of the last 3 bars
+//   - 89-period HTF MA bias filter (source's stated weekly-chart rule,
+//     generalized to a configurable HTF via request.security)
+//   - Divergence-as-continuation: Stochastic/price divergence mid-
+//     trend upgrades a same-direction Fractal signal (source's
+//     explicit reading -- continuation tell, NOT a reversal tell,
+//     the opposite use-case from every other divergence idea already
+//     in this repo -- logged as a genuine unresolved tension)
+//
+// All signals bar-close, non-repainting.
+// ============================================================
+//@version=6
+indicator("Hougaard 4-Bar Fractal Engine [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ── Inputs ───────────────────────────────────────────────────
+bool   showFractal = input.bool(true, "Show 4-Bar Fractal Signals", group="① 4-Bar Fractal")
+bool   show3Bar     = input.bool(true, "Show 3-Bar Swing Trend State", group="② 3-Bar Swing")
+bool   useHtfMa     = input.bool(true, "Show 89-period HTF MA Bias", group="③ HTF MA Bias")
+string htfTF        = input.timeframe("W", "HTF Timeframe for 89 MA", group="③ HTF MA Bias")
+int    maLen         = input.int(89, "HTF MA Length", minval=10, group="③ HTF MA Bias")
+bool   useDiv        = input.bool(true, "Show Divergence-as-Continuation Tag", group="④ Divergence")
+int    stochLen      = input.int(14, "Stochastic Length", minval=5, group="④ Divergence")
+int    pw            = input.int(5, "Pivot Width for Divergence (bars)", minval=2, group="④ Divergence")
+int    cooldown      = input.int(5, "Signal Cooldown (bars)", minval=1, group="⑤ Engine")
+
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── 4-Bar Fractal ────────────────────────────────────────────
+bool fractalBuy  = close > high[1] and close > high[3]
+bool fractalSell = close < low[1]  and close < low[3]
+
+if showFractal and cd and fractalBuy
+    label.new(bar_index, low, "4BF ▲", style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small,
+         tooltip="4-Bar Fractal buy: close beats both the prior bar's high and the bar-3-back's high.")
+if showFractal and cd and fractalSell
+    label.new(bar_index, high, "4BF ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small,
+         tooltip="4-Bar Fractal sell: close beats both the prior bar's low and the bar-3-back's low.")
+if cd and (fractalBuy or fractalSell)
+    lastSig := bar_index
+
+// ── 3-Bar Swing trend state ──────────────────────────────────
+var int   trend3   = 0   // 1 = up, -1 = down
+var float ref3Hi   = na
+var float ref3Lo   = na
+float win3Hi = ta.highest(high, 3)
+float win3Lo = ta.lowest(low, 3)
+
+if na(ref3Hi)
+    ref3Hi := win3Hi
+    ref3Lo := win3Lo
+if not na(ref3Hi) and close > ref3Hi
+    trend3 := 1
+    ref3Hi := win3Hi
+    ref3Lo := win3Lo
+else if not na(ref3Lo) and close < ref3Lo
+    trend3 := -1
+    ref3Hi := win3Hi
+    ref3Lo := win3Lo
+
+plot(show3Bar ? ref3Hi : na, "3-Bar Swing High", color.new(color.red, 55), 1, plot.style_linebr)
+plot(show3Bar ? ref3Lo : na, "3-Bar Swing Low",  color.new(color.lime, 55), 1, plot.style_linebr)
+
+// ── 89-period HTF MA bias ────────────────────────────────────
+float htfMa = request.security(syminfo.tickerid, htfTF, ta.sma(close, maLen), lookahead=barmerge.lookahead_on)
+bool htfUp = not na(htfMa) and close > htfMa
+bool htfDn = not na(htfMa) and close < htfMa
+plot(useHtfMa ? htfMa : na, "89-period HTF MA", color.new(color.orange, 25), 2)
+
+// ── Divergence-as-continuation ───────────────────────────────
+// Price/Stochastic divergence MID-TREND (not at a fresh extreme) is
+// read as a continuation tell here, the opposite use-case from every
+// other divergence idea in this repo (Kurisko reversal, CVD-at-S/R
+// reversal). Both readings may be valid in different contexts --
+// this tag is informational, not a standalone trigger.
+float k = ta.stoch(close, high, low, stochLen)
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+var float lastPh = na
+var float lastPhK = na
+var float lastPl = na
+var float lastPlK = na
+
+bool bearContDiv = false
+bool bullContDiv = false
+if not na(ph)
+    if not na(lastPh) and ph < lastPh and k[pw] > lastPhK and trend3 == -1
+        bearContDiv := true
+    lastPh := ph
+    lastPhK := k[pw]
+if not na(pl)
+    if not na(lastPl) and pl > lastPl and k[pw] < lastPlK and trend3 == 1
+        bullContDiv := true
+    lastPl := pl
+    lastPlK := k[pw]
+
+var bool contDivArmedBear = false
+var bool contDivArmedBull = false
+if bearContDiv
+    contDivArmedBear := true
+    contDivArmedBull := false
+if bullContDiv
+    contDivArmedBull := true
+    contDivArmedBear := false
+
+// upgrade a same-direction Fractal signal fired shortly after the divergence sets up
+bool fractalSellUpgraded = useDiv and cd and fractalSell and contDivArmedBear
+bool fractalBuyUpgraded  = useDiv and cd and fractalBuy  and contDivArmedBull
+
+if fractalSellUpgraded
+    contDivArmedBear := false
+    label.new(bar_index, high, "4BF ▼ +DIV", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="4-Bar Fractal sell confirmed by a bearish price/stochastic divergence read as CONTINUATION of the existing down-trend (Hougaard's framing -- opposite use-case from reversal-divergence elsewhere in this repo).")
+if fractalBuyUpgraded
+    contDivArmedBull := false
+    label.new(bar_index, low, "4BF ▲ +DIV", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="4-Bar Fractal buy confirmed by a bullish price/stochastic divergence read as CONTINUATION of the existing up-trend.")
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.bottom_right, 2, 3, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "3-BAR TREND", text_color=color.orange, text_size=size.small)
+    table.cell(tb, 1, 0, trend3 == 1 ? "UP" : trend3 == -1 ? "DOWN" : "unset", text_color=trend3 == 1 ? color.lime : trend3 == -1 ? color.red : color.gray, text_size=size.small)
+    table.cell(tb, 0, 1, "HTF MA bias", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, htfUp ? "above (bull)" : htfDn ? "below (bear)" : "—", text_color=htfUp ? color.lime : htfDn ? color.red : color.gray, text_size=size.tiny)
+    table.cell(tb, 0, 2, "Cont. divergence armed", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 2, contDivArmedBull ? "bullish" : contDivArmedBear ? "bearish" : "none", text_color=contDivArmedBull ? color.lime : contDivArmedBear ? color.red : color.gray, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(fractalBuy,  "4-Bar Fractal Buy",  "Hougaard: 4BF ▲ — {{ticker}} {{interval}}")
+alertcondition(fractalSell, "4-Bar Fractal Sell", "Hougaard: 4BF ▼ — {{ticker}} {{interval}}")
+alertcondition(fractalBuyUpgraded,  "4-Bar Fractal Buy + Continuation Divergence",  "Hougaard: 4BF ▲ +DIV — {{ticker}} {{interval}}")
+alertcondition(fractalSellUpgraded, "4-Bar Fractal Sell + Continuation Divergence", "Hougaard: 4BF ▼ +DIV — {{ticker}} {{interval}}")
+alertcondition(trend3 != trend3[1], "3-Bar Swing Trend Flip", "Hougaard: 3-bar swing trend flipped — {{ticker}} {{interval}}")

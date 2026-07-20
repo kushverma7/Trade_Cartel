@@ -58,6 +58,11 @@ indicators/trade_cartel_master_engine.pine
   strategy wrappers, A/B against single stop
 - Cushion protocol: escalate risk only against banked profit (day or
   year level); no cushion = minimum size [2 independent sources]
+- CANDIDATE (H50, Hougaard): scale-IN mirror of the scale-out rule --
+  the first add to a winner only at a point where the original
+  position's stop can move to breakeven, and that becomes the stop
+  for the added position too (total risk never increases as size is
+  added). A/B against single-entry before adopting.
 - CANDIDATE (H24, Steve/MMM4x): time-stop — scratch any trade with no
   meaningful profit after ~2h (24 bars on 5m). A/B on master strategy
   before adoption.
@@ -166,3 +171,10 @@ operational hygiene:
   H45-H47. True footprint concepts (Imbalances, Big Limit Orders,
   Trades Filter) require Bid/Ask-split + per-trade size data we don't
   have -- not built, flagged in the playbook.
+- indicators/hougaard_4bar_fractal_engine.pine (voice #15, Tom
+  Hougaard): 4-Bar Fractal (close beats prior bar's AND bar-3-back's
+  high/low -- simplest signal in the repo), 3-Bar Swing trend state,
+  89-period HTF MA bias, divergence-as-continuation tag (mid-trend
+  divergence read as continuation, NOT reversal -- an unresolved
+  tension against every other divergence idea already in the repo).
+  H48-H50.

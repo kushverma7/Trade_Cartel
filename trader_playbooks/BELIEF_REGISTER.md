@@ -448,6 +448,53 @@ stops, scaled thirds). Paired with an explicit ADR-width guard
 framework already used by Steve/MMM4x (voice #8). Test: A/B this SL
 method against the master strategy's existing ATR-based stop.
 
+**H48. The 4-Bar Fractal (close beats both the prior bar's and the
+bar-3-back's high/low) is a reliable, cheap structure signal on any
+timeframe (Hougaard, voice #15 — MEDIUM-HIGH credibility for this
+register: audited multi-year trading-competition results cited).**
+The simplest signal in the entire repo (no pivot/swing detection
+needed at all). Test: standalone WR/PF of hougaard_4bar_fractal_
+engine.pine's 4BF signals on gold, and specifically whether it adds
+anything beyond the existing (heavier) structure-break family, or is
+largely redundant with it.
+
+**H49. Price/oscillator divergence occurring MID-TREND (not at a
+fresh swing extreme) predicts trend CONTINUATION, not reversal
+(Hougaard, voice #15).** Directly contradicts the standard reading of
+divergence used everywhere else in this repo (Kurisko's SUPER
+reversal signal, the CVD-at-S/R reversal veto in the master engine
+and Trader Dale's Cumulative Delta Divergence, voice #14) -- all of
+which treat the SAME observable (price/indicator disagreement) as a
+reversal tell. UNRESOLVED TENSION, explicitly logged rather than
+silently favoring either reading: the two claims may both be correct
+in different contexts (divergence AT a fresh extreme = reversal tell;
+divergence mid-trend, away from any extreme = continuation tell), but
+this needs our own data to settle, not assumption. Test: split
+divergence signals by whether they occur at a fresh swing extreme vs.
+mid-trend, and check whether the two subsets actually predict opposite
+outcomes on gold as this framing implies.
+
+**H50. Position-sizing has a portable "scale-in" rule to complement
+the register's existing scale-out convention: the first add to a
+winner should only happen where the ORIGINAL position's stop can move
+to breakeven, and that breakeven level becomes the stop for the
+second position too -- so total risk never increases as size is added
+(Hougaard, voice #15).** New, distinct from the existing 1/3@1R
+scale-out rule (which governs exits) and from Roppel's scaled-stop
+idea (which governs stop placement) -- this one governs entries added
+mid-trade. Test: A/B a scale-in variant of the master strategy against
+the existing single-entry, single-exit-ladder approach.
+
+INTRA-SCHOOL NOTE (2026-07-20): Hougaard's fade-the-short-term-in-
+direction-of-the-long-term-trend, ranging-to-trending-to-ranging
+regime alternation, and fake-out/ABCD sweep-reversal shape are all
+restatements of ideas already dominant in this register (MTF
+alignment now 8 independent constructions; Q-alternation/contraction-
+expansion-trend regime cycling now a 3rd independent arrival; sweep-
+reversal now past 8 sources). Logged as corroboration, not new
+H-numbers or a new voice tally entry for those specific ideas -- only
+H48-H50 above are genuinely new mechanics from this source.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -541,13 +588,13 @@ refinement, not a new independent claim).
 - Confirmation-before-entry family: 4 independent (our CPI event study,
   PBD close-count, Valentini break-and-test, Kurisko confirmed turn).
   STRONGEST idea in the register.
-- Multi-timeframe alignment before sizing: 7 independent (Cognitive
+- Multi-timeframe alignment before sizing: 8 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands, voice #9
   nested Renko brick-size stack, Wendell walls-vs-chairs, voice #11's
   HTF-bias/LTF-entry pattern, voice #13's H4-direction/15m-zone/5m-refine/
-  1m-execute cascade — seven schools, seven different mechanics, same
-  structural conclusion: never size a trade without checking a higher
-  timeframe first).
+  1m-execute cascade, Hougaard's fade-short-term-in-direction-of-long-term
+  — eight schools, eight different mechanics, same structural conclusion:
+  never size a trade without checking a higher timeframe first).
 - Confirmation-before-entry: now 8 independent (add Steve's confirmed-hammer-
   close + zone-shift confirmation to CPI study, PBD, Valentini, Kurisko, QT,
   Ario, Dave).
