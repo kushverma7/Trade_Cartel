@@ -195,3 +195,24 @@ No other pages in this PDF had recoverable image content beyond
 decorative checkmark/pin/target emoji glyphs (which pypdf's image
 detector flags as "images" but carry no diagram information) --
 confirmed by rendering every image-bearing page.
+
+---
+
+## v7 — re-upload verification, plain-text compiled doc (2026-07-20)
+Source: "Quarterly Theory by Trader Daye & Compiled by @ransh28.06" (.txt).
+Same author credit as the original compiled-PDF source this playbook is
+built from. Full read confirms: fractal time quarters (yearly/monthly/
+weekly/daily/session/90-min), True Opens, AMDX/XAMD phase mapping (both
+forms), session quarter behavior (Q1 range, Q2 expansion, Q3 continuation/
+pullback, Q4 reversal/profit-take), Standard/SSMT/90SSMT SMT divergence
+taxonomy, and the full PD-array entry strategy chain (quarter/phase ->
+SMT scan -> PD-array tap -> inversion/liquidity-grab confirmation ->
+laddered SL/TP, 1:3/1:6/1:10 example) all match what's already coded
+in indicators/quarterly_theory_engine.pine and documented above. No
+contradictions, no genuinely new codeable mechanic. One descriptive-only
+addition not previously logged verbatim (source's own "Critiques and
+Limitations" section: requires deep market understanding, works best in
+London/NY hours not Asia, execution complexity/needs real-time True
+Open confirmation) -- not falsifiable/codeable, no H-number, recorded
+here as source-stated caveats only. No engine changes, no new
+BELIEF_REGISTER entries.
