@@ -60,3 +60,24 @@ image examples not recoverable). Same school, richer mechanics.
 - PSP (Precision Swing Point): the swing candle formed at the SSMT
   (correlated triad diverges). ENTRY = CLOSE of that candle ->
   confirmation-before-entry family, 5th source holds here too.
+
+---
+
+## v3 — PRIMARY SOURCE (Trader Daye's own intro video, 2026-07-19)
+Primary outranks compilations. Corrections + precision:
+
+- TRUE WEEKLY OPEN = MONDAY 18:00 ET (compilation #1 said "Tuesday
+  midnight" — garbled; Mon 18:00 IS the start of the Tuesday trading
+  day in the 18:00-rollover convention). ENGINE CORRECTED.
+- Session true opens = Q2 of each session's 90-min cycle:
+  Asia 19:30, London 01:30, NY 07:30, PM 13:30 ET. All now plotted.
+- True year open = first Monday of April; true month open = second
+  Monday. Monthly counting uses first FULL week; partial = distortion.
+- Trading rule (crisp): bullish in a cycle -> buy BELOW its true
+  open; bearish -> sell ABOVE it. Key levels rest beyond true opens.
+- Q1 is the barometer (his words): Q1 overextended -> Q2 consolidates;
+  Q1 tight -> Q2 expands. Confirms H15 is faithful to the original.
+- PD-array TF pairing (full map): 1m->15m, 5m->1H, 15m->4H, 1H->D,
+  4H->W.
+- Lineage note: he states openly it is reverse-engineered ICT. Still
+  zero statistics offered in the primary source either.

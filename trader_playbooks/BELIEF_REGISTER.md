@@ -130,6 +130,11 @@ Test: tap/sweep signal outcomes on gold vs random hourly candles as control.
   our own data: session must GATE. Strategy v1.1 adds hard gate +
   A+-only mode. Pending: gated re-run, Core Only control run.
 
+INTRA-SCHOOL NOTE (H13): primary source (Daye video) corrects compilation #1 —
+true weekly open is Monday 18:00 ET, not Tuesday midnight. Engine fixed. When
+sources within a school conflict, the primary wins; logged as a reminder that
+compilations garble.
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Reclaim/sweep-reversal family (B2 fix, PBD break-in): 3 SUPPORT (PBD break-in,
   QT Judas swing, Dave sweep-prerequisite) vs 1 AGAINST (Valentini). THRESHOLD

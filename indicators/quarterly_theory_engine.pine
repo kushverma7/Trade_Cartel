@@ -69,21 +69,37 @@ else
     qLo := math.min(nz(qLo, low), low)
 
 // ── True Opens ───────────────────────────────────────────────
+// v3 correction (primary source): True Weekly Open = MONDAY 18:00 ET
 var float trueDailyOpen  = na
 var float trueWeeklyOpen = na
+var float trueAsiaOpen   = na
+var float trueLdnOpen    = na
 var float trueNyamOpen   = na
+var float truePmOpen     = na
 bool newDailyTO = q2 and not q2[1]
 if newDailyTO
     trueDailyOpen := open
-if newDailyTO and dayofweek(time, "America/New_York") == dayofweek.tuesday
+bool q1Start = q1 and not q1[1]
+if q1Start and dayofweek(time, "America/New_York") == dayofweek.monday
     trueWeeklyOpen := open
-bool nyamTO = not na(time(timeframe.period, "0730-0735", "America/New_York"))
-if nyamTO and not nyamTO[1]
+mkTO(sess) =>
+    w = not na(time(timeframe.period, sess, "America/New_York"))
+    w and not w[1]
+if mkTO("1930-1935")
+    trueAsiaOpen := open
+if mkTO("0130-0135")
+    trueLdnOpen := open
+if mkTO("0730-0735")
     trueNyamOpen := open
+if mkTO("1330-1335")
+    truePmOpen := open
 
-plot(showTO ? trueDailyOpen  : na, "True Daily Open (00:00 ET)",  color.new(color.orange, 20), 1, plot.style_linebr)
-plot(showTO ? trueWeeklyOpen : na, "True Weekly Open (Tue 00:00)", color.new(color.fuchsia, 35), 2, plot.style_linebr)
+plot(showTO ? trueDailyOpen  : na, "True Daily Open (00:00 ET)",   color.new(color.orange, 20), 1, plot.style_linebr)
+plot(showTO ? trueWeeklyOpen : na, "True Weekly Open (Mon 18:00)", color.new(color.fuchsia, 35), 2, plot.style_linebr)
+plot(showTO ? trueAsiaOpen   : na, "True Asia Open (19:30)",       color.new(color.gray, 55), 1, plot.style_linebr)
+plot(showTO ? trueLdnOpen    : na, "True London Open (01:30)",     color.new(color.blue, 45), 1, plot.style_linebr)
 plot(showTO ? trueNyamOpen   : na, "True NY AM Open (07:30)",      color.new(color.aqua, 35), 1, plot.style_linebr)
+plot(showTO ? truePmOpen     : na, "True PM Open (13:30)",         color.new(color.purple, 45), 1, plot.style_linebr)
 
 // ── Prior day levels (liquidity pools) ───────────────────────
 float pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
