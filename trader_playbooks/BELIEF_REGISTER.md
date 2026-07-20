@@ -362,6 +362,20 @@ MMM4x's (voice #8) unrelated Friday-is-different rule. Engine's AMDX/XAMD
 label is our own range-based heuristic proxy for the source's stated
 judgment call, not a rule from the source — flagged as such in-code.
 
+INTRA-SCHOOL NOTE v3 (H13, 2026-07-20): "857483891QuarterlyTheory" PDF
+re-supplied with a working text layer (same document previously logged
+as "compilation #2, mostly images" with an unrecoverable text layer) --
+CONFIRMS the v2 additions (TF pairing model, PSP, SSMT, "every Q open is
+a True Open") were extracted correctly the first time, no corrections
+needed. Adds one new engine-worthy detail: a full-grade PSP/SMT requires
+an ASSET TRIAD (two failed-confirmation references), not just one --
+engine gained an optional 2nd reference symbol (`useTriad` toggle,
+default DXY, off by default) so the stricter triad version can be A/B'd
+against the existing single-reference SMT. "iFVG" mentioned as a PSP-
+entry comparison but not detailed in source -- preserved, not built.
+No new H-number (this is a same-lineage confirmation + engine
+refinement, not a new independent claim).
+
 ## Contradiction Tallies (3+ independent -> Belief Review)
 - Break-of-structure / swing-failure / manipulation-leg family (B2 fix,
   PBD break-in, now including plain ABC/123, Wendell drop-base-rally/

@@ -14,6 +14,9 @@
 //     confirm our sweep -> the sweep was manipulation.
 //   - v4: 90-min sub-quarter markers per session; AMDX/XAMD phase
 //     heuristic (range-based proxy for the source's judgment call).
+//   - v5: optional asset-TRIAD SMT confirmation (2nd reference symbol,
+//     default OFF) -- source states a full PSP requires the sweep to
+//     not correlate across a triad, not just a single reference pair.
 //
 // EDGE STATUS: theory, zero stats in source. For observation and
 // confluence testing only. All signals bar-close, non-repainting.
@@ -26,6 +29,9 @@ string refSym   = input.symbol("OANDA:XAGUSD", "SMT Reference Symbol (silver for
 bool   refInv   = input.bool(false, "Reference is Inverse (e.g. DXY)", group="① SMT")
 int    smtLen   = input.int(30, "SMT Sweep Lookback (bars)", minval=10, group="① SMT")
 int    smtWin   = input.int(10, "SMT Valid Window (bars)", minval=1, group="① SMT")
+bool   useTriad = input.bool(false, "Require Asset TRIAD Confirmation (v5)", group="① SMT", tooltip="Source: 'a PSP can only be formed when this formation does not correlate with an asset triad.' Requires a SECOND reference to also fail confirming the sweep, not just one.")
+string refSym2  = input.symbol("TVC:DXY", "2nd Reference Symbol (triad, e.g. DXY)", group="① SMT")
+bool   refInv2  = input.bool(true, "2nd Reference is Inverse", group="① SMT")
 bool   showQ    = input.bool(true, "Shade Daily Quarters", group="② Time Structure")
 bool   showTO   = input.bool(true, "Show True Opens", group="② Time Structure")
 string manip1   = input.session("0000-0600", "Manipulation Window 1 (London/Q2, ET)", group="③ Judas")
@@ -135,7 +141,12 @@ float pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.
 plot(pdh, "Prev Day High", color.new(color.red,  60), 1, plot.style_linebr)
 plot(pdl, "Prev Day Low",  color.new(color.lime, 60), 1, plot.style_linebr)
 
-// ── SMT divergence vs reference symbol ───────────────────────
+// ── SMT divergence vs reference symbol(s) ─────────────────────
+// v5 (2026-07-20): source states a full PSP requires checking against
+// an ASSET TRIAD (two references), not just one -- optional 2nd
+// reference added below. Default OFF to preserve existing single-
+// reference behavior; enabling requires BOTH refs to fail confirming
+// the sweep before a signal arms (stricter, fewer, higher-grade).
 [rHigh, rLow] = request.security(refSym, timeframe.period, [high, low])
 float rH = refInv ? -rLow  : rHigh
 float rL = refInv ? -rHigh : rLow
@@ -145,11 +156,19 @@ bool mySweepHi  = high > ta.highest(high, smtLen)[1]
 bool refSweepLo = rL   < ta.lowest(rL, smtLen)[1]
 bool refSweepHi = rH   > ta.highest(rH, smtLen)[1]
 
+[rHigh2, rLow2] = request.security(refSym2, timeframe.period, [high, low])
+float rH2 = refInv2 ? -rLow2  : rHigh2
+float rL2 = refInv2 ? -rHigh2 : rLow2
+bool refSweepLo2 = useTriad and rL2 < ta.lowest(rL2, smtLen)[1]
+bool refSweepHi2 = useTriad and rH2 > ta.highest(rH2, smtLen)[1]
+bool ref2ConfirmsNonparticipationLo = not useTriad or not refSweepLo2
+bool ref2ConfirmsNonparticipationHi = not useTriad or not refSweepHi2
+
 var int bullSmtBar = -9999
 var int bearSmtBar = -9999
-if mySweepLo and not refSweepLo
+if mySweepLo and not refSweepLo and ref2ConfirmsNonparticipationLo
     bullSmtBar := bar_index
-if mySweepHi and not refSweepHi
+if mySweepHi and not refSweepHi and ref2ConfirmsNonparticipationHi
     bearSmtBar := bar_index
 bool bullSmt = bar_index - bullSmtBar <= smtWin
 bool bearSmt = bar_index - bearSmtBar <= smtWin
@@ -157,12 +176,12 @@ bool bearSmt = bar_index - bearSmtBar <= smtWin
 // SSMT: SMT within the window after a quarter open = sequential
 // SMT (claimed higher probability — engages the time factor)
 bool inSsmtWin = not na(qStartBar) and bar_index - qStartBar <= ssmtWin
-if mySweepLo and not refSweepLo and (bar_index - bullSmtBar[1] > smtWin)
+if mySweepLo and not refSweepLo and ref2ConfirmsNonparticipationLo and (bar_index - bullSmtBar[1] > smtWin)
     label.new(bar_index, low, inSsmtWin ? "SSMT ▲" : "SMT ▲", style=label.style_label_up, color=color.new(#7B1FA2, inSsmtWin ? 0 : 40), textcolor=color.white, size=inSsmtWin ? size.small : size.tiny,
-         tooltip="We swept the low; reference did not confirm. " + (inSsmtWin ? "SEQUENTIAL (after Q open) — higher grade. PSP entry = this candle close." : "Sweep = likely manipulation."))
-if mySweepHi and not refSweepHi and (bar_index - bearSmtBar[1] > smtWin)
+         tooltip="We swept the low; reference" + (useTriad ? "s" : "") + " did not confirm. " + (inSsmtWin ? "SEQUENTIAL (after Q open) — higher grade. PSP entry = this candle close." : "Sweep = likely manipulation.") + (useTriad ? " Triad-confirmed." : ""))
+if mySweepHi and not refSweepHi and ref2ConfirmsNonparticipationHi and (bar_index - bearSmtBar[1] > smtWin)
     label.new(bar_index, high, inSsmtWin ? "SSMT ▼" : "SMT ▼", style=label.style_label_down, color=color.new(#7B1FA2, inSsmtWin ? 0 : 40), textcolor=color.white, size=inSsmtWin ? size.small : size.tiny,
-         tooltip="We swept the high; reference did not confirm. " + (inSsmtWin ? "SEQUENTIAL (after Q open) — higher grade. PSP entry = this candle close." : "Sweep = likely manipulation."))
+         tooltip="We swept the high; reference" + (useTriad ? "s" : "") + " did not confirm. " + (inSsmtWin ? "SEQUENTIAL (after Q open) — higher grade. PSP entry = this candle close." : "Sweep = likely manipulation.") + (useTriad ? " Triad-confirmed." : ""))
 
 // ── JUDAS signals (manipulation-window sweep + reclaim + SMT) ─
 bool inManip = not na(time(timeframe.period, manip1, "America/New_York")) or not na(time(timeframe.period, manip2, "America/New_York"))

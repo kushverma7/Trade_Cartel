@@ -115,3 +115,36 @@ Fuller restatement with two genuinely new, codeable pieces:
   coded, now stated as the general case.
 - Still zero statistics. Same primary source lineage as v3 (reverse-
   engineered ICT, openly stated).
+
+---
+
+## v5 — "857483891QuarterlyTheory" PDF, re-supplied with a working text
+layer (2026-07-20). This is the SAME document referenced earlier as
+"compilation #2, mostly images" (the first upload's text layer was
+mostly unrecoverable) -- this copy has extractable text and CONFIRMS
+the v2 additions were captured correctly: same TF pairing model (1m->
+15m, 5m->1h, 15m->4h), same PSP (Precision Swing Point) definition,
+same SSMT concept, same "every Q open is a True Open" claim, same
+Daye attribution. No contradictions found against what's already coded.
+
+Two genuinely new details this cleaner copy adds:
+- **Asset TRIAD requirement**: "a PSP can only be formed when this
+  formation does not correlate with an asset triad" -- meaning a
+  full-grade PSP/SMT check should fail to confirm against TWO
+  correlated references, not just one. Previous engine only checked a
+  single reference (silver for gold). Added as an OPTIONAL 2nd
+  reference (default DXY, inverse) that must ALSO fail to confirm the
+  sweep before a triad-confirmed SMT arms -- default OFF to preserve
+  existing single-reference behavior; toggle on to test the stricter
+  version.
+- **iFVG mention**: "very similar to how to properly use iFVG" (inverse
+  Fair Value Gap) as a comparison for PSP entry timing. Not detailed
+  further in source -- NOT implemented, flagged and preserved per
+  standing rule rather than guessed at. If a future source explains
+  iFVG mechanics clearly, cross-reference back here.
+
+## v5 ENGINE UPDATE
+quarterly_theory_engine.pine: added `useTriad` toggle + `refSym2`/
+`refInv2` inputs. When enabled, BOTH references must fail to confirm
+a sweep before SMT/SSMT/JUDAS signals arm (stricter, fewer signals,
+matches the source's literal "triad" requirement). Off by default.
