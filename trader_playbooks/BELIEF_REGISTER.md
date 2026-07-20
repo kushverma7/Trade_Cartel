@@ -766,8 +766,8 @@ underlying mechanism eventually proves out.
 numbers," small quarters = 1/4-divisions of a finer sub-range) acts as
 support/resistance, and a move is considered to have "successfully
 completed" once price comes within one small-quarter width of the
-targeted level, whether short of it or overshooting past it (Ilan
-Levy-Mayer, "The Quarters Theory," voice #18 -- LOW-MEDIUM
+targeted level, whether short of it or overshooting past it (Ilian
+Yotov, "The Quarters Theory," voice #18 -- LOW-MEDIUM
 credibility: named published author, but zero backtested statistics
 in either source transcript).** Genuinely new mechanism: nothing else
 in this register derives levels purely from modulo arithmetic on
@@ -786,7 +786,7 @@ every source example is a G7 FX pair, gold is never mentioned.
 trend swing extreme starts a new trend cycle; each subsequent same-
 direction wave must exceed the prior same-direction wave's extreme to
 extend the cycle, and failing to do so signals an opposing reversal
-trigger wave is likely forming (Ilan Levy-Mayer's "Trend Waves," same
+trigger wave is likely forming (Ilian Yotov's "Trend Waves," same
 source as H66).** The trigger condition itself corroborates this
 register's existing structure-break/BOS family (yet another
 independent construction of "break of the last counter-trend extreme
@@ -799,6 +799,30 @@ a correction that retraces more than 100% of the wave it follows stops
 being a correction and becomes a new reversal trigger wave in the
 opposite direction, restarting the count. This is a crisp, falsifiable
 rule not present anywhere else in the register.
+
+**H68. A large quarter target that takes longer than an expected bar
+budget to reach ("3-Day Rule," Ilian Yotov's official published
+glossary, v2 correction pass on H66/H67, same LOW-MEDIUM credibility)
+signals exhaustion of the move and increased odds of reversal before
+completion; separately, three or more consecutive large-quarter
+completions in the same direction ("Large Quarter Corrections") signal
+overbought/oversold risk independent of the Trend Wave count in H67.**
+Both are new, distinct, falsifiable timing/exhaustion rules not derivable
+from H66/H67 alone -- the webinar transcripts never mentioned either.
+The "3 days" duration is FX-session language from the source and has
+been translated to a bar-count budget (`maxBarsToComplete`, default 864)
+as OUR OWN untested convention, not a source-given number, exactly like
+the H66 gold price-scale adaptation. Also clarified by this v2 pass but
+NOT logged as a separate H-number (definitional, not a new falsifiable
+mechanism): the glossary distinguishes THREE separate "half point"
+concepts -- Half Point (of a small quarter), Half Point of a Large
+Quarter (the new $50-scale midpoint added to the grid this pass), and
+Major Half Point (already built under H66) -- and separately distinguishes
+"Extended Trend Wave Cycle" (wave count > 3, what H67/`isExtended` already
+measures) from "Extended Trend Waves" (a single wave lasting more than 5
+consecutive bars, a duration-based definition NOT built). The glossary's
+Time Stops concept corroborates this register's existing H24
+(time-based invalidation) rather than adding a new mechanism.
 
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,

@@ -253,8 +253,8 @@ operational hygiene:
   chart-boxing. Source's specific claimed lag durations (1-20h across
   different pairs) explicitly NOT hard-coded -- asserted from a
   handful of screenshots, not measured.
-- indicators/quarters_theory_price_engine.pine (voice #18, Ilan
-  Levy-Mayer's "The Quarters Theory," two AllThingsForex webinar
+- indicators/quarters_theory_price_engine.pine (voice #18, Ilian
+  Yotov's "The Quarters Theory," two AllThingsForex webinar
   transcripts): static price grid (large/small quarter levels via
   modulo arithmetic on absolute price, no swing/pivot anchor at all --
   "successful completion" = within one small-quarter width of the
@@ -268,4 +268,13 @@ operational hygiene:
   TIME-based) despite the near-identical name -- this one is purely
   PRICE-based, no session/time component at all. Gold scale ($100
   major handle) is our own convention, untested -- every source
-  example is a G7 FX pair.
+  example is a G7 FX pair. **v2 (2026-07-20, corrected author name
+  from a fabricated "Ilan Levy-Mayer" to the real Ilian Yotov after
+  the book's official Glossary of Terms was supplied)**: added Half
+  Point of a Large Quarter grid lines (the midpoint of each $25 large
+  quarter, distinct from the Major Half Point), the 3-Day Rule
+  exhaustion timer (`sigExhausted` -- bar-count budget to reach a
+  target large quarter, our own translation of the source's "3 FX
+  days," untested), and a Large Quarter Corrections counter
+  (`sigLQC` -- overbought/oversold flag after 3+ consecutive
+  same-direction large-quarter completions). H68.

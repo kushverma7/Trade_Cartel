@@ -1,34 +1,58 @@
 //@version=6
-indicator("Trade Cartel - Levy-Mayer Quarters Theory Engine", shorttitle="TC-QuartersPrice", overlay=true, max_lines_count=200, max_labels_count=300)
+indicator("Trade Cartel - Yotov Quarters Theory Engine", shorttitle="TC-QuartersPrice", overlay=true, max_lines_count=200, max_labels_count=300)
 
 // =====================================================================
-// Voice #18 -- Ilan Levy-Mayer, "The Quarters Theory" (two AllThings-
-// Forex webinar transcripts, LOW-MEDIUM credibility -- named public
-// figure/published author, but zero backtested stats offered).
+// Voice #18 -- Ilian Yotov, "The Quarters Theory" (two AllThings-
+// Forex webinar transcripts + the published book's own Glossary of
+// Terms chapter, Wiley 2010 -- LOW-MEDIUM credibility, named published
+// author, but zero backtested stats offered anywhere in the source).
 //
 // NOT related to quarterly_theory_engine.pine (voice #4, Trader Daye/
 // ICT lineage, TIME-based). This is a PRICE-based static round-number
 // grid -- coincidentally similar name, completely different mechanism.
-// See trader_playbooks/levy_mayer_quarters_theory.md for the full
+// See trader_playbooks/yotov_quarters_theory.md for the full
 // naming-collision warning.
 //
-// Two independent parts from the source, both built:
+// v1 (webinar transcripts):
 //   1. Price grid -- static large/small quarter levels via modulo
 //      arithmetic on absolute price, "successful completion" =
 //      within one small-quarter of a target, major-range-transition
 //      confirm/fail tracking.
-//   2. Trend Wave cycle counter -- Levy-Mayer's own simplified
+//   2. Trend Wave cycle counter -- Yotov's own simplified
 //      Elliott-Wave variant (Reversal Trigger / Progressive /
 //      Conclusive / Consecutive waves, wave-failure flag, the
 //      100%-retracement-becomes-a-new-reversal-trigger rule).
+// v2 (published book's glossary, primary source, 2026-07-20 -- also
+// corrected the author's name, garbled by the webinar transcripts'
+// auto-captions and further mis-transcribed by an earlier pass here
+// to a fabricated surname that appears nowhere in any source):
+//   3. Half Point of a Large Quarter -- the 125-unit midpoint of EACH
+//      large quarter (distinct from the Major Half Point, the
+//      1000-unit range's own midpoint, already built in v1).
+//   4. 3-Day Rule -- a Large Quarter not completed within a bar-count
+//      budget (our own translation of "3 FX trading days," untested
+//      on a 5m gold chart) is flagged as exhausted/weakening.
+//   5. Large Quarter Corrections -- N consecutive same-direction Large
+//      Quarter completions in a row (source's own overbought/oversold
+//      condition, distinct counting unit from Trend Wave count) flags
+//      an exhaustion warning.
 // =====================================================================
 
 grpGrid = "Price Grid"
 majorRangeWidth = input.float(100.0, "Major whole number width ($, our own convention for gold)", minval = 1.0, group = grpGrid)
 showGrid = input.bool(true, "Show large/small quarter grid", group = grpGrid)
 showSmallQ = input.bool(true, "Show small quarter lines", group = grpGrid)
+showHalfLQ = input.bool(true, "Show Half Point of each Large Quarter (v2)", group = grpGrid)
 zoneTolMult = input.float(1.0, "Completion tolerance (x small-quarter width)", minval = 0.25, step = 0.25, group = grpGrid)
 cooldownGrid = input.int(10, "Grid signal cooldown (bars)", minval = 1, group = grpGrid)
+
+grp3Day = "3-Day Rule (v2, bar-count translation, untested)"
+show3Day = input.bool(true, "Flag Large Quarter exhaustion (3-Day Rule)", group = grp3Day)
+maxBarsToComplete = input.int(864, "Max bars to complete a Large Quarter (our translation of '3 FX days')", minval = 10, group = grp3Day)
+
+grpLQC = "Large Quarter Corrections (v2)"
+showLQC = input.bool(true, "Flag overbought/oversold after N consecutive completions", group = grpLQC)
+lqcThresh = input.int(3, "Consecutive same-direction completions to flag", minval = 2, group = grpLQC)
 
 grpWave = "Trend Wave Cycle"
 showWaves = input.bool(true, "Show Trend Wave labels", group = grpWave)
@@ -87,6 +111,17 @@ if majorChanged
                     lvl = vMajorFloor + smallQ * i
                     sl = line.new(bar_index, lvl, endBar, lvl, color = color.new(color.gray, 80), style = line.style_dotted)
                     array.push(gridLines, sl)
+        if showHalfLQ
+            // v2: Half Point of a Large Quarter -- the 125-unit midpoint
+            // of EACH large quarter, distinct from the Major Half Point
+            // (large-quarter-index-2 above, the 1000-unit range's own
+            // midpoint).
+            for i = 0 to 3
+                lvl = vMajorFloor + largeQ * i + largeQ / 2.0
+                hl = line.new(bar_index, lvl, endBar, lvl, color = color.new(color.aqua, 40), style = line.style_dashed)
+                array.push(gridLines, hl)
+                hLbl = label.new(endBar, lvl, "LQ-HALF", style = label.style_label_left, color = color.new(color.gray, 100), textcolor = color.aqua, size = size.tiny)
+                array.push(gridLabels, hLbl)
 
 // ---------------------------------------------------------------------
 // Large-quarter zone reached / major range transition
@@ -140,6 +175,52 @@ if transitionFailed
          tooltip = "Price reversed back across the major whole number before completing the first large quarter -- source expects a reversal back into the previous range.")
 
 // ---------------------------------------------------------------------
+// v2: 3-Day Rule -- a Large Quarter not completed within a bar budget
+// (our own translation of "3 FX trading days") is flagged as
+// exhausted/weakening, raising the odds of a reversal instead.
+// ---------------------------------------------------------------------
+var float vLastTarget = na
+var int targetStartBar = na
+var bool exhaustFired = false
+
+if targetLQ != vLastTarget
+    vLastTarget := targetLQ
+    targetStartBar := bar_index
+    exhaustFired := false
+
+barsSinceTargetStart = na(targetStartBar) ? na : bar_index - targetStartBar
+bool sigExhausted = show3Day and not exhaustFired and not na(barsSinceTargetStart) and barsSinceTargetStart >= maxBarsToComplete
+
+if sigExhausted
+    exhaustFired := true
+    label.new(bar_index, close, "LQ exhausted (3-Day Rule)", style = label.style_label_right, color = color.new(color.gray, 20), textcolor = color.white, size = size.tiny,
+         tooltip = "Target large quarter point " + str.tostring(targetLQ, format.mintick) + " not reached within " + str.tostring(maxBarsToComplete) + " bars (our translation of the source's 3-trading-day rule, untested on 5m) -- weakening signal, watch for reversal to the preceding large quarter point instead.")
+
+// ---------------------------------------------------------------------
+// v2: Large Quarter Corrections -- N consecutive same-direction Large
+// Quarter completions in a row is the source's own overbought/oversold
+// exhaustion condition (distinct counting unit from Trend Wave count).
+// ---------------------------------------------------------------------
+var float lastCompletedLQ = na
+var int lqcDir = 0
+var int lqcCount = 0
+
+if sigZoneReached
+    newDir = na(lastCompletedLQ) ? 0 : (targetLQ > lastCompletedLQ ? 1 : (targetLQ < lastCompletedLQ ? -1 : lqcDir))
+    if newDir == lqcDir and newDir != 0
+        lqcCount += 1
+    else
+        lqcCount := 1
+        lqcDir := newDir
+    lastCompletedLQ := targetLQ
+
+bool sigLQC = showLQC and sigZoneReached and lqcCount >= lqcThresh
+
+if sigLQC
+    label.new(bar_index, close, "LQ Correction risk (" + str.tostring(lqcCount) + " in a row)", style = lqcDir == 1 ? label.style_label_up : label.style_label_down, color = color.new(color.maroon, 20), textcolor = color.white, size = size.tiny,
+         tooltip = str.tostring(lqcCount) + " consecutive " + (lqcDir == 1 ? "bullish" : "bearish") + " Large Quarter completions -- source's overbought/oversold Large Quarter Correction condition, expect a corrective pullback.")
+
+// ---------------------------------------------------------------------
 // PART 2: Trend Wave cycle counter
 // ---------------------------------------------------------------------
 ph = ta.pivothigh(pw, pw)
@@ -187,7 +268,7 @@ if newLeg
         lastWaveStart := legFrom
         if showWaves
             label.new(bar_index, legTo, "RTW1", style = legDir == 1 ? label.style_label_up : label.style_label_down, color = color.new(#1565C0, 10), textcolor = color.white, size = size.tiny,
-                 tooltip = "Reversal Trigger Wave -- first wave of a new cycle (Levy-Mayer Trend Waves).")
+                 tooltip = "Reversal Trigger Wave -- first wave of a new cycle (Yotov Trend Waves).")
     else if legDir == cycleDir
         bool succeeded = (legDir == 1 and legTo > lastWaveExtreme) or (legDir == -1 and legTo < lastWaveExtreme)
         if succeeded
@@ -225,8 +306,8 @@ bool isOverextended = waveCount > 4
 // Status table
 // ---------------------------------------------------------------------
 if showTable and barstate.islast
-    var table dash = table.new(position.top_right, 2, 5, border_width = 1)
-    table.cell(dash, 0, 0, "Quarters (Levy-Mayer)", bgcolor = color.new(color.purple, 60), text_color = color.white)
+    var table dash = table.new(position.top_right, 2, 7, border_width = 1)
+    table.cell(dash, 0, 0, "Quarters (Yotov)", bgcolor = color.new(color.purple, 60), text_color = color.white)
     table.cell(dash, 1, 0, "", bgcolor = color.new(color.purple, 60))
     table.cell(dash, 0, 1, "Nearest LQ")
     table.cell(dash, 1, 1, str.tostring(targetLQ, format.mintick))
@@ -236,6 +317,10 @@ if showTable and barstate.islast
     table.cell(dash, 1, 3, cycleDir == 1 ? "bullish" : cycleDir == -1 ? "bearish" : "n/a")
     table.cell(dash, 0, 4, "Wave count")
     table.cell(dash, 1, 4, str.tostring(waveCount) + (isOverextended ? " OVEREXT" : isExtended ? " EXT" : ""), text_color = isOverextended ? color.red : isExtended ? color.orange : color.gray)
+    table.cell(dash, 0, 5, "3-Day Rule (v2)")
+    table.cell(dash, 1, 5, na(barsSinceTargetStart) ? "n/a" : exhaustFired ? "EXHAUSTED" : str.tostring(barsSinceTargetStart) + "/" + str.tostring(maxBarsToComplete) + " bars", text_color = exhaustFired ? color.red : color.gray)
+    table.cell(dash, 0, 6, "LQ Corrections (v2)")
+    table.cell(dash, 1, 6, lqcDir == 0 ? "n/a" : str.tostring(lqcCount) + (lqcDir == 1 ? " up" : " down"), text_color = lqcCount >= lqcThresh ? color.red : color.gray)
 
 // ---------------------------------------------------------------------
 // Alerts
@@ -244,3 +329,5 @@ alertcondition(sigZoneReached, "Large Quarter Zone Reached", "Quarters Theory: p
 alertcondition(transitionConfirmed, "Range Transition Confirmed", "Quarters Theory: 1000-range transition confirmed -- {{ticker}} {{interval}}")
 alertcondition(transitionFailed, "Range Transition Failed", "Quarters Theory: 1000-range transition failed, reversal expected -- {{ticker}} {{interval}}")
 alertcondition(waveFailed, "Trend Wave Failed", "Quarters Theory: trend wave failed to extend, watch for opposite reversal trigger -- {{ticker}} {{interval}}")
+alertcondition(sigExhausted, "Large Quarter Exhausted (3-Day Rule)", "Quarters Theory: target large quarter has taken longer than the expected bar budget to complete -- watch for reversal -- {{ticker}} {{interval}} (v2)")
+alertcondition(sigLQC, "Large Quarter Correction Risk", "Quarters Theory: consecutive same-direction large quarter completions -- overbought/oversold, correction risk -- {{ticker}} {{interval}} (v2)")
