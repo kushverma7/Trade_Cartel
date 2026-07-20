@@ -260,6 +260,60 @@ of every existing structure-break signal (PBD, Dave, QT Judas, Wendell,
 this engine's own BRINKS/3-TAP) gated by emaBunched == false vs
 ungated, on gold.
 
+**H36. Break of structure is only reliable once the inducement (a
+pullback swing that traps traders before it gets swept) has actually
+been cleared -- an unconfirmed break lacking a swept IDM is lower
+conviction (Alchemist/"White Seraph" PDF -- INDEPENDENT voice #12 for
+the SMC market-structure layer, LOW-MED credibility: anonymous poster,
+zero stats, heavily garbled machine translation on several sections).**
+Distinct from every other sweep-reversal mechanic already in the
+register (session-window JUDAS, zone-freshness Wendell, swing-maturity
+Dave) -- this one gates the STRUCTURE BREAK ITSELF, on any swing,
+regardless of session or zone. Test: WR/PF of IDM-confirmed BOS
+(alchemist_smc_engine.pine "BOS IDM✓") vs unconfirmed breaks ("BOS no
+IDM") on gold -- if confirmed breaks meaningfully outperform, IDM
+gating becomes a hard veto candidate for every structure-break signal
+in the master engine, not just this one.
+
+**H37. A broken support/resistance level's ROLE inverts on retest
+(SBR/RBS) -- this is a property distinct from zone freshness (Wendell,
+H30): a level can be "spent" (no longer fresh) while its FLIPPED role
+is still valid, or vice versa (Alchemist, voice #12).** Test: does
+tagging the first post-flip retest specifically (vs. treating it as
+just another zone touch) add signal quality beyond Wendell's freshness
+score alone?
+
+**H38. The Quasimodo 5-point swing-failure pattern (HH-HL-break to
+fresh LL-retracement fails to reclaim the original HH-reversal) is a
+higher-confirmation variant of plain break-of-structure, distinguished
+by the extra "failed reclaim" step (Alchemist, voice #12).** Test:
+does QML's extra confirmation step raise WR relative to a plain
+ABC/123 (voice #9) or PBD break-in signal at the cost of fewer total
+signals (fewer, better vs. more, noisier)?
+
+INTRA-SCHOOL NOTE (voice #4/#13, 2026-07-20): the Alchemist PDF's
+Quarterly Theory section (AMDX/XAMD, 90-min cycle table, Asia-range
+liquidity, SMT-x-QT) is the SAME ICT-derived Quarterly Theory material
+already in quarterly_theory.md -- a different teacher independently
+arriving at (or teaching from) the identical framework. Logged as
+same-school corroboration, NOT tallied as a new independent voice or
+added to any corroboration count -- only the genuinely distinct SMC
+market-structure content (IDM, SBR/RBS, QML) earned voice #12 status.
+The PDF's own 90-minute table is column-garbled by translation and was
+NOT used to re-derive engine timings; the existing clean primary-
+source video remains authoritative there.
+
+NOT BUILT, KEPT ON RECORD (per standing instruction to never discard
+source material even when too garbled to codify): the Alchemist PDF's
+"OCL" (Open-Close Level, described inconsistently across its two
+source pages as a fixed-period moving average forming either a "P-P"
+or "D-P D-P" pattern relative to HTF order blocks), "Fibo Circle," and
+"Fibo Storyline" sections are preserved verbatim with the garbled
+source language in alchemist_smc_concepts.md section 9, flagged as
+unimplemented rather than deleted or paraphrased away -- if a future
+source clarifies any of these concepts, the original text is still
+there to cross-reference against.
+
 EXECUTION-RISK NOTE (not a market-structure hypothesis, no H-number —
 logged for completeness, see PLAYBOOK.md "Execution / Broker Risk"):
 2026-07-20 "Forex James" broker-risk source argues scalping maximizes

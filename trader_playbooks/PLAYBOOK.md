@@ -114,3 +114,13 @@ operational hygiene:
   on both LTF and HTF (via the request.security function-call
   pattern), HTF-bias-confirmed cross-back entries, first-vs-later
   opportunity counter (H32 sizing decay). H32-H33.
+- indicators/alchemist_smc_engine.pine (voice #12, "White Seraph" SMC
+  glossary): IDM-gated BOS/CHOCH (structure break only trusted after
+  its inducement pullback is swept), SBR/RBS support/resistance
+  role-flip retest tagging, Quasimodo (QML) 5-point swing-failure
+  pattern. H36-H38. The PDF's Quarterly Theory content was folded into
+  the EXISTING quarterly_theory.md/engine as same-lineage corroboration,
+  not duplicated here -- this file is only the genuinely new SMC
+  material. STANDING RULE (2026-07-20): one engine file per voice/
+  school, extended in place for future transcripts from the same
+  source -- never fork a new .pine for the same author.

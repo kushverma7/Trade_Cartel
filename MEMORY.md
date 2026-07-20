@@ -148,3 +148,23 @@ operating system for all trading work. Key active protocols:
 - BELIEF_REGISTER.md and PLAYBOOK.md are live docs; update on evidence
 - Absolute rules: no fabricated data, no trade without stop, no averaging
   down, always state the counter-case, calibrated confidence only
+
+---
+
+## STANDING RULE: One "Brain" Per Voice, Never Discard Source (2026-07-20)
+
+User directive, applies to every future transcript/PDF/document processed:
+1. **Never discard or "unsee" source material**, even when parts are too
+   garbled/ambiguous to confidently codify. Preserve the raw text alongside
+   the interpretation attempt in the relevant trader_playbooks/*.md file
+   (see alchemist_smc_concepts.md section 9 for the pattern: quote the
+   confusing original, explain why it wasn't built, keep it on record for
+   a later source to potentially clarify). Future analysis may connect
+   dots across sources that aren't obvious yet.
+2. **One engine (.pine) file per voice/school — extend in place, never
+   fork a new file for the same author's later material.** Already the
+   pattern in practice: mm_cycle_engine.pine (Steve/MMM4x, extended for
+   the Nick/GP v2 transcript), quarterly_theory_engine.pine (extended
+   twice across two videos). Apply this strictly going forward — when a
+   new transcript arrives, first check whether it's the same author/
+   lineage as an existing playbook before creating anything new.

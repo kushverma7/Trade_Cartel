@@ -1,0 +1,195 @@
+// ============================================================
+// ALCHEMIST SMC ENGINE [Real-Time]
+// Source: trader_playbooks/alchemist_smc_concepts.md ("White Seraph"
+// PDF — INDEPENDENT voice #12 for the SMC market-structure layer;
+// the QT portions of the same PDF are logged as corroboration of the
+// existing Quarterly Theory school, not double-counted here)
+//
+// Three mechanics, all genuinely new to the repo:
+//   - IDM (inducement): a pullback swing that gets swept before the
+//     next structure point confirms -> gates BOS/CHOCH confirmation
+//   - SBR/RBS: broken support/resistance flips role; tag the retest
+//     of that flipped level, distinct from zone-freshness tracking
+//   - QML (Quasimodo): 5-point swing failure -- HH, HL, break to a
+//     new LL, retracement that FAILS to reclaim the original HH,
+//     then reversal (mirror for bullish)
+//
+// All signals bar-close, non-repainting (pivots confirm after `pw`
+// bars; structure/role-flip/QML checks only use already-closed data).
+// ============================================================
+//@version=6
+indicator("Alchemist SMC Engine [Real-Time]", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ── Inputs ───────────────────────────────────────────────────
+int   pw        = input.int(3, "Pivot Width (bars)", minval=2, maxval=8, group="① Structure")
+int   cooldown  = input.int(5, "Signal Cooldown (bars)", minval=1, group="② Engine")
+bool  showIdm   = input.bool(true, "Show IDM-Gated BOS/CHOCH", group="① Structure")
+bool  showSbr   = input.bool(true, "Show SBR/RBS Role-Flip Retests", group="③ SBR/RBS")
+int   maxLevels = input.int(15, "Max Tracked Flipped Levels", minval=5, maxval=40, group="③ SBR/RBS")
+bool  showQml   = input.bool(true, "Show Quasimodo (QML) Pattern", group="④ Quasimodo")
+
+float atrv = ta.atr(14)
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── Pivot tracking (shared swing skeleton) ────────────────────
+float ph = ta.pivothigh(high, pw, pw)
+float pl = ta.pivotlow(low, pw, pw)
+
+// ── IDM-gated BOS/CHOCH ────────────────────────────────────────
+// Uptrend: track the last confirmed higher-low (structure point) and
+// the most recent minor pullback low between it and current price
+// (the IDM candidate). BOS confirms only once that IDM low is swept
+// AND price then closes above the prior swing high.
+var float upStructHigh = na   // last confirmed swing high (target to break for BOS)
+var float upIdmLow     = na   // candidate inducement low since upStructHigh formed
+var bool  upIdmSwept   = false
+var float dnStructLow  = na
+var float dnIdmHigh    = na
+var bool  dnIdmSwept   = false
+
+if not na(ph)
+    // a fresh swing high resets the up-structure target and IDM tracker
+    upStructHigh := ph
+    upIdmLow := na
+    upIdmSwept := false
+if not na(pl)
+    if not na(upStructHigh)
+        if na(upIdmLow) or pl < upIdmLow
+            upIdmLow := pl
+            upIdmSwept := false
+    dnStructLow := pl
+    dnIdmHigh := na
+    dnIdmSwept := false
+if not na(ph)
+    if not na(dnStructLow)
+        if na(dnIdmHigh) or ph > dnIdmHigh
+            dnIdmHigh := ph
+            dnIdmSwept := false
+
+// sweeping the IDM extreme intrabar (wick or close) arms the gate
+if not na(upIdmLow) and low < upIdmLow
+    upIdmSwept := true
+if not na(dnIdmHigh) and high > dnIdmHigh
+    dnIdmSwept := true
+
+bool bosUp = cd and not na(upStructHigh) and upIdmSwept and close > upStructHigh and close[1] <= upStructHigh
+bool bosDn = cd and not na(dnStructLow)  and dnIdmSwept and close < dnStructLow  and close[1] >= dnStructLow
+
+// unconfirmed break (structure broken WITHOUT a swept IDM) -- weaker, tagged separately
+bool weakBreakUp = cd and not na(upStructHigh) and not upIdmSwept and close > upStructHigh and close[1] <= upStructHigh
+bool weakBreakDn = cd and not na(dnStructLow)  and not dnIdmSwept and close < dnStructLow  and close[1] >= dnStructLow
+
+if showIdm and bosUp
+    label.new(bar_index, low, "BOS ▲ (IDM✓)", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="Confirmed BOS: the inducement pullback low was swept before price broke the prior swing high. Higher-conviction than an unconfirmed break.")
+if showIdm and bosDn
+    label.new(bar_index, high, "BOS ▼ (IDM✓)", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="Confirmed BOS: the inducement pullback high was swept before price broke the prior swing low.")
+if showIdm and weakBreakUp
+    label.new(bar_index, low, "BOS ▲ (no IDM)", style=label.style_label_up, color=color.new(color.gray, 40), textcolor=color.white, size=size.tiny,
+         tooltip="Structure broke WITHOUT a swept inducement first -- unconfirmed per this source, treat as lower conviction.")
+if showIdm and weakBreakDn
+    label.new(bar_index, high, "BOS ▼ (no IDM)", style=label.style_label_down, color=color.new(color.gray, 40), textcolor=color.white, size=size.tiny,
+         tooltip="Structure broke WITHOUT a swept inducement first -- unconfirmed per this source.")
+if bosUp or bosDn
+    lastSig := bar_index
+
+// ── SBR / RBS role-flip tracker ────────────────────────────────
+var float[] flipLevel = array.new_float()
+var int[]   flipRole  = array.new_int()   // 1 = was resistance, now support (RBS); -1 = was support, now resistance (SBR)
+var bool[]  flipDone  = array.new_bool()  // consumed after first retest tag
+
+pushFlip(lvl, role) =>
+    array.push(flipLevel, lvl)
+    array.push(flipRole, role)
+    array.push(flipDone, false)
+    if array.size(flipLevel) > maxLevels
+        array.shift(flipLevel)
+        array.shift(flipRole)
+        array.shift(flipDone)
+
+// a confirmed BOS up breaks dnStructLow's opposing resistance (upStructHigh) -- RBS candidate
+if bosUp
+    pushFlip(upStructHigh, 1)
+if bosDn
+    pushFlip(dnStructLow, -1)
+
+bool sbrTouch = false
+bool rbsTouch = false
+if array.size(flipLevel) > 0
+    for i = array.size(flipLevel) - 1 to 0
+        float lvl = array.get(flipLevel, i)
+        int   role = array.get(flipRole, i)
+        bool  done = array.get(flipDone, i)
+        if not done
+            if role == 1 and low <= lvl and close > lvl and cd
+                rbsTouch := true
+                array.set(flipDone, i, true)
+                lastSig := bar_index
+                if showSbr
+                    label.new(bar_index, low, "RBS retest ▲", style=label.style_label_up, color=color.new(color.teal, 10), textcolor=color.white, size=size.small,
+                         tooltip="Old resistance retested as new support (Resistance Becomes Support). Stop below this level.")
+            else if role == -1 and high >= lvl and close < lvl and cd
+                sbrTouch := true
+                array.set(flipDone, i, true)
+                lastSig := bar_index
+                if showSbr
+                    label.new(bar_index, high, "SBR retest ▼", style=label.style_label_down, color=color.new(color.maroon, 10), textcolor=color.white, size=size.small,
+                         tooltip="Old support retested as new resistance (Support Becomes Resistance). Stop above this level.")
+
+// ── QUASIMODO (QML) pattern ────────────────────────────────────
+// Bearish QML: HH after an HL confirms an uptrend leg; a break below
+// that HL makes a fresh LL (structure break); the ensuing retracement
+// FAILS to reclaim the original HH before reversing = QML short.
+var float qHH    = na
+var float qHL    = na
+var int   qStage = 0   // 0=idle, 1=have HL, 2=have HH after HL, 3=broke to new LL, watching for failed retrace
+
+if not na(pl)
+    if qStage == 0 or (not na(qHL) and pl > qHL)
+        qHL := pl
+        qStage := 1
+if not na(ph) and qStage == 1
+    qHH := ph
+    qStage := 2
+bool brokeHL = qStage == 2 and not na(qHL) and close < qHL and close[1] >= qHL
+if brokeHL
+    qStage := 3
+// after stage 3, a subsequent pivot high forming BELOW qHH (failed
+// reclaim), followed by a close breaking back below the post-break
+// low, confirms QML
+if qStage == 3 and not na(ph) and ph < qHH
+    if showQml and cd and close < low[pw] and close[1] >= low[pw]
+        label.new(bar_index, high, "QML ▼", style=label.style_label_down, color=color.new(#7B1FA2, 0), textcolor=color.white, size=size.normal,
+             tooltip="Quasimodo bearish: HH -> HL -> break to fresh LL -> retracement failed to reclaim the original HH -> reversal down.")
+        lastSig := bar_index
+        qStage := 0
+
+// bullish mirror
+var float qLL2    = na
+var float qLH2    = na
+var int   qStage3 = 0
+
+if not na(ph)
+    if qStage3 == 0 or (not na(qLH2) and ph < qLH2)
+        qLH2 := ph
+        qStage3 := 1
+if not na(pl) and qStage3 == 1
+    qLL2 := pl
+    qStage3 := 2
+bool brokeLH = qStage3 == 2 and not na(qLH2) and close > qLH2 and close[1] <= qLH2
+if brokeLH
+    qStage3 := 3
+if qStage3 == 3 and not na(pl) and pl > qLL2
+    if showQml and cd and close > high[pw] and close[1] <= high[pw]
+        label.new(bar_index, low, "QML ▲", style=label.style_label_up, color=color.new(#7B1FA2, 0), textcolor=color.white, size=size.normal,
+             tooltip="Quasimodo bullish: LL -> LH -> break to fresh HH -> retracement failed to reclaim the original LL -> reversal up.")
+        lastSig := bar_index
+        qStage3 := 0
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(bosUp, "IDM-Confirmed BOS Long",  "Alchemist: BOS ▲ IDM-confirmed — {{ticker}} {{interval}}")
+alertcondition(bosDn, "IDM-Confirmed BOS Short", "Alchemist: BOS ▼ IDM-confirmed — {{ticker}} {{interval}}")
+alertcondition(rbsTouch, "RBS Retest", "Alchemist: RBS retest (resistance->support) — {{ticker}} {{interval}}")
+alertcondition(sbrTouch, "SBR Retest", "Alchemist: SBR retest (support->resistance) — {{ticker}} {{interval}}")
