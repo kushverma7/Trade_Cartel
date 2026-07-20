@@ -148,3 +148,50 @@ quarterly_theory_engine.pine: added `useTriad` toggle + `refSym2`/
 `refInv2` inputs. When enabled, BOTH references must fail to confirm
 a sweep before SMT/SSMT/JUDAS signals arm (stricter, fewer signals,
 matches the source's literal "triad" requirement). Off by default.
+
+---
+
+## v6 — "the little time table" image, recovered from the primary
+compiled PDF (2026-07-20 re-review). This project's own text extraction
+had already pulled everything readable from this document's text layer;
+what it silently dropped was a single embedded table graphic ("A little
+time table") that only exists as an image, one page before the
+"Compiled by @ransh28.06" credit page. Recovered by rendering the PDF
+page directly instead of relying on the text layer.
+
+The table gives the Year/Month/Week/Day/Intraday(M90) quarter mapping
+in one place. Cross-checked against everything already coded:
+
+- **Week row confirms existing v3 correction exactly**: Mon=Q1,
+  Tue(Monday 18:00=true week open)=Q2, Wed=Q3, Thu=Q4. No change.
+- **Month row confirms existing rule**: Wk1(full week)=Q1, Week2(2nd
+  Monday=true month open)=Q2, Wk3=Q3, Wk4=Q4. No change.
+- **Year row is GENUINELY NEW** — previously the playbook only stated
+  "true year open = first Monday of April" with no documented Q-boundary
+  shape. The table gives an ASYMMETRIC yearly quarter split, not
+  calendar quarters: Q1 = Jan-Apr, Q2 = Apr-May (contains the true open,
+  1 April), Q3 = May-Nov (seven months — most of the year lives in one
+  "quarter"), Q4 = Dec only ("resets yearly range"). Added a
+  `trueYearOpen` marker (April 1 ET) to the engine; the lopsided
+  Q-boundaries themselves are NOT drawn (too coarse to matter for a 5m
+  scalping engine and the source gives no session-level trading
+  instruction tied to them) but are recorded here per the never-discard
+  standing rule.
+- **Day row is AMBIGUOUS, flagged rather than resolved**: the table's
+  "Day" row reads Q1=Asia(6-12am), Q2=LO(12-6am), Q3="NY(6am-12pm)/PM
+  (12-6pm)" (both NY sessions crammed into one cell), Q4="LC" (undefined
+  abbreviation, likely "Late Close"). This does NOT cleanly match the
+  already-coded 4-way Asia/London/NY-AM/NY-PM day-quarter split (which
+  comes from the primary source's own spoken video, v3, and is more
+  detailed/reliable than this compiled cheat-sheet's cramped table
+  formatting). Not changing the engine off a plausibly-garbled
+  table cell — logged as a discrepancy between two same-lineage sources
+  for future reconciliation, not adjudicated here.
+- Q1-Q4 phase-shorthand column headers in the table (A|O, M|H/L, D|L/H,
+  C) are consistent with the already-coded AMDX mapping (Accumulate,
+  Manipulate/High-Low, Distribute/Low-High, Continuation) -- no change.
+
+No other pages in this PDF had recoverable image content beyond
+decorative checkmark/pin/target emoji glyphs (which pypdf's image
+detector flags as "images" but carry no diagram information) --
+confirmed by rendering every image-bearing page.

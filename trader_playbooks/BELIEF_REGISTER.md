@@ -562,6 +562,77 @@ independent, ~90-year-older source -- not counted as a new voice or
 a new H-number for that specific idea, since it restates rather than
 extends it.
 
+**H56. Cup & Handle (and its inverse) is a tradeable continuation
+pattern: two similar-height "rim" pivots over a wide/deep rounded
+trough, followed by a short shallow secondary dip at the rim (the
+"handle"), resolving in a breakout through the rim in the trough's
+original direction ("@Thechartcornerr" chart-pattern cheat sheet,
+image content missed in the original text-only pass).** Same
+credibility tier as every other pattern in this family (public-domain
+classical TA, no track record offered). Notable for what it corrects
+about our own process, not just the market: the first pass on this
+source read text/labels only and concluded the pattern was "too
+subjective to codify reliably" -- re-rendering and viewing the actual
+page images showed the diagram gives exactly the same kind of
+informal-but-usable geometric definition every other pattern in this
+file already runs on (width/depth minimums standing in for
+"rounded," same treatment `headMinAtr` gives "prominent" on Head &
+Shoulders). Implemented in chart_pattern_engine.pine v3.
+
+**H57. Diamond Top / Diamond Bottom is a tradeable reversal pattern:
+a broadening (expanding highs/lows) formation immediately followed by
+a narrowing symmetrical triangle sharing its widest point, breakout
+direction determines top vs bottom ("@Thechartcornerr" cheat sheet,
+same missed-image correction as H56).** Structurally this is two
+already-implemented shapes (a broadening formation + a symmetrical
+triangle) chained together, not a genuinely novel geometry -- lowers
+the bar for confidence that this is buildable without curve-fitting.
+Implemented in chart_pattern_engine.pine v3, gated on tracking 6
+pivots per side to see both the broadening and narrowing halves.
+
+**H58. Head & Shoulders breakdown probability increases specifically
+when the neckline slopes flat-to-down AND the right shoulder is
+smaller than or equal to the left shoulder (Josh Trade/Suraj Saini
+ebook, page 25 text, precise and quotable -- re-surfaced on full
+re-review, not missed from images this time, just not previously
+cross-checked against the engine's actual H&S gating logic).** A
+genuine refinement the existing engine never checked (it only verified
+head prominence over both shoulders). Implemented as an informational
+`hnsHighProb` tag on the existing H&S signal rather than a hard gate,
+matching the source's own "probability increases" framing rather than
+a binary requirement -- test whether gating on it improves precision
+before promoting it to a hard filter.
+
+**H59. Chart-pattern targets should be measured as a fixed multiple of
+initial risk (dominant ratio 1:3, one example 1:4), anchored at the
+post-breakout RETEST bar, rather than as the pattern's own geometric
+height projected from the breakout bar (Josh Trade/Suraj Saini ebook,
+worked real-chart examples -- re-surfaced on full re-review).**
+DIRECTLY COMPETING with the already-implemented v2 measured-move
+target convention used by every pattern in chart_pattern_engine.pine
+(and, more broadly, with this project's general habit of pattern-
+height/swing-based target measurement). Not adjudicated here --
+implemented as a selectable alternate (`showRR`, off by default) so
+the two methodologies can be A/B tested against each other on our own
+data rather than one silently overriding the other.
+
+INTRA-SESSION PROCESS NOTE (2026-07-20): a user prompt to re-review
+EVERY previously-processed source's page IMAGES (not just their
+extracted text) surfaced H56-H59 above, plus corrections to the
+Quarterly Theory and Gann engines logged elsewhere in this file. Root
+cause: several PDF sources were processed with text-only extraction
+(pypdf) at times when the page-image rendering path wasn't available,
+and that limitation was not revisited once the workaround (pymupdf
+page rendering) became routine later in the project. Two large,
+heavily-illustrated sources (Alchemist SMC PDF, 70pp; Josh Trade
+ebook, 34pp) were re-swept via background research agents rather than
+read inline, given their size -- their findings are logged separately
+where applied. Standing takeaway: when a source is described as
+"garbled," "too subjective," or "unclear from text," that is a
+statement about the text-extraction pass, not necessarily about the
+source itself -- always check whether an unrendered image is the
+actual reason before concluding a mechanic can't be built.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -574,6 +645,23 @@ INTRA-SCHOOL NOTE (H13): primary source (Daye video) corrects compilation #1 —
 true weekly open is Monday 18:00 ET, not Tuesday midnight. Engine fixed. When
 sources within a school conflict, the primary wins; logged as a reminder that
 compilations garble.
+
+INTRA-SCHOOL NOTE (Quarterly Theory, v6, 2026-07-20): re-review of the
+primary compiled QT PDF found one embedded table graphic ("A little time
+table") the original text-extraction pass had silently dropped -- pypdf
+only pulls a page's text layer, and this table exists solely as a
+picture. Rendering the page directly (pymupdf) recovered it. Confirmed
+the Week/Month quarter mappings already coded are correct. Added a
+genuinely new detail: the source's YEARLY quarters are asymmetric
+(Q1=Jan-Apr, Q2=Apr-May containing the 1-April true open, Q3=May-Nov,
+Q4=Dec-only) -- not previously documented beyond "true open = first
+Monday of April." quarterly_theory_engine.pine now plots a
+`trueYearOpen` marker. Also surfaced an unresolved discrepancy: the same
+table's "Day" row cell formatting doesn't cleanly match the already-
+coded 4-way Asia/London/NY-AM/NY-PM day-quarter split from the primary
+spoken source (v3) -- flagged, not silently resolved either direction
+since a cramped cheat-sheet table cell is weaker evidence than the
+primary video it's compiled from.
 
 INTRA-SCHOOL NOTE (voice #8, 2026-07-20): a second transcript (student
 mentoring call, "Nick" and "GP") teaches the SAME school as Steve/MMM4x —

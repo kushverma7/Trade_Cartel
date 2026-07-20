@@ -119,19 +119,80 @@ subject from the candlestick engine, not an extension of it).
 | Bull/Bear Flag | sharp impulse ("pole") followed by a short, roughly-parallel counter-sloped channel | breakout continues the pole's direction |
 | Bull/Bear Pennant | sharp impulse ("pole") followed by a short converging-triangle consolidation | breakout continues the pole's direction |
 | Bull/Bear Rectangle | horizontal channel (flat top AND flat bottom) | breakout direction = signal direction |
+| Cup & Handle | two similar-height pivot highs ("rims") separated by a wide/deep trough, then a short shallow secondary dip at the rim (the "handle") [v3] | long on rim break |
+| Inverted Cup & Handle | mirror (two similar-height pivot lows under a wide/deep arch, shallow handle) [v3] | short on rim break |
+| Diamond Top / Diamond Bottom | broadening (expanding highs/lows) immediately followed by a narrowing symmetrical triangle, sharing the widest point [v3] | breakout direction = signal direction |
 
-### NOT implemented -- too subjective to codify reliably
-- **Cup & Handle / Inverted Cup & Handle**: requires detecting a smooth
-  ROUNDED (not V-shaped) base plus a small secondary pullback "handle"
-  -- no robust, unambiguous mechanical trigger exists for the rounding
-  shape without curve-fitting bar-by-bar noise. Not built; flagged per
-  standing rule rather than shipping an unreliable detector.
-- **Diamond Top / Diamond Bottom**: a broadening structure that then
-  narrows (volatility expansion then contraction) -- same problem,
-  no clean swing-count trigger distinguishes a real diamond from
-  ordinary chop. Not built.
-Both remain documented here in case a future source specifies exact,
-implementable criteria.
+### v3 additions — re-review of BOTH source PDFs' page IMAGES, not just
+their text (2026-07-20). The original text-extraction passes for this
+project's very first chart-pattern source ("@Thechartcornerr" cheat
+sheet) and the Josh Trade ebook had not rendered every page image --
+doing so now surfaced real content the text alone missed.
+
+**Cup & Handle / Inverted Cup & Handle -- RECLASSIFIED from "not
+implemented" to implemented.** The cheat sheet's own diagram (not
+described in its text/labels, only visible in the picture) shows the
+handle as a second, SHALLOWER rounded dip sitting right at the rim --
+not a straight-line pullback as assumed when this was first flagged
+"too subjective." This is concrete enough to build the same way every
+other pattern in this file is built: width/depth minimums standing in
+for "rounded," the same treatment `headMinAtr` already gives to
+"prominent" on Head & Shoulders. Implemented in
+indicators/chart_pattern_engine.pine v3: two rim pivots within
+tolerance, separated by >= `cupMinBars` bars and >= `cupMinAtr` x ATR
+of depth (distinguishes a genuine cup from a quick double-top/V-shape),
+followed by a handle window (`handleMaxBars`) that doesn't give back
+more than `handleMaxRetrace` of the cup's depth, then a breakout
+through the rim. Still a heuristic proxy with no source-given numeric
+thresholds (same caveat as every pattern here) -- test standalone.
+
+**Diamond Top / Diamond Bottom -- RECLASSIFIED from "not implemented"
+to implemented.** Same discovery: the diagram shows this explicitly as
+a broadening (expanding highs/lows) formation immediately chained into
+a symmetrical (contracting) triangle at its widest point -- i.e., two
+already-partially-understood shapes glued together, not a genuinely
+novel geometry. Implemented by chaining the engine's existing
+pivot-slope classifier: the OLDER half of the tracked pivots must
+broaden (each subsequent high higher, each subsequent low lower), the
+NEWER half must narrow (matching the existing symmetrical-triangle
+slope logic exactly), breakout direction (not the shape itself, same
+as symmetrical triangle) determines Diamond Top (bearish break) vs
+Diamond Bottom (bullish break). Needs 6 tracked pivots per side
+(`maxPiv`, default 6) to see both the broadening and narrowing halves.
+
+The Josh Trade ebook itself (re-reviewed in full via its own page
+images, all 34 pages) does NOT contain Cup & Handle or Diamond
+material at all -- confirmed absent, not missed. Its images did reveal
+two other genuinely new things, folded into the v2 section below
+retroactively as "v3" additions since they were found in the same
+re-review pass:
+- **Fixed risk:reward targets, anchored at the RETEST bar, not the
+  breakout bar.** Nearly every one of the ebook's real-chart worked
+  examples shows a small labeled risk box (entry to just past the
+  retest bar's opposite extreme) stacked against a larger reward box,
+  explicitly labeled with a ratio -- overwhelmingly **1:3** (8 of 9
+  labeled examples), once **1:4** (Descending Triangle). This is a
+  materially different target methodology than the v2 measured-move
+  (pattern-height) projection already implemented -- added as an
+  OPTIONAL alternate (`showRR`, default off, `rrMult` default 3.0) so
+  the two methodologies can be A/B tested against each other rather
+  than one silently replacing the other.
+- **Head & Shoulders "high-probability" filter (page 25 text, precise
+  and quotable)**: "The possibility of breakdown increases if the
+  slope of the neckline is flat to downward sloping and the right
+  shoulder is relatively smaller or equal to the left shoulder."
+  Directly implementable and not previously checked by the engine
+  (which only verified head prominence over both shoulders). Added as
+  an `hnsHighProb` flag shown in the H&S signal's label/tooltip --
+  informational tag, does not gate the signal itself, since the source
+  frames it as a probability modifier, not a hard requirement.
+- The previously-flagged unclear "0.382 Fibo Retracement" detail on
+  the Descending Triangle page is now understood more precisely (the
+  post-breakdown retest zone into former support, now resistance, sits
+  around the 0.382 retracement of the down-leg) but the exact anchor
+  points for the fib measurement remain ambiguous -- still not built,
+  the existing ATR-based retest tolerance is judged adequate for the
+  same purpose without guessing at unstated anchor points.
 
 ### v2 additions — "Josh Trade"/Suraj Saini ebook (2026-07-20)
 Same 13 patterns, same public-domain classical TA -- extended the

@@ -110,6 +110,7 @@ var float trueAsiaOpen   = na
 var float trueLdnOpen    = na
 var float trueNyamOpen   = na
 var float truePmOpen     = na
+var float trueYearOpen   = na
 bool newDailyTO = q2 and not q2[1]
 if newDailyTO
     trueDailyOpen := open
@@ -127,6 +128,17 @@ if mkTO("0730-0735")
     trueNyamOpen := open
 if mkTO("1330-1335")
     truePmOpen := open
+// v6 (source's own "little time table" image, recovered from PDF page
+// render -- text extraction missed it): true YEAR open = April 1 ET.
+// The source's own yearly quarter split is asymmetric, NOT calendar
+// quarters: Q1=Jan-Apr, Q2=Apr-May (contains the true open), Q3=May-Nov,
+// Q4=Dec-only (resets yearly range). Only the true-open marker is
+// implemented here; the asymmetric Q-boundaries are documented in the
+// playbook, not drawn, since they're too coarse to matter for 5m gold
+// scalping and the source gives no session-level use for them.
+bool newYearTO = month(time, "America/New_York") == 4 and dayofmonth(time, "America/New_York") == 1 and (dayofmonth(time[1], "America/New_York") != 1 or month(time[1], "America/New_York") != 4)
+if newYearTO
+    trueYearOpen := open
 
 plot(showTO ? trueDailyOpen  : na, "True Daily Open (00:00 ET)",   color.new(color.orange, 20), 1, plot.style_linebr)
 plot(showTO ? trueWeeklyOpen : na, "True Weekly Open (Mon 18:00)", color.new(color.fuchsia, 35), 2, plot.style_linebr)
@@ -134,6 +146,7 @@ plot(showTO ? trueAsiaOpen   : na, "True Asia Open (19:30)",       color.new(col
 plot(showTO ? trueLdnOpen    : na, "True London Open (01:30)",     color.new(color.blue, 45), 1, plot.style_linebr)
 plot(showTO ? trueNyamOpen   : na, "True NY AM Open (07:30)",      color.new(color.aqua, 35), 1, plot.style_linebr)
 plot(showTO ? truePmOpen     : na, "True PM Open (13:30)",         color.new(color.purple, 45), 1, plot.style_linebr)
+plot(showTO ? trueYearOpen   : na, "True Year Open (Apr 1)",       color.new(color.maroon, 25), 2, plot.style_linebr)
 
 // ── Prior day levels (liquidity pools) ───────────────────────
 float pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)

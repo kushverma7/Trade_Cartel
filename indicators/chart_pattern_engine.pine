@@ -11,9 +11,8 @@
 //
 // Implemented: Double/Triple Top/Bottom, Head & Shoulders (+inverse),
 // Ascending/Descending/Symmetrical Triangle, Rising/Falling Wedge,
-// Bull/Bear Flag, Bull/Bear Pennant, Bull/Bear Rectangle.
-// NOT implemented (too subjective to codify reliably, see playbook):
-// Cup & Handle, Diamond Top/Bottom.
+// Bull/Bear Flag, Bull/Bear Pennant, Bull/Bear Rectangle, Cup & Handle
+// (+inverse, v3), Diamond Top/Bottom (v3).
 //
 // v2 (2026-07-20, "Josh Trade"/Suraj Saini ebook -- same 13 patterns,
 // same public-domain content, extended in place per the one-brain-
@@ -24,6 +23,29 @@
 // confirmation filter, and neckline/boundary RETEST tagging after
 // breakout (source repeatedly notes patterns often retest before
 // continuing -- a secondary, often tighter-risk entry).
+//
+// v3 (2026-07-20, re-review of the ORIGINAL cheat-sheet PDF's page
+// images -- the v1/v2 passes read this source's text/labels but had
+// not rendered every page image; two patterns previously logged as
+// "not implemented, too subjective" turned out to have clear enough
+// diagrammed geometry to codify as heuristics, same rigor as every
+// other pattern in this file):
+// - Cup & Handle / Inverted Cup & Handle: the source's diagram shows
+//   the handle itself as a SECOND, SHALLOWER rounded dip right at the
+//   rim (not a straight-line pullback) -- implemented as two similar-
+//   height pivot highs ("rims") separated by a wide, deep trough (the
+//   cup), followed by a short, shallow low-range window (the handle)
+//   that does not give back more than half the cup's depth, then a
+//   breakout above the rim.
+// - Diamond Top / Diamond Bottom: the source's diagram shows this as
+//   a broadening (expanding highs/lows) formation immediately followed
+//   by a symmetrical (contracting) triangle sharing its widest point --
+//   implemented by chaining the existing pivot-slope classifier: the
+//   OLDER half of the tracked pivots must broaden, the NEWER half must
+//   narrow, breakout direction (not the shape) determines top vs bottom.
+// Both are heuristic proxies with no source-given numeric thresholds
+// (same treatment as every pattern in this file) -- test standalone
+// before trusting in the master confluence stack.
 //
 // All signals bar-close, non-repainting (pivots confirm after `pw`
 // bars; breakout triggers only use already-closed bars).
@@ -46,11 +68,18 @@ bool   showTargets = input.bool(true, "Show Measured-Move Targets [v2]", group="
 bool   showRetest  = input.bool(true, "Tag Neckline/Boundary Retest [v2]", group="④ Engine")
 int    retestWin   = input.int(15, "Retest Window (bars after breakout)", minval=3, group="④ Engine")
 float  retestTolAtr = input.float(0.3, "Retest Tolerance (x ATR)", minval=0.05, step=0.05, group="④ Engine")
+int    cupMinBars   = input.int(20, "Cup Min Width (bars, v3)", minval=8, group="⑤ Cup & Diamond (v3)")
+float  cupMinAtr    = input.float(3.0, "Cup Min Depth (x ATR, v3)", minval=1.0, step=0.5, group="⑤ Cup & Diamond (v3)")
+int    handleMaxBars = input.int(8, "Handle Max Width (bars, v3)", minval=2, group="⑤ Cup & Diamond (v3)")
+float  handleMaxRetrace = input.float(0.5, "Handle Max Retrace (x cup depth, v3)", minval=0.1, maxval=0.9, step=0.05, group="⑤ Cup & Diamond (v3)")
+bool   showRR       = input.bool(false, "Use Fixed R:R Targets Instead of Measured-Move [v3]", group="⑤ Cup & Diamond (v3)", tooltip="Josh Trade ebook's worked examples anchor stop+target at the RETEST bar using a fixed risk multiple (dominant ratio 1:3, one example 1:4) rather than the pattern's geometric height. Off by default to preserve the v2 measured-move behavior; turn on to A/B the two target methodologies.")
+float  rrMult       = input.float(3.0, "R:R Multiple (v3)", minval=1.0, step=0.5, group="⑤ Cup & Diamond (v3)")
 
 float atrv = ta.atr(14)
 var int lastSig = -9999
 bool cd = bar_index - lastSig > cooldown
 bool volOk = not useVol or volume >= ta.sma(volume, 20) * 1.2
+var bool hnsHighProb = false
 
 // ── Pivot buffers (ring buffers, oldest shifted out) ──────────
 float ph = ta.pivothigh(high, pw, pw)
@@ -120,6 +149,27 @@ if nH >= 3
     if h2 > h3 + atrv * headMinAtr and h2 > h1 + atrv * headMinAtr and math.abs(h1 - h3) <= atrv * tolAtr * 1.5
         hns := true
         hnsNeckline := ta.lowest(low, math.min(math.max(lastB(hiB, 0) - lastB(hiB, 2), 1), 400))
+        // v3 (Josh Trade ebook, page 25 text -- explicit probability
+        // filter, not previously captured): "possibility of breakdown
+        // increases if the slope of the neckline is flat to downward
+        // sloping and the right shoulder is relatively smaller or
+        // equal to the left shoulder." Neckline-left/right = the lowest
+        // tracked low pivot either side of the head, found by scanning
+        // the pivot-low buffer (small, bounded by maxPiv -- no ta.*
+        // calls in the loop, so no dynamic-length restriction applies).
+        int headBar = lastB(hiB, 1)
+        int leftShoulderBar = lastB(hiB, 2)
+        int rightShoulderBar = lastB(hiB, 0)
+        float necklineL = na
+        float necklineR = na
+        for i = 0 to nL - 1
+            float lp = array.get(loP, i)
+            int   lb = array.get(loB, i)
+            if lb >= leftShoulderBar and lb <= headBar
+                necklineL := na(necklineL) ? lp : math.min(necklineL, lp)
+            if lb >= headBar and lb <= rightShoulderBar
+                necklineR := na(necklineR) ? lp : math.min(necklineR, lp)
+        hnsHighProb := not na(necklineL) and not na(necklineR) and necklineR <= necklineL + atrv * tolAtr and h1 <= h3 + atrv * tolAtr
 if nL >= 3
     float l1 = lastP(loP, 0)
     float l2 = lastP(loP, 1)
@@ -144,8 +194,8 @@ float tgtBot = sigIhns ? ihnsNeckline + (ihnsNeckline - lastP(loP, 1)) : (sigDbl
 
 if sigDblTop or sigTplTop or sigHns
     lastSig := bar_index
-    label.new(bar_index, high, sigHns ? "H&S ▼" : sigTplTop ? "Triple Top ▼" : "Double Top ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small,
-         tooltip="Neckline break -- target = pattern height projected from the break." + (showTargets and not na(tgtTop) ? " Target: " + str.tostring(tgtTop, format.mintick) : ""))
+    label.new(bar_index, high, sigHns ? (hnsHighProb ? "H&S (high-prob) ▼" : "H&S ▼") : sigTplTop ? "Triple Top ▼" : "Double Top ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small,
+         tooltip="Neckline break -- target = pattern height projected from the break." + (sigHns ? " High-prob filter (Josh Trade, v3: flat/down neckline + right shoulder <= left shoulder): " + (hnsHighProb ? "PASS" : "fail") : "") + (showTargets and not na(tgtTop) ? " Target: " + str.tostring(tgtTop, format.mintick) : ""))
     if showTargets and not na(tgtTop)
         line.new(bar_index, tgtTop, bar_index + 20, tgtTop, color=color.new(#D50000, 40), style=line.style_dashed)
 if sigDblBot or sigTplBot or sigIhns
@@ -271,13 +321,112 @@ if sigFlagBear or sigPennBear
     if showTargets and not na(tgtFlagD)
         line.new(bar_index, tgtFlagD, bar_index + 20, tgtFlagD, color=color.new(color.maroon, 40), style=line.style_dashed)
 
+// ── v3: DIAMOND TOP / DIAMOND BOTTOM ───────────────────────────
+// Source diagram: a broadening (expanding highs/lows) formation
+// immediately followed by a symmetrical (contracting) triangle,
+// sharing its widest point. Reuses the same pivot buffers: the OLDER
+// half of the tracked pivots (indices 3-5, oldest first) must broaden;
+// the NEWER half (indices 0-2) must narrow, matching the existing
+// symTri slope logic. Needs maxPiv >= 6 (default) to see both halves.
+bool diamondShape = false
+float diamondApex = na
+if nH >= 6 and nL >= 6
+    float hOld1 = lastP(hiP, 5)
+    float hOld2 = lastP(hiP, 4)
+    float hOld3 = lastP(hiP, 3)
+    float lOld1 = lastP(loP, 5)
+    float lOld2 = lastP(loP, 4)
+    float lOld3 = lastP(loP, 3)
+    bool broadening = hOld3 > hOld2 + atrv * tolAtr and hOld2 > hOld1 + atrv * tolAtr and lOld3 < lOld2 - atrv * tolAtr and lOld2 < lOld1 - atrv * tolAtr
+    bool narrowingD = hiSlope == "down" and loSlope == "up"
+    if broadening and narrowingD
+        diamondShape := true
+        diamondApex := math.max(hOld3, lastP(hiP, 2)) - math.min(lOld3, lastP(loP, 2))
+
+bool sigDiamondU = diamondShape and brkUp
+bool sigDiamondD = diamondShape and brkDn
+float tgtDiamondU = not na(diamondApex) ? boundHi + diamondApex : na
+float tgtDiamondD = not na(diamondApex) ? boundLo - diamondApex : na
+
+if sigDiamondU
+    lastSig := bar_index
+    label.new(bar_index, low, "Diamond Bottom ▲", style=label.style_label_up, color=color.new(#00C853, 20), textcolor=color.white, size=size.small,
+         tooltip="Broadening-then-narrowing (diamond) shape, breakout up. Heuristic proxy, no source-given numeric thresholds -- test standalone." + (showTargets and not na(tgtDiamondU) ? " Target: " + str.tostring(tgtDiamondU, format.mintick) : ""))
+    if showTargets and not na(tgtDiamondU)
+        line.new(bar_index, tgtDiamondU, bar_index + 20, tgtDiamondU, color=color.new(#00C853, 40), style=line.style_dashed)
+if sigDiamondD
+    lastSig := bar_index
+    label.new(bar_index, high, "Diamond Top ▼", style=label.style_label_down, color=color.new(#D50000, 20), textcolor=color.white, size=size.small,
+         tooltip="Broadening-then-narrowing (diamond) shape, breakout down. Heuristic proxy, no source-given numeric thresholds -- test standalone." + (showTargets and not na(tgtDiamondD) ? " Target: " + str.tostring(tgtDiamondD, format.mintick) : ""))
+    if showTargets and not na(tgtDiamondD)
+        line.new(bar_index, tgtDiamondD, bar_index + 20, tgtDiamondD, color=color.new(#D50000, 40), style=line.style_dashed)
+
+// ── v3: CUP & HANDLE / INVERTED CUP & HANDLE ───────────────────
+// Source diagram: two similar-height "rim" pivots separated by a
+// wide, deep, rounded trough (the cup), followed by a SHORT, SHALLOW
+// low-range window right at the rim (the handle -- itself a small
+// rounded dip in the diagram, not a straight-line pullback), then a
+// breakout through the rim. Rounded-ness itself is not fitted (no
+// curve-fit) -- width/depth minimums stand in for "rounded" the same
+// way headMinAtr stands in for "prominent" on Head & Shoulders.
+bool cupShape = false
+float cupRim = na
+float cupDepthV = na
+if nH >= 2
+    float cA = lastP(hiP, 1)
+    float cB = lastP(hiP, 0)
+    int   cBarA = lastB(hiB, 1)
+    int   cBarB = lastB(hiB, 0)
+    if math.abs(cA - cB) <= atrv * tolAtr * 1.5 and (cBarB - cBarA) >= cupMinBars
+        float cupBottom = ta.lowest(low, math.min(math.max(cBarB - cBarA, 1), 400))
+        float depth = math.min(cA, cB) - cupBottom
+        if depth >= atrv * cupMinAtr
+            cupShape := true
+            cupRim := math.max(cA, cB)
+            cupDepthV := depth
+bool handleOkUp = cupShape and not na(cupRim) and ta.lowest(low, handleMaxBars) >= cupRim - cupDepthV * handleMaxRetrace
+bool sigCup = cd and volOk and handleOkUp and ta.crossover(close, cupRim)
+float tgtCup = not na(cupRim) and not na(cupDepthV) ? cupRim + cupDepthV : na
+
+bool invCupShape = false
+float invCupRim = na
+float invCupDepthV = na
+if nL >= 2
+    float iA = lastP(loP, 1)
+    float iB = lastP(loP, 0)
+    int   iBarA = lastB(loB, 1)
+    int   iBarB = lastB(loB, 0)
+    if math.abs(iA - iB) <= atrv * tolAtr * 1.5 and (iBarB - iBarA) >= cupMinBars
+        float invTop = ta.highest(high, math.min(math.max(iBarB - iBarA, 1), 400))
+        float depth = invTop - math.max(iA, iB)
+        if depth >= atrv * cupMinAtr
+            invCupShape := true
+            invCupRim := math.min(iA, iB)
+            invCupDepthV := depth
+bool handleOkDn = invCupShape and not na(invCupRim) and ta.highest(high, handleMaxBars) <= invCupRim + invCupDepthV * handleMaxRetrace
+bool sigInvCup = cd and volOk and handleOkDn and ta.crossunder(close, invCupRim)
+float tgtInvCup = not na(invCupRim) and not na(invCupDepthV) ? invCupRim - invCupDepthV : na
+
+if sigCup
+    lastSig := bar_index
+    label.new(bar_index, low, "Cup & Handle ▲", style=label.style_label_up, color=color.new(#00C853, 20), textcolor=color.white, size=size.small,
+         tooltip="Two similar rim highs over a wide/deep rounded trough, shallow handle, breakout above rim. Heuristic proxy -- test standalone." + (showTargets and not na(tgtCup) ? " Target: " + str.tostring(tgtCup, format.mintick) : ""))
+    if showTargets and not na(tgtCup)
+        line.new(bar_index, tgtCup, bar_index + 20, tgtCup, color=color.new(#00C853, 40), style=line.style_dashed)
+if sigInvCup
+    lastSig := bar_index
+    label.new(bar_index, high, "Inv. Cup & Handle ▼", style=label.style_label_down, color=color.new(#D50000, 20), textcolor=color.white, size=size.small,
+         tooltip="Two similar rim lows under a wide/deep rounded arch, shallow handle, breakdown below rim. Heuristic proxy -- test standalone." + (showTargets and not na(tgtInvCup) ? " Target: " + str.tostring(tgtInvCup, format.mintick) : ""))
+    if showTargets and not na(tgtInvCup)
+        line.new(bar_index, tgtInvCup, bar_index + 20, tgtInvCup, color=color.new(#D50000, 40), style=line.style_dashed)
+
 // ── v2: neckline/boundary retest tagging ───────────────────────
 // Tracks the single most recent bullish- and bearish-breakout level;
 // tags the first return to that level within `retestWin` bars.
 // Source repeatedly notes patterns often retest before continuing --
 // a secondary, often tighter-risk entry than chasing the breakout bar.
-bool anyBullBrk = sigDblBot or sigTplBot or sigIhns or sigAscTri or sigSymTriU or sigWedgeF or sigRectU or sigFlagBull or sigPennBull
-bool anyBearBrk = sigDblTop or sigTplTop or sigHns or sigDescTri or sigSymTriD or sigWedgeR or sigRectD or sigFlagBear or sigPennBear
+bool anyBullBrk = sigDblBot or sigTplBot or sigIhns or sigAscTri or sigSymTriU or sigWedgeF or sigRectU or sigFlagBull or sigPennBull or sigDiamondU or sigCup
+bool anyBearBrk = sigDblTop or sigTplTop or sigHns or sigDescTri or sigSymTriD or sigWedgeR or sigRectD or sigFlagBear or sigPennBear or sigDiamondD or sigInvCup
 
 var float bullBrkLevel = na
 var int   bullBrkBar   = -9999
@@ -286,12 +435,17 @@ var float bearBrkLevel = na
 var int   bearBrkBar   = -9999
 var bool  bearRetested = true
 
+// v3: fixed R:R target/stop, anchored at the retest bar (Josh Trade
+// ebook worked examples -- dominant ratio 1:3, one example 1:4 -- an
+// alternate methodology to the v2 measured-move projection above,
+// selectable via showRR so both can be A/B tested independently).
+
 if anyBullBrk
-    bullBrkLevel := not na(necklineBot) ? necklineBot : not na(boundHi) ? boundHi : ta.highest(high, consolWin)
+    bullBrkLevel := not na(necklineBot) ? necklineBot : not na(boundHi) ? boundHi : not na(cupRim) ? cupRim : ta.highest(high, consolWin)
     bullBrkBar := bar_index
     bullRetested := false
 if anyBearBrk
-    bearBrkLevel := not na(necklineTop) ? necklineTop : not na(boundLo) ? boundLo : ta.lowest(low, consolWin)
+    bearBrkLevel := not na(necklineTop) ? necklineTop : not na(boundLo) ? boundLo : not na(invCupRim) ? invCupRim : ta.lowest(low, consolWin)
     bearBrkBar := bar_index
     bearRetested := false
 
@@ -299,12 +453,24 @@ bool bullRetest = showRetest and not bullRetested and not na(bullBrkLevel) and b
 bool bearRetest = showRetest and not bearRetested and not na(bearBrkLevel) and bar_index - bearBrkBar <= retestWin and high >= bearBrkLevel - atrv * retestTolAtr and close < bearBrkLevel
 if bullRetest
     bullRetested := true
+    float rrEntry = close
+    float rrStop = low
+    float rrTarget = rrEntry + (rrEntry - rrStop) * rrMult
     label.new(bar_index, low, "Retest ▲", style=label.style_label_up, color=color.new(color.teal, 20), textcolor=color.white, size=size.tiny,
-         tooltip="Price returned to the broken boundary/neckline and held -- secondary entry, often tighter risk than the breakout bar.")
+         tooltip="Price returned to the broken boundary/neckline and held -- secondary entry, often tighter risk than the breakout bar." + (showRR ? " R:R stop/target (Josh Trade, v3, " + str.tostring(rrMult, "#.#") + "R): stop " + str.tostring(rrStop, format.mintick) + ", target " + str.tostring(rrTarget, format.mintick) : ""))
+    if showRR
+        line.new(bar_index, rrStop, bar_index + 20, rrStop, color=color.new(color.teal, 60), style=line.style_dotted)
+        line.new(bar_index, rrTarget, bar_index + 20, rrTarget, color=color.new(color.teal, 20), style=line.style_dashed)
 if bearRetest
     bearRetested := true
+    float rrEntry = close
+    float rrStop = high
+    float rrTarget = rrEntry - (rrStop - rrEntry) * rrMult
     label.new(bar_index, high, "Retest ▼", style=label.style_label_down, color=color.new(color.maroon, 20), textcolor=color.white, size=size.tiny,
-         tooltip="Price returned to the broken boundary/neckline and held -- secondary entry.")
+         tooltip="Price returned to the broken boundary/neckline and held -- secondary entry." + (showRR ? " R:R stop/target (Josh Trade, v3, " + str.tostring(rrMult, "#.#") + "R): stop " + str.tostring(rrStop, format.mintick) + ", target " + str.tostring(rrTarget, format.mintick) : ""))
+    if showRR
+        line.new(bar_index, rrStop, bar_index + 20, rrStop, color=color.new(color.maroon, 60), style=line.style_dotted)
+        line.new(bar_index, rrTarget, bar_index + 20, rrTarget, color=color.new(color.maroon, 20), style=line.style_dashed)
 
 // ── Status table ─────────────────────────────────────────────
 var table tb = table.new(position.top_right, 2, 2, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
@@ -321,5 +487,7 @@ alertcondition(sigAscTri or sigSymTriU or sigWedgeF or sigRectU, "Bullish Breako
 alertcondition(sigDescTri or sigSymTriD or sigWedgeR or sigRectD, "Bearish Breakout", "Chart Pattern: bearish breakout — {{ticker}} {{interval}}")
 alertcondition(sigFlagBull or sigPennBull, "Bull Flag/Pennant", "Chart Pattern: bull flag/pennant breakout — {{ticker}} {{interval}}")
 alertcondition(sigFlagBear or sigPennBear, "Bear Flag/Pennant", "Chart Pattern: bear flag/pennant breakout — {{ticker}} {{interval}}")
+alertcondition(sigCup or sigDiamondU, "Bullish Cup/Diamond (v3)", "Chart Pattern: Cup & Handle or Diamond Bottom breakout — {{ticker}} {{interval}}")
+alertcondition(sigInvCup or sigDiamondD, "Bearish Cup/Diamond (v3)", "Chart Pattern: Inverted Cup & Handle or Diamond Top breakdown — {{ticker}} {{interval}}")
 alertcondition(bullRetest, "Bullish Retest", "Chart Pattern: bullish boundary/neckline retest — {{ticker}} {{interval}}")
 alertcondition(bearRetest, "Bearish Retest", "Chart Pattern: bearish boundary/neckline retest — {{ticker}} {{interval}}")

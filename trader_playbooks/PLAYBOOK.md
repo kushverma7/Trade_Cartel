@@ -154,8 +154,18 @@ operational hygiene:
   v2 (2026-07-20, "Josh Trade" ebook, extended in place): measured-
   move price targets w/ target lines, optional volume-confirmation
   filter (default off), neckline/boundary retest tagging.
-  Cup & Handle and Diamond Top/Bottom explicitly not built (no robust
-  mechanical trigger without curve-fitting noise).
+  v3 (2026-07-20, re-review of BOTH sources' page IMAGES, not just
+  text -- see BELIEF_REGISTER H56-H59): Cup & Handle / Inverted Cup &
+  Handle and Diamond Top/Bottom RECLASSIFIED from "not built" to
+  built (rim-pivot + trough-depth + shallow-handle heuristic; chained
+  broadening-then-narrowing pivot-slope heuristic, respectively) --
+  the "too subjective" call was actually a missed-diagram problem, not
+  a real limit. Also added: H&S high-probability tag (flat/down
+  neckline + right shoulder <= left shoulder, informational, doesn't
+  gate the signal), and an optional fixed-R:R target mode (`showRR`,
+  default off, dominant ratio 1:3 from source's worked examples,
+  anchored at the retest bar) as an A/B alternative to the v2
+  measured-move target convention.
 - indicators/pure_pa_smc_engine.pine (voice #13, Pure PA/SMC): IFC
   (3-candle gap) detection, strong/weak structural point
   classification (opposite-zone break test, non-retroactive), single
