@@ -309,6 +309,17 @@ judgment call, not a rule from the source — flagged as such in-code.
   CROSSED, decisively: register-supported doctrine, final promotion
   pending our own backtest of Reversal Sniper v3 / JUDAS / Wendell zones
   on gold.
+  WEAK CORROBORATION LOGGED, not tallied as a full voice (2026-07-20):
+  a short "Forex James" YouTube-style clip on fakeouts/stop-hunts/
+  big-candle induction restates this exact family with zero new
+  falsifiable mechanics -- no timing windows, no pip/ATR thresholds,
+  no multi-candle criteria beyond what's already coded in Wendell
+  zones, Dave swing structure, MM Cycle, QT Judas, and effort/result.
+  No new playbook or engine created; would be pure duplication of
+  existing code. Counted as informal reinforcement only, NOT as an
+  8th independent voice -- per register discipline, corroboration
+  counts should track genuinely new mechanics, not every video that
+  restates the same idea in general terms.
 - Consecutive-opposing-bar counting as a decision trigger (entry OR exit):
   3 independent, 3 different thresholds (Valentini ~3 rejections -> stand
   down, Dave 4-6 matured swings -> reversal permitted, voice #9 4 counter-
