@@ -1,0 +1,117 @@
+// ============================================================
+// FX MASTER PATTERN ENGINE [Real-Time]
+// Source: trader_playbooks/fx_master_pattern.md (course transcript —
+// INDEPENDENT voice #11, LOW-MED credibility: software/course seller,
+// belief-driven-markets framing discarded, mechanics kept)
+//
+// Three-phase cycle (Contraction -> Expansion -> Trend), average-price
+// directional bias, two-timeframe fade-into-trend entries. HTF bias
+// computed via the request.security(function-call) pattern so the
+// same phase-detection logic runs on both charts without duplicating
+// state -- this is the standard non-repainting way to port a stateful
+// (var-based) calculation onto another timeframe in Pine v6.
+//
+// All signals bar-close, non-repainting.
+// ============================================================
+//@version=6
+indicator("FX Master Pattern Engine [Real-Time]", overlay=true, max_boxes_count=20, max_lines_count=100, max_labels_count=500)
+
+// ── Inputs ───────────────────────────────────────────────────
+int    compressWin  = input.int(10, "Contraction Window (bars)", minval=4, group="① Phase Detection")
+float  compressMult = input.float(1.2, "Contraction Max Range (x ATR14)", step=0.1, group="① Phase Detection")
+int    settleWin     = input.int(5, "Settle Confirmation (consecutive closes)", minval=2, maxval=15, group="① Phase Detection")
+string htfTF         = input.timeframe("240", "HTF Bias Timeframe", group="② Multi-TF")
+bool   showBoxes     = input.bool(true, "Draw Contraction Boxes", group="③ Display")
+bool   showAvg       = input.bool(true, "Show Average Price Lines", group="③ Display")
+int    cooldown      = input.int(5, "Signal Cooldown (bars)", minval=1, group="④ Engine")
+
+// ── Reusable phase-detection function (called on this chart AND,
+//    via request.security, on the HTF) ───────────────────────
+f_phase() =>
+    float a = ta.atr(14)
+    float rng = ta.highest(high, compressWin) - ta.lowest(low, compressWin)
+    bool  tight = rng <= a * compressMult
+    var float bHi = na
+    var float bLo = na
+    var float avg = na
+    var int   sideRun = 0      // consecutive closes on the current `side`
+    var int   trackedSide = 0
+    var int   bias = 0         // 0 = unset/contracting, 1 = long, -1 = short
+    if tight
+        bHi := ta.highest(high, compressWin)
+        bLo := ta.lowest(low, compressWin)
+        avg := (bHi + bLo) / 2
+        bias := 0
+        sideRun := 0
+        trackedSide := 0
+    else if not na(avg)
+        int side = close > avg ? 1 : close < avg ? -1 : 0
+        if side != 0
+            if side == trackedSide
+                sideRun += 1
+            else
+                trackedSide := side
+                sideRun := 1
+            // bias only flips after `settleWin` CONSECUTIVE closes on one
+            // side -- a single opposite-side bar does not clear a settled
+            // trend, only a sustained rotation does (matches the source's
+            // own invalidation rule: exit only once the rotation confirms)
+            if sideRun >= settleWin
+                bias := side
+    [avg, bHi, bLo, bias, tight]
+
+[avgP, boxHi, boxLo, ltfBias, ltfTight] = f_phase()
+[htfAvg, htfBoxHi, htfBoxLo, htfBias, htfTight] = request.security(syminfo.tickerid, htfTF, f_phase())
+
+// ── Draw LTF contraction box + average price ────────────────
+var box ltfBox = na
+if ltfTight
+    if not na(ltfBox)
+        box.delete(ltfBox)
+    ltfBox := showBoxes ? box.new(bar_index - compressWin, boxHi, bar_index, boxLo, border_color=color.new(color.gray, 40), bgcolor=color.new(color.gray, 92)) : na
+
+plot(showAvg ? avgP : na, "LTF Average Price", color.new(color.orange, 20), 2)
+plot(showAvg ? htfAvg : na, "HTF Average Price", color.new(color.purple, 20), 3)
+
+// ── Opportunity counter since HTF bias last confirmed ───────
+var int oppCount = 0
+var int lastHtfBias = 0
+if htfBias != lastHtfBias
+    oppCount := 0
+    lastHtfBias := htfBias
+
+// ── Entry signal: HTF bias set + LTF counter-trend expansion
+//    leg crosses back through LTF average price in HTF direction ─
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool longSig  = cd and htfBias == 1  and not na(avgP) and ta.crossover(close, avgP)  and close[1] < avgP[1]
+bool shortSig = cd and htfBias == -1 and not na(avgP) and ta.crossunder(close, avgP) and close[1] > avgP[1]
+
+if longSig or shortSig
+    lastSig := bar_index
+    oppCount += 1
+
+if longSig
+    string tag = oppCount <= 1 ? "1st ENTRY (highest prob)" : "entry #" + str.tostring(oppCount)
+    label.new(bar_index, low, "MP ▲ " + tag, style=label.style_label_up, color=color.new(#00C853, oppCount <= 1 ? 0 : 30), textcolor=color.white, size=oppCount <= 1 ? size.normal : size.small,
+         tooltip="Cross back through LTF average price, HTF bias long. TP = LTF average price on the next leg, or hold to LTF re-contraction if the break looks sustainable.")
+if shortSig
+    string tag = oppCount <= 1 ? "1st ENTRY (highest prob)" : "entry #" + str.tostring(oppCount)
+    label.new(bar_index, high, "MP ▼ " + tag, style=label.style_label_down, color=color.new(#D50000, oppCount <= 1 ? 0 : 30), textcolor=color.white, size=oppCount <= 1 ? size.normal : size.small,
+         tooltip="Cross back through LTF average price, HTF bias short. TP = LTF average price on the next leg, or hold to LTF re-contraction if the break looks sustainable.")
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.bottom_right, 2, 3, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "HTF PHASE", text_color=color.orange, text_size=size.small)
+    table.cell(tb, 1, 0, htfTight ? "Contraction" : htfBias == 1 ? "TREND long" : htfBias == -1 ? "TREND short" : "Expansion (unsettled)", text_color=htfTight ? color.gray : htfBias != 0 ? color.lime : color.orange, text_size=size.small)
+    table.cell(tb, 0, 1, "LTF PHASE", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, ltfTight ? "Contraction" : ltfBias == 1 ? "TREND long" : ltfBias == -1 ? "TREND short" : "Expansion (unsettled)", text_color=color.white, text_size=size.tiny)
+    table.cell(tb, 0, 2, "Opportunity #", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 2, str.tostring(oppCount), text_color=oppCount <= 1 ? color.lime : color.white, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(longSig,  "Master Pattern Long",  "FX Master Pattern: MP ▲ cross-back entry — {{ticker}} {{interval}}")
+alertcondition(shortSig, "Master Pattern Short", "FX Master Pattern: MP ▼ cross-back entry — {{ticker}} {{interval}}")
+alertcondition(htfBias != htfBias[1], "HTF Bias Change", "FX Master Pattern: HTF bias changed — {{ticker}} {{interval}}")

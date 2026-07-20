@@ -78,3 +78,8 @@ indicators/trade_cartel_master_engine.pine
   retest-depth confirmation, HTF wall / LTF chair overlay. H30-H31 —
   **direct rework candidate for B2** (our failed auto-zone logic, PF
   0.731); backtest before concluding S/D zones don't work on gold.
+- indicators/fx_master_pattern_engine.pine (voice #11, FX Master
+  Pattern school): contraction-box + average-price phase detection run
+  on both LTF and HTF (via the request.security function-call
+  pattern), HTF-bias-confirmed cross-back entries, first-vs-later
+  opportunity counter (H32 sizing decay). H32-H33.

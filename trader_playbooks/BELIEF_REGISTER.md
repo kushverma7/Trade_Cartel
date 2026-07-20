@@ -223,6 +223,26 @@ explicitly. Test: does gating the master engine to fire only when price
 sits inside a wendell zone reduce trade count and raise PF, vs the
 existing session-gate-only baseline?
 
+**H32. Trend-cycle re-entry probability decays with each successive
+re-entry after HTF bias confirms; the FIRST confirmed entry in a new
+trend deserves the largest position size of the sequence (FX Master
+Pattern school — INDEPENDENT voice #11, LOW-MED credibility: course/
+software seller, mechanics kept, "belief-driven markets" philosophy
+discarded).** New idea: existing scale-out rules govern exiting ONE
+trade; this governs sizing ACROSS a sequence of same-trend re-entries.
+Test: does entry-count-since-bias-confirm correlate with WR/R on gold
+signals from any of our structure-break engines (PBD, Dave, QT Judas,
+Wendell)? If yes, becomes a master-engine size multiplier.
+
+**H33. Classifying the pre-news phase (contraction / expansion / trend)
+predicts whether a scheduled release produces a real event candle,
+independent of surprise size (voice #11's explicit position: news is
+an accelerant of the CURRENT phase, not a separate regime).** Directly
+testable against B4 (surprise size drives the move) on our existing
+CPI event study: does pre-print phase classification add predictive
+power beyond surprise magnitude alone? If not, B4 stands unchallenged;
+if yes, phase-aware news filtering becomes a master-engine input.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -248,13 +268,18 @@ label is our own range-based heuristic proxy for the source's stated
 judgment call, not a rule from the source — flagged as such in-code.
 
 ## Contradiction Tallies (3+ independent -> Belief Review)
-- Break-of-structure / swing-failure family (B2 fix, PBD break-in, now
-  including plain ABC/123 and Wendell drop-base-rally/rally-base-drop):
-  6 SUPPORT (PBD break-in, QT Judas swing, Dave sweep-prerequisite,
-  Steve/MMM4x stop-hunt-reverse, voice #9 ABC/123, voice #10 Wendell
-  zones) vs 1 AGAINST (Valentini). THRESHOLD CROSSED, decisively:
-  register-supported doctrine, final promotion pending our own backtest
-  of Reversal Sniper v3 / JUDAS / Wendell zones on gold.
+- Break-of-structure / swing-failure / manipulation-leg family (B2 fix,
+  PBD break-in, now including plain ABC/123, Wendell drop-base-rally/
+  rally-base-drop, and voice #11's Expansion phase): 7 SUPPORT (PBD
+  break-in, QT Judas swing, Dave sweep-prerequisite, Steve/MMM4x stop-
+  hunt-reverse, voice #9 ABC/123, voice #10 Wendell zones, voice #11
+  Expansion-phase whipsaw) vs 1 AGAINST (Valentini). Note: voice #11's
+  version is a full PHASE (bidirectional, can run for many bars) rather
+  than a single sweep-and-reclaim event — same underlying claim (price
+  fakes out both sides before the real move), looser mechanics. THRESHOLD
+  CROSSED, decisively: register-supported doctrine, final promotion
+  pending our own backtest of Reversal Sniper v3 / JUDAS / Wendell zones
+  on gold.
 - Consecutive-opposing-bar counting as a decision trigger (entry OR exit):
   3 independent, 3 different thresholds (Valentini ~3 rejections -> stand
   down, Dave 4-6 matured swings -> reversal permitted, voice #9 4 counter-
@@ -274,10 +299,12 @@ judgment call, not a rule from the source — flagged as such in-code.
 - Confirmation-before-entry family: 4 independent (our CPI event study,
   PBD close-count, Valentini break-and-test, Kurisko confirmed turn).
   STRONGEST idea in the register.
-- Multi-timeframe alignment before sizing: 5 independent (Cognitive
+- Multi-timeframe alignment before sizing: 6 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands, voice #9
-  nested Renko brick-size stack, Wendell walls-vs-chairs — this one adds
-  a hard no-trade rule the others lack, see H31).
+  nested Renko brick-size stack, Wendell walls-vs-chairs, voice #11's
+  HTF-bias/LTF-entry pattern — six schools, six different mechanics,
+  same structural conclusion: never size a trade without checking a
+  higher timeframe first).
 - Confirmation-before-entry: now 8 independent (add Steve's confirmed-hammer-
   close + zone-shift confirmation to CPI study, PBD, Valentini, Kurisko, QT,
   Ario, Dave).
