@@ -1,0 +1,289 @@
+//@version=6
+indicator("Trade Cartel - Gann Square of Nine Engine", shorttitle="TC-GannSQ9", overlay=true, max_lines_count=300, max_labels_count=300)
+
+// =====================================================================
+// Voice #16 -- "Trading the Gann Square of Nine" (TradingFives, 2003)
+// + W.D. Gann's own 1953 appendix notes (squares-1-to-19 watchlist only;
+// the Master-144 numerology is explicitly NOT implemented, see playbook).
+// One brain per voice -- extend this file in place for future Gann
+// material, never fork a second Gann .pine.
+// =====================================================================
+
+grpAnchor = "Anchor / Major Pivot"
+anchorMode = input.string("Auto (major swing)", "Anchor mode", options = ["Auto (major swing)", "Manual anchor"], group = grpAnchor)
+majorLookback = input.int(200, "Auto: lookback bars for major swing", minval = 20, group = grpAnchor)
+manualAnchorPrice = input.float(0.0, "Manual anchor price (0 = ignore)", group = grpAnchor)
+manualAnchorBarsAgo = input.int(0, "Manual anchor bars ago", minval = 0, group = grpAnchor)
+manualAnchorIsLow = input.bool(true, "Manual anchor is a swing LOW (uptrend roadmap)", group = grpAnchor)
+
+grpGrid = "Square of Nine Grid"
+gridDeg = input.float(180.0, "Horizontal grid step (degrees)", options = [45.0, 90.0, 135.0, 180.0], group = grpGrid)
+numRotations = input.int(4, "Number of rotations to plot", minval = 1, maxval = 8, group = grpGrid)
+showMid = input.bool(true, "Show 90-degree midpoint lines", group = grpGrid)
+useThreeDigit = input.bool(true, "Auto-normalize price to 3 significant digits (untested on gold, see playbook)", group = grpGrid)
+showRoadmap = input.bool(true, "Draw vertical time grid + diagonal channel", group = grpGrid)
+
+grpSquare = "Squaring Price & Time"
+showSquaring = input.bool(true, "Detect price-range = time squaring at swing pivots", group = grpSquare)
+pivotWidth = input.int(10, "Pivot width (bars) for swing detection", minval = 2, group = grpSquare)
+degTol = input.float(5.0, "Degree tolerance for a 'square' hit", minval = 1.0, maxval = 15.0, group = grpSquare)
+
+grpTime = "Gann Time Counts (squares 1-19 watchlist, source appendix)"
+showTimeCounts = input.bool(true, "Flag bars-since-anchor on Gann's own squares watchlist", group = grpTime)
+
+grpShow = "Display"
+showTable = input.bool(true, "Show status table", group = grpShow)
+
+// ---------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------
+f_normFactor(_price) =>
+    float p = _price
+    float f = 1.0
+    for i = 1 to 6
+        if p >= 1000
+            p := p / 10
+            f := f / 10
+    for i = 1 to 6
+        if p < 100
+            p := p * 10
+            f := f * 10
+    f
+
+f_sqRotateDeg(_price, _deg) =>
+    f = useThreeDigit ? f_normFactor(_price) : 1.0
+    np = _price * f
+    factor = _deg / 180.0
+    base = math.sqrt(np) + factor
+    nr = base > 0 ? math.pow(base, 2) : 0.0
+    nr / f
+
+f_toDegrees(_n) =>
+    d = (math.sqrt(_n) * 180.0) - 225.0
+    d := d % 360.0
+    if d < 0
+        d += 360.0
+    d
+
+f_toDegreesNorm(_n) =>
+    f = useThreeDigit ? f_normFactor(_n) : 1.0
+    f_toDegrees(_n * f)
+
+f_squareCloseness(_d1, _d2) =>
+    diff = math.abs(_d1 - _d2) % 360.0
+    if diff > 180.0
+        diff := 360.0 - diff
+    rem = diff % 90.0
+    math.min(rem, 90.0 - rem)
+
+// ---------------------------------------------------------------------
+// Anchor determination (recomputed every bar; redraw only fires on change)
+// ---------------------------------------------------------------------
+float anchorPrice = na
+int anchorBarIdx = na
+bool anchorIsLow = true
+
+if anchorMode == "Manual anchor" and manualAnchorPrice > 0
+    anchorPrice := manualAnchorPrice
+    anchorBarIdx := bar_index - manualAnchorBarsAgo
+    anchorIsLow := manualAnchorIsLow
+else
+    hhOffset = ta.highestbars(high, majorLookback)
+    llOffset = ta.lowestbars(low, majorLookback)
+    hh = ta.highest(high, majorLookback)
+    ll = ta.lowest(low, majorLookback)
+    if hhOffset > llOffset
+        anchorPrice := hh
+        anchorBarIdx := bar_index + hhOffset
+        anchorIsLow := false
+    else
+        anchorPrice := ll
+        anchorBarIdx := bar_index + llOffset
+        anchorIsLow := true
+
+// ---------------------------------------------------------------------
+// Roadmap chart: redraw only when the anchor changes
+// ---------------------------------------------------------------------
+var line[] hLines = array.new_line()
+var line[] midLines = array.new_line()
+var line[] vLines = array.new_line()
+var line[] chLines = array.new_line()
+var label[] hLabels = array.new_label()
+var label anchorLabel = na
+
+var float vAnchorPrice = na
+var int vAnchorBarIdx = na
+var bool vAnchorIsLow = true
+var int vVertSpacing = na
+var float vSlope = na
+var float vChBaseLow = na
+var float vChBaseHigh = na
+
+var int lastAnchorBarIdx = na
+anchorChanged = anchorBarIdx != lastAnchorBarIdx and not na(anchorPrice)
+
+if anchorChanged
+    if array.size(hLines) > 0
+        for i = 0 to array.size(hLines) - 1
+            line.delete(array.get(hLines, i))
+        array.clear(hLines)
+    if array.size(midLines) > 0
+        for i = 0 to array.size(midLines) - 1
+            line.delete(array.get(midLines, i))
+        array.clear(midLines)
+    if array.size(vLines) > 0
+        for i = 0 to array.size(vLines) - 1
+            line.delete(array.get(vLines, i))
+        array.clear(vLines)
+    if array.size(chLines) > 0
+        for i = 0 to array.size(chLines) - 1
+            line.delete(array.get(chLines, i))
+        array.clear(chLines)
+    if array.size(hLabels) > 0
+        for i = 0 to array.size(hLabels) - 1
+            label.delete(array.get(hLabels, i))
+        array.clear(hLabels)
+    if not na(anchorLabel)
+        label.delete(anchorLabel)
+
+    lastAnchorBarIdx := anchorBarIdx
+    vAnchorPrice := anchorPrice
+    vAnchorBarIdx := anchorBarIdx
+    vAnchorIsLow := anchorIsLow
+
+    f = useThreeDigit ? f_normFactor(anchorPrice) : 1.0
+    vertSpacing = int(math.round(math.sqrt(anchorPrice * f)))
+    vVertSpacing := math.max(vertSpacing, 1)
+
+    dir = anchorIsLow ? 1 : -1
+    endBar = anchorBarIdx + vVertSpacing * (numRotations + 2)
+
+    level1 = f_sqRotateDeg(anchorPrice, gridDeg * 1 * dir)
+    level2 = f_sqRotateDeg(anchorPrice, gridDeg * 2 * dir)
+    vSlope := (level1 - anchorPrice) / vVertSpacing
+
+    anchorLabel := label.new(anchorBarIdx, anchorPrice, anchorIsLow ? "GANN ANCHOR (low)" : "GANN ANCHOR (high)", style = anchorIsLow ? label.style_label_up : label.style_label_down, color = color.new(color.blue, 20), textcolor = color.white, size = size.small)
+
+    for r = 1 to numRotations
+        deg = gridDeg * r * dir
+        levelPrice = f_sqRotateDeg(anchorPrice, deg)
+        hLine = line.new(anchorBarIdx, levelPrice, endBar, levelPrice, color = color.new(color.orange, 20), width = 1)
+        array.push(hLines, hLine)
+        hLbl = label.new(anchorBarIdx, levelPrice, str.tostring(math.round(deg)) + "°", style = label.style_label_right, color = color.new(color.orange, 100), textcolor = color.orange, size = size.tiny)
+        array.push(hLabels, hLbl)
+        if showMid
+            midDeg = deg - (gridDeg / 2.0) * dir
+            midPrice = f_sqRotateDeg(anchorPrice, midDeg)
+            mLine = line.new(anchorBarIdx, midPrice, endBar, midPrice, color = color.new(color.orange, 70), width = 1, style = line.style_dotted)
+            array.push(midLines, mLine)
+
+    if showRoadmap
+        for v = 1 to numRotations + 2
+            vBar = anchorBarIdx + vVertSpacing * v
+            vLine = line.new(vBar, anchorPrice, vBar, anchorPrice + dir * 1.0, extend = extend.both, color = color.new(color.gray, 60), style = line.style_dotted)
+            array.push(vLines, vLine)
+
+        ch1 = line.new(anchorBarIdx, anchorPrice, endBar, anchorPrice + vSlope * (endBar - anchorBarIdx), color = color.new(color.teal, 30), width = 1)
+        ch2 = line.new(anchorBarIdx, level1, endBar, level1 + vSlope * (endBar - anchorBarIdx), color = color.new(color.teal, 30), width = 1)
+        ch3 = line.new(anchorBarIdx, level2, endBar, level2 + vSlope * (endBar - anchorBarIdx), color = color.new(color.teal, 30), width = 1)
+        array.push(chLines, ch1)
+        array.push(chLines, ch2)
+        array.push(chLines, ch3)
+        vChBaseLow := anchorPrice
+        vChBaseHigh := level2
+
+// ---------------------------------------------------------------------
+// Outer-channel breach (trend invalidation, 2-consecutive-close rule)
+// ---------------------------------------------------------------------
+f_boundAtBar(_startY) =>
+    float result = na
+    if not na(vSlope) and not na(vAnchorBarIdx)
+        result := _startY + vSlope * (bar_index - vAnchorBarIdx)
+    result
+
+lowerBound = f_boundAtBar(vChBaseLow)
+upperBound = f_boundAtBar(vChBaseHigh)
+
+channelBreachRaw = showRoadmap and not na(vSlope) and (vAnchorIsLow ? close < lowerBound : close > upperBound)
+
+var int breachCount = 0
+breachCount := channelBreachRaw ? breachCount + 1 : 0
+channelInvalidated = breachCount >= 2
+
+// ---------------------------------------------------------------------
+// Squaring price with time at confirmed swing pivots
+// ---------------------------------------------------------------------
+ph = ta.pivothigh(pivotWidth, pivotWidth)
+pl = ta.pivotlow(pivotWidth, pivotWidth)
+
+var float lastPivotPrice = na
+var int lastPivotBar = na
+
+var bool squareHitBar = false
+squareHitBar := false
+
+if not na(ph)
+    curBar = bar_index - pivotWidth
+    if not na(lastPivotPrice)
+        priceRange = math.abs(ph - lastPivotPrice)
+        td = curBar - lastPivotBar
+        if priceRange > 0 and td > 0
+            rangeDeg = f_toDegreesNorm(priceRange)
+            timeDeg = f_toDegrees(td)
+            closeness = f_squareCloseness(rangeDeg, timeDeg)
+            if closeness <= degTol
+                squareHitBar := true
+                if showSquaring
+                    label.new(curBar, ph, "SQ " + str.tostring(closeness, "#.#") + "°", style = label.style_label_down, color = color.new(color.purple, 20), textcolor = color.white, size = size.tiny)
+    lastPivotPrice := ph
+    lastPivotBar := curBar
+
+if not na(pl)
+    curBar = bar_index - pivotWidth
+    if not na(lastPivotPrice)
+        priceRange = math.abs(pl - lastPivotPrice)
+        td = curBar - lastPivotBar
+        if priceRange > 0 and td > 0
+            rangeDeg = f_toDegreesNorm(priceRange)
+            timeDeg = f_toDegrees(td)
+            closeness = f_squareCloseness(rangeDeg, timeDeg)
+            if closeness <= degTol
+                squareHitBar := true
+                if showSquaring
+                    label.new(curBar, pl, "SQ " + str.tostring(closeness, "#.#") + "°", style = label.style_label_up, color = color.new(color.purple, 20), textcolor = color.white, size = size.tiny)
+    lastPivotPrice := pl
+    lastPivotBar := curBar
+
+// ---------------------------------------------------------------------
+// Gann's own squares-1-to-19 bar-count watchlist (appendix, 1953 letter)
+// ---------------------------------------------------------------------
+var int[] masterSquares = array.from(16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225, 256, 289, 324, 361)
+
+barsSinceAnchor = na(vAnchorBarIdx) ? na : bar_index - vAnchorBarIdx
+isTimeCountHit = showTimeCounts and not na(barsSinceAnchor) and barsSinceAnchor > 0 and array.includes(masterSquares, barsSinceAnchor)
+
+if isTimeCountHit
+    label.new(bar_index, high, "T=" + str.tostring(barsSinceAnchor), style = label.style_label_down, color = color.new(color.yellow, 30), textcolor = color.black, size = size.tiny)
+
+// ---------------------------------------------------------------------
+// Status table
+// ---------------------------------------------------------------------
+if showTable and barstate.islast
+    var table dash = table.new(position.top_right, 2, 5, border_width = 1)
+    table.cell(dash, 0, 0, "Gann Sq9", bgcolor = color.new(color.blue, 60), text_color = color.white)
+    table.cell(dash, 1, 0, vAnchorIsLow ? "UP roadmap" : "DOWN roadmap", bgcolor = color.new(color.blue, 60), text_color = color.white)
+    table.cell(dash, 0, 1, "Anchor price")
+    table.cell(dash, 1, 1, na(vAnchorPrice) ? "n/a" : str.tostring(vAnchorPrice))
+    table.cell(dash, 0, 2, "Vert spacing (bars)")
+    table.cell(dash, 1, 2, na(vVertSpacing) ? "n/a" : str.tostring(vVertSpacing))
+    table.cell(dash, 0, 3, "Bars since anchor")
+    table.cell(dash, 1, 3, na(barsSinceAnchor) ? "n/a" : str.tostring(barsSinceAnchor))
+    table.cell(dash, 0, 4, "Channel")
+    table.cell(dash, 1, 4, channelInvalidated ? "BREACHED" : "intact", text_color = channelInvalidated ? color.red : color.green)
+
+// ---------------------------------------------------------------------
+// Alerts
+// ---------------------------------------------------------------------
+alertcondition(channelInvalidated, "Gann Roadmap Channel Breach", "Square of Nine roadmap channel invalidated on 2 consecutive closes -- possible trend change")
+alertcondition(squareHitBar, "Gann Price=Time Squaring", "Price range and elapsed time squared within tolerance at a confirmed swing pivot")
+alertcondition(isTimeCountHit, "Gann Master Number Time Count", "Bars-since-anchor landed on one of Gann's own squares-1-to-19 watchlist numbers")

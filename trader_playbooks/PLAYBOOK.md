@@ -178,3 +178,21 @@ operational hygiene:
   divergence read as continuation, NOT reversal -- an unresolved
   tension against every other divergence idea already in the repo).
   H48-H50.
+- indicators/gann_square_of_nine_engine.pine (voice #16, Gann Square
+  of Nine / TradingFives + W.D. Gann's own 1953 appendix note): major-
+  pivot-anchored Roadmap Chart (horizontal rotation levels via
+  (SQRT(N)+factor)^2, vertical time grid at round(sqrt(3-digit anchor
+  price)) bars, 3-line diagonal channel with 2-consecutive-close
+  breach alert), price/time squaring detector at confirmed swing
+  pivots (degree-conversion formula credited to Carl Futia), Gann's
+  own squares-1-to-19 bar-count watchlist. H51-H55. LOW-MEDIUM
+  credibility (Gann's own track record is unverified folklore; the
+  math itself is real and independently sourced). Biggest open
+  question: the source's 3-digit price-normalization convention was
+  built for equity indices, never validated on a 4-digit commodity
+  price or anything close to a 5m timeframe -- toggle exists to
+  disable, flagged untested rather than assumed to transfer. Master-
+  144 numerology (Master Numbers 3/5/7/9/12, Biblical references) from
+  Gann's own appendix explicitly NOT built -- no falsifiable trigger,
+  preserved verbatim in trader_playbooks/gann_square_of_nine.md per
+  standing rule.

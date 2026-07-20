@@ -495,6 +495,73 @@ reversal now past 8 sources). Logged as corroboration, not new
 H-numbers or a new voice tally entry for those specific ideas -- only
 H48-H50 above are genuinely new mechanics from this source.
 
+**H51. Square-of-Nine horizontal price levels (successive 90/180-degree
+rotations of `(SQRT(N)+factor)^2` from a major swing pivot) act as
+support/resistance (Gann Square of Nine, voice #16 -- LOW-MEDIUM
+credibility, see playbook: Gann's own track record is unverified
+folklore, the technique itself is real math independently credited
+to Carl Futia for the degree-conversion formula).** Genuinely new
+mechanism -- nothing else in this register derives levels from a
+square-root spiral. Untested whether the source's 3-digit-price-
+normalization convention (built for equity indices) transfers to
+XAUUSD's 4-digit price level -- flagged as the single biggest
+transferability risk, toggle exists to disable.
+
+**H52. Square-of-Nine vertical time spacing (`round(sqrt(3-digit
+anchor price))` bars, constant regardless of timeframe) marks
+time-based reaction points (Gann Square of Nine, voice #16).** New
+time-cycle idea, distinct from every existing time-window rule in
+this register (session windows, quarterly-theory clocks) -- this one
+derives its cycle length from price itself, not from a clock. Every
+worked example in the source is hourly/daily/weekly on equity
+indices; applying it to 5m gold bars is a much bigger timeframe jump
+than any other source folded into this repo so far -- explicitly
+untested.
+
+**H53. A Square-of-Nine "Roadmap Chart" diagonal channel (3 parallel
+lines, same slope, anchored off a major pivot) contains price for the
+life of a trend; a 2-consecutive-close penetration of the OUTER
+channel bound signals the trend may be changing (Gann Square of Nine,
+voice #16).** New channel-based trend-invalidation idea. The
+2-consecutive-close confirmation requirement is the same discipline
+already used elsewhere in this repo (e.g. the master engine's
+close-confirmed structure breaks) -- weak methodological corroboration
+of "confirm on close, not on a single wick," not a new count for that
+existing idea since the underlying construct (a Gann channel) is
+itself new.
+
+**H54. "Squaring price and time" -- converting a price range and an
+elapsed bar/day count to degrees via `MOD((SQRT(N)*180)-225,360)` and
+checking whether they land within a few degrees of a 90-degree
+multiple of each other -- marks high-probability turning points (Gann
+Square of Nine, voice #16, formula credited to Carl Futia).** New
+mechanism. The source is explicit this is confluence, not a
+standalone trigger: "most trend changes coincide with SOME squaring,
+but not every squaring produces a trend change." Consistent with this
+repo's whole design (every engine here is observation-layer
+confluence, never solo).
+
+**H55. Bar-counts since a major pivot landing on Gann's own
+"squares 1-19" watchlist (16, 25, 36, 49, 64, 81, 100, 121, 144, 169,
+196, 225, 256, 289, 324, 361 -- from his own 1953 signed appendix
+note, recovered from the scanned facsimile image, not the garbled
+text extraction) mark watch points for a change in trend (W.D. Gann
+himself, via the Square of Nine appendix).** The one piece of Gann's
+own numerology-framed appendix material (Master Numbers 3/5/7/9/12,
+Biblical references, "Great Yearly Time Cycle") that reduces to a
+falsifiable, implementable mechanic independent of the numerology
+framing -- everything else in that appendix is preserved verbatim in
+the playbook but explicitly not built (no falsifiable trigger).
+
+INTRA-SCHOOL NOTE (2026-07-20, Gann appendix): the "gravity center /
+halfway point" concept in Gann's own 1953 note (midpoint of a price
+range or of the Master Square of 144 as a location where countertrend
+moves start/end) is weak corroboration of the existing 50%-
+equilibrium marker (Pure PA/SMC engine, H44) from a totally
+independent, ~90-year-older source -- not counted as a new voice or
+a new H-number for that specific idea, since it restates rather than
+extends it.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
