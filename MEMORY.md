@@ -31,19 +31,30 @@ Update it whenever new decisions, results, or discoveries are made.
 
 ## Gold Scalping Strategy — Key Results
 
-### Best Pine Script backtest found
+### RETRACTED (2026-07-20): small-sample backtest no longer treated as proven
+- User instruction: discard the "PF 3.656" result below as evidence — sample
+  was only ~2 months / 117 trades (TradingView free-plan history limit on
+  5m), too small to call any strategy "proven" or a "flagship" on. The
+  number is kept below for the record (never-discard standing rule) but
+  MUST NOT be cited as validation anywhere going forward. **Every strategy
+  in this repo is currently UNTESTED at a sample size that means anything.**
+  No strategy gets "proven"/"flagship" language again until backtested on
+  a real sample (target: 6-12+ months, 300+ trades minimum) via a paid
+  data feed (Pepperstone/GC1! futures, not the free-plan OANDA feed).
+
+### Retracted backtest (small sample, not evidence)
 - Symbol: XAUUSD (5m chart)
 - Period tested: May 18 – Jul 14 2026 (~2 months, limited by no TradingView Premium)
-- **Lookback 22, session filter ON** → **PF 3.656 | Win 51.28% (60/117 trades) | Max DD $1.35 / 0.01%** | Net PnL +$34.19
+- Lookback 22, session filter ON → PF 3.656 | Win 51.28% (60/117 trades) | Max DD $1.35 / 0.01% | Net PnL +$34.19
 - Settings: ATR stop 1.2×, TP 2.0×, London open (3–5am ET) + NY open (8:30–11am ET)
 - Lookback 18 and filter OFF variants were requested but user did not report results back
 
 ### Backtest log
-- 2026-07-16 Reversal Sniper Strategy v1 defaults, XAUUSD 5m OANDA, May 25-Jul 16: **PF 0.731 | Win 31.31% (98/313) | -5.26%** — FAILED. Leak: reclaim path fired on auto S/D zone breaks (zones regenerate constantly on LTF → longs into downtrends). Fixed: reclaim HTF walls only + 0.3 ATR flush depth + stopLkb 4. Re-test pending.
+- 2026-07-16 Reversal Sniper Strategy v1 defaults, XAUUSD 5m OANDA, May 25-Jul 16: **PF 0.731 | Win 31.31% (98/313) | -5.26%** — FAILED. Leak: reclaim path fired on auto S/D zone breaks (zones regenerate constantly on LTF → longs into downtrends). Fixed: reclaim HTF walls only + 0.3 ATR flush depth + stopLkb 4. Re-test pending. (Sample size caveat above applies here too — 313 trades on 2 months is still thin.)
 
-### Strategy files in repo
-- `strategies/gold_confluence_engine.pine` — **FLAGSHIP** (v6, 430 lines). 4-layer confluence: HTF key levels (daily/weekly open, prev D/W H/L) + gold round numbers ($2.5/$5) + pivot-confirmed supply/demand zones + dual triggers (proven trendline breakout OR liquidity sweep/SFP). Asia range sweeps, level-aware stops/targets, R:R veto, confluence score table, EOD flat. All non-repainting. UNTESTED — needs backtest.
-- `strategies/gold_scalper_final.pine` — simpler proven-baseline strategy (v6). Trendline-breakout core (lookback 22, sessions, ATR 1.2x/2.0x) + toggleable filters, all default OFF = exact proven PF 3.656 baseline. Test protocol: enable ONE filter at a time, re-backtest, keep only what raises PF.
+### Strategy files in repo (all UNTESTED at meaningful sample size — see retraction above)
+- `strategies/gold_confluence_engine.pine` — 4-layer confluence: HTF key levels (daily/weekly open, prev D/W H/L) + gold round numbers ($2.5/$5) + pivot-confirmed supply/demand zones + dual triggers (trendline breakout OR liquidity sweep/SFP). Asia range sweeps, level-aware stops/targets, R:R veto, confluence score table, EOD flat. All non-repainting. Needs a real backtest.
+- `strategies/gold_scalper_final.pine` — trendline-breakout core (lookback 22, sessions, ATR 1.2x/2.0x) + toggleable filters. The lookback-22/session-ON default combo is the retracted small-sample setting, kept as the default to re-test on a larger sample, not because it's proven. Test protocol: enable ONE filter at a time, re-backtest, keep only what raises PF on a real sample.
 - `strategies/gold_scalper_pro_merged.pine` — v6 merged blueprint from Kimi.ai PDF (SMC + levels + quarter theory), untested
 - `strategies/trendline_breakout_gold_optimized.pine` — Pine Script v5, full OLS trendline breakout
 - (Brue port deleted at user request)

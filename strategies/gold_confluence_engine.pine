@@ -18,7 +18,7 @@
 //          cannot repaint: zone exists only after pivot confirms)
 //
 // LAYER 4  TRIGGERS (selectable)
-//          a) proven OLS trendline breakout core (lookback 22,
+//          a) candidate OLS trendline breakout (untested at scale) core (lookback 22,
 //             PF 3.656 backtested baseline)
 //          b) LIQUIDITY SWEEP (from BigBeluga SFP concept):
 //             wick pierces a key level (prev day/week H/L, Asia
@@ -212,7 +212,7 @@ resistLvl := f_above(prevWkHigh,  resistLvl)
 resistLvl := f_above(rnMajorAbove, resistLvl)
 resistLvl := f_above(asiaDone ? asiaHi : na, resistLvl)
 
-// ══ LAYER 4: TRIGGER — proven OLS trendline breakout ═════════
+// ══ LAYER 4: TRIGGER — candidate OLS trendline breakout (untested at scale) ═════════
 linreg_coefs(src, len) =>
     float sumX  = 0.0
     float sumY  = 0.0

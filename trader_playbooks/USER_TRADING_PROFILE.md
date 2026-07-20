@@ -7,11 +7,15 @@
 - Pepperstone feed preferred over OANDA for gold backtests
 - Executes manually; signals must fire in REAL TIME (bar close + alerts)
 
-## Proven edges (backtested, believe these)
+## Candidate edges (NOT proven — small-sample result retracted 2026-07-20)
 - Trendline breakout (OLS, lookback 22) + London/NY-open session filter:
-  PF 3.656 on XAUUSD 5m — the flagship result
-- Session filter (03:00-05:00, 08:30-11:00 NY time) is the single
-  strongest accuracy lever found so far
+  PF 3.656 on XAUUSD 5m was the small-sample result (~2 months, 117
+  trades) previously called "proven" -- user explicitly retracted this
+  as evidence, sample too small. Kept as the current default to
+  re-test on a larger sample, not because it's validated.
+- Session filter (03:00-05:00, 08:30-11:00 NY time) is still the
+  working hypothesis for strongest accuracy lever, but also unvalidated
+  at meaningful sample size -- treat as a lead to re-test, not a fact.
 
 ## Disproven / burned by (do not repeat)
 - Reversal Sniper v2 auto-zone reclaims on 5m: PF 0.731, 313 trades —

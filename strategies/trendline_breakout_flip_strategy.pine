@@ -1,7 +1,7 @@
 // ============================================================
 // Trendline Breakout FLIP Strategy — Non-Repainting
 // Based on: strategies/trendline_breakout_fixed.pine (bug-fixed
-// OLS trendline breakout, proven core: lookback 22 on XAUUSD 5m)
+// OLS trendline breakout, candidate core (untested at scale): lookback 22 on XAUUSD 5m)
 //
 // FLIP LOGIC: always-in reversal system.
 //   BUY signal  (breakout above resistance) -> flip short to long

@@ -1,8 +1,8 @@
 // ============================================================
 // TRADE CARTEL MASTER ENGINE [Real-Time]
-// The final synthesis: proven core signal + full knowledge layer
+// The final synthesis: candidate core signal + full knowledge layer
 // as confluence voting, per COGNITIVE_ARCHITECTURE conviction
-// scoring. Built from: trendline breakout (PF 3.656 core),
+// scoring. Built from: trendline breakout (small-sample PF 3.656, RETRACTED as evidence),
 // Nison candlestick tiers, PBD value-area logic, Valentini
 // momentum/confirmation/rejection/CVD rules, CPI news discipline.
 //
@@ -21,7 +21,7 @@
 indicator("Trade Cartel MASTER ENGINE", overlay=true, max_labels_count=500, max_lines_count=100)
 
 // ── Inputs ───────────────────────────────────────────────────
-int   lookback  = input.int(22, "Trendline Lookback (proven: 22)", minval=5, maxval=100, group="① Core Signal")
+int   lookback  = input.int(22, "Trendline Lookback (small-sample default: 22, untested at scale)", minval=5, maxval=100, group="① Core Signal")
 bool  useH7     = input.bool(true, "Require Full-Body Break Candle [H7]", group="① Core Signal")
 bool  useSess   = input.bool(true, "Score London+NY-Open Session [B1]", group="② Confluence Layers")
 bool  useVA     = input.bool(true, "Score Value-Area Regime [PBD]", group="② Confluence Layers")
@@ -45,7 +45,7 @@ float body   = math.abs(close - open)
 float rng    = high - low
 
 // ═════════════════════════════════════════════════════════════
-// LAYER 1: CORE — OLS trendline breakout (bug-fixed, proven)
+// LAYER 1: CORE — OLS trendline breakout (bug-fixed, candidate, untested at scale)
 // ═════════════════════════════════════════════════════════════
 linreg_coefs(src, len) =>
     float sumX = 0.0
@@ -134,7 +134,7 @@ bool coreBuy  = sig == 1  and sig[1] != 1  and (not useH7 or fullBody)
 bool coreSell = sig == -1 and sig[1] != -1 and (not useH7 or fullBody)
 
 // ═════════════════════════════════════════════════════════════
-// LAYER 2: Session [B1 — the proven edge lever]
+// LAYER 2: Session [B1 — the leading hypothesis (untested at scale)]
 // ═════════════════════════════════════════════════════════════
 bool inSession = not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York")) or (usePower and not na(time(timeframe.period, "1500-1600", "America/New_York")))
 

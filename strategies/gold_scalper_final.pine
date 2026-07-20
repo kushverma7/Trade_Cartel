@@ -1,12 +1,12 @@
 // ============================================================
 // GOLD SCALPER — FINAL (Non-Repainting)
-// XAU/USD 5m — built from the proven backtest core:
+// XAU/USD 5m — built from the candidate core (small-sample result retracted, see MEMORY.md):
 //   Lookback 22 + session filter -> PF 3.656 | Win 51.28% | DD 0.01%
 //   (tested May 18 - Jul 14 2026, Pepperstone feed)
 //
 // Core: bug-fixed OLS trendline breakout (all math on [1] data)
-// Exits: ATR stop 1.2x / TP 2.0x (proven), optional quarter-snap
-// Filters (default OFF = exact proven baseline; enable one at a
+// Exits: ATR stop 1.2x / TP 2.0x (candidate, untested at scale), optional quarter-snap
+// Filters (default OFF = exact candidate baseline (untested at scale); enable one at a
 // time and re-backtest to verify each actually adds profit):
 //   - ATR regime filter (skip dead + news-spike bars)
 //   - Breakout ATR buffer (fewer, cleaner breaks)
@@ -26,14 +26,14 @@ strategy("Gold Scalper FINAL [Non-Repainting]",
      commission_value   = 0.07,
      slippage           = 5)
 
-// ── Inputs: proven core ───────────────────────────────────────
-int   lookback    = input.int(22,    "Lookback Period",        minval=5,   maxval=100, group="Core (proven)")
-bool  useSession  = input.bool(true, "London + NY Open Only",  group="Core (proven)")
-float atrStopMult = input.float(1.2, "Stop ATR mult",          step=0.1,   group="Core (proven)")
-float atrTpMult   = input.float(2.0, "TP ATR mult",            step=0.1,   group="Core (proven)")
-int   atrLen      = input.int(14,    "ATR Length",             group="Core (proven)")
+// ── Inputs: candidate core (untested at scale) ───────────────────────────────────────
+int   lookback    = input.int(22,    "Lookback Period",        minval=5,   maxval=100, group="Core (candidate, untested at scale)")
+bool  useSession  = input.bool(true, "London + NY Open Only",  group="Core (candidate, untested at scale)")
+float atrStopMult = input.float(1.2, "Stop ATR mult",          step=0.1,   group="Core (candidate, untested at scale)")
+float atrTpMult   = input.float(2.0, "TP ATR mult",            step=0.1,   group="Core (candidate, untested at scale)")
+int   atrLen      = input.int(14,    "ATR Length",             group="Core (candidate, untested at scale)")
 
-// ── Inputs: optional filters (OFF = proven baseline) ──────────
+// ── Inputs: optional filters (OFF = candidate baseline (untested at scale)) ──────────
 bool  useRegime    = input.bool(false, "ATR Regime Filter (0.6x-2.5x baseline)", group="Filters")
 int   regimeLen    = input.int(100,    "Regime Baseline Length",                 group="Filters")
 bool  useBuffer    = input.bool(false, "Breakout ATR Buffer",                    group="Filters")
@@ -53,7 +53,7 @@ bool showLines   = input.bool(true, "Show Trendlines",       group="Display")
 bool showSignals = input.bool(true, "Show Buy/Sell Signals", group="Display")
 bool showBg      = input.bool(true, "Highlight Signal Zone", group="Display")
 
-// ── Session: London open + NY open (ET) — proven windows ──────
+// ── Session: London open + NY open (ET) — session windows (small-sample default, untested at scale) ──────
 bool inSession = not useSession or not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York"))
 
 // ── ATR + regime ──────────────────────────────────────────────

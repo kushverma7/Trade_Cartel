@@ -1,8 +1,8 @@
 // ============================================================
 // TRADE CARTEL MASTER ENGINE [Real-Time]
-// The final synthesis: proven core signal + full knowledge layer
+// The final synthesis: candidate core signal + full knowledge layer
 // as confluence voting, per COGNITIVE_ARCHITECTURE conviction
-// scoring. Built from: trendline breakout (PF 3.656 core),
+// scoring. Built from: trendline breakout (small-sample PF 3.656, RETRACTED as evidence),
 // Nison candlestick tiers, PBD value-area logic, Valentini
 // momentum/confirmation/rejection/CVD rules, CPI news discipline.
 //
@@ -18,9 +18,9 @@
 // Alerts per grade. Dashboard shows live layer states.
 // ============================================================
 // STRATEGY VERSION — for the Strategy Tester A/B:
-//   "Core Only" mode  = bare proven trendline core (control)
+//   "Core Only" mode  = bare candidate trendline core (control)
 //   "Full Confluence" = knowledge layer scores + vetoes + graded size
-// Exits: proven baseline bracket (2x ATR stop, 4x ATR target).
+// Exits: candidate baseline (untested at scale) bracket (2x ATR stop, 4x ATR target).
 // Fills on signal bar close. Gold costs pre-set.
 //@version=6
 strategy("Trade Cartel MASTER ENGINE [Strategy]",
@@ -36,7 +36,7 @@ strategy("Trade Cartel MASTER ENGINE [Strategy]",
      process_orders_on_close  = true)
 
 // ── Inputs ───────────────────────────────────────────────────
-int   lookback  = input.int(22, "Trendline Lookback (proven: 22)", minval=5, maxval=100, group="① Core Signal")
+int   lookback  = input.int(22, "Trendline Lookback (small-sample default: 22, untested at scale)", minval=5, maxval=100, group="① Core Signal")
 bool  useH7     = input.bool(true, "Require Full-Body Break Candle [H7]", group="① Core Signal")
 bool  useSess   = input.bool(true, "Score London+NY-Open Session [B1]", group="② Confluence Layers")
 bool  useVA     = input.bool(true, "Score Value-Area Regime [PBD]", group="② Confluence Layers")
@@ -67,7 +67,7 @@ float body   = math.abs(close - open)
 float rng    = high - low
 
 // ═════════════════════════════════════════════════════════════
-// LAYER 1: CORE — OLS trendline breakout (bug-fixed, proven)
+// LAYER 1: CORE — OLS trendline breakout (bug-fixed, candidate, untested at scale)
 // ═════════════════════════════════════════════════════════════
 linreg_coefs(src, len) =>
     float sumX = 0.0
@@ -156,7 +156,7 @@ bool coreBuy  = sig == 1  and sig[1] != 1  and (not useH7 or fullBody)
 bool coreSell = sig == -1 and sig[1] != -1 and (not useH7 or fullBody)
 
 // ═════════════════════════════════════════════════════════════
-// LAYER 2: Session [B1 — the proven edge lever]
+// LAYER 2: Session [B1 — the leading hypothesis (untested at scale)]
 // ═════════════════════════════════════════════════════════════
 bool inSession = not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York")) or (usePower and not na(time(timeframe.period, "1500-1600", "America/New_York")))
 
@@ -343,7 +343,7 @@ bool cSellB = (coreOnly ? false : (sellB and not aOnly)) and gateOK
 if cBuyA or cBuyB or cSellA or cSellB
     lastSig := bar_index
 
-// ── Strategy execution (bracket = proven baseline) ───────────
+// ── Strategy execution (bracket = candidate baseline (untested at scale)) ───────────
 if (cBuyA or cBuyB) and strategy.position_size == 0
     strategy.entry("Long", strategy.long, qty=cBuyA ? qtyA : qtyB, comment=cBuyA ? "BUY A+" : "BUY B")
     strategy.exit("L-X", "Long", stop=close - atrv * stopMult, limit=close + atrv * tpMult)

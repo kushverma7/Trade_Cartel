@@ -4,12 +4,17 @@
 
 === SCALP SETUPS ===
 
-1. **Session Trendline Breakout** (flagship)
+1. **Session Trendline Breakout** (candidate, NOT proven)
    - Conditions: XAUUSD 5m, OLS trendline (lookback 22), London 03:00-05:00
      or NY-open 08:30-11:00 NY time only
-   - Entry: close breaks optimized trendline; Stop: 2x ATR(14); Target: 4x ATR
-   - Evidence: PF 3.656 backtest. Files: strategies/trendline_breakout_fixed.pine
-   - Sizing: A-setup. Confluence upgrade: aligned tier-A candle pattern.
+   - Entry: close breaks optimized trendline; Stop: 1.2x ATR(14); Target: 2x ATR
+   - Evidence: **RETRACTED (2026-07-20)** — the PF 3.656 backtest was on
+     only ~2 months / 117 trades (free-plan data limit), too small to call
+     evidence. No sizing upgrade or "flagship" label until re-tested on a
+     real sample (6-12mo+, 300+ trades, paid feed). Files:
+     strategies/gold_scalper_final.pine
+   - Sizing: exploratory only until re-validated. Confluence upgrade
+     (aligned tier-A candle pattern) still applies once evidence exists.
 
 2. **HTF Wall Reclaim** (Reversal Sniper v3 — unproven, testing)
    - Conditions: flush >= 0.3 ATR beyond prev day/week H/L or Asia range,
@@ -37,7 +42,7 @@
 
 === MASTER ENGINE (final synthesis, 2026-07-19) ===
 indicators/trade_cartel_master_engine.pine
-- Core: proven trendline breakout (22) + optional H7 full-body confirm
+- Core: candidate trendline breakout (untested at scale) (22) + optional H7 full-body confirm
 - Confluence vote 0-12: session [B1] +2, out-of-balance regime [PBD] +2,
   tier-A candle [Nison] +2, aggression [Valentini] +2, VWAP side (not
   beyond 2SD) +2, fresh level [H8] +2
