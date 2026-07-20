@@ -86,6 +86,35 @@ No new context rules; same trend/location/confirmation filters apply.
 | Three Inside Down | bull candle, smaller bear candle inside it (harami), then a third bear candle closing below the first candle's open | uptrend, at swing high | B |
 | Three Outside Down | bull candle, bear engulfing candle, then a third bear candle closing below the engulfing candle's close | uptrend, at swing high | B |
 
+## Corroboration — "Everything You Wanted to Know About Candlestick Charts"
+(Mark Rose, Thames Publishing/Trader's Bulletin, 2026-07-20 supplied). Covers
+Doji, Marubozu, Harami (bull/bear), Hammer/Hanging Man, Inverted Hammer/
+Shooting Star, Engulfing (bull/bear), Morning/Evening Star, Three White
+Soldiers/Black Crows, Piercing Line/Dark Cloud Cover -- the exact same core
+pattern set already built (candlestick_engine.pine), no patterns outside
+what's already implemented. NOT a new voice, NOT a new file -- logged here
+as corroboration per the same-subject/no-new-mechanics rule.
+
+Two genuinely useful confirmations, not new mechanics:
+- **Hammer/Shooting Star wick ratio, independently stated**: "the lower
+  [upper] wick should be at least two times longer than the body" --
+  matches `shadowMult` default (2.0) already used in
+  candlestick_engine.pine exactly. Now corroborated by a second,
+  independent source (this book + the original cheat sheet), not just an
+  arbitrary default -- raises confidence in that specific threshold.
+- **Harami reliability caveat, explicit**: "a harami doesn't always live
+  up to its hype... often several days of tight-range consolidation will
+  follow... best to look for confirmation and combine with other
+  longer-term patterns" -- independent restatement of this repo's
+  dominant confirmation-before-entry family (now the strongest idea in
+  the register, 8+ independent sources) applied specifically to the
+  Harami pattern. Consistent with `en_harami` already defaulting to
+  OFF in candlestick_engine.pine (weaker tier-C pattern) -- this source
+  explains WHY that default is justified, not just that it should be.
+
+No new H-number, no engine changes -- nothing here contradicts or extends
+what's built.
+
 ## Pending: material from user (book chapters, trader transcripts)
 
 Every new scenario from supplied material gets:
