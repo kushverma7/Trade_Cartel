@@ -15,6 +15,16 @@
 // NOT implemented (too subjective to codify reliably, see playbook):
 // Cup & Handle, Diamond Top/Bottom.
 //
+// v2 (2026-07-20, "Josh Trade"/Suraj Saini ebook -- same 13 patterns,
+// same public-domain content, extended in place per the one-brain-
+// per-source rule rather than forked): measured-move price TARGETS
+// (pattern height projected from the breakout, explicitly confirmed
+// for symmetrical triangles in this source and generalized to every
+// pattern per standard classical TA convention), optional volume
+// confirmation filter, and neckline/boundary RETEST tagging after
+// breakout (source repeatedly notes patterns often retest before
+// continuing -- a secondary, often tighter-risk entry).
+//
 // All signals bar-close, non-repainting (pivots confirm after `pw`
 // bars; breakout triggers only use already-closed bars).
 // ============================================================
@@ -31,10 +41,16 @@ float  poleMult   = input.float(2.5, "Min Pole Size (x ATR)", minval=0.5, step=0
 int    consolWin  = input.int(8, "Flag/Pennant Consolidation Window (bars)", minval=3, group="③ Flag/Pennant")
 float  consolMult = input.float(1.5, "Max Consolidation Range (x ATR)", minval=0.3, step=0.1, group="③ Flag/Pennant")
 int    cooldown   = input.int(10, "Signal Cooldown (bars)", minval=1, group="④ Engine")
+bool   useVol     = input.bool(false, "Require Above-Average Volume on Breakout [v2]", group="④ Engine", tooltip="Off by default -- gold/forex volume is tick-count, not real traded volume, so this is a proxy at best. Source emphasizes volume confirmation repeatedly for reversal patterns.")
+bool   showTargets = input.bool(true, "Show Measured-Move Targets [v2]", group="④ Engine")
+bool   showRetest  = input.bool(true, "Tag Neckline/Boundary Retest [v2]", group="④ Engine")
+int    retestWin   = input.int(15, "Retest Window (bars after breakout)", minval=3, group="④ Engine")
+float  retestTolAtr = input.float(0.3, "Retest Tolerance (x ATR)", minval=0.05, step=0.05, group="④ Engine")
 
 float atrv = ta.atr(14)
 var int lastSig = -9999
 bool cd = bar_index - lastSig > cooldown
+bool volOk = not useVol or volume >= ta.sma(volume, 20) * 1.2
 
 // ── Pivot buffers (ring buffers, oldest shifted out) ──────────
 float ph = ta.pivothigh(high, pw, pw)
@@ -114,21 +130,30 @@ if nL >= 3
         ihns := true
         ihnsNeckline := ta.highest(high, math.min(math.max(lastB(loB, 0) - lastB(loB, 2), 1), 400))
 
-bool sigDblTop  = cd and dblTop  and not na(necklineTop) and ta.crossunder(close, necklineTop)
-bool sigDblBot  = cd and dblBot  and not na(necklineBot) and ta.crossover(close, necklineBot)
-bool sigTplTop  = cd and tplTop  and not na(necklineTop) and ta.crossunder(close, necklineTop)
-bool sigTplBot  = cd and tplBot  and not na(necklineBot) and ta.crossover(close, necklineBot)
-bool sigHns     = cd and hns     and not na(hnsNeckline)  and ta.crossunder(close, hnsNeckline)
-bool sigIhns    = cd and ihns    and not na(ihnsNeckline) and ta.crossover(close, ihnsNeckline)
+bool sigDblTop  = cd and dblTop  and volOk and not na(necklineTop) and ta.crossunder(close, necklineTop)
+bool sigDblBot  = cd and dblBot  and volOk and not na(necklineBot) and ta.crossover(close, necklineBot)
+bool sigTplTop  = cd and tplTop  and volOk and not na(necklineTop) and ta.crossunder(close, necklineTop)
+bool sigTplBot  = cd and tplBot  and volOk and not na(necklineBot) and ta.crossover(close, necklineBot)
+bool sigHns     = cd and hns     and volOk and not na(hnsNeckline)  and ta.crossunder(close, hnsNeckline)
+bool sigIhns    = cd and ihns    and volOk and not na(ihnsNeckline) and ta.crossover(close, ihnsNeckline)
+
+// v2: measured-move targets = pattern height (extreme to neckline)
+// projected from the neckline in the breakout direction
+float tgtTop = sigHns ? hnsNeckline - (lastP(hiP, 1) - hnsNeckline) : (sigDblTop or sigTplTop) ? necklineTop - (lastP(hiP, 0) - necklineTop) : na
+float tgtBot = sigIhns ? ihnsNeckline + (ihnsNeckline - lastP(loP, 1)) : (sigDblBot or sigTplBot) ? necklineBot + (necklineBot - lastP(loP, 0)) : na
 
 if sigDblTop or sigTplTop or sigHns
     lastSig := bar_index
     label.new(bar_index, high, sigHns ? "H&S ▼" : sigTplTop ? "Triple Top ▼" : "Double Top ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small,
-         tooltip="Neckline break -- target = pattern height projected from the break, per classical TA measured-move convention.")
+         tooltip="Neckline break -- target = pattern height projected from the break." + (showTargets and not na(tgtTop) ? " Target: " + str.tostring(tgtTop, format.mintick) : ""))
+    if showTargets and not na(tgtTop)
+        line.new(bar_index, tgtTop, bar_index + 20, tgtTop, color=color.new(#D50000, 40), style=line.style_dashed)
 if sigDblBot or sigTplBot or sigIhns
     lastSig := bar_index
     label.new(bar_index, low, sigIhns ? "Inv H&S ▲" : sigTplBot ? "Triple Bottom ▲" : "Double Bottom ▲", style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small,
-         tooltip="Neckline break -- target = pattern height projected from the break.")
+         tooltip="Neckline break -- target = pattern height projected from the break." + (showTargets and not na(tgtBot) ? " Target: " + str.tostring(tgtBot, format.mintick) : ""))
+    if showTargets and not na(tgtBot)
+        line.new(bar_index, tgtBot, bar_index + 20, tgtBot, color=color.new(#00C853, 40), style=line.style_dashed)
 
 // ── TRIANGLES / WEDGES / RECTANGLES (slope classification) ───
 // Uses the last 3 pivot highs and last 3 pivot lows: flat = within
@@ -169,8 +194,8 @@ else if hiSlope == "flat" and loSlope == "flat"
 float boundHi = nH >= 1 ? lastP(hiP, 0) : na
 float boundLo = nL >= 1 ? lastP(loP, 0) : na
 
-bool brkUp = cd and not na(boundHi) and ta.crossover(close, boundHi)
-bool brkDn = cd and not na(boundLo) and ta.crossunder(close, boundLo)
+bool brkUp = cd and volOk and not na(boundHi) and ta.crossover(close, boundHi)
+bool brkDn = cd and volOk and not na(boundLo) and ta.crossunder(close, boundLo)
 
 bool sigAscTri  = shape == "ascTri"       and brkUp
 bool sigDescTri = shape == "descTri"      and brkDn
@@ -181,14 +206,28 @@ bool sigWedgeF  = shape == "fallingWedge" and brkUp   // bullish resolution
 bool sigRectU   = shape == "rectangle"    and brkUp
 bool sigRectD   = shape == "rectangle"    and brkDn
 
+// v2: measured-move target = current boundary height projected from
+// the breakout (source's rule, explicit for symmetrical triangle,
+// generalized here; simplified from "earliest part of the pattern"
+// to the tracked boundary height for robustness)
+float triHeight = not na(boundHi) and not na(boundLo) ? boundHi - boundLo : na
+float tgtTriU = not na(triHeight) ? boundHi + triHeight : na
+float tgtTriD = not na(triHeight) ? boundLo - triHeight : na
+
 if sigAscTri or sigSymTriU or sigWedgeF or sigRectU
     lastSig := bar_index
     string txt = sigAscTri ? "Asc. Triangle ▲" : sigSymTriU ? "Sym. Triangle ▲" : sigWedgeF ? "Falling Wedge ▲" : "Rectangle ▲"
-    label.new(bar_index, low, txt, style=label.style_label_up, color=color.new(#00C853, 20), textcolor=color.white, size=size.small)
+    label.new(bar_index, low, txt, style=label.style_label_up, color=color.new(#00C853, 20), textcolor=color.white, size=size.small,
+         tooltip=showTargets and not na(tgtTriU) ? "Target: " + str.tostring(tgtTriU, format.mintick) : "")
+    if showTargets and not na(tgtTriU)
+        line.new(bar_index, tgtTriU, bar_index + 20, tgtTriU, color=color.new(#00C853, 40), style=line.style_dashed)
 if sigDescTri or sigSymTriD or sigWedgeR or sigRectD
     lastSig := bar_index
     string txt = sigDescTri ? "Desc. Triangle ▼" : sigSymTriD ? "Sym. Triangle ▼" : sigWedgeR ? "Rising Wedge ▼" : "Rectangle ▼"
-    label.new(bar_index, high, txt, style=label.style_label_down, color=color.new(#D50000, 20), textcolor=color.white, size=size.small)
+    label.new(bar_index, high, txt, style=label.style_label_down, color=color.new(#D50000, 20), textcolor=color.white, size=size.small,
+         tooltip=showTargets and not na(tgtTriD) ? "Target: " + str.tostring(tgtTriD, format.mintick) : "")
+    if showTargets and not na(tgtTriD)
+        line.new(bar_index, tgtTriD, bar_index + 20, tgtTriD, color=color.new(#D50000, 40), style=line.style_dashed)
 
 // ── FLAG / PENNANT (impulse pole + tight consolidation) ───────
 float poleMove = close[consolWin] - close[consolWin + poleBars]
@@ -208,19 +247,64 @@ float firstHalfRng  = ta.highest(high[halfWin], restWin) - ta.lowest(low[halfWin
 float secondHalfRng = ta.highest(high, halfWin) - ta.lowest(low, halfWin)
 bool  narrowing = secondHalfRng < firstHalfRng * 0.7
 
-bool sigFlagBull = cd and poleUp and tightConsol and not narrowing and ta.crossover(close, ta.highest(high, consolWin))
-bool sigFlagBear = cd and poleDn and tightConsol and not narrowing and ta.crossunder(close, ta.lowest(low, consolWin))
-bool sigPennBull = cd and poleUp and tightConsol and narrowing and ta.crossover(close, ta.highest(high, consolWin))
-bool sigPennBear = cd and poleDn and tightConsol and narrowing and ta.crossunder(close, ta.lowest(low, consolWin))
+bool sigFlagBull = cd and volOk and poleUp and tightConsol and not narrowing and ta.crossover(close, ta.highest(high, consolWin))
+bool sigFlagBear = cd and volOk and poleDn and tightConsol and not narrowing and ta.crossunder(close, ta.lowest(low, consolWin))
+bool sigPennBull = cd and volOk and poleUp and tightConsol and narrowing and ta.crossover(close, ta.highest(high, consolWin))
+bool sigPennBear = cd and volOk and poleDn and tightConsol and narrowing and ta.crossunder(close, ta.lowest(low, consolWin))
+
+// v2: target = pole length projected from the breakout point
+float polePoint = ta.highest(high, consolWin)
+float polePointLo = ta.lowest(low, consolWin)
+float tgtFlagU = math.abs(poleMove) > 0 ? polePoint + math.abs(poleMove) : na
+float tgtFlagD = math.abs(poleMove) > 0 ? polePointLo - math.abs(poleMove) : na
 
 if sigFlagBull or sigPennBull
     lastSig := bar_index
     label.new(bar_index, low, sigPennBull ? "Bull Pennant ▲" : "Bull Flag ▲", style=label.style_label_up, color=color.new(color.teal, 10), textcolor=color.white, size=size.small,
-         tooltip="Impulse pole + tight consolidation breakout continuing the pole's direction. Target = pole length projected from breakout.")
+         tooltip="Impulse pole + tight consolidation breakout continuing the pole's direction." + (showTargets and not na(tgtFlagU) ? " Target: " + str.tostring(tgtFlagU, format.mintick) : ""))
+    if showTargets and not na(tgtFlagU)
+        line.new(bar_index, tgtFlagU, bar_index + 20, tgtFlagU, color=color.new(color.teal, 40), style=line.style_dashed)
 if sigFlagBear or sigPennBear
     lastSig := bar_index
     label.new(bar_index, high, sigPennBear ? "Bear Pennant ▼" : "Bear Flag ▼", style=label.style_label_down, color=color.new(color.maroon, 10), textcolor=color.white, size=size.small,
-         tooltip="Impulse pole + tight consolidation breakout continuing the pole's direction.")
+         tooltip="Impulse pole + tight consolidation breakout continuing the pole's direction." + (showTargets and not na(tgtFlagD) ? " Target: " + str.tostring(tgtFlagD, format.mintick) : ""))
+    if showTargets and not na(tgtFlagD)
+        line.new(bar_index, tgtFlagD, bar_index + 20, tgtFlagD, color=color.new(color.maroon, 40), style=line.style_dashed)
+
+// ── v2: neckline/boundary retest tagging ───────────────────────
+// Tracks the single most recent bullish- and bearish-breakout level;
+// tags the first return to that level within `retestWin` bars.
+// Source repeatedly notes patterns often retest before continuing --
+// a secondary, often tighter-risk entry than chasing the breakout bar.
+bool anyBullBrk = sigDblBot or sigTplBot or sigIhns or sigAscTri or sigSymTriU or sigWedgeF or sigRectU or sigFlagBull or sigPennBull
+bool anyBearBrk = sigDblTop or sigTplTop or sigHns or sigDescTri or sigSymTriD or sigWedgeR or sigRectD or sigFlagBear or sigPennBear
+
+var float bullBrkLevel = na
+var int   bullBrkBar   = -9999
+var bool  bullRetested = true
+var float bearBrkLevel = na
+var int   bearBrkBar   = -9999
+var bool  bearRetested = true
+
+if anyBullBrk
+    bullBrkLevel := not na(necklineBot) ? necklineBot : not na(boundHi) ? boundHi : ta.highest(high, consolWin)
+    bullBrkBar := bar_index
+    bullRetested := false
+if anyBearBrk
+    bearBrkLevel := not na(necklineTop) ? necklineTop : not na(boundLo) ? boundLo : ta.lowest(low, consolWin)
+    bearBrkBar := bar_index
+    bearRetested := false
+
+bool bullRetest = showRetest and not bullRetested and not na(bullBrkLevel) and bar_index - bullBrkBar <= retestWin and low <= bullBrkLevel + atrv * retestTolAtr and close > bullBrkLevel
+bool bearRetest = showRetest and not bearRetested and not na(bearBrkLevel) and bar_index - bearBrkBar <= retestWin and high >= bearBrkLevel - atrv * retestTolAtr and close < bearBrkLevel
+if bullRetest
+    bullRetested := true
+    label.new(bar_index, low, "Retest ▲", style=label.style_label_up, color=color.new(color.teal, 20), textcolor=color.white, size=size.tiny,
+         tooltip="Price returned to the broken boundary/neckline and held -- secondary entry, often tighter risk than the breakout bar.")
+if bearRetest
+    bearRetested := true
+    label.new(bar_index, high, "Retest ▼", style=label.style_label_down, color=color.new(color.maroon, 20), textcolor=color.white, size=size.tiny,
+         tooltip="Price returned to the broken boundary/neckline and held -- secondary entry.")
 
 // ── Status table ─────────────────────────────────────────────
 var table tb = table.new(position.top_right, 2, 2, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
@@ -237,3 +321,5 @@ alertcondition(sigAscTri or sigSymTriU or sigWedgeF or sigRectU, "Bullish Breako
 alertcondition(sigDescTri or sigSymTriD or sigWedgeR or sigRectD, "Bearish Breakout", "Chart Pattern: bearish breakout — {{ticker}} {{interval}}")
 alertcondition(sigFlagBull or sigPennBull, "Bull Flag/Pennant", "Chart Pattern: bull flag/pennant breakout — {{ticker}} {{interval}}")
 alertcondition(sigFlagBear or sigPennBear, "Bear Flag/Pennant", "Chart Pattern: bear flag/pennant breakout — {{ticker}} {{interval}}")
+alertcondition(bullRetest, "Bullish Retest", "Chart Pattern: bullish boundary/neckline retest — {{ticker}} {{interval}}")
+alertcondition(bearRetest, "Bearish Retest", "Chart Pattern: bearish boundary/neckline retest — {{ticker}} {{interval}}")

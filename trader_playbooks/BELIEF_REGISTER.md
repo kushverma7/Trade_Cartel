@@ -401,6 +401,17 @@ corroboration there, not double-counted. The one genuine extension:
 this source applies "unmitigated" to TP SELECTION as well as entries,
 which Wendell's source doesn't make explicit.
 
+INTRA-SCHOOL NOTE (H40, 2026-07-20): "Josh Trade"/Suraj Saini ebook is
+the same 13 chart patterns as the "@Thechartcornerr" cheat sheet (H40)
+-- same public-domain classical TA, different creator, no new pattern
+types. Extended chart_pattern_engine.pine in place: measured-move
+targets (explicit source rule for symmetrical triangles, generalized
+to every pattern), optional volume-confirmation filter, and neckline/
+boundary retest tagging. Not tallied as a new voice or new H-number --
+same subject, genuinely useful implementation upgrade rather than new
+theory. Test: do the new measured-move targets actually get hit more
+often than a fixed-ATR target on the same breakout signals, on gold?
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.

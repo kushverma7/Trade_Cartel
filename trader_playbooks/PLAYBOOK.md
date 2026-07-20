@@ -146,6 +146,9 @@ operational hygiene:
   Symmetrical Triangle, Rising/Falling Wedge, Bull/Bear Flag, Bull/
   Bear Pennant, Bull/Bear Rectangle -- pivot-buffer-based multi-swing
   geometric pattern detection with neckline/breakout triggers. H40.
+  v2 (2026-07-20, "Josh Trade" ebook, extended in place): measured-
+  move price targets w/ target lines, optional volume-confirmation
+  filter (default off), neckline/boundary retest tagging.
   Cup & Handle and Diamond Top/Bottom explicitly not built (no robust
   mechanical trigger without curve-fitting noise).
 - indicators/pure_pa_smc_engine.pine (voice #13, Pure PA/SMC): IFC

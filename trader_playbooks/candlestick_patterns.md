@@ -132,3 +132,35 @@ subject from the candlestick engine, not an extension of it).
   ordinary chop. Not built.
 Both remain documented here in case a future source specifies exact,
 implementable criteria.
+
+### v2 additions — "Josh Trade"/Suraj Saini ebook (2026-07-20)
+Same 13 patterns, same public-domain classical TA -- extended the
+existing engine in place rather than forking a new file. Genuinely
+new detail this source adds:
+- **Measured-move price targets, explicit for symmetrical triangles**:
+  "price target = distance from the high and low of the earliest part
+  of the pattern, applied to the breakout price point." Generalized
+  to every pattern (double/triple top-bottom, H&S use extreme-to-
+  neckline height; triangles/wedges/rectangles use the tracked
+  boundary height; flags/pennants use the pole length) -- simplified
+  from "earliest part of the pattern" to "current tracked boundary
+  height" for implementation robustness, noted in-code.
+- **Volume confirmation emphasized repeatedly** for breakouts
+  (descending triangle, H&S, both explicitly). Added as an OPTIONAL
+  filter, default OFF -- gold/forex "volume" on most feeds is tick
+  count, not real traded volume, so this is a proxy at best.
+- **Neckline/boundary retest behavior**: "post breakdown... there may
+  be a possibility of retest to the neckline" (H&S), similarly implied
+  for double top/bottom and rectangles via page diagrams. Added as
+  retest tagging within a configurable window after breakout -- a
+  secondary, often tighter-risk entry than chasing the breakout candle.
+- One unclear detail preserved, not built: several pattern diagrams
+  show "1-3" and Fibonacci-percentage labels (e.g. "0.382 Fibo
+  Retracement") suggesting entries on a retracement into the pattern
+  after breakout rather than at the breakout candle itself, but the
+  extracted text doesn't explain the exact ratio/rule clearly enough
+  to implement without guessing -- flagged per standing rule.
+- "Bearish trap" noted on the bullish pennant page (a fakeout in the
+  counter direction before the real breakout) -- informal corroboration
+  of the already-dominant sweep-reversal family (8+ sources), not
+  logged as a new H-number given how thin the source detail is.
