@@ -253,3 +253,19 @@ operational hygiene:
   chart-boxing. Source's specific claimed lag durations (1-20h across
   different pairs) explicitly NOT hard-coded -- asserted from a
   handful of screenshots, not measured.
+- indicators/quarters_theory_price_engine.pine (voice #18, Ilan
+  Levy-Mayer's "The Quarters Theory," two AllThingsForex webinar
+  transcripts): static price grid (large/small quarter levels via
+  modulo arithmetic on absolute price, no swing/pivot anchor at all --
+  "successful completion" = within one small-quarter width of the
+  target), major-range-transition confirm/fail tracking, and a
+  separate Trend Wave cycle counter (Reversal Trigger / Progressive /
+  Conclusive / Consecutive wave labeling, wave-failure flag, the
+  100%-retracement-becomes-a-new-reversal-trigger rule). H66-H67.
+  LOW-MEDIUM credibility (named published author, zero backtested
+  stats offered). **NAMING COLLISION WARNING**: completely unrelated
+  to quarterly_theory_engine.pine (voice #4, Trader Daye/ICT lineage,
+  TIME-based) despite the near-identical name -- this one is purely
+  PRICE-based, no session/time component at all. Gold scale ($100
+  major handle) is our own convention, untested -- every source
+  example is a G7 FX pair.

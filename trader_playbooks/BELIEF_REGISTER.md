@@ -761,6 +761,45 @@ instead. Test standalone; this is one of the lower-confidence engines
 in the repo by source quality alone, independent of whether the
 underlying mechanism eventually proves out.
 
+**H66. A static, non-recalculated grid of round-number price levels
+(large quarters = 1/4-divisions of a fixed range between "major whole
+numbers," small quarters = 1/4-divisions of a finer sub-range) acts as
+support/resistance, and a move is considered to have "successfully
+completed" once price comes within one small-quarter width of the
+targeted level, whether short of it or overshooting past it (Ilan
+Levy-Mayer, "The Quarters Theory," voice #18 -- LOW-MEDIUM
+credibility: named published author, but zero backtested statistics
+in either source transcript).** Genuinely new mechanism: nothing else
+in this register derives levels purely from modulo arithmetic on
+absolute price with zero reference to swing history, pivots, or
+market structure at all -- closest existing idea (round numbers as
+magnets, Valentini/Roppel, 2 independent sources) is a much looser
+"round numbers matter" observation, not a precise nested 4-way
+division with a stated completion tolerance. NAMING COLLISION: this
+is UNRELATED to the existing "Quarterly Theory" (voice #4, Trader
+Daye/ICT lineage, time-based) despite the near-identical name --
+different author, different book, different mechanism entirely. Scale
+chosen for gold ($100 major handle, our own convention) is untested;
+every source example is a G7 FX pair, gold is never mentioned.
+
+**H67. A "reversal trigger wave" that breaks the most recent counter-
+trend swing extreme starts a new trend cycle; each subsequent same-
+direction wave must exceed the prior same-direction wave's extreme to
+extend the cycle, and failing to do so signals an opposing reversal
+trigger wave is likely forming (Ilan Levy-Mayer's "Trend Waves," same
+source as H66).** The trigger condition itself corroborates this
+register's existing structure-break/BOS family (yet another
+independent construction of "break of the last counter-trend extreme
+= trend change") -- not counted as a new H-number for that piece. What
+IS new: the wave-numbering/naming scheme (Reversal Trigger ->
+Progressive -> Conclusive -> unlimited Consecutive waves, explicitly
+REJECTING Elliott's fixed 5-wave-plus-ABC structure and any notion of
+"complex" sub-waves) and, most notably, the **100%-retracement rule**:
+a correction that retraces more than 100% of the wave it follows stops
+being a correction and becomes a new reversal trigger wave in the
+opposite direction, restarting the count. This is a crisp, falsifiable
+rule not present anywhere else in the register.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
