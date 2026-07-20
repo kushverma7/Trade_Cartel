@@ -260,6 +260,18 @@ of every existing structure-break signal (PBD, Dave, QT Judas, Wendell,
 this engine's own BRINKS/3-TAP) gated by emaBunched == false vs
 ungated, on gold.
 
+EXECUTION-RISK NOTE (not a market-structure hypothesis, no H-number —
+logged for completeness, see PLAYBOOK.md "Execution / Broker Risk"):
+2026-07-20 "Forex James" broker-risk source argues scalping maximizes
+exposure to broker-side slippage/requote manipulation and specifically
+flags volatile-news fills (our CPI harness's exact operating window)
+as worst-case for slippage. Backtests in this repo assume clean fills
+and fixed commission/slippage constants (MEMORY.md: $0.07/oz, 5 ticks)
+-- live execution around 8:30 ET prints should be expected to run
+worse than backtest. No belief promoted/demoted; flagged as a live-
+execution caveat on B3/B4 (CPI beliefs) and on the whole scalping
+approach generally.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.

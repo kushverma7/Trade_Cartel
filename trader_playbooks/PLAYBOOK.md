@@ -62,6 +62,34 @@ indicators/trade_cartel_master_engine.pine
   meaningful profit after ~2h (24 bars on 5m). A/B on master strategy
   before adoption.
 
+=== EXECUTION / BROKER RISK (operational, not a trading school) ===
+Source: "Forex James" broker-risk video, 2026-07-20. Not chart-pattern
+content — no playbook/engine created, logged here as standing
+operational hygiene:
+- Slippage/requotes scale with volatility; some brokers profit MORE
+  from slippage than from spread/commission — direct financial
+  incentive to slip retail traders on volatile prints (CPI etc.).
+  Relevant to our own CPI harness: expect worse fills than backtest
+  assumes around 8:30 ET event candles specifically.
+- Recommends WIDER stops over mental stops (mental stops = emotional
+  cutting, and predictable-distance hard stops are themselves a
+  target — same "stop-hunt geometry" concept as voice #8/Steve, from
+  a totally different angle: broker-side incentive rather than
+  market-structure manipulation).
+- Document slippage with screenshots; switch brokers if unresolved.
+- Broker due diligence before committing capital: refund/withdrawal
+  speed test, execution latency test (source flags 10-second fills as
+  bad), avoid picking a broker on cost alone or on reviews (reviewers
+  are frequently paid, competitors leave bad-faith negative reviews).
+- **DIRECT TENSION WITH THIS PROJECT'S CORE IDENTITY**: source argues
+  scalping (short timeframes, tight stops) maximizes exposure to
+  broker-side manipulation/slippage, and recommends swing/longer-term
+  holds specifically to reduce it. Trade Cartel is a 5m gold SCALPING
+  system by design (user's stated trading profile). This is not a
+  reason to abandon the approach, but it is a real, named risk that
+  should factor into position sizing and broker selection for live
+  execution — flagged explicitly rather than silently absorbed.
+
 === KNOWLEDGE ENGINES (observation layer) ===
 - indicators/mm_cycle_engine.pine (voice #8, Steve/MMM4x): ET time grid
   w/ Brinks windows 03:30-03:45 & 09:30-09:45, Asia-range stop-hunt
