@@ -58,3 +58,12 @@ indicators/trade_cartel_master_engine.pine
   strategy wrappers, A/B against single stop
 - Cushion protocol: escalate risk only against banked profit (day or
   year level); no cushion = minimum size [2 independent sources]
+- CANDIDATE (H24, Steve/MMM4x): time-stop — scratch any trade with no
+  meaningful profit after ~2h (24 bars on 5m). A/B on master strategy
+  before adoption.
+
+=== KNOWLEDGE ENGINES (observation layer) ===
+- indicators/mm_cycle_engine.pine (voice #8, Steve/MMM4x): ET time grid
+  w/ Brinks windows 03:30-03:45 & 09:30-09:45, Asia-range stop-hunt
+  zone tiers, 3-tap fade signals, ADR-thirds level counter, H/L lock
+  timer. Hypotheses H20-H24 — observe/score before any sizing.

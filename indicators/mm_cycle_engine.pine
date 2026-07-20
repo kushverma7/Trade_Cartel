@@ -1,0 +1,170 @@
+// ============================================================
+// MM CYCLE ENGINE [Real-Time] — Steve / MMM4x market-maker model
+// Source: trader_playbooks/steve_mm_cycle.md (INDEPENDENT voice #8)
+//
+// Mechanics kept (mythology discarded):
+//   - ET time grid: 17:00 reset, Asia accumulation range, gap-time
+//     shadows 03:00-03:30 / 09:00-09:30, London 03:30, NY 09:30
+//   - Stop-hunt zones: fixed-depth tiers beyond the Asia range
+//     (FX 25/50 pips -> price-unit inputs, gold default $2.5/$5)
+//   - BRINKS windows: 03:30-03:45 & 09:30-09:45 ET — hammer/spike
+//     forming (or retesting) the day extreme = reversal signal
+//   - TRIPLE TAP: 3 tests of day H/L without a body break = fade
+//   - Level counter: distance from daily anchor in ADR/3 units,
+//     level 3 = reversal watch
+//   - HOD/LOD lock: extreme unbroken 30-90 min = safe to trade away
+//
+// EDGE STATUS: zero verified stats from source ("90%" = marketing).
+// Observation + confluence testing only (H20-H24). All signals on
+// bar close, non-repainting. Built for 15m (his TF); works intraday.
+// ============================================================
+//@version=6
+indicator("MM Cycle Engine [Real-Time]", overlay=true, max_boxes_count=60, max_labels_count=500)
+
+// ── Inputs ───────────────────────────────────────────────────
+string asiaSess = input.session("1700-0300", "Asia Accumulation Range (ET)", group="① Time Grid")
+bool   showGrid = input.bool(true, "Shade Gap Times + Brinks Windows", group="① Time Grid")
+float  z1       = input.float(2.5, "Stop-Hunt Zone Tier 1 (price units)", minval=0.0, step=0.5, group="② Stop-Hunt Zones", tooltip="FX: 25 pips. Gold default $2.5.")
+float  z2       = input.float(5.0, "Stop-Hunt Zone Tier 2 (price units)", minval=0.0, step=0.5, group="② Stop-Hunt Zones", tooltip="FX: 50 pips. Gold default $5. Hunts should exhaust inside tier 2.")
+bool   showZone = input.bool(true, "Draw Stop-Hunt Zone Boxes", group="② Stop-Hunt Zones")
+float  wickFr   = input.float(0.5, "Brinks Hammer: min wick fraction", minval=0.3, maxval=0.8, step=0.05, group="③ Brinks")
+float  tolAtr   = input.float(0.25, "Extreme Retest Tolerance (x ATR)", step=0.05, group="③ Brinks")
+int    lockBars = input.int(6, "H/L Lock After N Bars Unbroken", minval=2, group="④ Lock / Taps", tooltip="6 bars on 15m = 90 min (his 30-90 min rule).")
+int    tapGap   = input.int(3, "Min Bars Between Taps", minval=1, group="④ Lock / Taps")
+int    adrLen   = input.int(5, "ADR Length (days)", minval=1, group="⑤ Levels")
+int    cooldown = input.int(8, "Signal Cooldown (bars)", minval=1, group="⑥ Engine")
+
+float atrv = ta.atr(14)
+float tol  = atrv * tolAtr
+
+// ── Time grid (ET) ───────────────────────────────────────────
+bool inAsia    = not na(time(timeframe.period, asiaSess, "America/New_York"))
+bool gapLdn    = not na(time(timeframe.period, "0300-0330", "America/New_York"))
+bool gapNy     = not na(time(timeframe.period, "0900-0930", "America/New_York"))
+bool brinks1   = not na(time(timeframe.period, "0330-0345", "America/New_York"))
+bool brinks2   = not na(time(timeframe.period, "0930-0945", "America/New_York"))
+bool deadGap   = not na(time(timeframe.period, "1700-2000", "America/New_York"))
+bgcolor(showGrid and (gapLdn or gapNy) ? color.new(color.gray, 88) : na, title="Gap time (shift change)")
+bgcolor(showGrid and (brinks1 or brinks2) ? color.new(color.orange, 82) : na, title="Brinks window")
+bgcolor(showGrid and deadGap ? color.new(color.gray, 96) : na, title="Dead gap")
+
+// ── Daily anchor: 17:00 ET reset ─────────────────────────────
+bool newDay = not deadGap[1] and deadGap  // first bar at/after 17:00 ET
+var float dayHi = na
+var float dayLo = na
+var float dayAnchor = na
+var int   hiBrokenBar = 0
+var int   loBrokenBar = 0
+if newDay
+    dayHi := high
+    dayLo := low
+    dayAnchor := open
+    hiBrokenBar := bar_index
+    loBrokenBar := bar_index
+else
+    if high > nz(dayHi, high)
+        dayHi := high
+        hiBrokenBar := bar_index
+    if low < nz(dayLo, low)
+        dayLo := low
+        loBrokenBar := bar_index
+plot(dayHi, "Day High (17:00 reset)", color.new(color.red,  55), 1, plot.style_linebr)
+plot(dayLo, "Day Low (17:00 reset)",  color.new(color.lime, 55), 1, plot.style_linebr)
+
+bool hiLocked = not na(dayHi) and bar_index - hiBrokenBar >= lockBars
+bool loLocked = not na(dayLo) and bar_index - loBrokenBar >= lockBars
+
+// ── Asia range + stop-hunt zone tiers ────────────────────────
+var float aHi = na
+var float aLo = na
+if inAsia and not inAsia[1]
+    aHi := high
+    aLo := low
+if inAsia
+    aHi := math.max(nz(aHi, high), high)
+    aLo := math.min(nz(aLo, low), low)
+if showZone and not inAsia and inAsia[1] and not na(aHi)
+    box.new(bar_index, aHi, bar_index + 60, aLo, border_color=color.new(color.blue, 60), bgcolor=color.new(color.blue, 95))
+    box.new(bar_index, aHi + z1, bar_index + 60, aHi, border_color=color.new(color.red, 70), bgcolor=color.new(color.red, 94))
+    box.new(bar_index, aHi + z2, bar_index + 60, aHi + z1, border_color=color.new(color.red, 60), bgcolor=color.new(color.red, 90))
+    box.new(bar_index, aLo, bar_index + 60, aLo - z1, border_color=color.new(color.green, 70), bgcolor=color.new(color.green, 94))
+    box.new(bar_index, aLo - z1, bar_index + 60, aLo - z2, border_color=color.new(color.green, 60), bgcolor=color.new(color.green, 90))
+
+// ── ADR + level counter (thirds) ─────────────────────────────
+float adr = request.security(syminfo.tickerid, "D", ta.sma(high - low, adrLen)[1], lookahead=barmerge.lookahead_on)
+float lvlUnit = adr / 3
+float travel  = not na(dayAnchor) and not na(lvlUnit) and lvlUnit > 0 ? (close - dayAnchor) / lvlUnit : na
+int   lvl     = na(travel) ? 0 : math.min(3, math.floor(math.abs(travel)))
+int   lvlDir  = na(travel) ? 0 : travel > 0 ? 1 : -1
+
+// ── Signal state ─────────────────────────────────────────────
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ── BRINKS trades (H20) ──────────────────────────────────────
+// Hammer geometry on a closed bar inside a Brinks window that forms
+// or retests the day extreme without a body close beyond it.
+float rng    = high - low
+float loWick = math.min(close, open) - low
+float upWick = high - math.max(close, open)
+bool hammerUp = rng > 0 and loWick >= rng * wickFr and close > open
+bool hammerDn = rng > 0 and upWick >= rng * wickFr and close < open
+bool inBrinks = brinks1 or brinks2
+
+bool brinksBull = cd and inBrinks and hammerUp and low <= dayLo + tol and close > dayLo
+bool brinksBear = cd and inBrinks and hammerDn and high >= dayHi - tol and close < dayHi
+if brinksBull
+    label.new(bar_index, low, "BRINKS ▲", style=label.style_label_up, color=color.new(#FF6D00, 0), textcolor=color.white, size=size.normal,
+         tooltip="Brinks window hammer at/near the day low (second-leg W). Stop below the day low. Two-hour rule: no profit in 2h = scratch.")
+if brinksBear
+    label.new(bar_index, high, "BRINKS ▼", style=label.style_label_down, color=color.new(#FF6D00, 0), textcolor=color.white, size=size.normal,
+         tooltip="Brinks window hammer at/near the day high (second-leg M). Stop above the day high. Two-hour rule applies.")
+
+// ── TRIPLE TAP (H22): 3 tests of day H/L, no body break ──────
+var int hiTaps = 0
+var int loTaps = 0
+var int lastHiTap = -9999
+var int lastLoTap = -9999
+if bar_index == hiBrokenBar
+    hiTaps := 0
+if bar_index == loBrokenBar
+    loTaps := 0
+bool hiTapNow = not na(dayHi) and bar_index > hiBrokenBar and high >= dayHi - tol and math.max(close, open) < dayHi and bar_index - lastHiTap >= tapGap
+bool loTapNow = not na(dayLo) and bar_index > loBrokenBar and low <= dayLo + tol and math.min(close, open) > dayLo and bar_index - lastLoTap >= tapGap
+if hiTapNow
+    hiTaps += 1
+    lastHiTap := bar_index
+if loTapNow
+    loTaps += 1
+    lastLoTap := bar_index
+
+bool tripleBear = cd and hiTapNow and hiTaps >= 2  // extreme itself + 2 return taps = 3 hits
+bool tripleBull = cd and loTapNow and loTaps >= 2
+if tripleBear
+    label.new(bar_index, high, "3-TAP ▼", style=label.style_label_down, color=color.new(#D50000, 10), textcolor=color.white, size=size.small,
+         tooltip="Third visit to the day high without a body break. 'When they come back a third time and don't break it, the correction is imminent.'")
+if tripleBull
+    label.new(bar_index, low, "3-TAP ▲", style=label.style_label_up, color=color.new(#00C853, 10), textcolor=color.white, size=size.small,
+         tooltip="Third visit to the day low without a body break. Reversal watch — long against the herd.")
+
+if brinksBull or brinksBear or tripleBull or tripleBear
+    lastSig := bar_index
+
+// ── Status table ─────────────────────────────────────────────
+var table tb = table.new(position.bottom_right, 2, 4, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(tb, 0, 0, "MM CYCLE", text_color=color.orange, text_size=size.small)
+    table.cell(tb, 1, 0, lvl == 0 ? "Level 0 (inside)" : "Level " + str.tostring(lvl) + (lvlDir == 1 ? " UP" : " DOWN") + (lvl >= 3 ? " — REVERSAL WATCH" : ""), text_color=lvl >= 3 ? color.red : color.white, text_size=size.tiny)
+    table.cell(tb, 0, 1, "ADR/3 unit", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 1, na(lvlUnit) ? "—" : str.tostring(lvlUnit, format.mintick), text_color=color.white, text_size=size.tiny)
+    table.cell(tb, 0, 2, "Day High", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 2, hiLocked ? "LOCKED (fade ok)" : "live", text_color=hiLocked ? color.orange : color.gray, text_size=size.tiny)
+    table.cell(tb, 0, 3, "Day Low", text_color=color.silver, text_size=size.tiny)
+    table.cell(tb, 1, 3, loLocked ? "LOCKED (fade ok)" : "live", text_color=loLocked ? color.orange : color.gray, text_size=size.tiny)
+
+// ── Alerts ───────────────────────────────────────────────────
+alertcondition(brinksBull, "Brinks Long",  "MM Cycle: BRINKS ▲ hammer at day low in Brinks window — {{ticker}} {{interval}}")
+alertcondition(brinksBear, "Brinks Short", "MM Cycle: BRINKS ▼ hammer at day high in Brinks window — {{ticker}} {{interval}}")
+alertcondition(tripleBull, "Triple Tap Long",  "MM Cycle: 3-TAP ▲ day low held 3x — {{ticker}} {{interval}}")
+alertcondition(tripleBear, "Triple Tap Short", "MM Cycle: 3-TAP ▼ day high held 3x — {{ticker}} {{interval}}")
+alertcondition(lvl >= 3 and lvl[1] < 3, "Level 3 Reached", "MM Cycle: 3rd ADR-third traveled — reversal watch — {{ticker}} {{interval}}")

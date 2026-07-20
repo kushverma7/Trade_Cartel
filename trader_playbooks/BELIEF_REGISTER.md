@@ -122,6 +122,38 @@ source as H18).** Implemented (timebase_range.pine). Note: internally contradict
 his own price-over-time stance; externally aligns with QT true-open anchors.
 Test: tap/sweep signal outcomes on gold vs random hourly candles as control.
 
+**H20. Brinks windows: a hammer completing the second leg of an M/W at the
+03:30-03:45 or 09:30-09:45 ET candle marks a high-probability reversal (Steve/
+MMM4x — INDEPENDENT voice #8, LOW-MED credibility: seminar seller, "90%" is
+marketing, mechanics falsifiable).** Partially overlaps QT manipulation windows
+and B1 session opens by a different route. Test: BRINKS signal outcomes on gold
+15m vs identical hammers at random times (time factor isolated).
+
+**H21. Stop hunts exhaust within a bounded zone beyond the accumulation range
+(FX 25-50 pips; gold scale unknown — measure it).** Test: distribution of sweep
+depths beyond the Asia range on XAUUSD; if bounded, zone tier 2 becomes a
+fade-entry map and a stop-placement rule.
+
+**H22. Three failed visits to a level (wicks ok, no body break) = reversal
+imminent; a locked (30-90 min unbroken) day extreme is safe to trade away
+from (Steve).** Converges with H8 rejection-weakening from the OPPOSITE
+direction: H8 says rejected levels weaken continuation entries; H22 says the
+third rejection is itself the fade trigger. Same observable, two uses. Test:
+3-TAP signal WR on gold vs 1st/2nd taps.
+
+**H23. Daily movement structures into 3 levels of ~ADR/3 each, with levels 1
+and 3 aggressive (MM-driven) and level 2 drift; level 3 = reversal watch;
+weekly = 3-day unidirectional cycle with a Tue-Thu midweek reversal (Steve).**
+Rhymes with Q-alternation (H15) and Dave's runaway-count caution (H18) without
+sharing lineage. Test: does gold's daily range actually partition into thirds
+with reversal clustering after the third burst?
+
+**H24. Time-stop: a trade showing no meaningful profit within ~2 hours has a
+broken thesis and should be scratched (Steve, "not negotiable").** First
+explicit time-stop in the register; directly portable to every strategy as
+an exit wrapper. Test: A/B the master strategy with/without a 24-bar (5m)
+time-stop on flat trades.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
@@ -136,10 +168,16 @@ sources within a school conflict, the primary wins; logged as a reminder that
 compilations garble.
 
 ## Contradiction Tallies (3+ independent -> Belief Review)
-- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 3 SUPPORT (PBD break-in,
-  QT Judas swing, Dave sweep-prerequisite) vs 1 AGAINST (Valentini). THRESHOLD
-  CROSSED: register-supported doctrine, final promotion pending our own backtest
-  of Reversal Sniper v3 / JUDAS on gold.
+- Reclaim/sweep-reversal family (B2 fix, PBD break-in): 4 SUPPORT (PBD break-in,
+  QT Judas swing, Dave sweep-prerequisite, Steve stop-hunt-then-reverse — his
+  entire model is sweep-fade) vs 1 AGAINST (Valentini). THRESHOLD CROSSED:
+  register-supported doctrine, final promotion pending our own backtest of
+  Reversal Sniper v3 / JUDAS on gold.
+- Static S/R levels as standalone edge: 1 AGAINST (Steve: consolidation zones
+  are manufactured to bait line-drawers) vs level-based entries used by PBD
+  (value areas) and Dave (POIs). Note: Steve still trades LEVELS (day extremes,
+  Asia range) — his objection is to historical S/R lines, so the tension is
+  narrower than it looks. Watch, don't act.
 - H5 momentum-over-reversal: CONTESTED 2v2 — support: Valentini (measured),
   Roppel ("never buy weakness"); counter: Kurisko (confirmed divergence
   reversals), QT school (true-open reversals). Only our own backtest splits this.
@@ -150,10 +188,17 @@ compilations garble.
   STRONGEST idea in the register.
 - Multi-timeframe alignment before sizing: 3 independent (Cognitive
   Architecture, Valentini 15m->1m->15s stack, Kurisko quad bands).
-- Confirmation-before-entry: now 7 independent (add Dave's post-sweep
-  close-confirmation to CPI study, PBD, Valentini, Kurisko, QT, Ario).
+- Confirmation-before-entry: now 8 independent (add Steve's confirmed-hammer-
+  close + zone-shift confirmation to CPI study, PBD, Valentini, Kurisko, QT,
+  Ario, Dave).
+- B1 session windows: +1 independent (Steve's 03:30 London / 09:30 NY-equities
+  anchors land inside our backtested windows via a completely different theory).
 - First-NY-hour caution: 2 independent (Valentini, Dave) — formal A/B needed
   vs our backtested 8:30-11 B1 window (does excluding 9:30-10:30 help?).
+  COUNTERPOINT: Steve puts his 2nd-best entry AT 09:30-09:45 — 2v1 contested.
+- Flat-by-end-of-day / no weekend carry: 2 independent (Steve hard rule;
+  user profile scalping style) — already our default, now register-backed.
+- Time-stop on flat trades: 1 source (Steve, H24) — new idea, cheap to test.
 - H8 rejection-weakening / failure counting: 2 independent (Valentini
   live rules; Ario stacked-wick failure counting).
 - B1 session windows (London + NY open): independent corroboration from

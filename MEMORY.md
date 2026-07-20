@@ -20,16 +20,10 @@ Update it whenever new decisions, results, or discoveries are made.
 
 ## Git & Push
 
-- Remote push from cloud session always fails with 403
-- Fix: embed PAT in remote URL, push, immediately remove
-  ```
-  git remote set-url origin https://<PAT>@github.com/kushverma7/Trade_Cartel.git
-  git push -u origin claude/confident-fermi-qku0ic
-  git remote set-url origin https://github.com/kushverma7/Trade_Cartel.git
-  ```
-- PAT: saved to `.pat` (gitignored) in repo root — read with `cat /home/user/Trade_Cartel/.pat`
-  - WARNING: cloud containers are ephemeral; .pat is lost when container restarts — ask user for new one if missing
-  - NEVER commit the PAT value into any tracked file (GitHub auto-revokes exposed tokens)
+- RESOLVED (2026-07-19): the 403s were caused by NO GitHub App installed
+  (only "Authorized"). User installed the Claude GitHub App for
+  Trade_Cartel — `git push -u origin claude/confident-fermi-qku0ic` now
+  works directly from cloud sessions. No PAT needed anymore.
 - Always run: `git config user.email noreply@anthropic.com && git config user.name Claude` before committing
 - Hook at ~/.claude/stop-hook-git-check.sh fires on session end — it checks for unverified commits and untracked files
 
