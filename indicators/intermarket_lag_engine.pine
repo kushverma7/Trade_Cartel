@@ -1,0 +1,108 @@
+//@version=6
+indicator("Trade Cartel - Intermarket Lag Engine", shorttitle="TC-InterLag", overlay=false, max_labels_count=300)
+
+// =====================================================================
+// Voice #17 -- "The Big Secret of Intermarket Trading" (unattributed
+// PDF, lead-gen funnel, LOW credibility -- "100% profitable" / "100%
+// winning trades" language, zero track record, every example is a
+// hindsight-annotated screenshot with no actual trigger rule given).
+// The underlying idea (cross-asset lead-lag correlation) is real and
+// well-known; what's built here is OUR OWN sober operationalization
+// of it, not the source's non-method -- see trader_playbooks/
+// intermarket_lag_trading.md for the full writeup and caveats.
+//
+// Two-part gate, deliberately stricter than anything the source does:
+//   1. Rolling correlation between gold and a reference asset must
+//      currently be strong (the source never checks this at all).
+//   2. Only when that gate is active does an ATR-normalized "the
+//      reference has moved further than gold has caught up to" gap
+//      count as a signal.
+// Confluence/observation only, never a standalone trigger, same as
+// every other engine in this repo.
+// =====================================================================
+
+grpRef = "Reference Asset"
+refSym = input.symbol("TVC:DXY", "Reference symbol", group = grpRef)
+refInv = input.bool(true, "Reference is inverse to gold (e.g. DXY)", group = grpRef)
+
+grpCorr = "Correlation Gate"
+corrLen = input.int(100, "Rolling correlation length (bars)", minval = 20, group = grpCorr)
+corrThresh = input.float(0.5, "Min |correlation| to arm the gate", minval = 0.1, maxval = 0.95, step = 0.05, group = grpCorr)
+
+grpLag = "Catch-Up Gap"
+lagWindow = input.int(6, "Lag window (bars) -- NOT a source-verified constant, see playbook", minval = 2, group = grpLag)
+gapThreshAtr = input.float(0.75, "Min catch-up gap (x ATR) to signal", minval = 0.1, step = 0.1, group = grpLag)
+cooldown = input.int(10, "Signal cooldown (bars)", minval = 1, group = grpLag)
+
+grpShow = "Display"
+showTable = input.bool(true, "Show status table", group = grpShow)
+
+atrv = ta.atr(14)
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ---------------------------------------------------------------------
+// Reference asset data (bar-close, already-closed bars only)
+// ---------------------------------------------------------------------
+refClose = request.security(refSym, timeframe.period, close)
+refAtr = request.security(refSym, timeframe.period, ta.atr(14))
+
+selfReturn = ta.change(close)
+rawRefReturn = ta.change(refClose)
+refReturn = refInv ? -rawRefReturn : rawRefReturn
+
+// ---------------------------------------------------------------------
+// Rolling correlation gate -- the safeguard the source never applies
+// ---------------------------------------------------------------------
+corrVal = ta.correlation(selfReturn, refReturn, corrLen)
+corrGateOn = not na(corrVal) and math.abs(corrVal) >= corrThresh
+
+// ---------------------------------------------------------------------
+// ATR-normalized catch-up gap over the lag window
+// ---------------------------------------------------------------------
+float refMoveRaw = not na(refAtr) and refAtr > 0 ? (refClose - refClose[lagWindow]) / refAtr : na
+float refMoveAtr = not na(refMoveRaw) ? (refInv ? -refMoveRaw : refMoveRaw) : na
+float selfMoveAtr = atrv > 0 ? (close - close[lagWindow]) / atrv : na
+
+float catchUpGap = not na(refMoveAtr) and not na(selfMoveAtr) ? refMoveAtr - selfMoveAtr : na
+
+bool sigCatchUpLong = cd and corrGateOn and not na(catchUpGap) and catchUpGap >= gapThreshAtr
+bool sigCatchUpShort = cd and corrGateOn and not na(catchUpGap) and catchUpGap <= -gapThreshAtr
+
+if sigCatchUpLong
+    lastSig := bar_index
+    label.new(bar_index, selfMoveAtr, "Catch-up ▲", style = label.style_label_up, color = color.new(#00C853, 20), textcolor = color.white, size = size.small,
+         tooltip = refSym + " has moved further than gold over the last " + str.tostring(lagWindow) + " bars (corr " + str.tostring(corrVal, "#.##") + ") -- gap " + str.tostring(catchUpGap, "#.##") + "x ATR. Confluence signal only, LOW-credibility source -- see playbook.")
+if sigCatchUpShort
+    lastSig := bar_index
+    label.new(bar_index, selfMoveAtr, "Catch-up ▼", style = label.style_label_down, color = color.new(#D50000, 20), textcolor = color.white, size = size.small,
+         tooltip = refSym + " has moved further than gold over the last " + str.tostring(lagWindow) + " bars (corr " + str.tostring(corrVal, "#.##") + ") -- gap " + str.tostring(catchUpGap, "#.##") + "x ATR. Confluence signal only, LOW-credibility source -- see playbook.")
+
+// ---------------------------------------------------------------------
+// Plots
+// ---------------------------------------------------------------------
+plot(catchUpGap, "Catch-up gap (x ATR)", color = color.new(color.orange, 0))
+plot(gapThreshAtr, "Upper threshold", color = color.new(color.gray, 60))
+plot(-gapThreshAtr, "Lower threshold", color = color.new(color.gray, 60))
+hline(0, "Zero", color = color.new(color.gray, 80))
+plot(corrVal, "Rolling correlation", color = color.new(color.blue, 0), display = display.data_window)
+
+// ---------------------------------------------------------------------
+// Status table
+// ---------------------------------------------------------------------
+if showTable and barstate.islast
+    var table dash = table.new(position.top_right, 2, 4, border_width = 1)
+    table.cell(dash, 0, 0, "InterLag", bgcolor = color.new(color.blue, 60), text_color = color.white)
+    table.cell(dash, 1, 0, refSym, bgcolor = color.new(color.blue, 60), text_color = color.white)
+    table.cell(dash, 0, 1, "Correlation")
+    table.cell(dash, 1, 1, na(corrVal) ? "n/a" : str.tostring(corrVal, "#.##"), text_color = corrGateOn ? color.green : color.gray)
+    table.cell(dash, 0, 2, "Gate")
+    table.cell(dash, 1, 2, corrGateOn ? "ARMED" : "off", text_color = corrGateOn ? color.green : color.gray)
+    table.cell(dash, 0, 3, "Catch-up gap")
+    table.cell(dash, 1, 3, na(catchUpGap) ? "n/a" : str.tostring(catchUpGap, "#.##") + "x ATR")
+
+// ---------------------------------------------------------------------
+// Alerts
+// ---------------------------------------------------------------------
+alertcondition(sigCatchUpLong, "Intermarket Catch-Up Long", "Intermarket Lag: reference asset ahead, gold catch-up long -- {{ticker}} {{interval}}")
+alertcondition(sigCatchUpShort, "Intermarket Catch-Up Short", "Intermarket Lag: reference asset ahead, gold catch-up short -- {{ticker}} {{interval}}")

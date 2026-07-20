@@ -735,6 +735,32 @@ new geometric constructions but sit well past this register's
 falsifiability bar without a clearer trigger than what the existing
 squares-1-to-19 watchlist already provides -- documented, not built.
 
+**H65. A rolling-correlation-confirmed cross-asset lag (gold hasn't
+caught up to a reference asset's recent move, measured in ATRs) marks
+a directional catch-up opportunity ("The Big Secret of Intermarket
+Trading," anonymous PDF/lead-gen funnel, voice #17 -- LOW credibility:
+explicit "100% profitable"/"100% winning trades" marketing language,
+zero track record, every source example is a hindsight-annotated
+screenshot with no actual specified trigger rule, and the source's own
+text captions don't reliably match the chart images underneath them).**
+Genuinely new mechanism -- the closest existing idea (SMT divergence,
+Quarterly Theory) is a snapshot comparison at a specific sweep moment;
+this is a continuous rolling-correlation-gated magnitude-gap
+comparison instead, structurally different. Built as OUR OWN sober
+operationalization of the underlying (real, well-known) intermarket
+lead-lag concept, not a transcription of the source's method, since
+the source doesn't actually give one -- added a correlation-strength
+gate (default |corr| >= 0.5 over 100 bars) the source never applies at
+all, since every one of its claimed examples could equally be a
+cherry-picked week where an otherwise-inconsistent correlation
+happened to hold. The source's specific claimed lag durations (1h,
+3h, 20h across different pairs) are NOT hard-coded -- asserted from a
+handful of screenshots, not measured, hard-coding them would fabricate
+precision the source doesn't have. `lagWindow` is a plain user input
+instead. Test standalone; this is one of the lower-confidence engines
+in the repo by source quality alone, independent of whether the
+underlying mechanism eventually proves out.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.

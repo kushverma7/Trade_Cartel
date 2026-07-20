@@ -240,3 +240,16 @@ operational hygiene:
   clearer trigger; astrological forecasting content -- out of scope
   regardless of source credibility). Full writeup in
   trader_playbooks/gann_square_of_nine.md section 11.
+- indicators/intermarket_lag_engine.pine (voice #17, "The Big Secret
+  of Intermarket Trading," anonymous lead-gen PDF): rolling-
+  correlation-gated (ta.correlation, default |corr|>=0.5/100 bars)
+  ATR-normalized catch-up-gap detector vs. a reference asset (default
+  DXY, inverse). H65. LOW credibility source (explicit "100%
+  profitable"/"100% winning trades" marketing language, zero track
+  record, every example a hindsight-annotated screenshot with no
+  actual specified trigger) -- the correlation gate and ATR
+  normalization are OUR OWN addition, not in the source, since the
+  source gives no falsifiable rule at all, only retrospective
+  chart-boxing. Source's specific claimed lag durations (1-20h across
+  different pairs) explicitly NOT hard-coded -- asserted from a
+  handful of screenshots, not measured.

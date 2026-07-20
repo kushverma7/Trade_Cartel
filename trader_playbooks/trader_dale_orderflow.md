@@ -169,6 +169,18 @@ None of these are guessed at or faked -- flagged and left undone per
 standing rule, preserved here for a future source with real footprint
 data access to potentially unlock.
 
+## 6a. Re-upload verification (2026-07-20)
+The same book was re-supplied in full (3,453 lines, vs. a shorter/
+partial extract the first time around). Read start to finish this
+pass to check for anything the first pass missed. Confirmed
+identical mechanics throughout, including the three named "Volume
+Profile Setups" (Accumulation, Trend, Rejection) -- all three are the
+exact same zone-then-pullback-then-defend logic already captured as
+"the one repeating pattern underlying five setups" in section 2, no
+new mechanic. No changes made to this playbook or the engine as a
+result -- logged here only so a future session doesn't re-process
+the same file a third time.
+
 ## 7. ENGINE
 indicators/trader_dale_volume_profile_engine.pine — rolling volume-
 weighted price histogram with POC and D/P/b/Thin shape classification,
