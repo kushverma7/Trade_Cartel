@@ -68,7 +68,7 @@ float regimeMin  = input.float(0.6, "Min ATR (x baseline)", step=0.05, group="�
 float minMoveAtr  = input.float(1.5, "Min Room To Opposing Wall (x ATR)", step=0.1, group="④ Avoid The Chop")
 int   cooldown   = input.int(20, "Cooldown Bars", minval=0, group="④ Avoid The Chop")
 float minReArmAtr = input.float(1.5, "Min Move From Last Signal Before Re-Arming (x ATR)", step=0.1, group="④ Avoid The Chop")
-bool  useTrendVeto = input.bool(true, "Never Fade A Strong Trend (ADX veto)", group="④ Avoid The Chop")
+bool  useTrendVeto = input.bool(false, "Never Fade A Strong Trend (ADX veto) -- A/B TEST THIS, made PF worse on the last run", group="④ Avoid The Chop")
 int   adxVetoThresh = input.int(30, "Veto ADX Threshold", minval=15, maxval=60, group="④ Avoid The Chop")
 
 // ── TP1/TP2/SL ───────────────────────────────────────────────
@@ -228,22 +228,37 @@ bool roomUp   = na(wallAbove) or (wallAbove - close)  >= atr * minMoveAtr
 var int lastSig = -9999
 bool cd = bar_index - lastSig > cooldown
 
-// distance-based re-arm -- fixes the clustering seen on-chart: bar-
-// count cooldown alone let a grinding support/resistance test refire
-// repeatedly since the wall itself doesn't move. Now also requires
-// price to have moved a real distance away from the LAST signal
-// before a new one of either direction can fire.
+// RE-ARM, take 2. The first version (distance from lastSigPrice) did
+// not fully fix the clustering seen on-chart -- gold's 5m ATR is small
+// enough that price can move >1.5xATR while still bouncing around the
+// SAME wall, so it kept re-arming against a level that hadn't actually
+// changed. This is identity-based instead: block a new signal against
+// the SAME wall value that produced the LAST signal in that direction,
+// until that wall is replaced by a genuinely different level (a new
+// nearest wall, or the old one gets invalidated/closed through). A
+// distance-from-price check remains as a secondary guard for the case
+// where the wall is unchanged but far enough that a real move
+// happened anyway.
+var float lastTopWall = na
+var float lastBotWall = na
 var float lastSigPrice = na
-bool reArmOk = na(lastSigPrice) or math.abs(close - lastSigPrice) >= atr * minReArmAtr
+
+bool topWallChanged = na(lastTopWall) or na(wallAbove) or math.abs(wallAbove - lastTopWall) > syminfo.mintick
+bool botWallChanged = na(lastBotWall) or na(wallBelow) or math.abs(wallBelow - lastBotWall) > syminfo.mintick
+bool priceMovedEnough = na(lastSigPrice) or math.abs(close - lastSigPrice) >= atr * minReArmAtr
 
 bool topTrigger = topSweep or testFailTop
 bool botTrigger = botSweep or testFailBot
 
-bool sellClean = cd and reArmOk and regimeOk and topTrigger and rsiHot and rejectTop and roomDown and not vetoTop and
+bool sellClean = cd and (topWallChanged or priceMovedEnough) and regimeOk and topTrigger and rsiHot and rejectTop and roomDown and not vetoTop and
      (not useTierA or not tierA_bull)   // opposing tier-A candle always vetoes
-bool buyClean  = cd and reArmOk and regimeOk and botTrigger and rsiCold and rejectBot and roomUp and not vetoBot and
+bool buyClean  = cd and (botWallChanged or priceMovedEnough) and regimeOk and botTrigger and rsiCold and rejectBot and roomUp and not vetoBot and
      (not useTierA or not tierA_bear)
 
+if sellClean
+    lastTopWall := wallAbove
+if buyClean
+    lastBotWall := wallBelow
 if buyClean or sellClean
     lastSig := bar_index
     lastSigPrice := close
@@ -348,7 +363,8 @@ if showTable and barstate.islast
     table.cell(dash, 0, 5, "Trend veto (ADX)", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 5, vetoTop ? "blocking TOPs" : vetoBot ? "blocking BOTTOMs" : "clear", text_color=(vetoTop or vetoBot) ? color.orange : color.gray, text_size=size.tiny)
     table.cell(dash, 0, 6, "Re-arm (chop filter)", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 6, reArmOk ? "ready" : "waiting for move", text_color=reArmOk ? color.lime : color.orange, text_size=size.tiny)
+    bool reArmDisplay = topWallChanged and botWallChanged and priceMovedEnough
+    table.cell(dash, 1, 6, reArmDisplay ? "ready" : "same wall, waiting", text_color=reArmDisplay ? color.lime : color.orange, text_size=size.tiny)
     table.cell(dash, 0, 7, "Open trade", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 7, trkActive ? (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
     table.cell(dash, 0, 8, "TP1 / TP2 reach rate", text_color=color.silver, text_size=size.tiny)

@@ -112,6 +112,22 @@ indicators/trade_cartel_topbottom_engine.pine
   engine's first version (should improve win rate by not calling
   reversals against strong momentum), cooldown raised 8->20 bars.
   Re-test pending -- no new PF/WR numbers yet.
+- **Second live run (2026-07-20)**: PF-analog got WORSE (0.67 vs 0.90
+  before), trade count dropped 252->92. The ADX trend veto's
+  assumption ("never fade a strong trend improves reversal quality")
+  did NOT hold on this data -- likely because some pullback-catches
+  inside an active trend were actually contributing wins, and the
+  veto removed those along with genuinely bad countertrend fades.
+  Flagged honestly rather than guessing another "logical" fix:
+  **useTrendVeto now defaults OFF**, kept as a toggle for the user to
+  A/B test explicitly rather than trusting theory-based reasoning that
+  just got falsified. Clustering also wasn't fully fixed by the
+  distance-based re-arm (gold's 5m ATR is small enough that price can
+  move >1.5xATR while still bouncing around the SAME wall) --
+  replaced with an IDENTITY-based re-arm: block a new signal against
+  the same wall value that produced the last signal in that direction
+  until the wall itself changes (or price moves far enough as a
+  secondary guard). Re-test pending.
 - Lightweight hit-tracker (not a full trade simulator like the Hima
   Reddy engine's): counts SL-hits vs TP2-hits, tracks whether TP1 was
   touched en route, reports TP1/TP2 reach rate -- non-repainting,
