@@ -1,0 +1,341 @@
+//@version=6
+indicator("Trade Cartel TOP/BOTTOM REVERSAL ENGINE", overlay=true, max_labels_count=300, max_lines_count=100)
+
+// ============================================================
+// TOP/BOTTOM REVERSAL ENGINE — a different signal philosophy from
+// trade_cartel_clean_signal_engine.pine (which only fires on trendline
+// BREAKOUTS, i.e. continuation, by design never catches tops/bottoms).
+// This engine synthesizes the most corroborated REVERSAL/exhaustion
+// ideas across the knowledge base:
+//   - Wall + sweep + RSI-exhaustion + rejection-candle stack
+//     (strategies/reversal_sniper_strategy.pine)
+//   - 2-bar test-failure rule (Hima Reddy, voice #19)
+//   - 3-tap/exhaustion fade family (Steve/MMM4x, voice #8) --
+//     corroborates requiring a level to have already been tested
+//   - Old-top/old-bottom buying/selling points (Hima Reddy Points #1)
+//   - Tier-A reversal candlesticks [Nison] as additional confluence
+//
+// DELIBERATELY EXCLUDED: auto-generated pivot supply/demand zones.
+// This project's own MEMORY.md/PLAYBOOK.md document that auto S/D
+// zones on LTF gold charts produced the original PF 0.731 failure
+// (zones regenerate too often, turning trend pauses into fake
+// "reversals"). Only HARD walls are used here: prev day/week H/L,
+// session range H/L, round numbers, and a FROZEN (already-formed,
+// not regenerating) recent swing pivot.
+//
+// "AVOID THE CHOP": two mechanisms, not one --
+//   1. ATR regime filter: skip abnormally low-volatility periods
+//      (dead chop where noise dominates any real structure)
+//   2. Room-to-target filter: require real ATR-scaled distance to the
+//      next opposing wall, so a "reversal" isn't called with nowhere
+//      to actually go
+//   Multi-factor stacking (wall + trigger + RSI + rejection) is
+//   itself chop-resistant -- random noise rarely satisfies all four.
+//
+// "Best/most corroborated ideas" -- NOT a claim of backtested
+// performance. UNTESTED at scale, per the 2026-07-20 standing rule.
+// ============================================================
+
+// ── Walls ────────────────────────────────────────────────────
+bool  useDayLvls = input.bool(true,  "Prev Day High/Low",     group="① Walls")
+bool  useWkLvls  = input.bool(true,  "Prev Week High/Low",    group="① Walls")
+bool  useAsia    = input.bool(true,  "Asia/Overnight Range",  group="① Walls")
+string asiaSess  = input.session("1800-0300", "Asia Session", group="① Walls")
+string sessTz    = input.string("America/New_York", "Session TZ", group="① Walls")
+bool  useRounds  = input.bool(true,  "Round Numbers",         group="① Walls")
+float rnInc      = input.float(10.0, "Round Increment ($)", step=0.5, group="① Walls")
+bool  useSwing   = input.bool(true,  "Frozen Recent Swing High/Low", group="① Walls")
+int   swingPw    = input.int(15, "Swing Pivot Width (bars)", minval=5, maxval=40, group="① Walls")
+
+// ── Trigger ──────────────────────────────────────────────────
+bool  useSweep      = input.bool(true, "Sweep Trigger (wick + close-back)", group="② Trigger")
+float maxPokeAtr     = input.float(1.0, "Max Sweep Depth (x ATR)", step=0.1, group="② Trigger")
+bool  useTestFail   = input.bool(true, "2-Bar Test-Failure Trigger", group="② Trigger")
+
+// ── Confirmation ─────────────────────────────────────────────
+int   rsiLen     = input.int(14,     "RSI Length", group="③ Confirmation")
+int   rsiOb      = input.int(66,     "RSI Overbought", minval=55, maxval=85, group="③ Confirmation")
+int   rsiOs      = input.int(34,     "RSI Oversold",   minval=15, maxval=45, group="③ Confirmation")
+int   rsiWin     = input.int(5,      "RSI Extreme Within (bars)", minval=1, maxval=20, group="③ Confirmation")
+float minRangeAtr = input.float(0.6, "Min Candle Range (x ATR)", step=0.1, group="③ Confirmation")
+float closePosPct = input.float(0.35,"Close In Far % Of Range", step=0.05, group="③ Confirmation")
+bool  useTierA   = input.bool(true, "Require/Boost Tier-A Reversal Candle [Nison]", group="③ Confirmation")
+
+// ── Avoid the chop ───────────────────────────────────────────
+bool  useRegime  = input.bool(true, "ATR Regime Filter (skip dead chop)", group="④ Avoid The Chop")
+int   regimeLen  = input.int(100, "Regime Baseline Length", group="④ Avoid The Chop")
+float regimeMin  = input.float(0.6, "Min ATR (x baseline)", step=0.05, group="④ Avoid The Chop")
+float minMoveAtr  = input.float(1.5, "Min Room To Opposing Wall (x ATR)", step=0.1, group="④ Avoid The Chop")
+int   cooldown   = input.int(8, "Cooldown Bars", minval=0, group="④ Avoid The Chop")
+
+// ── TP1/TP2/SL ───────────────────────────────────────────────
+float stopAtrMult = input.float(0.8, "Stop Beyond Sweep (x ATR)", step=0.1, group="⑤ TP1/TP2/SL")
+float tp1RMult     = input.float(1.0, "TP1 (x Risk, R)", step=0.1, group="⑤ TP1/TP2/SL")
+float tp2RMult     = input.float(2.0, "TP2 (x Risk, R)", step=0.1, group="⑤ TP1/TP2/SL")
+int   lineLen       = input.int(40, "Line Length (bars forward)", minval=5, group="⑤ TP1/TP2/SL")
+
+bool showTable = input.bool(true, "Show Filter/Results Dashboard", group="⑥ Display")
+bool showWalls = input.bool(true, "Show Wall Levels", group="⑥ Display")
+
+// ═════════════════════════════════════════════════════════════
+// BASICS
+// ═════════════════════════════════════════════════════════════
+atr = ta.atr(14)
+atrBase = ta.sma(atr, regimeLen)
+bool regimeOk = not useRegime or (atr >= atrBase * regimeMin)
+rsiV = ta.rsi(close, rsiLen)
+
+// ═════════════════════════════════════════════════════════════
+// WALLS
+// ═════════════════════════════════════════════════════════════
+prevDayHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+prevDayLow  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+prevWkHigh  = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+prevWkLow   = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+
+bool inAsia = not na(time(timeframe.period, asiaSess, sessTz))
+var float asiaHi = na
+var float asiaLo = na
+if inAsia and not inAsia[1]
+    asiaHi := high
+    asiaLo := low
+else if inAsia
+    asiaHi := math.max(asiaHi, high)
+    asiaLo := math.min(asiaLo, low)
+bool asiaDone = useAsia and not inAsia and not na(asiaHi)
+
+float rnAtHigh = useRounds ? math.floor(high / rnInc) * rnInc : na
+float rnAtLow  = useRounds ? math.ceil(low  / rnInc) * rnInc : na
+
+// frozen recent swing pivot (NOT auto-regenerating zones -- one value,
+// replaced only when price closes through it, matching the project's
+// own lesson from the retired auto-zone failure)
+swPh = ta.pivothigh(high, swingPw, swingPw)
+swPl = ta.pivotlow(low, swingPw, swingPw)
+var float frozenSwingHigh = na
+var float frozenSwingLow  = na
+if not na(swPh)
+    frozenSwingHigh := swPh
+if close > frozenSwingHigh
+    frozenSwingHigh := na
+if not na(swPl)
+    frozenSwingLow := swPl
+if close < frozenSwingLow
+    frozenSwingLow := na
+
+// ═════════════════════════════════════════════════════════════
+// SWEEP DETECTION
+// ═════════════════════════════════════════════════════════════
+sweepTop(float lvl) =>
+    not na(lvl) and high > lvl and close < lvl and close < open and (high - lvl) <= atr * maxPokeAtr
+sweepBot(float lvl) =>
+    not na(lvl) and low < lvl and close > lvl and close > open and (lvl - low) <= atr * maxPokeAtr
+
+bool topSweep = useSweep and ((useDayLvls and sweepTop(prevDayHigh)) or
+     (useWkLvls and sweepTop(prevWkHigh)) or
+     (asiaDone and sweepTop(asiaHi)) or
+     sweepTop(rnAtHigh == high ? na : rnAtHigh > low ? rnAtHigh : na) or
+     (useSwing and sweepTop(frozenSwingHigh)))
+
+bool botSweep = useSweep and ((useDayLvls and sweepBot(prevDayLow)) or
+     (useWkLvls and sweepBot(prevWkLow)) or
+     (asiaDone and sweepBot(asiaLo)) or
+     sweepBot(rnAtLow == low ? na : rnAtLow < high ? rnAtLow : na) or
+     (useSwing and sweepBot(frozenSwingLow)))
+
+// ═════════════════════════════════════════════════════════════
+// 2-BAR TEST-FAILURE (Hima Reddy) — applied to the same wall set
+// ═════════════════════════════════════════════════════════════
+f_nearestWallAbove() =>
+    float best = na
+    if useDayLvls and not na(prevDayHigh) and prevDayHigh > close and (na(best) or prevDayHigh < best)
+        best := prevDayHigh
+    if useWkLvls and not na(prevWkHigh) and prevWkHigh > close and (na(best) or prevWkHigh < best)
+        best := prevWkHigh
+    if asiaDone and not na(asiaHi) and asiaHi > close and (na(best) or asiaHi < best)
+        best := asiaHi
+    if useSwing and not na(frozenSwingHigh) and frozenSwingHigh > close and (na(best) or frozenSwingHigh < best)
+        best := frozenSwingHigh
+    best
+
+f_nearestWallBelow() =>
+    float best = na
+    if useDayLvls and not na(prevDayLow) and prevDayLow < close and (na(best) or prevDayLow > best)
+        best := prevDayLow
+    if useWkLvls and not na(prevWkLow) and prevWkLow < close and (na(best) or prevWkLow > best)
+        best := prevWkLow
+    if asiaDone and not na(asiaLo) and asiaLo < close and (na(best) or asiaLo > best)
+        best := asiaLo
+    if useSwing and not na(frozenSwingLow) and frozenSwingLow < close and (na(best) or frozenSwingLow > best)
+        best := frozenSwingLow
+    best
+
+wallAbove = f_nearestWallAbove()
+wallBelow = f_nearestWallBelow()
+
+bool testFailTop = useTestFail and not na(wallAbove) and
+     ((high > wallAbove and close < wallAbove) or
+      (high[1] > wallAbove and close[1] >= wallAbove and close < wallAbove))
+bool testFailBot = useTestFail and not na(wallBelow) and
+     ((low < wallBelow and close > wallBelow) or
+      (low[1] < wallBelow and close[1] <= wallBelow and close > wallBelow))
+
+// ═════════════════════════════════════════════════════════════
+// RSI EXHAUSTION
+// ═════════════════════════════════════════════════════════════
+bool rsiHot  = ta.highest(rsiV, rsiWin) >= rsiOb and rsiV < rsiV[1]
+bool rsiCold = ta.lowest(rsiV,  rsiWin) <= rsiOs and rsiV > rsiV[1]
+
+// ═════════════════════════════════════════════════════════════
+// REJECTION CANDLE + TIER-A REVERSAL CANDLESTICK
+// ═════════════════════════════════════════════════════════════
+barRange = high - low
+bool rangeOk = barRange >= atr * minRangeAtr
+bool rejectTop = rangeOk and (close - low) / math.max(barRange, syminfo.mintick) <= closePosPct
+bool rejectBot = rangeOk and (high - close) / math.max(barRange, syminfo.mintick) <= closePosPct
+
+avgBody = ta.sma(math.abs(close - open), 14)
+bool bullC = close > open
+bool bearC = close < open
+body = math.abs(close - open)
+bool bullEng = bullC and bearC[1] and body >= avgBody and close >= math.max(close[1], open[1]) and open <= math.min(close[1], open[1])
+bool bearEng = bearC and bullC[1] and body >= avgBody and open >= math.max(close[1], open[1]) and close <= math.min(close[1], open[1])
+bool hammer  = rangeOk and rejectBot and (open - low) > body * 2 and (high - math.max(open, close)) < body * 0.5
+bool shootStar = rangeOk and rejectTop and (high - open) > body * 2 and (math.min(open, close) - low) < body * 0.5
+bool tierA_bear = bearEng or shootStar
+bool tierA_bull = bullEng or hammer
+
+// ═════════════════════════════════════════════════════════════
+// ROOM TO OPPOSING WALL (avoid-the-chop, mechanism 2)
+// ═════════════════════════════════════════════════════════════
+bool roomDown = na(wallBelow) or (close - wallBelow) >= atr * minMoveAtr
+bool roomUp   = na(wallAbove) or (wallAbove - close)  >= atr * minMoveAtr
+
+// ═════════════════════════════════════════════════════════════
+// COMBINED SIGNAL
+// ═════════════════════════════════════════════════════════════
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool topTrigger = topSweep or testFailTop
+bool botTrigger = botSweep or testFailBot
+
+bool sellClean = cd and regimeOk and topTrigger and rsiHot and rejectTop and roomDown and
+     (not useTierA or not tierA_bull)   // opposing tier-A candle always vetoes
+bool buyClean  = cd and regimeOk and botTrigger and rsiCold and rejectBot and roomUp and
+     (not useTierA or not tierA_bear)
+
+if buyClean or sellClean
+    lastSig := bar_index
+
+// ═════════════════════════════════════════════════════════════
+// TP1 / TP2 / SL LINES + HIT TRACKER (same pattern as the other
+// engines in this repo, for consistency)
+// ═════════════════════════════════════════════════════════════
+var line slLine  = na
+var line tp1Line = na
+var line tp2Line = na
+var label slLbl  = na
+var label tp1Lbl = na
+var label tp2Lbl = na
+
+var bool  trkActive = false
+var int   trkDir    = 0
+var float trkStop   = na
+var float trkTp1    = na
+var float trkTp2    = na
+var int   trkBar    = na
+var bool  trkGotTp1 = false
+
+var int tp2Hits = 0
+var int tp1OnlyHits = 0
+var int slHits  = 0
+
+if buyClean or sellClean
+    trkDir := buyClean ? 1 : -1
+    sweepExtreme = trkDir == 1 ? low : high
+    riskDist = math.abs(close - sweepExtreme) + atr * stopAtrMult
+    trkStop  := trkDir == 1 ? close - riskDist : close + riskDist
+    trkTp1   := trkDir == 1 ? close + riskDist * tp1RMult : close - riskDist * tp1RMult
+    trkTp2   := trkDir == 1 ? close + riskDist * tp2RMult : close - riskDist * tp2RMult
+    trkBar   := bar_index
+    trkActive := true
+    trkGotTp1 := false
+
+    line.delete(slLine)
+    line.delete(tp1Line)
+    line.delete(tp2Line)
+    label.delete(slLbl)
+    label.delete(tp1Lbl)
+    label.delete(tp2Lbl)
+    slLine  := line.new(bar_index, trkStop, bar_index + lineLen, trkStop, color=color.new(color.red, 20), style=line.style_dashed, width=1)
+    tp1Line := line.new(bar_index, trkTp1,  bar_index + lineLen, trkTp1,  color=color.new(color.aqua, 20), style=line.style_dotted, width=1)
+    tp2Line := line.new(bar_index, trkTp2,  bar_index + lineLen, trkTp2,  color=color.new(color.lime, 0),  style=line.style_solid, width=2)
+    slLbl   := label.new(bar_index + lineLen, trkStop, "SL",  style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.red,  size=size.small)
+    tp1Lbl  := label.new(bar_index + lineLen, trkTp1,  "TP1", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.aqua, size=size.small)
+    tp2Lbl  := label.new(bar_index + lineLen, trkTp2,  "TP2", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.lime, size=size.small)
+
+if trkActive and bar_index > trkBar
+    bool hitStop = trkDir == 1 ? low <= trkStop : high >= trkStop
+    bool hitTp1  = trkDir == 1 ? high >= trkTp1 : low <= trkTp1
+    bool hitTp2  = trkDir == 1 ? high >= trkTp2 : low <= trkTp2
+    if not trkGotTp1 and hitTp1 and not hitStop
+        trkGotTp1 := true
+    if hitStop
+        slHits += 1
+        trkActive := false
+    else if hitTp2
+        tp2Hits += 1
+        trkActive := false
+    if hitStop and trkGotTp1
+        tp1OnlyHits += 1
+
+float tp1HitRate = (slHits + tp2Hits) > 0 ? (tp1OnlyHits + tp2Hits) / (slHits + tp2Hits) * 100.0 : na
+float tp2HitRate = (slHits + tp2Hits) > 0 ? tp2Hits / (slHits + tp2Hits) * 100.0 : na
+
+// ═════════════════════════════════════════════════════════════
+// PLOTS
+// ═════════════════════════════════════════════════════════════
+plot(showWalls and useDayLvls ? prevDayHigh : na, "PDH", color=color.new(color.red,    55), style=plot.style_linebr)
+plot(showWalls and useDayLvls ? prevDayLow  : na, "PDL", color=color.new(color.lime,   55), style=plot.style_linebr)
+plot(showWalls and useWkLvls  ? prevWkHigh  : na, "PWH", color=color.new(color.maroon, 65), style=plot.style_linebr)
+plot(showWalls and useWkLvls  ? prevWkLow   : na, "PWL", color=color.new(color.teal,   65), style=plot.style_linebr)
+plot(showWalls and asiaDone   ? asiaHi      : na, "Asia High", color=color.new(color.orange, 60), style=plot.style_linebr)
+plot(showWalls and asiaDone   ? asiaLo      : na, "Asia Low",  color=color.new(color.orange, 60), style=plot.style_linebr)
+plot(showWalls and useSwing   ? frozenSwingHigh : na, "Swing High", color=color.new(color.fuchsia, 50), style=plot.style_circles)
+plot(showWalls and useSwing   ? frozenSwingLow  : na, "Swing Low",  color=color.new(color.fuchsia, 50), style=plot.style_circles)
+
+if buyClean
+    label.new(bar_index, low, "BOTTOM", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal)
+if sellClean
+    label.new(bar_index, high, "TOP", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal)
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 2, 9, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showTable and barstate.islast
+    table.cell(dash, 0, 0, "TOP/BOTTOM ENGINE", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "", text_color=color.white, text_size=size.small)
+    table.cell(dash, 0, 1, "Regime (chop filter)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, regimeOk ? "OK" : "TOO QUIET", text_color=regimeOk ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 0, 2, "RSI", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, str.tostring(rsiV, "#.#") + (rsiHot ? " HOT-turn" : rsiCold ? " COLD-turn" : ""), text_color=rsiHot ? color.red : rsiCold ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Wall above / below", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, (na(wallAbove) ? "n/a" : str.tostring(wallAbove, format.mintick)) + " / " + (na(wallBelow) ? "n/a" : str.tostring(wallBelow, format.mintick)), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 4, "Room (chop filter)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, (roomUp ? "up OK" : "up TIGHT") + " / " + (roomDown ? "dn OK" : "dn TIGHT"), text_color=(roomUp and roomDown) ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 0, 5, "Tier-A candle", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, tierA_bull ? "BULL" : tierA_bear ? "BEAR" : "-", text_color=tierA_bull ? color.lime : tierA_bear ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 6, "Open trade", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, trkActive ? (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 7, "TP1 / TP2 reach rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, (na(tp1HitRate) ? "n/a" : str.tostring(tp1HitRate, "#.#") + "%") + " / " + (na(tp2HitRate) ? "n/a" : str.tostring(tp2HitRate, "#.#") + "%"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 8, "Trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 8, str.tostring(slHits) + " / " + str.tostring(tp2Hits), text_color=color.white, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(buyClean,  "BOTTOM (Buy Reversal)", "Top/Bottom Engine -- BOTTOM caught -- {{ticker}} {{interval}}")
+alertcondition(sellClean, "TOP (Sell Reversal)",   "Top/Bottom Engine -- TOP caught -- {{ticker}} {{interval}}")

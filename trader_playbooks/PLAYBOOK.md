@@ -66,6 +66,38 @@ indicators/trade_cartel_clean_signal_engine.pine
   stopAtrMult (default 1.2), TP1 = 1R, TP2 = 2R off that stop distance
   -- matches this project's standing scale-out convention (1/3 @ 1R,
   1/3 @ 2R, 1/3 runner). User-configurable multiples.
+- **User feedback (2026-07-20, ran live on chart)**: wrong signal
+  philosophy for what the user wanted -- this engine's core is a
+  trendline BREAKOUT (continuation), which by design never catches
+  tops/bottoms, and fires too rarely. Led directly to the new
+  TOP/BOTTOM engine below.
+
+=== TOP/BOTTOM REVERSAL ENGINE (2026-07-20) ===
+indicators/trade_cartel_topbottom_engine.pine
+- Different signal philosophy from both engines above: reversal/
+  exhaustion catcher, not a breakout/continuation system. Synthesizes
+  the most corroborated reversal ideas across the knowledge base: the
+  wall+sweep+RSI-exhaustion+rejection-candle stack (reversal_sniper_
+  strategy.pine), Hima Reddy's 2-bar test-failure rule (voice #19),
+  old-top/old-bottom Buying/Selling Point #1 (Hima Reddy), and tier-A
+  reversal candlesticks (hammer/shooting star/engulfing) as an
+  opposing-candle veto.
+- Walls: prev day/week H/L, Asia range, round numbers, and a FROZEN
+  recent swing pivot (replaced only when price closes through it --
+  deliberately NOT an auto-regenerating zone). This project's own
+  MEMORY.md documents that auto S/D zones caused the original PF 0.731
+  failure (zones regenerate too often on LTF gold, turning trend
+  pauses into fake reversals) -- excluded here on purpose.
+- "Avoid the chop" = two mechanisms: (1) ATR regime filter, skip
+  abnormally low-volatility/dead periods; (2) room-to-opposing-wall
+  filter, require real ATR-scaled distance so a "reversal" has
+  somewhere to actually go. The wall+trigger+RSI+rejection stack is
+  itself chop-resistant since random noise rarely satisfies all four
+  simultaneously.
+- Same TP1/TP2/SL line + hit-tracker pattern as the Clean Signal
+  Engine, for consistency across the repo's newer engines.
+- "Most corroborated ideas" -- NOT a claim of backtested performance.
+  UNTESTED at scale, same standing rule as everything else.
 - Lightweight hit-tracker (not a full trade simulator like the Hima
   Reddy engine's): counts SL-hits vs TP2-hits, tracks whether TP1 was
   touched en route, reports TP1/TP2 reach rate -- non-repainting,
