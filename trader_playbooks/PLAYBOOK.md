@@ -128,6 +128,19 @@ indicators/trade_cartel_topbottom_engine.pine
   the same wall value that produced the last signal in that direction
   until the wall itself changes (or price moves far enough as a
   secondary guard). Re-test pending.
+- **Third live run (2026-07-20)**: PF-analog 0.85 (up from 0.67 after
+  reverting the ADX veto default, but still below both 1.0 and the
+  first run's 0.90) -- 130 SL / 55 TP2, win rate 29.7%. Clustering was
+  STILL visible on-chart despite the take-2 identity-based re-arm.
+  Root cause found: take 2 gated on (wallChanged OR priceMovedEnough)
+  -- wall IDENTITY changes almost trivially (a different wall TYPE
+  becoming nearest by a cent counts as "changed"), so that OR was true
+  almost every bar and never actually blocked repeat signals. Fixed by
+  dropping the wall-identity path and gating on price distance ALONE
+  (the harder-to-trivially-satisfy measure of whether price actually
+  left the zone). Re-test pending -- this is the clearest diagnosis so
+  far; prior "fixes" were papering over a genuine logic bug, not a
+  parameter-tuning problem.
 - Lightweight hit-tracker (not a full trade simulator like the Hima
   Reddy engine's): counts SL-hits vs TP2-hits, tracks whether TP1 was
   touched en route, reports TP1/TP2 reach rate -- non-repainting,
