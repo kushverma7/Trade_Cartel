@@ -1,5 +1,11 @@
 //@version=6
-indicator("Trade Cartel - Hima Reddy Gann Trading Engine", shorttitle="TC-HRGann", overlay=true, max_lines_count=100, max_labels_count=200, max_boxes_count=60)
+indicator("Trade Cartel - Hima Reddy Gann Trading Engine", shorttitle="TC-HRGann", overlay=true, max_lines_count=100, max_labels_count=200, max_boxes_count=60, max_bars_back=5000)
+// NOTE: 5000 is Pine Script's hard technical ceiling for max_bars_back --
+// TradingView does not allow a higher value regardless of what a script
+// requests, so this is the real maximum, not a design choice. The trade
+// simulator below (win/loss/R tracking) is NOT limited by this parameter
+// at all -- it accumulates forward bar-by-bar over however much history
+// your chart has loaded, so trade-count stats are effectively unbounded.
 
 // ============================================================
 // Voice #19 -- "The Trading Methodologies of W.D. Gann" by Hima
@@ -47,6 +53,19 @@ showChannel = input.bool(true, "Show Trendline + Parallel Channel", group="Chann
 // ── Exits (informational) ────────────────────────────────────
 atrLen = input.int(14, "ATR Length", group="Exits")
 trailBuf = input.float(0.1, "2-Bar Trail Buffer (x ATR)", step=0.05, group="Exits")
+
+// ── Trade Simulator (your own TP/SL, auto win/loss/R tracking) ──
+simEnabled = input.bool(true, "Enable Trade Simulator", group="Trade Simulator")
+slModeInput = input.string("Structural (2-bar)", "Stop Loss Mode",
+     options=["Structural (2-bar)", "ATR Multiple", "Fixed Points"], group="Trade Simulator")
+slAtrMult   = input.float(1.0, "SL: ATR Multiple (or 2-bar buffer x ATR)", step=0.1, group="Trade Simulator")
+slFixedPts  = input.float(5.0, "SL: Fixed Points", step=0.5, group="Trade Simulator")
+tpModeInput = input.string("Risk:Reward Ratio", "Take Profit Mode",
+     options=["Risk:Reward Ratio", "ATR Multiple", "Fixed Points"], group="Trade Simulator")
+rrRatio     = input.float(2.0, "TP: Risk:Reward Ratio (e.g. 2.0 = 2:1)", minval=0.1, step=0.1, group="Trade Simulator")
+tpAtrMult   = input.float(2.0, "TP: ATR Multiple", step=0.1, group="Trade Simulator")
+tpFixedPts  = input.float(10.0, "TP: Fixed Points", step=0.5, group="Trade Simulator")
+showSimTable = input.bool(true, "Show Trade Results Table", group="Trade Simulator")
 
 // ── Display ───────────────────────────────────────────────────
 showCandles = input.bool(true, "Color Candles (4-color scheme, our own convention)", group="Display")
@@ -312,6 +331,89 @@ if trailStopHit
     sigDir := 0
     sigEntryBar := na
 
+// ══ TRADE SIMULATOR — your SL/TP settings, RR-based exit, auto
+//    win/loss/R tracking. One trade at a time (flat before next entry,
+//    matching this project's no-pyramiding standing rule). Entries only
+//    on the fired buy/sell signal; SL/TP fixed at entry, not repainted.
+// ══════════════════════════════════════════════════════════════════
+f_slPrice(_dir) =>
+    float result = na
+    if slModeInput == "Structural (2-bar)"
+        result := _dir == 1 ? low[2] - atr * slAtrMult : high[2] + atr * slAtrMult
+    else if slModeInput == "ATR Multiple"
+        result := _dir == 1 ? close - atr * slAtrMult : close + atr * slAtrMult
+    else
+        result := _dir == 1 ? close - slFixedPts : close + slFixedPts
+    result
+
+f_tpPrice(_dir, _entry, _stop) =>
+    slDist = math.abs(_entry - _stop)
+    float result = na
+    if tpModeInput == "Risk:Reward Ratio"
+        result := _dir == 1 ? _entry + slDist * rrRatio : _entry - slDist * rrRatio
+    else if tpModeInput == "ATR Multiple"
+        result := _dir == 1 ? _entry + atr * tpAtrMult : _entry - atr * tpAtrMult
+    else
+        result := _dir == 1 ? _entry + tpFixedPts : _entry - tpFixedPts
+    result
+
+var bool  inTrade   = false
+var int   tDir      = 0
+var float tEntry    = na
+var float tStop     = na
+var float tTarget   = na
+var int   tEntryBar = na
+
+var int   totalTrades = 0
+var int   simWins     = 0
+var int   simLosses   = 0
+var float sumR        = 0.0
+var float grossWinR   = 0.0
+var float grossLossR  = 0.0
+
+if simEnabled and not inTrade and (buy or sell)
+    tDir      := buy ? 1 : -1
+    tEntry    := close
+    tStop     := f_slPrice(tDir)
+    tTarget   := f_tpPrice(tDir, tEntry, tStop)
+    tEntryBar := bar_index
+    inTrade   := true
+
+if simEnabled and inTrade and bar_index > tEntryBar
+    bool hitStop   = tDir == 1 ? low <= tStop   : high >= tStop
+    bool hitTarget = tDir == 1 ? high >= tTarget : low <= tTarget
+    // conservative: if both the stop and target could have been hit on
+    // the same bar, assume the stop hit first (worst case, not optimistic)
+    if hitStop
+        totalTrades += 1
+        simLosses += 1
+        sumR += -1.0
+        grossLossR += 1.0
+        inTrade := false
+    else if hitTarget
+        rMultiple = math.abs(tEntry - tStop) > 0 ? math.abs(tTarget - tEntry) / math.abs(tEntry - tStop) : na
+        totalTrades += 1
+        simWins += 1
+        sumR += rMultiple
+        grossWinR += rMultiple
+        inTrade := false
+
+float simWinRate = totalTrades > 0 ? simWins / totalTrades * 100.0 : na
+float simAvgR    = totalTrades > 0 ? sumR / totalTrades : na
+float simPF      = grossLossR > 0 ? grossWinR / grossLossR : na
+
+// live SL/TP lines for the open simulated trade
+var line simEntryLine = na
+var line simStopLine  = na
+var line simTpLine    = na
+if simEnabled and inTrade and bar_index == tEntryBar
+    line.delete(simEntryLine)
+    line.delete(simStopLine)
+    line.delete(simTpLine)
+    simEntryLine := line.new(tEntryBar, tEntry,  tEntryBar + 50, tEntry,  color=color.new(color.white, 20), style=line.style_dotted)
+    simStopLine  := line.new(tEntryBar, tStop,   tEntryBar + 50, tStop,   color=color.new(color.red, 20),   style=line.style_dashed)
+    simTpLine    := line.new(tEntryBar, tTarget, tEntryBar + 50, tTarget, color=color.new(color.lime, 20),  style=line.style_dashed)
+
 // ══ SIGNAL LABELS ═══════════════════════════════════════════════════
 if buy
     label.new(bar_index, low - atr * 0.3, "BUY", style=label.style_label_up,
@@ -356,6 +458,30 @@ if showTable and barstate.islast
     table.merge_cells(dash, 0, 2, 5, 2)
     table.cell(dash, 0, 2, "50% RSI confluence: " + (rsiConfluenceBull ? "bull" : rsiConfluenceBear ? "bear" : "n/a"),
          text_color=rsiConfluenceBull ? color.green : rsiConfluenceBear ? color.red : color.gray)
+
+// ══ TRADE SIMULATOR RESULTS TABLE ═══════════════════════════════════
+if simEnabled and showSimTable and barstate.islast
+    var table simTable = table.new(position.top_left, 2, 8, border_width = 1)
+    table.cell(simTable, 0, 0, "Trade Simulator", bgcolor = color.new(color.purple, 60), text_color = color.white)
+    table.cell(simTable, 1, 0, "", bgcolor = color.new(color.purple, 60))
+    table.cell(simTable, 0, 1, "SL mode")
+    table.cell(simTable, 1, 1, slModeInput)
+    table.cell(simTable, 0, 2, "TP mode")
+    table.cell(simTable, 1, 2, tpModeInput == "Risk:Reward Ratio" ? "RR " + str.tostring(rrRatio, "#.#") + ":1" : tpModeInput)
+    table.cell(simTable, 0, 3, "Open trade")
+    table.cell(simTable, 1, 3, inTrade ? (tDir == 1 ? "LONG @ " + str.tostring(tEntry, format.mintick) : "SHORT @ " + str.tostring(tEntry, format.mintick)) : "flat",
+         text_color = inTrade ? (tDir == 1 ? color.aqua : color.yellow) : color.gray)
+    table.cell(simTable, 0, 4, "Total trades")
+    table.cell(simTable, 1, 4, str.tostring(totalTrades))
+    table.cell(simTable, 0, 5, "Win rate")
+    table.cell(simTable, 1, 5, na(simWinRate) ? "n/a" : str.tostring(simWinRate, "#.#") + "% (" + str.tostring(simWins) + "W/" + str.tostring(simLosses) + "L)",
+         text_color = na(simWinRate) ? color.gray : simWinRate >= 50 ? color.green : color.red)
+    table.cell(simTable, 0, 6, "Avg R / trade")
+    table.cell(simTable, 1, 6, na(simAvgR) ? "n/a" : str.tostring(simAvgR, "#.##"),
+         text_color = na(simAvgR) ? color.gray : simAvgR >= 0 ? color.green : color.red)
+    table.cell(simTable, 0, 7, "Total R / PF-analog")
+    table.cell(simTable, 1, 7, str.tostring(sumR, "#.##") + " / " + (na(simPF) ? "n/a" : str.tostring(simPF, "#.##")),
+         text_color = sumR >= 0 ? color.green : color.red)
 
 // ══ PLOTS ════════════════════════════════════════════════════════════
 plot(showZones and not na(level50) ? level50 : na, "50% Level", color=color.new(color.yellow, 40), linewidth=2)
