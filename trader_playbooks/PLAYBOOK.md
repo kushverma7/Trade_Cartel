@@ -187,6 +187,16 @@ indicators/spaceman_daye_quarters_engine.pine (merge #1, TIME-based):
 - Fixed the nested-function issue during writing (Pine doesn't allow
   a function declared inside another function) before it could ship
   as a compile error.
+- **Live test found a real bug (2026-07-20)**: 12/12 trades hit SL,
+  0% touched even TP1. Root cause: the stop referenced pdLow/pdHigh
+  (the level BEING swept) instead of the actual sweep extreme (this
+  bar's low/high, which is what pierced pdLow/pdHigh to trigger the
+  signal). Since a sweep by definition already goes past pdLow/pdHigh,
+  using it as the stop reference placed the stop INSIDE the sweep
+  zone rather than beyond it -- effectively guaranteeing an immediate
+  stop-out on any retest. Fixed: stop now references low/high (the
+  actual sweep extreme) with the ATR buffer applied from there.
+  Re-test pending.
 
 indicators/spaceman_yotov_quarters_engine.pine (merge #2, PRICE-based):
 - Merges SpacemanBTC's structural levels with Yotov's Quarters Theory

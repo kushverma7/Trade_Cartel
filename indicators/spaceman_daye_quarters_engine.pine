@@ -197,7 +197,14 @@ var int slHits  = 0
 
 if (judasBull or judasBear) and not trkActive
     trkDir := judasBull ? 1 : -1
-    trkStop := trkDir == 1 ? pdLow - atr * stopBufAtr : pdHigh + atr * stopBufAtr
+    // BUG FIX: stop must reference the ACTUAL sweep extreme (this
+    // bar's low/high, which is what pierced pdLow/pdHigh to trigger
+    // the signal in the first place), not pdLow/pdHigh itself -- the
+    // sweep by definition already went past that level, so using it
+    // as the stop reference placed the stop INSIDE the sweep zone,
+    // not beyond it. Explained a 12/12 loss, 0% TP1-touch result on
+    // live test.
+    trkStop := trkDir == 1 ? low - atr * stopBufAtr : high + atr * stopBufAtr
     riskDist = math.abs(close - trkStop)
     if trkDir == 1
         aboveSorted = f_sortAsc(f_levelsAbove(close))
