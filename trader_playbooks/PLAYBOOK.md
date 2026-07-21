@@ -148,6 +148,24 @@ indicators/trade_cartel_topbottom_engine.pine
 - "Best filters" = most independently corroborated ideas in this
   project's knowledge base reused here, NOT a claim of backtested
   performance. UNTESTED, same standing rule as everything else.
+- **Fourth live run (2026-07-20) -- FIRST PF>1 RESULT THIS SESSION**:
+  PF-analog **1.11**, win rate **35.7% (40/112 trades)** -- the first
+  configuration to cross both 1.0 PF and the 33.3% breakeven for a 2:1
+  payoff, after every prior variant (0.90/0.67/0.85/0.82) stayed under
+  both. Three changes together, confirmed via TradingView's own Inputs
+  panel screenshot (not inferred): **2-Bar Test-Failure Trigger turned
+  OFF** (sweep-only, not sweep-or-test-fail), **Close In Far % Of
+  Range tightened 0.35->0.2** (much stronger rejection candle
+  required), **RSI Overbought 66->72 / Oversold 34->31** (genuine
+  extremes only, not mild OB/OS). All three now set as the new
+  defaults. Caveat, per the 2026-07-20 standing rule: 112 trades is a
+  real sample and a real directional result, but it's still on the
+  free-plan short data window (~2 months) -- this is evidence of a
+  promising direction, not a "proven" edge. Re-test on a longer/paid
+  data feed before this earns "proven" or gets sizing weight. Isolating
+  which of the three changes did the most work (vs. sweep-only alone,
+  vs. tighter rejection alone, vs. tighter RSI alone) has not been done
+  -- worth a follow-up single-variable test if pursuing this further.
 
 === UPDATED RULES ===
 - Flat into CPI/8:30 prints; trade the confirmation after (B3)

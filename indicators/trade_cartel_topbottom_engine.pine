@@ -50,15 +50,15 @@ int   swingPw    = input.int(15, "Swing Pivot Width (bars)", minval=5, maxval=40
 // ── Trigger ──────────────────────────────────────────────────
 bool  useSweep      = input.bool(true, "Sweep Trigger (wick + close-back)", group="② Trigger")
 float maxPokeAtr     = input.float(1.0, "Max Sweep Depth (x ATR)", step=0.1, group="② Trigger")
-bool  useTestFail   = input.bool(true, "2-Bar Test-Failure Trigger", group="② Trigger")
+bool  useTestFail   = input.bool(false, "2-Bar Test-Failure Trigger -- OFF by default: sweep-only produced the first PF>1 result on live test (see PLAYBOOK.md)", group="② Trigger")
 
 // ── Confirmation ─────────────────────────────────────────────
 int   rsiLen     = input.int(14,     "RSI Length", group="③ Confirmation")
-int   rsiOb      = input.int(66,     "RSI Overbought", minval=55, maxval=85, group="③ Confirmation")
-int   rsiOs      = input.int(34,     "RSI Oversold",   minval=15, maxval=45, group="③ Confirmation")
+int   rsiOb      = input.int(72,     "RSI Overbought", minval=55, maxval=85, group="③ Confirmation")
+int   rsiOs      = input.int(31,     "RSI Oversold",   minval=15, maxval=45, group="③ Confirmation")
 int   rsiWin     = input.int(5,      "RSI Extreme Within (bars)", minval=1, maxval=20, group="③ Confirmation")
 float minRangeAtr = input.float(0.6, "Min Candle Range (x ATR)", step=0.1, group="③ Confirmation")
-float closePosPct = input.float(0.35,"Close In Far % Of Range", step=0.05, group="③ Confirmation")
+float closePosPct = input.float(0.2, "Close In Far % Of Range", step=0.05, group="③ Confirmation")
 bool  useTierA   = input.bool(true, "Require/Boost Tier-A Reversal Candle [Nison]", group="③ Confirmation")
 
 // ── Avoid the chop ───────────────────────────────────────────
