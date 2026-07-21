@@ -301,3 +301,26 @@ operational hygiene:
   not a strategy() wrapper, no executed orders. H69. UNTESTED, brand
   new construct, no backtest -- per the 2026-07-20 standing rule nothing
   here is "proven" or "flagship" until backtested on a real sample.
+- indicators/hima_reddy_gann_engine.pine (voice #19, Hima Reddy's "The
+  Trading Methodologies of W.D. Gann," 2013 -- DIFFERENT voice from
+  gann_square_of_nine_engine.pine/voice #16, Gann's own Square-of-Nine
+  material, zero overlap): auto-detected swing eighths retracement
+  grid (0/12.5/25/37.5/50/62.5/75/87.5/100%) with a tolerance-zone band
+  around each level (our own convention, source only describes single
+  lines), RSI with the SAME eighths geometry applied to its own swings
+  (the book's RSI-applied-retracement variant) as a confluence gate,
+  50%-retracement buy/sell signal (Buying/Selling Point #7), 2-bar
+  test-failure detector, double/triple top-bottom break signal,
+  time-exceedance confluence flag (Points #4/#5), trendline + parallel
+  channel (anchored to the trendline's origin bar's OPPOSITE extreme,
+  not a second touch), 2-bar trailing-stop reference (the book's most
+  concrete exit rule), multi-timeframe RSI status table. H70-H72.
+  MEDIUM credibility. **CONFIRMED CORRECTION**: the "Gann Box" BUY
+  ZONE/SELL ZONE styling from the triggering Telegram screenshots
+  (t.me/Wdgann sandipTradingViewindicators) is NOT sourced from this
+  book -- full read confirms the term never appears and the book never
+  describes a rectangular geometric price-time grid; that styling is a
+  third-party proprietary layer (same low-credibility marketing
+  profile as voice #17), not replicated here. This engine's zone/RSI-
+  table visual language is built from the book's real documented
+  mechanics instead. UNTESTED, brand new construct, no backtest.

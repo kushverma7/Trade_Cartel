@@ -1,0 +1,363 @@
+//@version=6
+indicator("Trade Cartel - Hima Reddy Gann Trading Engine", shorttitle="TC-HRGann", overlay=true, max_lines_count=100, max_labels_count=200, max_boxes_count=60)
+
+// ============================================================
+// Voice #19 -- "The Trading Methodologies of W.D. Gann" by Hima
+// Reddy (2013). See trader_playbooks/hima_reddy_gann_methodology.md
+// for the full extraction. DIFFERENT voice from
+// gann_square_of_nine_engine.pine (voice #16, Gann's own Square of
+// Nine / angle / time-cycle work) -- zero overlap, do not merge.
+//
+// IMPORTANT: the "Gann Box" BUY ZONE / SELL ZONE styling the user
+// referenced (Telegram screenshots, "WDGANN SANDIP GANN BOX") is
+// CONFIRMED NOT sourced from this book -- the term never appears in
+// it, and it never describes a rectangular geometric price-time grid.
+// This engine builds the visual language (shaded zones, multi-TF RSI
+// table) from the book's REAL documented mechanics instead: eighths
+// retracement (with a tolerance zone, our own convention -- the book
+// only describes single LINES, not bands), RSI-applied retracement,
+// test-failure, double/triple top-bottom breaks, and the trendline-
+// parallel "channel" construction.
+//
+// UNTESTED -- brand new construct, no backtest. Per this project's
+// 2026-07-20 standing rule, nothing here is "proven" or "flagship".
+// ============================================================
+
+// ── Swing detection ──────────────────────────────────────────
+pw = input.int(5, "Pivot Width (bars)", minval=2, maxval=15, group="Swing")
+
+// ── Eighths retracement ──────────────────────────────────────
+showZones = input.bool(true, "Show Eighths Retracement Zones", group="Eighths Retracement")
+zoneTolMult = input.float(0.25, "Zone Tolerance (x ATR)", minval=0.05, step=0.05, group="Eighths Retracement")
+
+// ── RSI ───────────────────────────────────────────────────────
+rsiLen = input.int(14, "RSI Length", group="RSI")
+rsiPw  = input.int(5,  "RSI Pivot Width (bars)", minval=2, maxval=15, group="RSI")
+
+// ── Signals ───────────────────────────────────────────────────
+use50Sig      = input.bool(true, "50% Retracement Buy/Sell (Point #7)", group="Signals")
+useTestFail   = input.bool(true, "Test-Failure Signal (2-bar rule)",    group="Signals")
+useDblTriple  = input.bool(true, "Double/Triple Top-Bottom Break",      group="Signals")
+useTimeExceed = input.bool(true, "Time-Exceedance Confluence (Pts #4/#5)", group="Signals")
+cooldown      = input.int(10, "Cooldown Bars", minval=0, group="Signals")
+
+// ── Channel ───────────────────────────────────────────────────
+showChannel = input.bool(true, "Show Trendline + Parallel Channel", group="Channel")
+
+// ── Exits (informational) ────────────────────────────────────
+atrLen = input.int(14, "ATR Length", group="Exits")
+trailBuf = input.float(0.1, "2-Bar Trail Buffer (x ATR)", step=0.05, group="Exits")
+
+// ── Display ───────────────────────────────────────────────────
+showCandles = input.bool(true, "Color Candles (4-color scheme, our own convention)", group="Display")
+showTable   = input.bool(true, "Show Status / Multi-TF RSI Table", group="Display")
+
+// ══ BASICS ════════════════════════════════════════════════════
+atr = ta.atr(atrLen)
+zoneTol = atr * zoneTolMult
+
+// ══ PRICE SWING (alternating leg, same idiom as fibo storyline /
+//    quarters price engine elsewhere in this repo) ══════════════
+ph = ta.pivothigh(pw, pw)
+pl = ta.pivotlow(pw, pw)
+
+var float prevPivot = na
+var int   prevPivotBar = na
+var bool  prevWasHigh = false
+var float legA = na
+var float legB = na
+var int   legABar = na
+var int   legBBar = na
+var int   legDir = 0
+bool legFormed = false
+
+var float[] lowPivots  = array.new_float()
+var int[]   lowPivotBars = array.new_int()
+var float[] highPivots = array.new_float()
+var int[]   highPivotBars = array.new_int()
+
+if not na(ph)
+    if not na(prevPivot) and not prevWasHigh
+        legA := prevPivot
+        legB := ph
+        legABar := prevPivotBar
+        legBBar := bar_index - pw
+        legDir := 1
+        legFormed := true
+    array.unshift(highPivots, ph)
+    array.unshift(highPivotBars, bar_index - pw)
+    if array.size(highPivots) > 3
+        array.pop(highPivots)
+        array.pop(highPivotBars)
+    prevPivot := ph
+    prevPivotBar := bar_index - pw
+    prevWasHigh := true
+
+if not na(pl)
+    if not na(prevPivot) and prevWasHigh
+        legA := prevPivot
+        legB := pl
+        legABar := prevPivotBar
+        legBBar := bar_index - pw
+        legDir := -1
+        legFormed := true
+    array.unshift(lowPivots, pl)
+    array.unshift(lowPivotBars, bar_index - pw)
+    if array.size(lowPivots) > 3
+        array.pop(lowPivots)
+        array.pop(lowPivotBars)
+    prevPivot := pl
+    prevPivotBar := bar_index - pw
+    prevWasHigh := false
+
+// ══ EIGHTHS RETRACEMENT GRID ════════════════════════════════════
+f_eighthLevel(_pct) =>
+    na(legA) or na(legB) ? na : legB - (legB - legA) * _pct / 100.0
+
+var box[] zoneBoxes = array.new_box()
+var label[] zoneLabels = array.new_label()
+
+if legFormed and showZones
+    for i = 0 to array.size(zoneBoxes) - 1
+        box.delete(array.get(zoneBoxes, i))
+        label.delete(array.get(zoneLabels, i))
+    array.clear(zoneBoxes)
+    array.clear(zoneLabels)
+    pctLevels = array.from(0.0, 12.5, 25.0, 37.5, 50.0, 62.5, 75.0, 87.5, 100.0)
+    for i = 0 to array.size(pctLevels) - 1
+        pct = array.get(pctLevels, i)
+        lvl = f_eighthLevel(pct)
+        isFifty = pct == 50.0
+        boxColor = lvl > close ? color.new(color.red, 85) : color.new(color.aqua, 85)
+        b = box.new(bar_index, lvl + zoneTol, bar_index + 40, lvl - zoneTol,
+             border_color=isFifty ? color.new(color.yellow, 20) : color.new(color.gray, 60),
+             bgcolor=boxColor, border_width=isFifty ? 2 : 1)
+        array.push(zoneBoxes, b)
+        lbl = label.new(bar_index + 40, lvl, (lvl > close ? "SELL " : "BUY ") + str.tostring(pct, "#.#") + "%",
+             style=label.style_label_left, color=color.new(color.black, 100),
+             textcolor=lvl > close ? color.red : color.aqua, size=size.tiny)
+        array.push(zoneLabels, lbl)
+
+level50 = f_eighthLevel(50.0)
+
+// nearest eighths level to current close (for test-failure detector)
+float nearestEighth = na
+float nearestEighthDist = na
+if not na(legA) and not na(legB)
+    pctLevels2 = array.from(0.0, 12.5, 25.0, 37.5, 50.0, 62.5, 75.0, 87.5, 100.0)
+    for i = 0 to array.size(pctLevels2) - 1
+        lvl2 = f_eighthLevel(array.get(pctLevels2, i))
+        d = math.abs(close - lvl2)
+        if na(nearestEighthDist) or d < nearestEighthDist
+            nearestEighthDist := d
+            nearestEighth := lvl2
+
+// ══ RSI + RSI's OWN EIGHTHS RETRACEMENT (book's RSI-applied variant) ═
+rsi = ta.rsi(close, rsiLen)
+rph = ta.pivothigh(rsi, rsiPw, rsiPw)
+rpl = ta.pivotlow(rsi, rsiPw, rsiPw)
+
+var float rPrevPivot = na
+var bool  rPrevWasHigh = false
+var float rLegA = na
+var float rLegB = na
+var int   rLegDir = 0
+
+if not na(rph)
+    if not na(rPrevPivot) and not rPrevWasHigh
+        rLegA := rPrevPivot
+        rLegB := rph
+        rLegDir := 1
+    rPrevPivot := rph
+    rPrevWasHigh := true
+if not na(rpl)
+    if not na(rPrevPivot) and rPrevWasHigh
+        rLegA := rPrevPivot
+        rLegB := rpl
+        rLegDir := -1
+    rPrevPivot := rpl
+    rPrevWasHigh := false
+
+rsi50 = na(rLegA) or na(rLegB) ? na : rLegB - (rLegB - rLegA) * 0.5
+// confluence: RSI holding on the trend side of its OWN 50% retracement
+bool rsiConfluenceBull = not na(rsi50) and rLegDir == 1  and rsi > rsi50
+bool rsiConfluenceBear = not na(rsi50) and rLegDir == -1 and rsi < rsi50
+
+// ══ SIGNAL 1: 50% RETRACEMENT BUY/SELL (Buying/Selling Point #7) ═══
+bool touched50 = not na(level50) and low <= level50 + zoneTol and high >= level50 - zoneTol
+bool sig50Buy  = use50Sig and legDir == 1  and touched50 and close > level50 and rsiConfluenceBull
+bool sig50Sell = use50Sig and legDir == -1 and touched50 and close < level50 and rsiConfluenceBear
+
+// ══ SIGNAL 2: TEST-FAILURE (2-bar window, both directions) ═════════
+bool testFailBear = useTestFail and not na(nearestEighth) and
+     ((high > nearestEighth and close < nearestEighth) or
+      (high[1] > nearestEighth and close[1] >= nearestEighth and close < nearestEighth))
+bool testFailBull = useTestFail and not na(nearestEighth) and
+     ((low < nearestEighth and close > nearestEighth) or
+      (low[1] < nearestEighth and close[1] <= nearestEighth and close > nearestEighth))
+
+// ══ SIGNAL 3: DOUBLE/TRIPLE TOP-BOTTOM BREAK ═══════════════════════
+var float dbLow = na
+var int   dbCount = 1
+var float dbBreakoutHigh = na
+if not na(pl)
+    if not na(dbLow) and math.abs(pl - dbLow) <= zoneTol
+        dbCount += 1
+    else
+        dbCount := 1
+    dbLow := pl
+    dbBreakoutHigh := na
+if dbCount >= 2
+    dbBreakoutHigh := na(dbBreakoutHigh) ? high : math.max(dbBreakoutHigh, high)
+bool dblBottomBreak = useDblTriple and dbCount >= 2 and not na(dbBreakoutHigh[1]) and
+     close > dbBreakoutHigh[1] and close[1] <= dbBreakoutHigh[1]
+
+var float dtHigh = na
+var int   dtCount = 1
+var float dtBreakoutLow = na
+if not na(ph)
+    if not na(dtHigh) and math.abs(ph - dtHigh) <= zoneTol
+        dtCount += 1
+    else
+        dtCount := 1
+    dtHigh := ph
+    dtBreakoutLow := na
+if dtCount >= 2
+    dtBreakoutLow := na(dtBreakoutLow) ? low : math.min(dtBreakoutLow, low)
+bool dblTopBreak = useDblTriple and dtCount >= 2 and not na(dtBreakoutLow[1]) and
+     close < dtBreakoutLow[1] and close[1] >= dtBreakoutLow[1]
+
+// ══ SIGNAL 4: TIME-EXCEEDANCE CONFLUENCE (Buying/Selling Points #4/#5) ═
+var int lastBullLegBars = na
+var int lastBearLegBars = na
+if legFormed
+    barsInLeg = legBBar - legABar
+    if legDir == 1
+        lastBearLegBars := barsInLeg
+    else
+        lastBullLegBars := barsInLeg
+barsSinceLastPivot = na(prevPivotBar) ? na : bar_index - prevPivotBar
+bool timeExceedBull = useTimeExceed and prevWasHigh == false and not na(lastBearLegBars) and
+     not na(barsSinceLastPivot) and barsSinceLastPivot > lastBearLegBars
+bool timeExceedBear = useTimeExceed and prevWasHigh == true and not na(lastBullLegBars) and
+     not na(barsSinceLastPivot) and barsSinceLastPivot > lastBullLegBars
+
+// ══ COMBINED SIGNAL + COOLDOWN ══════════════════════════════════════
+var int lastSigBar = -100000
+bool rawBuy  = sig50Buy  or testFailBull or dblBottomBreak
+bool rawSell = sig50Sell or testFailBear or dblTopBreak
+bool buy  = rawBuy  and (bar_index - lastSigBar) > cooldown
+bool sell = rawSell and (bar_index - lastSigBar) > cooldown
+if buy or sell
+    lastSigBar := bar_index
+
+// ══ TRENDLINE + PARALLEL CHANNEL (from origin bar's opposite extreme) ═
+var line upTL = na
+var line upChannel = na
+var line dnTL = na
+var line dnChannel = na
+bool channelAlertUp = false
+bool channelAlertDn = false
+
+if showChannel and array.size(lowPivots) >= 2
+    lowB1 = array.get(lowPivotBars, 1)
+    lowB0 = array.get(lowPivotBars, 0)
+    lowV1 = array.get(lowPivots, 1)
+    lowV0 = array.get(lowPivots, 0)
+    if lowB0 != lowB1
+        slopeUp = (lowV0 - lowV1) / (lowB0 - lowB1)
+        tlNow = lowV1 + slopeUp * (bar_index - lowB1)
+        originHigh = high[bar_index - lowB1]
+        chNow = originHigh + slopeUp * (bar_index - lowB1)
+        line.delete(upTL)
+        line.delete(upChannel)
+        upTL := line.new(lowB1, lowV1, bar_index, tlNow, color=color.new(color.lime, 30), width=1)
+        upChannel := line.new(lowB1, originHigh, bar_index, chNow, color=color.new(color.lime, 60), style=line.style_dashed, width=1)
+        channelAlertUp := ta.crossunder(close, chNow)
+
+if showChannel and array.size(highPivots) >= 2
+    hiB1 = array.get(highPivotBars, 1)
+    hiB0 = array.get(highPivotBars, 0)
+    hiV1 = array.get(highPivots, 1)
+    hiV0 = array.get(highPivots, 0)
+    if hiB0 != hiB1
+        slopeDn = (hiV0 - hiV1) / (hiB0 - hiB1)
+        tlNowD = hiV1 + slopeDn * (bar_index - hiB1)
+        originLow = low[bar_index - hiB1]
+        chNowD = originLow + slopeDn * (bar_index - hiB1)
+        line.delete(dnTL)
+        line.delete(dnChannel)
+        dnTL := line.new(hiB1, hiV1, bar_index, tlNowD, color=color.new(color.red, 30), width=1)
+        dnChannel := line.new(hiB1, originLow, bar_index, chNowD, color=color.new(color.red, 60), style=line.style_dashed, width=1)
+        channelAlertDn := ta.crossover(close, chNowD)
+
+// ══ SUGGESTED 2-BAR TRAILING STOP (Reddy's runaway-move exit rule) ═
+var int   sigEntryBar = na
+var int   sigDir = 0
+if buy
+    sigEntryBar := bar_index
+    sigDir := 1
+if sell
+    sigEntryBar := bar_index
+    sigDir := -1
+float trail2Bar = sigDir == 1 ? low[2] - atr * trailBuf : sigDir == -1 ? high[2] + atr * trailBuf : na
+bool trailStopHit = not na(sigEntryBar) and bar_index > sigEntryBar and
+     ((sigDir == 1 and close < trail2Bar) or (sigDir == -1 and close > trail2Bar))
+if trailStopHit
+    sigDir := 0
+    sigEntryBar := na
+
+// ══ SIGNAL LABELS ═══════════════════════════════════════════════════
+if buy
+    label.new(bar_index, low - atr * 0.3, "BUY", style=label.style_label_up, location=location.absolute,
+         color=color.new(color.aqua, 0), textcolor=color.black, size=size.small)
+if sell
+    label.new(bar_index, high + atr * 0.3, "SELL", style=label.style_label_down, location=location.absolute,
+         color=color.new(color.yellow, 0), textcolor=color.black, size=size.small)
+
+// ══ 4-COLOR CANDLES (our own convention -- not sourced, matching the
+//    visual style requested: yellow = test-failure, teal = confirmed
+//    double/triple break, else standard blue/red by close vs open) ═══
+candleColor = testFailBear or testFailBull ? color.yellow :
+     (dblBottomBreak or dblTopBreak) ? color.teal :
+     close > open ? color.blue : color.red
+barcolor(showCandles ? candleColor : na)
+
+// ══ MULTI-TIMEFRAME RSI (matches the screenshot's bottom-right panel) ═
+rsi1  = request.security(syminfo.tickerid, "1",   ta.rsi(close, rsiLen), lookahead=barmerge.lookahead_on)
+rsi5  = request.security(syminfo.tickerid, "5",   ta.rsi(close, rsiLen), lookahead=barmerge.lookahead_on)
+rsi15 = request.security(syminfo.tickerid, "15",  ta.rsi(close, rsiLen), lookahead=barmerge.lookahead_on)
+rsi60 = request.security(syminfo.tickerid, "60",  ta.rsi(close, rsiLen), lookahead=barmerge.lookahead_on)
+rsi240= request.security(syminfo.tickerid, "240", ta.rsi(close, rsiLen), lookahead=barmerge.lookahead_on)
+rsiD  = request.security(syminfo.tickerid, "D",   ta.rsi(close, rsiLen), lookahead=barmerge.lookahead_on)
+
+f_rsiColor(_v) => _v >= 70 ? color.new(color.red, 20) : _v <= 30 ? color.new(color.green, 20) : color.new(color.gray, 40)
+
+// ══ STATUS TABLE ═════════════════════════════════════════════════════
+if showTable and barstate.islast
+    var table dash = table.new(position.bottom_right, 6, 3, border_width = 1)
+    table.cell(dash, 0, 0, "1m",  bgcolor=color.new(color.purple, 60), text_color=color.white)
+    table.cell(dash, 1, 0, "5m",  bgcolor=color.new(color.purple, 60), text_color=color.white)
+    table.cell(dash, 2, 0, "15m", bgcolor=color.new(color.purple, 60), text_color=color.white)
+    table.cell(dash, 3, 0, "1H",  bgcolor=color.new(color.purple, 60), text_color=color.white)
+    table.cell(dash, 4, 0, "4H",  bgcolor=color.new(color.purple, 60), text_color=color.white)
+    table.cell(dash, 5, 0, "1D",  bgcolor=color.new(color.purple, 60), text_color=color.white)
+    table.cell(dash, 0, 1, str.tostring(rsi1,  "#.#"),  bgcolor=f_rsiColor(rsi1))
+    table.cell(dash, 1, 1, str.tostring(rsi5,  "#.#"),  bgcolor=f_rsiColor(rsi5))
+    table.cell(dash, 2, 1, str.tostring(rsi15, "#.#"),  bgcolor=f_rsiColor(rsi15))
+    table.cell(dash, 3, 1, str.tostring(rsi60, "#.#"),  bgcolor=f_rsiColor(rsi60))
+    table.cell(dash, 4, 1, str.tostring(rsi240,"#.#"),  bgcolor=f_rsiColor(rsi240))
+    table.cell(dash, 5, 1, str.tostring(rsiD,  "#.#"),  bgcolor=f_rsiColor(rsiD))
+    table.merge_cells(dash, 0, 2, 5, 2)
+    table.cell(dash, 0, 2, "50% RSI confluence: " + (rsiConfluenceBull ? "bull" : rsiConfluenceBear ? "bear" : "n/a"),
+         text_color=rsiConfluenceBull ? color.green : rsiConfluenceBear ? color.red : color.gray)
+
+// ══ PLOTS ════════════════════════════════════════════════════════════
+plot(showZones and not na(level50) ? level50 : na, "50% Level", color=color.new(color.yellow, 40), linewidth=2)
+
+// ══ ALERTS ═══════════════════════════════════════════════════════════
+alertcondition(buy,  "HR-Gann BUY",  "Hima Reddy Gann Engine -- BUY -- {{ticker}} {{interval}}")
+alertcondition(sell, "HR-Gann SELL", "Hima Reddy Gann Engine -- SELL -- {{ticker}} {{interval}}")
+alertcondition(channelAlertUp, "Channel Alert (up)", "Hima Reddy Gann Engine -- price crossed the projected up-channel -- {{ticker}} {{interval}}")
+alertcondition(channelAlertDn, "Channel Alert (down)", "Hima Reddy Gann Engine -- price crossed the projected down-channel -- {{ticker}} {{interval}}")
+alertcondition(trailStopHit, "2-Bar Trail Stop Hit", "Hima Reddy Gann Engine -- 2-bar trailing stop hit -- {{ticker}} {{interval}}")

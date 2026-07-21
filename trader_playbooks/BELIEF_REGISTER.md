@@ -844,6 +844,45 @@ brand new construct, zero backtest, built same day as creation. Per
 the 2026-07-20 standing rule, this does not get sizing weight or
 "proven" language until backtested on a real sample.
 
+**H70. Dividing a price swing into eighths (0/12.5/25/37.5/50/62.5/75/
+87.5/100%) produces more useful support/resistance than standard
+Fibonacci ratios, with the 50% level as the single most significant
+point; the SAME eighths-retracement geometry applied to RSI's own
+swings (not just static 70/30 thresholds) adds genuine confluence
+(Hima Reddy, "The Trading Methodologies of W.D. Gann," voice #19,
+MEDIUM credibility -- named CMT-credentialed author, worked chart
+examples, no aggregate backtest stats).** Distinct from every existing
+retracement idea in this register (the Fibo Storyline/Circle custom
+ratio sets, voice #12) -- eighths are a flat linear division, not a
+golden-ratio-derived set, and applying the SAME grid to an oscillator's
+own path (not just the price chart) is a genuinely new technique here.
+Gold-scale caveat does not apply -- this is a pure percentage/ratio
+construction, no source-specific price scale to adapt.
+
+**H71. A key level that is tested (price probes through it) but the
+bar/period closes back on the original side within a 2-bar window
+often signals the level HOLDS and the prior trend continues (same
+source as H70, "test failure" concept).** Corroborates this register's
+existing confirmation-before-entry family but with a crisp, falsifiable
+TIME BOUND (2 bars) not present in any prior confirmation-family
+source -- most other sources here require "a confirmation candle"
+without specifying how many bars the market has to fail the test.
+
+**H72. A trendline's reliability can be paired with a PARALLEL channel
+line, not anchored to a second trendline touch but to the OPPOSITE
+price extreme of the trendline's own origin bar, projected forward in
+time as an early reversal alert (same source as H70/H71).** Genuinely
+new construction in this register -- every other trendline/channel
+idea here (the OLS trendline breakout core, the Fibo/quarters
+projections) anchors channels to a second independently-confirmed
+point, not to the origin bar's own opposite extreme. Also of note:
+this source independently corroborates H64's tension (a level tested
+3 times is MORE likely to break on the 4th test than hold) via Gann's
+own "tested three times" critique of standard trendlines, cited
+directly by Reddy -- 3rd independent corroboration of that side of the
+H64 tension, still not adjudicated against the register's dominant
+3-tap-fade family.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.
