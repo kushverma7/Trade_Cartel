@@ -824,6 +824,26 @@ consecutive bars, a duration-based definition NOT built). The glossary's
 Time Stops concept corroborates this register's existing H24
 (time-based invalidation) rather than adding a new mechanism.
 
+**H69. A moving average's responsiveness should itself be gated by
+proximity to structure: dampening an adaptive MA's smoothing constant
+near an HTF key level, then treating a crossover between the damped
+and undamped versions of the SAME MA as a "level acceptance" signal,
+should outperform either a plain KAMA cross or a static key-level
+touch alone (source: two user-supplied Pine snippets, not a trader
+school -- "KL Adaptive MA" unattributed + "Key Levels SpacemanBTC IDWM
+V13.1" by @sbtnc for the level computation only).** Genuinely new
+mechanism for this register: every other engine here treats HTF levels
+as static trigger lines (touch/sweep/reject); this is the first case
+of a key level modulating an indicator's INTERNAL math (its
+adaptivity) rather than gating an entry directly. Adjacent to but
+distinct from the confirmation-before-entry family (the cross itself
+functions as the confirmation) and from the "wall" location-gate
+family used in reversal_sniper_strategy.pine (same location logic,
+applied to an MA signal instead of a candle pattern). UNTESTED --
+brand new construct, zero backtest, built same day as creation. Per
+the 2026-07-20 standing rule, this does not get sizing weight or
+"proven" language until backtested on a real sample.
+
 ## EVIDENCE LOG (our own backtests — outranks all testimony)
 - 2026-07-19 TEST #1: Master Strategy, Full Confluence, XAUUSD 5m,
   May 25-Jul 18 2026: PF 1.001, WR 31.25% (30/96), DD 2.81%, +$48.

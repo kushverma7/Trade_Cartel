@@ -283,3 +283,21 @@ operational hygiene:
   days," untested), and a Large Quarter Corrections counter
   (`sigLQC` -- overbought/oversold flag after 3+ consecutive
   same-direction large-quarter completions). H68.
+- indicators/kama_key_level_signal_engine.pine (NEW, 2026-07-20 --
+  not a trader-school voice, built from two user-supplied Pine
+  snippets rather than a book/transcript): plain KAMA (Kaufman
+  Adaptive Moving Average, classical indicator not previously in this
+  repo) vs. a level-damped KAMA variant ("KL Adaptive MA," adaptive
+  smoothing constant multiplied by a proximity factor that shrinks
+  toward 0 near an HTF key level) -- NEW signal, not in either source:
+  buy/sell fires only when the plain KAMA crosses the level-damped
+  KAMA AND that cross happens within proximity of an actual key level
+  (daily/weekly open, PDH/PDL, PWH/PWL, Monday range, Asia/London/NY
+  session range -- level computation reused from "Key Levels
+  SpacemanBTC IDWM V13.1" by @sbtnc, only the non-repainting level
+  math, not the original's 500+ line drawing/merge display layer).
+  Suggested stop (beyond the triggering level) and target (ATR
+  multiple) plotted for reference, informational only -- indicator,
+  not a strategy() wrapper, no executed orders. H69. UNTESTED, brand
+  new construct, no backtest -- per the 2026-07-20 standing rule nothing
+  here is "proven" or "flagship" until backtested on a real sample.
