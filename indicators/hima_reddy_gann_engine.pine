@@ -256,8 +256,8 @@ var line upTL = na
 var line upChannel = na
 var line dnTL = na
 var line dnChannel = na
-bool channelAlertUp = false
-bool channelAlertDn = false
+var float chNow  = na
+var float chNowD = na
 
 if showChannel and array.size(lowPivots) >= 2
     lowB1 = array.get(lowPivotBars, 1)
@@ -268,12 +268,11 @@ if showChannel and array.size(lowPivots) >= 2
         slopeUp = (lowV0 - lowV1) / (lowB0 - lowB1)
         tlNow = lowV1 + slopeUp * (bar_index - lowB1)
         originHigh = high[bar_index - lowB1]
-        chNow = originHigh + slopeUp * (bar_index - lowB1)
+        chNow := originHigh + slopeUp * (bar_index - lowB1)
         line.delete(upTL)
         line.delete(upChannel)
         upTL := line.new(lowB1, lowV1, bar_index, tlNow, color=color.new(color.lime, 30), width=1)
         upChannel := line.new(lowB1, originHigh, bar_index, chNow, color=color.new(color.lime, 60), style=line.style_dashed, width=1)
-        channelAlertUp := ta.crossunder(close, chNow)
 
 if showChannel and array.size(highPivots) >= 2
     hiB1 = array.get(highPivotBars, 1)
@@ -284,12 +283,17 @@ if showChannel and array.size(highPivots) >= 2
         slopeDn = (hiV0 - hiV1) / (hiB0 - hiB1)
         tlNowD = hiV1 + slopeDn * (bar_index - hiB1)
         originLow = low[bar_index - hiB1]
-        chNowD = originLow + slopeDn * (bar_index - hiB1)
+        chNowD := originLow + slopeDn * (bar_index - hiB1)
         line.delete(dnTL)
         line.delete(dnChannel)
         dnTL := line.new(hiB1, hiV1, bar_index, tlNowD, color=color.new(color.red, 30), width=1)
         dnChannel := line.new(hiB1, originLow, bar_index, chNowD, color=color.new(color.red, 60), style=line.style_dashed, width=1)
-        channelAlertDn := ta.crossover(close, chNowD)
+
+// ta.crossunder/crossover called unconditionally every bar for
+// consistency (compiler warning fix) -- chNow/chNowD persist via var
+// so the cross still evaluates correctly against the last-drawn channel
+bool channelAlertUp = ta.crossunder(close, chNow)
+bool channelAlertDn = ta.crossover(close, chNowD)
 
 // ══ SUGGESTED 2-BAR TRAILING STOP (Reddy's runaway-move exit rule) ═
 var int   sigEntryBar = na
@@ -309,10 +313,10 @@ if trailStopHit
 
 // ══ SIGNAL LABELS ═══════════════════════════════════════════════════
 if buy
-    label.new(bar_index, low - atr * 0.3, "BUY", style=label.style_label_up, location=location.absolute,
+    label.new(bar_index, low - atr * 0.3, "BUY", style=label.style_label_up,
          color=color.new(color.aqua, 0), textcolor=color.black, size=size.small)
 if sell
-    label.new(bar_index, high + atr * 0.3, "SELL", style=label.style_label_down, location=location.absolute,
+    label.new(bar_index, high + atr * 0.3, "SELL", style=label.style_label_down,
          color=color.new(color.yellow, 0), textcolor=color.black, size=size.small)
 
 // ══ 4-COLOR CANDLES (our own convention -- not sourced, matching the
