@@ -1,0 +1,270 @@
+//@version=6
+indicator("Trade Cartel - Spaceman + Yotov Quarters Engine", shorttitle="TC-SpaceYotov", overlay=true, max_labels_count=300, max_lines_count=150)
+
+// ============================================================
+// MERGE #2 of 2: "Key Levels SpacemanBTC IDWM V13.1" (@sbtnc, level
+// computation only) + Ilian Yotov's Quarters Theory (voice #18,
+// PRICE-based -- static large/small quarter grid via modulo
+// arithmetic, zero time/session component). Built SEPARATELY from
+// merge #1 (spaceman_daye_quarters_engine.pine, the TIME-based Daye
+// merge) per the user's explicit instruction to keep the two apart.
+//
+// The "merge" here: Yotov's large-quarter grid is a PURE price-ratio
+// construct with no reference to actual market structure (daily/
+// weekly opens, prior H/L). SpacemanBTC's levels ARE that structure.
+// This engine's core hypothesis: a large-quarter zone is a much
+// stronger reversal candidate when it ALSO coincides with an
+// independently-derived SpacemanBTC structural level -- two unrelated
+// frameworks (pure price ratio vs. actual session/day/week structure)
+// agreeing on the same price is a real confluence signal, not
+// something either framework alone would tell you.
+//
+// "Best entry/exit" = the sober reading of both sources' own
+// documented mechanics -- NOT a claim of backtested performance.
+// UNTESTED at scale, per the 2026-07-20 standing rule.
+// ============================================================
+
+// ── Yotov price grid ─────────────────────────────────────────
+float majorRangeWidth = input.float(100.0, "Major whole number width ($, our own convention for gold)", minval=1.0, group="① Yotov Grid")
+bool  showGrid = input.bool(true, "Show large quarter grid", group="① Yotov Grid")
+float zoneTolMult = input.float(1.0, "Zone Tolerance (x small-quarter width)", minval=0.25, step=0.25, group="① Yotov Grid")
+
+// ── Spaceman levels ──────────────────────────────────────────
+bool useDaily  = input.bool(true, "Daily Open + PDH/PDL",  group="② Spaceman Levels")
+bool useWeekly = input.bool(true, "Weekly Open + PWH/PWL", group="② Spaceman Levels")
+bool useMonday = input.bool(true, "Monday Range",          group="② Spaceman Levels")
+
+// ── Confluence + signal ──────────────────────────────────────
+float confluenceTolAtr = input.float(1.0, "Confluence Tolerance (x ATR) -- how close a Yotov LQ and a Spaceman level must be", step=0.1, group="③ Confluence")
+int   rsiLen = input.int(14, "RSI Length", group="③ Confluence")
+int   cooldown = input.int(15, "Cooldown Bars", minval=1, group="③ Confluence")
+
+// ── Exits ────────────────────────────────────────────────────
+float stopAtrMult = input.float(0.5, "Stop Beyond Zone (x ATR)", step=0.05, group="④ Exits")
+int   lineLen = input.int(50, "Line Length (bars forward)", minval=5, group="④ Exits")
+
+bool showTable = input.bool(true, "Show Status/Results Table", group="⑤ Display")
+
+// ═════════════════════════════════════════════════════════════
+// BASICS
+// ═════════════════════════════════════════════════════════════
+atr = ta.atr(14)
+rsiV = ta.rsi(close, rsiLen)
+
+// ═════════════════════════════════════════════════════════════
+// YOTOV LARGE-QUARTER GRID
+// ═════════════════════════════════════════════════════════════
+largeQ = majorRangeWidth / 4.0
+smallQ = majorRangeWidth / 40.0
+zoneTol = smallQ * zoneTolMult
+f_majorFloor(_price) => math.floor(_price / majorRangeWidth) * majorRangeWidth
+
+var line[] gridLines = array.new_line()
+var float vMajorFloor = na
+curMajorFloor = f_majorFloor(close)
+majorChanged = curMajorFloor != vMajorFloor
+if majorChanged and showGrid
+    if array.size(gridLines) > 0
+        for i = 0 to array.size(gridLines) - 1
+            line.delete(array.get(gridLines, i))
+        array.clear(gridLines)
+    vMajorFloor := curMajorFloor
+    endBar = bar_index + 100
+    for i = 0 to 4
+        lvl = vMajorFloor + largeQ * i
+        isMajor = i == 0 or i == 4
+        gl = line.new(bar_index, lvl, endBar, lvl, color=isMajor ? color.new(color.red, 0) : color.new(color.yellow, 40), width=isMajor ? 2 : 1)
+        array.push(gridLines, gl)
+else if majorChanged
+    vMajorFloor := curMajorFloor
+
+nearestLQBelow = math.floor(close / largeQ) * largeQ
+nearestLQAbove = nearestLQBelow + largeQ
+targetLQ = (close - nearestLQBelow) <= (nearestLQAbove - close) ? nearestLQBelow : nearestLQAbove
+
+// ═════════════════════════════════════════════════════════════
+// SPACEMAN LEVELS
+// ═════════════════════════════════════════════════════════════
+dOpen  = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+pdHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+pdLow  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+wOpen  = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+pwHigh = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+pwLow  = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+
+bool isMonday = dayofweek(time, "America/New_York") == dayofweek.monday
+var float monHi = na
+var float monLo = na
+if isMonday and not isMonday[1]
+    monHi := high
+    monLo := low
+else if isMonday
+    monHi := math.max(monHi, high)
+    monLo := math.min(monLo, low)
+
+f_nearestSpacemanLevel(_target) =>
+    // Pine doesn't support nested function declarations, so this is
+    // inlined rather than calling a per-level helper -- same logic
+    // as the identical pattern in kama_key_level_signal_engine.pine.
+    levelArr = array.new_float()
+    if useDaily
+        array.push(levelArr, dOpen)
+        array.push(levelArr, pdHigh)
+        array.push(levelArr, pdLow)
+    if useWeekly
+        array.push(levelArr, wOpen)
+        array.push(levelArr, pwHigh)
+        array.push(levelArr, pwLow)
+    if useMonday
+        array.push(levelArr, monHi)
+        array.push(levelArr, monLo)
+    float best = na
+    float bestDist = na
+    if array.size(levelArr) > 0
+        for i = 0 to array.size(levelArr) - 1
+            lvl = array.get(levelArr, i)
+            if not na(lvl)
+                d = math.abs(lvl - _target)
+                if na(bestDist) or d < bestDist
+                    bestDist := d
+                    best := lvl
+    [best, bestDist]
+
+[nearestSpaceLvl, spaceDist] = f_nearestSpacemanLevel(targetLQ)
+bool confluence = not na(spaceDist) and spaceDist <= atr * confluenceTolAtr
+
+// ═════════════════════════════════════════════════════════════
+// SIGNAL: confluence zone touched + rejection candle
+// (reuses the wall+reject pattern established in this repo's other
+// engines this session -- reversal_sniper / top-bottom engine)
+// ═════════════════════════════════════════════════════════════
+bool touchedZone = low <= targetLQ + zoneTol and high >= targetLQ - zoneTol
+barRange = high - low
+bool rangeOk = barRange >= atr * 0.5
+bool rejectTop = rangeOk and (close - low) / math.max(barRange, syminfo.mintick) <= 0.35
+bool rejectBot = rangeOk and (high - close) / math.max(barRange, syminfo.mintick) <= 0.35
+
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// approached from below -> zone acting as resistance -> SELL on reject
+bool approachedFromBelow = close[1] < targetLQ - zoneTol
+// approached from above -> zone acting as support -> BUY on reject
+bool approachedFromAbove = close[1] > targetLQ + zoneTol
+
+bool sellClean = cd and confluence and touchedZone and approachedFromBelow and rejectTop and rsiV > 50
+bool buyClean  = cd and confluence and touchedZone and approachedFromAbove and rejectBot and rsiV < 50
+
+if buyClean or sellClean
+    lastSig := bar_index
+
+// ═════════════════════════════════════════════════════════════
+// TP1/TP2/SL -- TP1/TP2 = the NEXT large-quarter levels in trade
+// direction (largeQ and 2*largeQ beyond the entry zone), SL beyond
+// the zone with an ATR buffer
+// ═════════════════════════════════════════════════════════════
+var line slLine  = na
+var line tp1Line = na
+var line tp2Line = na
+var label slLbl  = na
+var label tp1Lbl = na
+var label tp2Lbl = na
+
+var bool  trkActive = false
+var int   trkDir    = 0
+var float trkStop   = na
+var float trkTp1    = na
+var float trkTp2    = na
+var int   trkBar    = na
+var bool  trkGotTp1 = false
+
+var int tp2Hits = 0
+var int tp1OnlyHits = 0
+var int slHits  = 0
+
+if (buyClean or sellClean) and not trkActive
+    trkDir := buyClean ? 1 : -1
+    trkStop := trkDir == 1 ? targetLQ - zoneTol - atr * stopAtrMult : targetLQ + zoneTol + atr * stopAtrMult
+    trkTp1  := trkDir == 1 ? targetLQ + largeQ : targetLQ - largeQ
+    trkTp2  := trkDir == 1 ? targetLQ + largeQ * 2 : targetLQ - largeQ * 2
+    trkBar := bar_index
+    trkActive := true
+    trkGotTp1 := false
+
+    line.delete(slLine)
+    line.delete(tp1Line)
+    line.delete(tp2Line)
+    label.delete(slLbl)
+    label.delete(tp1Lbl)
+    label.delete(tp2Lbl)
+    slLine  := line.new(bar_index, trkStop, bar_index + lineLen, trkStop, color=color.new(color.red, 20), style=line.style_dashed, width=1)
+    tp1Line := line.new(bar_index, trkTp1,  bar_index + lineLen, trkTp1,  color=color.new(color.aqua, 20), style=line.style_dotted, width=1)
+    tp2Line := line.new(bar_index, trkTp2,  bar_index + lineLen, trkTp2,  color=color.new(color.lime, 0),  style=line.style_solid, width=2)
+    slLbl   := label.new(bar_index + lineLen, trkStop, "SL",  style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.red,  size=size.small)
+    tp1Lbl  := label.new(bar_index + lineLen, trkTp1,  "TP1", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.aqua, size=size.small)
+    tp2Lbl  := label.new(bar_index + lineLen, trkTp2,  "TP2", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.lime, size=size.small)
+
+if trkActive and bar_index > trkBar
+    bool hitStop = trkDir == 1 ? low <= trkStop : high >= trkStop
+    bool hitTp1  = trkDir == 1 ? high >= trkTp1 : low <= trkTp1
+    bool hitTp2  = trkDir == 1 ? high >= trkTp2 : low <= trkTp2
+    if not trkGotTp1 and hitTp1 and not hitStop
+        trkGotTp1 := true
+    if hitStop
+        slHits += 1
+        trkActive := false
+    else if hitTp2
+        tp2Hits += 1
+        trkActive := false
+    if hitStop and trkGotTp1
+        tp1OnlyHits += 1
+
+float tp1HitRate = (slHits + tp2Hits) > 0 ? (tp1OnlyHits + tp2Hits) / (slHits + tp2Hits) * 100.0 : na
+float tp2HitRate = (slHits + tp2Hits) > 0 ? tp2Hits / (slHits + tp2Hits) * 100.0 : na
+
+// ═════════════════════════════════════════════════════════════
+// PLOTS
+// ═════════════════════════════════════════════════════════════
+plot(useDaily  ? dOpen  : na, "Daily Open",  color=color.new(color.aqua, 40),    style=plot.style_linebr)
+plot(useDaily  ? pdHigh : na, "PDH",         color=color.new(color.red, 55),     style=plot.style_linebr)
+plot(useDaily  ? pdLow  : na, "PDL",         color=color.new(color.lime, 55),    style=plot.style_linebr)
+plot(useWeekly ? wOpen  : na, "Weekly Open", color=color.new(color.fuchsia, 30), style=plot.style_linebr)
+plot(useWeekly ? pwHigh : na, "PWH",         color=color.new(color.maroon, 65),  style=plot.style_linebr)
+plot(useWeekly ? pwLow  : na, "PWL",         color=color.new(color.teal, 65),    style=plot.style_linebr)
+plot(useMonday ? monHi  : na, "Monday High", color=color.new(color.white, 55),   style=plot.style_linebr)
+plot(useMonday ? monLo  : na, "Monday Low",  color=color.new(color.white, 55),   style=plot.style_linebr)
+
+if buyClean
+    label.new(bar_index, low, "BUY (confluence)", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small,
+         tooltip="Yotov large-quarter zone " + str.tostring(targetLQ, format.mintick) + " confluent with Spaceman level " + str.tostring(nearestSpaceLvl, format.mintick))
+if sellClean
+    label.new(bar_index, high, "SELL (confluence)", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small,
+         tooltip="Yotov large-quarter zone " + str.tostring(targetLQ, format.mintick) + " confluent with Spaceman level " + str.tostring(nearestSpaceLvl, format.mintick))
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 2, 8, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showTable and barstate.islast
+    table.cell(dash, 0, 0, "SPACEMAN + YOTOV", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "", text_color=color.white, text_size=size.small)
+    table.cell(dash, 0, 1, "Nearest large quarter", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(targetLQ, format.mintick), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Nearest Spaceman level", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, na(nearestSpaceLvl) ? "n/a" : str.tostring(nearestSpaceLvl, format.mintick), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Confluence", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, confluence ? "YES (" + str.tostring(spaceDist, format.mintick) + " apart)" : "no", text_color=confluence ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 4, "RSI", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, str.tostring(rsiV, "#.#"), text_color=color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 5, "Open trade", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, trkActive ? (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 6, "TP1 / TP2 reach rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, (na(tp1HitRate) ? "n/a" : str.tostring(tp1HitRate, "#.#") + "%") + " / " + (na(tp2HitRate) ? "n/a" : str.tostring(tp2HitRate, "#.#") + "%"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, str.tostring(slHits) + " / " + str.tostring(tp2Hits), text_color=color.white, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(buyClean,  "Spaceman+Yotov BUY",  "Confluence BUY -- Yotov LQ + Spaceman level -- {{ticker}} {{interval}}")
+alertcondition(sellClean, "Spaceman+Yotov SELL", "Confluence SELL -- Yotov LQ + Spaceman level -- {{ticker}} {{interval}}")

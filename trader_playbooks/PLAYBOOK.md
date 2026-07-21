@@ -167,6 +167,46 @@ indicators/trade_cartel_topbottom_engine.pine
   vs. tighter rejection alone, vs. tighter RSI alone) has not been done
   -- worth a follow-up single-variable test if pursuing this further.
 
+=== SPACEMAN MERGES (2 separate engines, 2026-07-20) ===
+User request: merge "Key Levels SpacemanBTC IDWM V13.1" (@sbtnc, level
+computation only, first reused in kama_key_level_signal_engine.pine)
+with the project's two DIFFERENT "quarter theory" sources, built as
+TWO SEPARATE engines per explicit instruction -- not one combined tool.
+
+indicators/spaceman_daye_quarters_engine.pine (merge #1, TIME-based):
+- Merges SpacemanBTC's True-Open-equivalent levels (daily/weekly/
+  monthly/quarterly opens, prev week H/L, Monday range) with Trader
+  Daye's Quarterly Theory (voice #4) JUDAS sweep+reclaim+SMT signal --
+  this repo's existing, most-refined time-based reversal mechanic,
+  reused as-is from quarterly_theory_engine.pine.
+- The actual merge: TP1/TP2 are the NEAREST Spaceman levels ahead of
+  the entry in trade direction (True Weekly Open, PWH/PWL, Monday
+  range, monthly/quarterly opens), sorted by distance, with an ATR
+  fallback only if no level exists ahead -- replacing the original
+  engine's lack of any defined exit with a level-driven target.
+- Fixed the nested-function issue during writing (Pine doesn't allow
+  a function declared inside another function) before it could ship
+  as a compile error.
+
+indicators/spaceman_yotov_quarters_engine.pine (merge #2, PRICE-based):
+- Merges SpacemanBTC's structural levels with Yotov's Quarters Theory
+  (voice #18) large-quarter price grid. Core hypothesis: a pure
+  price-ratio level (Yotov, no market-structure input at all) is a
+  stronger reversal candidate when it ALSO coincides with an
+  independently-derived structural level (Spaceman) -- two unrelated
+  frameworks agreeing is real confluence, not something either alone
+  would surface.
+- Signal: large-quarter zone touched + confluent with a Spaceman level
+  (within an ATR tolerance) + rejection candle + RSI side. TP1/TP2 =
+  the next 1-2 large-quarter levels in trade direction (Yotov's own
+  grid spacing), SL = beyond the zone with an ATR buffer.
+
+Both: TP1/TP2/SL lines + hit-tracker, same pattern as the Clean Signal
+/ Top-Bottom / Hima Reddy engines built earlier this session. "Best
+entry/exit" = the most-refined existing mechanics in this repo reused
+here, NOT a claim of backtested performance. UNTESTED, no "proven"
+language, per the 2026-07-20 standing rule.
+
 === UPDATED RULES ===
 - Flat into CPI/8:30 prints; trade the confirmation after (B3)
 - Every strategy ships with: non-repainting math, realistic costs,

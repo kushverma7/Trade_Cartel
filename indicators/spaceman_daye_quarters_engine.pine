@@ -1,0 +1,294 @@
+//@version=6
+indicator("Trade Cartel - Spaceman + Daye Quarters Engine", shorttitle="TC-SpaceDaye", overlay=true, max_labels_count=300, max_lines_count=150)
+
+// ============================================================
+// MERGE #1 of 2: "Key Levels SpacemanBTC IDWM V13.1" (@sbtnc, level
+// computation only) + Trader Daye's Quarterly Theory (voice #4,
+// TIME-based -- True Opens, AMDX, JUDAS sweep, SMT divergence).
+// These two sources are a natural fit: SpacemanBTC's Daily/Weekly/
+// Monthly/Quarterly Open levels ARE literally the same "True Opens"
+// concept Daye's theory is built around -- this engine extends
+// quarterly_theory_engine.pine's already-working JUDAS+SMT signal
+// with SpacemanBTC's fuller level set (prev week H/L, Monday range,
+// monthly/quarterly opens) as additional TP targets, plus a clean
+// entry/exit (TP1/TP2/SL lines) and hit-tracker that the original
+// engine didn't have.
+//
+// See merge #2 (spaceman_yotov_quarters_engine.pine) for the PRICE-
+// based Yotov Quarters Theory merge -- built and logged separately
+// per the user's explicit instruction to keep the two merges apart.
+//
+// "Best entry/exit" = highest-corroboration mechanics reused here
+// (JUDAS sweep+reclaim+SMT is this repo's existing, most-refined
+// time-based reversal signal) -- NOT a claim of backtested
+// performance. UNTESTED at scale, per the 2026-07-20 standing rule.
+// ============================================================
+
+// ── SMT ──────────────────────────────────────────────────────
+string refSym = input.symbol("OANDA:XAGUSD", "SMT Reference Symbol (silver for gold)", group="① SMT")
+bool   refInv = input.bool(false, "Reference is Inverse (e.g. DXY)", group="① SMT")
+int    smtLen = input.int(30, "SMT Sweep Lookback (bars)", minval=10, group="① SMT")
+int    smtWin = input.int(10, "SMT Valid Window (bars)", minval=1, group="① SMT")
+
+// ── Judas ────────────────────────────────────────────────────
+string manip1  = input.session("0000-0600", "Manipulation Window 1 (London/Q2, ET)", group="② Judas")
+string manip2  = input.session("0730-0900", "Manipulation Window 2 (NY AM open, ET)", group="② Judas")
+int    cooldown = input.int(15, "Signal Cooldown (bars)", minval=1, group="② Judas")
+
+// ── SpacemanBTC levels (level math only, not the original drawing
+//    layer -- see indicators/kama_key_level_signal_engine.pine for
+//    the first reuse of this same source) ─────────────────────
+bool useDaily   = input.bool(true, "Daily Open + PDH/PDL",  group="③ Spaceman Levels")
+bool useWeekly  = input.bool(true, "Weekly Open + PWH/PWL", group="③ Spaceman Levels")
+bool useMonday  = input.bool(true, "Monday Range",          group="③ Spaceman Levels")
+bool useMonthly = input.bool(true, "Monthly Open",          group="③ Spaceman Levels")
+bool useQuarter = input.bool(true, "Quarterly Open",        group="③ Spaceman Levels")
+
+// ── Exits ────────────────────────────────────────────────────
+float stopBufAtr = input.float(0.2, "Stop Buffer Beyond Sweep (x ATR)", step=0.05, group="④ Exits")
+float fallbackTpR = input.float(2.0, "Fallback TP (x Risk, R) if no level ahead", step=0.1, group="④ Exits")
+int   lineLen = input.int(50, "Line Length (bars forward)", minval=5, group="④ Exits")
+
+bool showTable = input.bool(true, "Show Status/Results Table", group="⑤ Display")
+bool showLevels = input.bool(true, "Show Level Lines", group="⑤ Display")
+
+// ═════════════════════════════════════════════════════════════
+// BASICS
+// ═════════════════════════════════════════════════════════════
+atr = ta.atr(14)
+
+// ═════════════════════════════════════════════════════════════
+// TRUE OPENS + SPACEMAN LEVEL SET
+// ═════════════════════════════════════════════════════════════
+bool q1 = not na(time(timeframe.period, "1800-0000", "America/New_York"))
+bool q2 = not na(time(timeframe.period, "0000-0600", "America/New_York"))
+var float trueDailyOpen = na
+var float trueWeeklyOpen = na
+bool newDailyTO = q2 and not q2[1]
+if newDailyTO
+    trueDailyOpen := open
+bool q1Start = q1 and not q1[1]
+if q1Start and dayofweek(time, "America/New_York") == dayofweek.monday
+    trueWeeklyOpen := open
+
+dOpen  = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+pdHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+pdLow  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+wOpen  = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+pwHigh = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+pwLow  = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+mOpen  = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+qOpen  = request.security(syminfo.tickerid, "3M", open, lookahead=barmerge.lookahead_on)
+
+bool isMonday = dayofweek(time, "America/New_York") == dayofweek.monday
+var float monHi = na
+var float monLo = na
+if isMonday and not isMonday[1]
+    monHi := high
+    monLo := low
+else if isMonday
+    monHi := math.max(monHi, high)
+    monLo := math.min(monLo, low)
+
+// ═════════════════════════════════════════════════════════════
+// SMT DIVERGENCE
+// ═════════════════════════════════════════════════════════════
+[rHigh, rLow] = request.security(refSym, timeframe.period, [high, low])
+float rH = refInv ? -rLow  : rHigh
+float rL = refInv ? -rHigh : rLow
+
+bool mySweepLo  = low  < ta.lowest(low, smtLen)[1]
+bool mySweepHi  = high > ta.highest(high, smtLen)[1]
+bool refSweepLo = rL   < ta.lowest(rL, smtLen)[1]
+bool refSweepHi = rH   > ta.highest(rH, smtLen)[1]
+
+var int bullSmtBar = -9999
+var int bearSmtBar = -9999
+if mySweepLo and not refSweepLo
+    bullSmtBar := bar_index
+if mySweepHi and not refSweepHi
+    bearSmtBar := bar_index
+bool bullSmt = bar_index - bullSmtBar <= smtWin
+bool bearSmt = bar_index - bearSmtBar <= smtWin
+
+// ═════════════════════════════════════════════════════════════
+// JUDAS SIGNAL (sweep of prev day H/L in the manipulation window,
+// reclaim, SMT confirms) -- this repo's most-refined time-based
+// reversal signal, reused as-is from quarterly_theory_engine.pine
+// ═════════════════════════════════════════════════════════════
+bool inManip = not na(time(timeframe.period, manip1, "America/New_York")) or not na(time(timeframe.period, manip2, "America/New_York"))
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool judasBull = cd and inManip and low  < pdLow  and close > pdLow  and bullSmt
+bool judasBear = cd and inManip and high > pdHigh and close < pdHigh and bearSmt
+if judasBull or judasBear
+    lastSig := bar_index
+
+// ═════════════════════════════════════════════════════════════
+// TP1/TP2 FROM NEAREST SPACEMAN LEVELS AHEAD (the actual "merge" --
+// True Opens + prev week H/L + Monday range + monthly/quarterly
+// opens become the exit targets for the JUDAS entry, instead of
+// blind ATR multiples)
+// ═════════════════════════════════════════════════════════════
+f_levelsAbove(_close) =>
+    arr = array.new_float()
+    if useDaily and not na(dOpen) and dOpen > _close
+        array.push(arr, dOpen)
+    if useDaily and not na(pdHigh) and pdHigh > _close
+        array.push(arr, pdHigh)
+    if useWeekly and not na(trueWeeklyOpen) and trueWeeklyOpen > _close
+        array.push(arr, trueWeeklyOpen)
+    if useWeekly and not na(pwHigh) and pwHigh > _close
+        array.push(arr, pwHigh)
+    if useMonday and not na(monHi) and monHi > _close
+        array.push(arr, monHi)
+    if useMonthly and not na(mOpen) and mOpen > _close
+        array.push(arr, mOpen)
+    if useQuarter and not na(qOpen) and qOpen > _close
+        array.push(arr, qOpen)
+    arr
+
+f_levelsBelow(_close) =>
+    arr = array.new_float()
+    if useDaily and not na(dOpen) and dOpen < _close
+        array.push(arr, dOpen)
+    if useDaily and not na(pdLow) and pdLow < _close
+        array.push(arr, pdLow)
+    if useWeekly and not na(trueWeeklyOpen) and trueWeeklyOpen < _close
+        array.push(arr, trueWeeklyOpen)
+    if useWeekly and not na(pwLow) and pwLow < _close
+        array.push(arr, pwLow)
+    if useMonday and not na(monLo) and monLo < _close
+        array.push(arr, monLo)
+    if useMonthly and not na(mOpen) and mOpen < _close
+        array.push(arr, mOpen)
+    if useQuarter and not na(qOpen) and qOpen < _close
+        array.push(arr, qOpen)
+    arr
+
+f_sortAsc(arr) =>
+    sorted = array.copy(arr)
+    array.sort(sorted, order.ascending)
+    sorted
+
+// ═════════════════════════════════════════════════════════════
+// TRADE TRACKING (TP1/TP2/SL lines + hit tracker, same pattern
+// as the other engines built this session)
+// ═════════════════════════════════════════════════════════════
+var line slLine  = na
+var line tp1Line = na
+var line tp2Line = na
+var label slLbl  = na
+var label tp1Lbl = na
+var label tp2Lbl = na
+
+var bool  trkActive = false
+var int   trkDir    = 0
+var float trkStop   = na
+var float trkTp1    = na
+var float trkTp2    = na
+var int   trkBar    = na
+var bool  trkGotTp1 = false
+
+var int tp2Hits = 0
+var int tp1OnlyHits = 0
+var int slHits  = 0
+
+if (judasBull or judasBear) and not trkActive
+    trkDir := judasBull ? 1 : -1
+    trkStop := trkDir == 1 ? pdLow - atr * stopBufAtr : pdHigh + atr * stopBufAtr
+    riskDist = math.abs(close - trkStop)
+    if trkDir == 1
+        aboveSorted = f_sortAsc(f_levelsAbove(close))
+        trkTp1 := array.size(aboveSorted) > 0 ? array.get(aboveSorted, 0) : close + riskDist * fallbackTpR * 0.5
+        trkTp2 := array.size(aboveSorted) > 1 ? array.get(aboveSorted, 1) : close + riskDist * fallbackTpR
+    else
+        belowSorted = f_sortAsc(f_levelsBelow(close))
+        array.reverse(belowSorted)
+        trkTp1 := array.size(belowSorted) > 0 ? array.get(belowSorted, 0) : close - riskDist * fallbackTpR * 0.5
+        trkTp2 := array.size(belowSorted) > 1 ? array.get(belowSorted, 1) : close - riskDist * fallbackTpR
+    trkBar := bar_index
+    trkActive := true
+    trkGotTp1 := false
+
+    line.delete(slLine)
+    line.delete(tp1Line)
+    line.delete(tp2Line)
+    label.delete(slLbl)
+    label.delete(tp1Lbl)
+    label.delete(tp2Lbl)
+    slLine  := line.new(bar_index, trkStop, bar_index + lineLen, trkStop, color=color.new(color.red, 20), style=line.style_dashed, width=1)
+    tp1Line := line.new(bar_index, trkTp1,  bar_index + lineLen, trkTp1,  color=color.new(color.aqua, 20), style=line.style_dotted, width=1)
+    tp2Line := line.new(bar_index, trkTp2,  bar_index + lineLen, trkTp2,  color=color.new(color.lime, 0),  style=line.style_solid, width=2)
+    slLbl   := label.new(bar_index + lineLen, trkStop, "SL",  style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.red,  size=size.small)
+    tp1Lbl  := label.new(bar_index + lineLen, trkTp1,  "TP1", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.aqua, size=size.small)
+    tp2Lbl  := label.new(bar_index + lineLen, trkTp2,  "TP2", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.lime, size=size.small)
+
+if trkActive and bar_index > trkBar
+    bool hitStop = trkDir == 1 ? low <= trkStop : high >= trkStop
+    bool hitTp1  = trkDir == 1 ? high >= trkTp1 : low <= trkTp1
+    bool hitTp2  = trkDir == 1 ? high >= trkTp2 : low <= trkTp2
+    if not trkGotTp1 and hitTp1 and not hitStop
+        trkGotTp1 := true
+    if hitStop
+        slHits += 1
+        trkActive := false
+    else if hitTp2
+        tp2Hits += 1
+        trkActive := false
+    if hitStop and trkGotTp1
+        tp1OnlyHits += 1
+
+float tp1HitRate = (slHits + tp2Hits) > 0 ? (tp1OnlyHits + tp2Hits) / (slHits + tp2Hits) * 100.0 : na
+float tp2HitRate = (slHits + tp2Hits) > 0 ? tp2Hits / (slHits + tp2Hits) * 100.0 : na
+
+// ═════════════════════════════════════════════════════════════
+// PLOTS
+// ═════════════════════════════════════════════════════════════
+plot(showLevels and useDaily   ? dOpen  : na, "Daily Open",   color=color.new(color.aqua, 40),    style=plot.style_linebr)
+plot(showLevels and useDaily   ? pdHigh : na, "PDH",          color=color.new(color.red, 55),     style=plot.style_linebr)
+plot(showLevels and useDaily   ? pdLow  : na, "PDL",          color=color.new(color.lime, 55),    style=plot.style_linebr)
+plot(showLevels and useWeekly  ? trueWeeklyOpen : na, "True Weekly Open", color=color.new(color.fuchsia, 30), style=plot.style_linebr)
+plot(showLevels and useWeekly  ? pwHigh : na, "PWH",          color=color.new(color.maroon, 65),  style=plot.style_linebr)
+plot(showLevels and useWeekly  ? pwLow  : na, "PWL",          color=color.new(color.teal, 65),    style=plot.style_linebr)
+plot(showLevels and useMonday  ? monHi  : na, "Monday High",  color=color.new(color.white, 55),   style=plot.style_linebr)
+plot(showLevels and useMonday  ? monLo  : na, "Monday Low",   color=color.new(color.white, 55),   style=plot.style_linebr)
+plot(showLevels and useMonthly ? mOpen  : na, "Monthly Open", color=color.new(color.orange, 40),  style=plot.style_linebr)
+plot(showLevels and useQuarter ? qOpen  : na, "Quarterly Open", color=color.new(color.yellow, 30), style=plot.style_linebr)
+
+if judasBull
+    label.new(bar_index, low, "JUDAS ▲", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal,
+         tooltip="Sweep of prev day low in the manipulation window, closed back above, SMT confirms non-participation.")
+if judasBear
+    label.new(bar_index, high, "JUDAS ▼", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal,
+         tooltip="Sweep of prev day high in the manipulation window, closed back below, SMT confirms.")
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 2, 8, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showTable and barstate.islast
+    table.cell(dash, 0, 0, "SPACEMAN + DAYE", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "", text_color=color.white, text_size=size.small)
+    table.cell(dash, 0, 1, "SMT", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, bullSmt ? "bullish" : bearSmt ? "bearish" : "none", text_color=bullSmt ? color.lime : bearSmt ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 2, "In manip window", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, inManip ? "yes" : "no", text_color=inManip ? color.orange : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 3, "True Daily / Weekly Open", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, (na(trueDailyOpen) ? "n/a" : str.tostring(trueDailyOpen, format.mintick)) + " / " + (na(trueWeeklyOpen) ? "n/a" : str.tostring(trueWeeklyOpen, format.mintick)), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 4, "Open trade", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, trkActive ? (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 5, "TP1 / TP2 reach rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, (na(tp1HitRate) ? "n/a" : str.tostring(tp1HitRate, "#.#") + "%") + " / " + (na(tp2HitRate) ? "n/a" : str.tostring(tp2HitRate, "#.#") + "%"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 6, "Trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, str.tostring(slHits) + " / " + str.tostring(tp2Hits), text_color=color.white, text_size=size.tiny)
+    float pfAnalog = slHits > 0 ? tp2Hits / slHits : na
+    table.cell(dash, 0, 7, "PF-analog (crude, R=1 loss)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, na(pfAnalog) ? "n/a" : str.tostring(pfAnalog, "#.##"), text_color=na(pfAnalog) ? color.gray : pfAnalog >= 1 ? color.lime : color.red, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(judasBull, "JUDAS Bull", "Spaceman+Daye: JUDAS ▲ sweep+reclaim+SMT -- {{ticker}} {{interval}}")
+alertcondition(judasBear, "JUDAS Bear", "Spaceman+Daye: JUDAS ▼ sweep+reclaim+SMT -- {{ticker}} {{interval}}")
