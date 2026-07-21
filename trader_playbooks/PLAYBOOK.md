@@ -51,6 +51,29 @@ indicators/trade_cartel_master_engine.pine
   8:25-8:45 ET news window, over-rejected level
 - Dashboard shows all layer states live; alerts per grade
 
+=== CLEAN SIGNAL ENGINE (distilled variant, 2026-07-20) ===
+indicators/trade_cartel_clean_signal_engine.pine
+- Same core + same confluence layers as MASTER ENGINE above (session
+  [B1], value-area regime [PBD], tier-A candle [Nison], fresh level
+  [H8], CVD divergence veto, news blackout [B3]) -- NOT a new voice,
+  same building blocks, restructured as a HARD AND-GATE instead of a
+  0-12 partial score. Every enabled filter must agree -> fewer, more
+  selective signals than the Master Engine's B-grade tier, addressing
+  user feedback that OR-combined signals fired too often to call
+  "clean." (Dropped: aggression/VWAP layers, to keep the gate leaner
+  -- can be re-added if the stricter version proves too sparse.)
+- TP1/TP2/SL lines auto-drawn on every signal: SL = entry -+ ATR x
+  stopAtrMult (default 1.2), TP1 = 1R, TP2 = 2R off that stop distance
+  -- matches this project's standing scale-out convention (1/3 @ 1R,
+  1/3 @ 2R, 1/3 runner). User-configurable multiples.
+- Lightweight hit-tracker (not a full trade simulator like the Hima
+  Reddy engine's): counts SL-hits vs TP2-hits, tracks whether TP1 was
+  touched en route, reports TP1/TP2 reach rate -- non-repainting,
+  evaluated on closed bars only, checks start the bar AFTER signal.
+- "Best filters" = most independently corroborated ideas in this
+  project's knowledge base reused here, NOT a claim of backtested
+  performance. UNTESTED, same standing rule as everything else.
+
 === UPDATED RULES ===
 - Flat into CPI/8:30 prints; trade the confirmation after (B3)
 - Every strategy ships with: non-repainting math, realistic costs,

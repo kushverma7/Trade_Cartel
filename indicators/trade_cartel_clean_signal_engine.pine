@@ -1,0 +1,397 @@
+//@version=6
+indicator("Trade Cartel CLEAN SIGNAL ENGINE", overlay=true, max_labels_count=300, max_lines_count=100)
+
+// ============================================================
+// CLEAN SIGNAL ENGINE — a distilled, high-selectivity variant of
+// trade_cartel_master_engine.pine. Same underlying confluence layers
+// (highest-corroboration ideas across the knowledge base: session
+// timing [B1], value-area regime [PBD], tier-A candlesticks [Nison],
+// CVD divergence veto, fresh-level veto [H8], news blackout [B3]),
+// but restructured as a HARD AND-GATE instead of a 0-12 partial score.
+// Every enabled filter must agree -- fewer signals, higher selectivity,
+// addressing the earlier feedback that OR-combined signals fired too
+// often to call "clean."
+//
+// Adds: TP1/TP2/SL lines drawn automatically after each signal (TP1 =
+// 1R, TP2 = 2R off an ATR-based stop, matching this project's standing
+// scale-out convention: 1/3 @ 1R, 1/3 @ 2R, 1/3 runner), plus a compact
+// hit-tracker (did price reach TP1 / TP2 / SL first, evaluated after
+// the fact on closed bars only -- non-repainting).
+//
+// "Best filters and logics" = most independently corroborated ideas in
+// this project's knowledge base, reused here -- NOT a claim of
+// backtested performance. Per the 2026-07-20 standing rule, nothing
+// here is "proven" or "flagship" until backtested on a real sample.
+// The underlying core trigger (OLS trendline breakout) is the same
+// small-sample-retracted core used elsewhere in this repo -- still
+// candidate, still untested at scale.
+// ============================================================
+
+// ── Core signal ──────────────────────────────────────────────
+int  lookback = input.int(22, "Trendline Lookback (candidate default)", minval=5, maxval=100, group="① Core")
+bool useH7    = input.bool(true, "Require Full-Body Break Candle", group="① Core")
+
+// ── Required filters (hard AND -- toggle off to loosen) ───────
+bool useSess    = input.bool(true, "Require Session [B1]",             group="② Required Filters")
+bool useVA      = input.bool(true, "Require Value-Area Alignment [PBD]", group="② Required Filters")
+bool useCandle  = input.bool(true, "Require Tier-A Candle Agreement [Nison]", group="② Required Filters")
+bool useFresh   = input.bool(true, "Require Fresh (Non-Rejected) Level [H8]", group="② Required Filters")
+bool useCvdV    = input.bool(true, "Block on CVD Divergence Against",  group="② Required Filters")
+bool useNews    = input.bool(true, "Block 8:25-8:45 ET News Window [B3]", group="② Required Filters")
+int  cooldown   = input.int(15, "Signal Cooldown (bars)", minval=1, group="② Required Filters")
+
+// ── TP1/TP2/SL ───────────────────────────────────────────────
+float stopAtrMult = input.float(1.2, "Stop (x ATR)",  step=0.1, group="③ TP1/TP2/SL")
+float tp1RMult     = input.float(1.0, "TP1 (x Risk, R)", step=0.1, group="③ TP1/TP2/SL")
+float tp2RMult     = input.float(2.0, "TP2 (x Risk, R)", step=0.1, group="③ TP1/TP2/SL")
+int   lineLen       = input.int(40, "Line Length (bars forward)", minval=5, group="③ TP1/TP2/SL")
+
+// ── Display ──────────────────────────────────────────────────
+bool showTable = input.bool(true, "Show Filter/Results Dashboard", group="④ Display")
+
+// ═════════════════════════════════════════════════════════════
+// SHARED BUILDING BLOCKS
+// ═════════════════════════════════════════════════════════════
+float atrv   = ta.atr(14)
+float avgVol = ta.sma(volume, 20)
+float body   = math.abs(close - open)
+float rng    = high - low
+
+// ═════════════════════════════════════════════════════════════
+// CORE: OLS trendline breakout (bug-fixed, same math as elsewhere
+// in this repo -- candidate, untested at scale)
+// ═════════════════════════════════════════════════════════════
+linreg_coefs(src, len) =>
+    float sumX = 0.0
+    float sumY = 0.0
+    float sumXY = 0.0
+    float sumX2 = 0.0
+    for j = 0 to len - 1
+        float x = j
+        float y = src[len - 1 - j]
+        sumX += x
+        sumY += y
+        sumXY += x * y
+        sumX2 += x * x
+    float n = len
+    float denom = n * sumX2 - sumX * sumX
+    float slope = denom != 0 ? (n * sumXY - sumX * sumY) / denom : 0.0
+    float intercept = denom != 0 ? (sumY - slope * sumX) / n : src[math.floor(len / 2)]
+    [slope, intercept]
+
+find_pivot(src, len, slope, intercept, direction) =>
+    int best_j = 0
+    float best_val = -1e10
+    for j = 0 to len - 1
+        float diff = (src[len - 1 - j] - (slope * j + intercept)) * direction
+        if diff > best_val
+            best_val := diff
+            best_j := j
+    best_j
+
+optimize_slope(src, len, pivot_j, init_slope, is_support) =>
+    float pivot_y = src[len - 1 - pivot_j]
+    float best = init_slope
+    float step = math.abs(init_slope) * 0.5 + 1e-6
+    for _i = 0 to 29
+        float s_up = best + step
+        float s_dn = best - step
+        bool ok_up = true
+        bool ok_dn = true
+        float err_up = 0.0
+        float err_dn = 0.0
+        for j = 0 to len - 1
+            float y = src[len - 1 - j]
+            float d_up = (s_up * j + (pivot_y - s_up * pivot_j)) - y
+            float d_dn = (s_dn * j + (pivot_y - s_dn * pivot_j)) - y
+            if is_support
+                if d_up > 1e-5
+                    ok_up := false
+                if d_dn > 1e-5
+                    ok_dn := false
+            else
+                if d_up < -1e-5
+                    ok_up := false
+                if d_dn < -1e-5
+                    ok_dn := false
+            err_up += d_up * d_up
+            err_dn += d_dn * d_dn
+        if ok_up and ok_dn
+            best := err_up < err_dn ? s_up : s_dn
+        else if ok_up
+            best := s_up
+        else if ok_dn
+            best := s_dn
+        step *= 0.5
+    best
+
+var float r_val = na
+var float s_val = na
+var int   sig   = 0
+if bar_index >= lookback + 1
+    [ols_s, ols_i] = linreg_coefs(close[1], lookback)
+    int uj = find_pivot(high[1], lookback, ols_s, ols_i, 1)
+    int lj = find_pivot(low[1],  lookback, ols_s, ols_i, -1)
+    float rs = optimize_slope(high[1], lookback, uj, ols_s, false)
+    float ss = optimize_slope(low[1],  lookback, lj, ols_s, true)
+    float py_r = high[lookback - uj]
+    float py_s = low[lookback - lj]
+    r_val := rs * lookback + (py_r - rs * uj)
+    s_val := ss * lookback + (py_s - ss * lj)
+    if close > r_val
+        sig := 1
+    else if close < s_val
+        sig := -1
+
+bool fullBody = rng > 0 and body >= rng * 0.5
+bool coreBuy  = sig == 1  and sig[1] != 1  and (not useH7 or fullBody)
+bool coreSell = sig == -1 and sig[1] != -1 and (not useH7 or fullBody)
+
+// ═════════════════════════════════════════════════════════════
+// FILTER 1: Session [B1]
+// ═════════════════════════════════════════════════════════════
+bool inSession = not na(time(timeframe.period, "0300-0500,0830-1100", "America/New_York"))
+
+// ═════════════════════════════════════════════════════════════
+// FILTER 2: Value-area regime [PBD]
+// ═════════════════════════════════════════════════════════════
+int VA_LEN  = 120
+int VA_BINS = 24
+float winHi = ta.highest(close, VA_LEN)
+float winLo = ta.lowest(close, VA_LEN)
+float vstep = math.max((winHi - winLo) / VA_BINS, syminfo.mintick)
+var int[] vbins = array.new_int()
+array.clear(vbins)
+for i = 0 to VA_BINS - 1
+    array.push(vbins, 0)
+for i = 0 to VA_LEN - 1
+    int b = math.min(VA_BINS - 1, math.max(0, int((close[i] - winLo) / vstep)))
+    array.set(vbins, b, array.get(vbins, b) + 1)
+int pb = 0
+int pc = 0
+for i = 0 to VA_BINS - 1
+    if array.get(vbins, i) > pc
+        pc := array.get(vbins, i)
+        pb := i
+int need = int(math.ceil(VA_LEN * 0.7))
+int have = pc
+int uB = pb
+int dB = pb
+while have < need and (uB < VA_BINS - 1 or dB > 0)
+    int un = uB < VA_BINS - 1 ? array.get(vbins, uB + 1) : -1
+    int dn2 = dB > 0 ? array.get(vbins, dB - 1) : -1
+    if un >= dn2
+        uB += 1
+        have += math.max(un, 0)
+    else
+        dB -= 1
+        have += math.max(dn2, 0)
+float vah = winLo + (uB + 1) * vstep
+float val = winLo + dB * vstep
+bool obUp = close > vah
+bool obDn = close < val
+
+// ═════════════════════════════════════════════════════════════
+// FILTER 3: Tier-A candlesticks [Nison, context-gated]
+// ═════════════════════════════════════════════════════════════
+float avgBody = ta.sma(body, 14)
+bool bullC = close > open
+bool bearC = close < open
+bool bullEng = bullC and bearC[1] and body >= avgBody and close >= math.max(close[1], open[1]) and open <= math.min(close[1], open[1])
+bool bearEng = bearC and bullC[1] and body >= avgBody and open >= math.max(close[1], open[1]) and close <= math.min(close[1], open[1])
+bool morn = bearC[2] and body[2] >= avgBody[2] and body[1] <= avgBody[1] * 0.5 and bullC and close > (open[2] + close[2]) / 2
+bool even = bullC[2] and body[2] >= avgBody[2] and body[1] <= avgBody[1] * 0.5 and bearC and close < (open[2] + close[2]) / 2
+bool tierA_bull = bullEng or morn or bullEng[1] or morn[1] or bullEng[2] or morn[2]
+bool tierA_bear = bearEng or even or bearEng[1] or even[1] or bearEng[2] or even[2]
+
+// ═════════════════════════════════════════════════════════════
+// FILTER 4: Fresh level [H8] -- not over-rejected
+// ═════════════════════════════════════════════════════════════
+float atkHi = ta.highest(high, 20)[1]
+float atkLo = ta.lowest(low, 20)[1]
+var int rejUp = 0
+var int rejDn = 0
+if high >= atkHi - atrv * 0.1 and close < atkHi
+    rejUp += 1
+if close > atkHi
+    rejUp := 0
+if low <= atkLo + atrv * 0.1 and close > atkLo
+    rejDn += 1
+if close < atkLo
+    rejDn := 0
+bool weakUp = rejUp >= 3
+bool weakDn = rejDn >= 3
+
+// ═════════════════════════════════════════════════════════════
+// FILTER 5: CVD divergence veto
+// ═════════════════════════════════════════════════════════════
+var float cvd = 0.0
+cvd += bullC ? volume : bearC ? -volume : 0.0
+float cvdPh = ta.pivothigh(high, 5, 5)
+float cvdPl = ta.pivotlow(low, 5, 5)
+var float lPhP = na
+var float lPhC = na
+var float lPlP = na
+var float lPlC = na
+var int bearDivBar = -9999
+var int bullDivBar = -9999
+if not na(cvdPh)
+    if not na(lPhP) and cvdPh > lPhP and cvd[5] < lPhC
+        bearDivBar := bar_index
+    lPhP := cvdPh
+    lPhC := cvd[5]
+if not na(cvdPl)
+    if not na(lPlP) and cvdPl < lPlP and cvd[5] > lPlC
+        bullDivBar := bar_index
+    lPlP := cvdPl
+    lPlC := cvd[5]
+bool recentBearDiv = bar_index - bearDivBar <= 10
+bool recentBullDiv = bar_index - bullDivBar <= 10
+
+// ═════════════════════════════════════════════════════════════
+// FILTER 6: News blackout [B3]
+// ═════════════════════════════════════════════════════════════
+int hhmmNY = hour(time, "America/New_York") * 100 + minute(time, "America/New_York")
+bool newsWindow = hhmmNY >= 825 and hhmmNY < 845
+
+// ═════════════════════════════════════════════════════════════
+// HARD AND-GATE — every enabled filter must agree
+// ═════════════════════════════════════════════════════════════
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool buyClean = cd and coreBuy and
+     (not useSess   or inSession) and
+     (not useVA     or obUp) and
+     (not useCandle or tierA_bull) and
+     (not useFresh  or not weakUp) and
+     (not useCvdV   or not recentBearDiv) and
+     (not useNews   or not newsWindow) and
+     (not useCandle or not tierA_bear)   // opposing tier-A candle always vetoes if candle filter is on
+
+bool sellClean = cd and coreSell and
+     (not useSess   or inSession) and
+     (not useVA     or obDn) and
+     (not useCandle or tierA_bear) and
+     (not useFresh  or not weakDn) and
+     (not useCvdV   or not recentBullDiv) and
+     (not useNews   or not newsWindow) and
+     (not useCandle or not tierA_bull)
+
+if buyClean or sellClean
+    lastSig := bar_index
+
+// ═════════════════════════════════════════════════════════════
+// TP1 / TP2 / SL LINES + HIT TRACKER
+// ═════════════════════════════════════════════════════════════
+var line slLine  = na
+var line tp1Line = na
+var line tp2Line = na
+var label slLbl  = na
+var label tp1Lbl = na
+var label tp2Lbl = na
+
+var bool  trkActive = false
+var int   trkDir    = 0
+var float trkEntry  = na
+var float trkStop   = na
+var float trkTp1    = na
+var float trkTp2    = na
+var int   trkBar     = na
+var bool  trkGotTp1  = false
+
+var int tp2Hits = 0
+var int tp1OnlyHits = 0
+var int slHits  = 0
+
+if buyClean or sellClean
+    trkDir   := buyClean ? 1 : -1
+    trkEntry := close
+    riskDist = atrv * stopAtrMult
+    trkStop  := trkDir == 1 ? close - riskDist : close + riskDist
+    trkTp1   := trkDir == 1 ? close + riskDist * tp1RMult : close - riskDist * tp1RMult
+    trkTp2   := trkDir == 1 ? close + riskDist * tp2RMult : close - riskDist * tp2RMult
+    trkBar   := bar_index
+    trkActive := true
+    trkGotTp1 := false
+
+    line.delete(slLine)
+    line.delete(tp1Line)
+    line.delete(tp2Line)
+    label.delete(slLbl)
+    label.delete(tp1Lbl)
+    label.delete(tp2Lbl)
+    slLine  := line.new(bar_index, trkStop, bar_index + lineLen, trkStop, color=color.new(color.red, 20), style=line.style_dashed, width=1)
+    tp1Line := line.new(bar_index, trkTp1,  bar_index + lineLen, trkTp1,  color=color.new(color.aqua, 20), style=line.style_dotted, width=1)
+    tp2Line := line.new(bar_index, trkTp2,  bar_index + lineLen, trkTp2,  color=color.new(color.lime, 0),  style=line.style_solid, width=2)
+    slLbl   := label.new(bar_index + lineLen, trkStop, "SL",  style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.red,  size=size.small)
+    tp1Lbl  := label.new(bar_index + lineLen, trkTp1,  "TP1", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.aqua, size=size.small)
+    tp2Lbl  := label.new(bar_index + lineLen, trkTp2,  "TP2", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.lime, size=size.small)
+
+if trkActive and bar_index > trkBar
+    bool hitStop = trkDir == 1 ? low <= trkStop : high >= trkStop
+    bool hitTp1  = trkDir == 1 ? high >= trkTp1 : low <= trkTp1
+    bool hitTp2  = trkDir == 1 ? high >= trkTp2 : low <= trkTp2
+    if not trkGotTp1 and hitTp1 and not hitStop
+        trkGotTp1 := true
+    if hitStop
+        slHits += 1
+        trkActive := false
+    else if hitTp2
+        tp2Hits += 1
+        trkActive := false
+    // if trkGotTp1 stays true but never reaches TP2 and later stops out,
+    // it still counts under slHits above -- tp1OnlyHits below is a
+    // separate informational tally only incremented on eventual SL exit
+    // after TP1 was touched (partial-win / then-reversed case)
+    if hitStop and trkGotTp1
+        tp1OnlyHits += 1
+
+float tp1HitRate = (slHits + tp2Hits) > 0 ? (tp1OnlyHits + tp2Hits) / (slHits + tp2Hits) * 100.0 : na
+float tp2HitRate = (slHits + tp2Hits) > 0 ? tp2Hits / (slHits + tp2Hits) * 100.0 : na
+
+// ═════════════════════════════════════════════════════════════
+// OUTPUT
+// ═════════════════════════════════════════════════════════════
+plot(r_val, "Resistance", color.new(color.red, 30), 1)
+plot(s_val, "Support", color.new(color.lime, 30), 1)
+plot(useVA ? vah : na, "VAH", color.new(color.gray, 65), 1, plot.style_linebr)
+plot(useVA ? val : na, "VAL", color.new(color.gray, 65), 1, plot.style_linebr)
+bgcolor(useNews and newsWindow ? color.new(color.orange, 88) : na, title="News Blackout")
+
+if buyClean
+    label.new(bar_index, low, "BUY", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal)
+if sellClean
+    label.new(bar_index, high, "SELL", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal)
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 2, 10, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showTable and barstate.islast
+    table.cell(dash, 0, 0, "CLEAN SIGNAL", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "", text_color=color.white, text_size=size.small)
+    table.cell(dash, 0, 1, "Session [B1]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, inSession ? "active" : "off", text_color=inSession ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Regime [PBD]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, obUp ? "OUT-BAL up" : obDn ? "OUT-BAL dn" : "balance", text_color=obUp ? color.lime : obDn ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Tier-A candle", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, tierA_bull ? "BULL" : tierA_bear ? "BEAR" : "-", text_color=tierA_bull ? color.lime : tierA_bear ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 4, "Level fresh [H8]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, weakUp ? "HIGH weak" : weakDn ? "LOW weak" : "fresh", text_color=weakUp or weakDn ? color.orange : color.lime, text_size=size.tiny)
+    table.cell(dash, 0, 5, "CVD", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, recentBearDiv ? "DIV dn" : recentBullDiv ? "DIV up" : "clean", text_color=recentBearDiv ? color.red : recentBullDiv ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 6, "News [B3]", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, newsWindow ? "BLACKOUT" : "clear", text_color=newsWindow ? color.orange : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Open trade", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, trkActive ? (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 8, "TP1 / TP2 reach rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 8, (na(tp1HitRate) ? "n/a" : str.tostring(tp1HitRate, "#.#") + "%") + " / " + (na(tp2HitRate) ? "n/a" : str.tostring(tp2HitRate, "#.#") + "%"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 9, "Trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 9, str.tostring(slHits) + " / " + str.tostring(tp2Hits), text_color=color.white, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(buyClean,  "Clean BUY",  "Clean Signal Engine -- BUY -- {{ticker}} {{interval}}")
+alertcondition(sellClean, "Clean SELL", "Clean Signal Engine -- SELL -- {{ticker}} {{interval}}")
