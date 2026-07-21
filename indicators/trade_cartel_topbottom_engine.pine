@@ -66,7 +66,10 @@ bool  useRegime  = input.bool(true, "ATR Regime Filter (skip dead chop)", group=
 int   regimeLen  = input.int(100, "Regime Baseline Length", group="④ Avoid The Chop")
 float regimeMin  = input.float(0.6, "Min ATR (x baseline)", step=0.05, group="④ Avoid The Chop")
 float minMoveAtr  = input.float(1.5, "Min Room To Opposing Wall (x ATR)", step=0.1, group="④ Avoid The Chop")
-int   cooldown   = input.int(8, "Cooldown Bars", minval=0, group="④ Avoid The Chop")
+int   cooldown   = input.int(20, "Cooldown Bars", minval=0, group="④ Avoid The Chop")
+float minReArmAtr = input.float(1.5, "Min Move From Last Signal Before Re-Arming (x ATR)", step=0.1, group="④ Avoid The Chop")
+bool  useTrendVeto = input.bool(true, "Never Fade A Strong Trend (ADX veto)", group="④ Avoid The Chop")
+int   adxVetoThresh = input.int(30, "Veto ADX Threshold", minval=15, maxval=60, group="④ Avoid The Chop")
 
 // ── TP1/TP2/SL ───────────────────────────────────────────────
 float stopAtrMult = input.float(0.8, "Stop Beyond Sweep (x ATR)", step=0.1, group="⑤ TP1/TP2/SL")
@@ -84,6 +87,14 @@ atr = ta.atr(14)
 atrBase = ta.sma(atr, regimeLen)
 bool regimeOk = not useRegime or (atr >= atrBase * regimeMin)
 rsiV = ta.rsi(close, rsiLen)
+
+// never fade a freight train: no TOPs faded in a strong uptrend,
+// no BOTTOMs faded in a strong downtrend (same logic already proven
+// out in reversal_sniper_strategy.pine -- was missing from this
+// engine's first version)
+[diPlus, diMinus, adxV] = ta.dmi(14, 14)
+bool vetoTop = useTrendVeto and adxV > adxVetoThresh and diPlus  > diMinus
+bool vetoBot = useTrendVeto and adxV > adxVetoThresh and diMinus > diPlus
 
 // ═════════════════════════════════════════════════════════════
 // WALLS
@@ -217,16 +228,25 @@ bool roomUp   = na(wallAbove) or (wallAbove - close)  >= atr * minMoveAtr
 var int lastSig = -9999
 bool cd = bar_index - lastSig > cooldown
 
+// distance-based re-arm -- fixes the clustering seen on-chart: bar-
+// count cooldown alone let a grinding support/resistance test refire
+// repeatedly since the wall itself doesn't move. Now also requires
+// price to have moved a real distance away from the LAST signal
+// before a new one of either direction can fire.
+var float lastSigPrice = na
+bool reArmOk = na(lastSigPrice) or math.abs(close - lastSigPrice) >= atr * minReArmAtr
+
 bool topTrigger = topSweep or testFailTop
 bool botTrigger = botSweep or testFailBot
 
-bool sellClean = cd and regimeOk and topTrigger and rsiHot and rejectTop and roomDown and
+bool sellClean = cd and reArmOk and regimeOk and topTrigger and rsiHot and rejectTop and roomDown and not vetoTop and
      (not useTierA or not tierA_bull)   // opposing tier-A candle always vetoes
-bool buyClean  = cd and regimeOk and botTrigger and rsiCold and rejectBot and roomUp and
+bool buyClean  = cd and reArmOk and regimeOk and botTrigger and rsiCold and rejectBot and roomUp and not vetoBot and
      (not useTierA or not tierA_bear)
 
 if buyClean or sellClean
     lastSig := bar_index
+    lastSigPrice := close
 
 // ═════════════════════════════════════════════════════════════
 // TP1 / TP2 / SL LINES + HIT TRACKER (same pattern as the other
@@ -313,7 +333,7 @@ if sellClean
 // ═════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═════════════════════════════════════════════════════════════
-var table dash = table.new(position.bottom_right, 2, 9, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+var table dash = table.new(position.bottom_right, 2, 11, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
 if showTable and barstate.islast
     table.cell(dash, 0, 0, "TOP/BOTTOM ENGINE", text_color=color.orange, text_size=size.small)
     table.cell(dash, 1, 0, "", text_color=color.white, text_size=size.small)
@@ -325,14 +345,19 @@ if showTable and barstate.islast
     table.cell(dash, 1, 3, (na(wallAbove) ? "n/a" : str.tostring(wallAbove, format.mintick)) + " / " + (na(wallBelow) ? "n/a" : str.tostring(wallBelow, format.mintick)), text_color=color.white, text_size=size.tiny)
     table.cell(dash, 0, 4, "Room (chop filter)", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 4, (roomUp ? "up OK" : "up TIGHT") + " / " + (roomDown ? "dn OK" : "dn TIGHT"), text_color=(roomUp and roomDown) ? color.lime : color.orange, text_size=size.tiny)
-    table.cell(dash, 0, 5, "Tier-A candle", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 5, tierA_bull ? "BULL" : tierA_bear ? "BEAR" : "-", text_color=tierA_bull ? color.lime : tierA_bear ? color.red : color.gray, text_size=size.tiny)
-    table.cell(dash, 0, 6, "Open trade", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 6, trkActive ? (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
-    table.cell(dash, 0, 7, "TP1 / TP2 reach rate", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 7, (na(tp1HitRate) ? "n/a" : str.tostring(tp1HitRate, "#.#") + "%") + " / " + (na(tp2HitRate) ? "n/a" : str.tostring(tp2HitRate, "#.#") + "%"), text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 0, 8, "Trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 8, str.tostring(slHits) + " / " + str.tostring(tp2Hits), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 5, "Trend veto (ADX)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, vetoTop ? "blocking TOPs" : vetoBot ? "blocking BOTTOMs" : "clear", text_color=(vetoTop or vetoBot) ? color.orange : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 6, "Re-arm (chop filter)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, reArmOk ? "ready" : "waiting for move", text_color=reArmOk ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Open trade", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, trkActive ? (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 8, "TP1 / TP2 reach rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 8, (na(tp1HitRate) ? "n/a" : str.tostring(tp1HitRate, "#.#") + "%") + " / " + (na(tp2HitRate) ? "n/a" : str.tostring(tp2HitRate, "#.#") + "%"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 9, "Trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 9, str.tostring(slHits) + " / " + str.tostring(tp2Hits), text_color=color.white, text_size=size.tiny)
+    float pfAnalog = slHits > 0 ? (tp2Hits * tp2RMult) / slHits : na
+    table.cell(dash, 0, 10, "PF-analog (R-based)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 10, na(pfAnalog) ? "n/a" : str.tostring(pfAnalog, "#.##"), text_color=na(pfAnalog) ? color.gray : pfAnalog >= 1 ? color.lime : color.red, text_size=size.tiny)
 
 // ═════════════════════════════════════════════════════════════
 // ALERTS

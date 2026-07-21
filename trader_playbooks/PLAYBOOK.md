@@ -98,6 +98,20 @@ indicators/trade_cartel_topbottom_engine.pine
   Engine, for consistency across the repo's newer engines.
 - "Most corroborated ideas" -- NOT a claim of backtested performance.
   UNTESTED at scale, same standing rule as everything else.
+- **User feedback (2026-07-20, ran live on chart, 252 resolved
+  trades)**: (1) signals clustered tightly at the same support/
+  resistance during a grind -- bar-count cooldown alone didn't stop a
+  wall from refiring since the wall itself doesn't move. (2) PF-analog
+  ~0.90 (78 TP2 wins x 2R vs 174 SL losses x 1R = -18R net); win rate
+  30.95% was just under the 33.3% breakeven needed for a 2:1 payoff.
+  Fixes applied: distance-based re-arm (require price to move
+  minReArmAtr x ATR away from the LAST signal's price before a new one
+  of either direction can fire -- addresses clustering directly),
+  added the ADX "never fade a strong trend" veto that was already
+  proven out in reversal_sniper_strategy.pine but missing from this
+  engine's first version (should improve win rate by not calling
+  reversals against strong momentum), cooldown raised 8->20 bars.
+  Re-test pending -- no new PF/WR numbers yet.
 - Lightweight hit-tracker (not a full trade simulator like the Hima
   Reddy engine's): counts SL-hits vs TP2-hits, tracks whether TP1 was
   touched en route, reports TP1/TP2 reach rate -- non-repainting,
