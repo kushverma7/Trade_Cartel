@@ -118,9 +118,10 @@ var box[] zoneBoxes = array.new_box()
 var label[] zoneLabels = array.new_label()
 
 if legFormed and showZones
-    for i = 0 to array.size(zoneBoxes) - 1
-        box.delete(array.get(zoneBoxes, i))
-        label.delete(array.get(zoneLabels, i))
+    if array.size(zoneBoxes) > 0
+        for i = 0 to array.size(zoneBoxes) - 1
+            box.delete(array.get(zoneBoxes, i))
+            label.delete(array.get(zoneLabels, i))
     array.clear(zoneBoxes)
     array.clear(zoneLabels)
     pctLevels = array.from(0.0, 12.5, 25.0, 37.5, 50.0, 62.5, 75.0, 87.5, 100.0)
