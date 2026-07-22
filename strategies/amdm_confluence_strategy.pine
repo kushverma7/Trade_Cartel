@@ -1,0 +1,337 @@
+// ============================================================
+// AMDM — AUCTION-MOMENTUM DUAL MODEL [Strategy / Backtestable]
+// Source: trader_playbooks/AMDM_confluence_strategy.md (adopted
+// 2026-07-22 as this project's standing strategy lens). Strategy-
+// tester counterpart of indicators/amdm_confluence_engine.pine — same
+// detection logic, wired into strategy.entry/strategy.exit so it
+// produces real TradingView Strategy Tester metrics (win rate, PF,
+// max DD) instead of just chart labels, feeding the source doc's own
+// Part IV backtest plan (100+ trades, 3+ months, XAUUSD, London/NY).
+//
+// STATUS: SYNTHESIZED / UNTESTED. This script makes the strategy
+// backtestable -- it does not make it validated. Per this project's
+// standing rule (2026-07-20 PF 3.656 retraction), nothing here earns
+// "proven" language until a real multi-month Strategy Tester run (or
+// better, out-of-sample walk-forward) says so.
+//
+// Same documented simplifications as the indicator version (see its
+// header for full detail): rolling-window value area (not fixed
+// calendar-day), configurable goldPip FX->XAUUSD translation, candle-
+// direction CVD proxy (not real footprint), manual news-blackout
+// toggle (no live calendar feed), gold-pip stop/target thresholds.
+//
+// POSITION SIZING: risk-percent based, sized off the SAME 0-12
+// confluence score the source doc's Appendix specifies (0-4 = no
+// trade, 5-7 = 0.5%, 8-10 = 1.0%, 11-12 = 1.5%), not a fixed contract
+// count -- qty = (equity x risk%) / stop-distance, so every trade
+// risks the same account % regardless of how wide its stop is.
+// ============================================================
+//@version=6
+strategy("AMDM — Auction-Momentum Dual Model [Strategy]",
+     overlay            = true,
+     max_lines_count    = 100,
+     max_labels_count   = 100,
+     initial_capital    = 10000,
+     currency           = currency.USD,
+     default_qty_type   = strategy.cash,
+     default_qty_value  = 1000,
+     commission_type    = strategy.commission.cash_per_contract,
+     commission_value   = 0.07,
+     slippage           = 5,
+     process_orders_on_close = true)
+
+// ── ① Value Area / Regime ───────────────────────────────────
+int    vpLen      = input.int(288, "Value Area Window (bars, ~1 trading day on this TF)", minval=50, group="① Value Area / Regime")
+int    vpBins     = input.int(20, "Profile Bins", minval=10, maxval=40, group="① Value Area / Regime")
+float  vaPct      = input.float(0.70, "Value Area %", step=0.05, minval=0.5, maxval=0.9, group="① Value Area / Regime")
+float  goldPip    = input.float(0.10, "Gold 'Pip' Size ($) -- FX-pip convention translated to XAUUSD, adjustable", step=0.01, group="① Value Area / Regime")
+float  atrHiPips  = input.float(25, "Model 1 Threshold: H1 ATR > (pips)", step=1, group="① Value Area / Regime")
+float  atrLoPips  = input.float(20, "Model 2 Threshold: H1 ATR < (pips)", step=1, group="① Value Area / Regime")
+
+// ── ② Model 1: Momentum-Join ────────────────────────────────
+int    swingPw       = input.int(10, "BOS Swing Pivot Width (bars)", minval=3, maxval=30, group="② Model 1: Momentum-Join")
+float  volMult1       = input.float(1.3, "Min Breakout Volume (x 20-bar avg)", step=0.05, group="② Model 1: Momentum-Join")
+bool   useCvd1        = input.bool(true, "Require CVD-Proxy Confirmation", group="② Model 1: Momentum-Join")
+float  m1StopMinAtr   = input.float(0.4, "Min Stop (x ATR5)", step=0.05, group="② Model 1: Momentum-Join")
+float  m1StopMaxAtr   = input.float(1.2, "Max Stop (x ATR5) -- beyond this, setup invalid (too extended)", step=0.05, group="② Model 1: Momentum-Join")
+int    m1TimeStopBars = input.int(8, "Time Stop (bars, ~40min on 5m)", minval=2, group="② Model 1: Momentum-Join")
+
+// ── ③ Model 2: Mean-Reversion ───────────────────────────────
+float  sweepMinAtr    = input.float(0.15, "Min Sweep Depth Beyond VA (x ATR5)", step=0.05, group="③ Model 2: Mean-Reversion")
+float  wickBodyMult   = input.float(2.0, "Min Wick / Body Ratio (rejection)", step=0.1, group="③ Model 2: Mean-Reversion")
+float  sweepVolMult   = input.float(1.2, "Min Sweep-Candle Volume (x 20-bar avg)", step=0.05, group="③ Model 2: Mean-Reversion")
+float  reclaimVolMax  = input.float(1.0, "Max Reclaim-Candle Volume (x 20-bar avg, exhaustion)", step=0.05, group="③ Model 2: Mean-Reversion")
+int    m2TimeStopBars = input.int(6, "Time Stop (bars, ~30min on 5m)", minval=2, group="③ Model 2: Mean-Reversion")
+
+// ── ④ Filters ────────────────────────────────────────────────
+string londonSess    = input.session("0800-1200", "London Session", group="④ Filters")
+string nySess        = input.session("1330-1700", "NY Session",     group="④ Filters")
+string deadZone      = input.session("1200-1330", "Dead Zone (Model 2 skip)", group="④ Filters")
+string sessTz        = input.string("Etc/UTC", "Session Timezone", group="④ Filters")
+bool   avoidFriPM    = input.bool(true, "Avoid Friday After 16:00 (session TZ)", group="④ Filters")
+bool   newsBlackout  = input.bool(false, "Manual News Blackout (no live feed -- flip this yourself)", group="④ Filters")
+string dxySymbol     = input.symbol("TVC:DXY", "DXY Symbol (correlation check)", group="④ Filters")
+int    corrLookback  = input.int(5, "Correlation Lookback (bars)", minval=2, group="④ Filters")
+
+// ── ⑤ Risk / TP-SL ───────────────────────────────────────────
+float m1Tp1R   = input.float(1.5, "Model 1 TP1 (R)", step=0.1, group="⑤ Risk / TP-SL")
+float m1Tp2R   = input.float(2.5, "Model 1 TP2 (R)", step=0.1, group="⑤ Risk / TP-SL")
+float m2Tp1R   = input.float(1.2, "Model 2 TP1 (R)", step=0.1, group="⑤ Risk / TP-SL")
+float m2Tp2R   = input.float(2.0, "Model 2 TP2 (R)", step=0.1, group="⑤ Risk / TP-SL")
+int   cooldown = input.int(10, "Signal Cooldown (bars)", minval=0, group="⑤ Risk / TP-SL")
+float minScoreToTrade = input.float(5, "Min Confluence Score To Trade (0-12, source: 0-4=no trade)", minval=0, maxval=12, group="⑤ Risk / TP-SL")
+float dailyLossLimitPct = input.float(2.0, "Daily Loss Limit (% equity) -- halts new entries for the day", step=0.5, group="⑤ Risk / TP-SL")
+int   maxTradesPerDay   = input.int(5, "Max Trades Per Day", minval=1, group="⑤ Risk / TP-SL")
+
+bool showVA = input.bool(true, "Show Value Area Lines", group="⑥ Display")
+
+// ═════════════════════════════════════════════════════════════
+// BASICS
+// ═════════════════════════════════════════════════════════════
+float atr5 = ta.atr(14)
+float atrH1 = request.security(syminfo.tickerid, "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
+float atrH1Pips = atrH1 / goldPip
+float volAvg20 = ta.sma(volume, 20)
+
+// ═════════════════════════════════════════════════════════════
+// VALUE AREA (trailing rolling-window profile — see header note)
+// ═════════════════════════════════════════════════════════════
+float winHi = ta.highest(high, vpLen)
+float winLo = ta.lowest(low, vpLen)
+float vstep = math.max((winHi - winLo) / vpBins, syminfo.mintick)
+
+var float[] vbins = array.new_float()
+array.clear(vbins)
+for i = 0 to vpBins - 1
+    array.push(vbins, 0.0)
+for i = 0 to vpLen - 1
+    int b = math.min(vpBins - 1, math.max(0, int((close[i] - winLo) / vstep)))
+    array.set(vbins, b, array.get(vbins, b) + volume[i])
+
+int pocBin = 0
+float pocVol = 0.0
+float totalVol = 0.0
+for i = 0 to vpBins - 1
+    float v = array.get(vbins, i)
+    totalVol += v
+    if v > pocVol
+        pocVol := v
+        pocBin := i
+float poc = winLo + (pocBin + 0.5) * vstep
+
+int need = int(math.ceil(totalVol * vaPct))
+float have = pocVol
+int uB = pocBin
+int dB = pocBin
+while have < need and (uB < vpBins - 1 or dB > 0)
+    float un = uB < vpBins - 1 ? array.get(vbins, uB + 1) : -1.0
+    float dn = dB > 0 ? array.get(vbins, dB - 1) : -1.0
+    if un >= dn
+        uB += 1
+        have += math.max(un, 0.0)
+    else
+        dB -= 1
+        have += math.max(dn, 0.0)
+float vah = winLo + (uB + 1) * vstep
+float val = winLo + dB * vstep
+
+bool insideVA = close <= vah and close >= val
+
+plot(showVA ? vah : na, "VAH", color.new(color.gray, 45), 1, plot.style_linebr)
+plot(showVA ? val : na, "VAL", color.new(color.gray, 45), 1, plot.style_linebr)
+plot(showVA ? poc : na, "POC", color.new(color.orange, 25), 2, plot.style_linebr)
+
+// ═════════════════════════════════════════════════════════════
+// SESSION / FILTER STATE
+// ═════════════════════════════════════════════════════════════
+bool inLondon = not na(time(timeframe.period, londonSess, sessTz))
+bool inNY     = not na(time(timeframe.period, nySess, sessTz))
+bool inDead   = not na(time(timeframe.period, deadZone, sessTz))
+bool inSession = inLondon or inNY
+
+bool isFriPM = avoidFriPM and dayofweek(time, sessTz) == dayofweek.friday and hour(time, sessTz) >= 16
+bool hardTimeFilter = inSession and not isFriPM
+
+float dxyClose = request.security(dxySymbol, timeframe.period, close, lookahead=barmerge.lookahead_on)
+float dxyChg = ta.change(dxyClose, corrLookback)
+float goldChg = ta.change(close, corrLookback)
+bool correlated = (dxyChg > 0 and goldChg > 0) or (dxyChg < 0 and goldChg < 0)
+
+// daily trade-count / loss-limit circuit breakers
+var int   dayTradeCount = 0
+var float dayStartEquity = na
+var bool  dayHalted = false
+bool newDay = na(dayStartEquity) or dayofmonth(time, sessTz) != dayofmonth(time[1], sessTz)
+if newDay
+    dayTradeCount := 0
+    dayStartEquity := strategy.equity
+    dayHalted := false
+if not na(dayStartEquity) and (strategy.equity - dayStartEquity) <= -dayStartEquity * dailyLossLimitPct / 100.0
+    dayHalted := true
+bool circuitOk = not dayHalted and dayTradeCount < maxTradesPerDay
+
+bool hardFilterOk = hardTimeFilter and not newsBlackout and not correlated and circuitOk
+
+// ═════════════════════════════════════════════════════════════
+// MODEL SELECTION (decision tree)
+// ═════════════════════════════════════════════════════════════
+bool model1Regime = atrH1Pips > atrHiPips or not insideVA
+bool model2Regime = atrH1Pips < atrLoPips and insideVA
+
+// ═════════════════════════════════════════════════════════════
+// MODEL 1: MOMENTUM-JOIN — BOS + volume + CVD-proxy
+// ═════════════════════════════════════════════════════════════
+float swPh = ta.pivothigh(high, swingPw, swingPw)
+float swPl = ta.pivotlow(low, swingPw, swingPw)
+var float lastSwingHigh = na
+var float lastSwingLow  = na
+if not na(swPh)
+    lastSwingHigh := swPh
+if not na(swPl)
+    lastSwingLow := swPl
+
+bool bosUp   = not na(lastSwingHigh) and ta.crossover(close, lastSwingHigh)
+bool bosDown = not na(lastSwingLow)  and ta.crossunder(close, lastSwingLow)
+
+bool volConfirm1 = volume > volAvg20 * volMult1
+
+float cvdDelta = close > open ? volume : close < open ? -volume : 0.0
+float cvd5 = ta.sma(cvdDelta, 5) * 5
+bool cvdBull = not useCvd1 or cvd5 > 0
+bool cvdBear = not useCvd1 or cvd5 < 0
+
+float m1StopDistLong  = close - lastSwingLow
+float m1StopDistShort = lastSwingHigh - close
+bool m1StopOkLong  = not na(lastSwingLow)  and m1StopDistLong  >= atr5 * m1StopMinAtr and m1StopDistLong  <= atr5 * m1StopMaxAtr
+bool m1StopOkShort = not na(lastSwingHigh) and m1StopDistShort >= atr5 * m1StopMinAtr and m1StopDistShort <= atr5 * m1StopMaxAtr
+
+bool model1Long  = model1Regime and bosUp   and volConfirm1 and cvdBull and m1StopOkLong  and hardFilterOk
+bool model1Short = model1Regime and bosDown and volConfirm1 and cvdBear and m1StopOkShort and hardFilterOk
+
+// ═════════════════════════════════════════════════════════════
+// MODEL 2: MEAN-REVERSION — sweep + rejection + volume exhaustion
+// ═════════════════════════════════════════════════════════════
+bool sweepVAL = low  < val and close >= val and (val - low) >= atr5 * sweepMinAtr
+bool sweepVAH = high > vah and close <= vah and (high - vah) >= atr5 * sweepMinAtr
+
+float bodySz = math.abs(close - open)
+float lowerWick = math.min(open, close) - low
+float upperWick = high - math.max(open, close)
+bool rejectLong  = bodySz > 0 ? lowerWick >= bodySz * wickBodyMult : lowerWick > 0
+bool rejectShort = bodySz > 0 ? upperWick >= bodySz * wickBodyMult : upperWick > 0
+
+bool sweepVolOk   = volume > volAvg20 * sweepVolMult
+bool reclaimVolOk = volume < volAvg20 * reclaimVolMax
+
+bool model2Long  = model2Regime and sweepVAL and rejectLong  and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+bool model2Short = model2Regime and sweepVAH and rejectShort and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+
+// ═════════════════════════════════════════════════════════════
+// CONFLUENCE SCORE 0-12 (Appendix matrix, simplified to code)
+// ═════════════════════════════════════════════════════════════
+int sigModelRaw = model1Long or model1Short ? 1 : model2Long or model2Short ? 2 : 0
+
+f_score() =>
+    int macroPts = correlated ? 0 : 1
+    macroPts := macroPts + (not na(dxyChg) and not correlated ? 1 : 0)
+    int interPts = not na(dxyClose) ? (correlated ? 0 : 2) : 1
+    int structPts = model1Regime ? (bosUp or bosDown ? 2 : 1) : (sweepVAL or sweepVAH ? 2 : 1)
+    int ltfPts = (model1Long or model1Short) ? (volConfirm1 ? 2 : 1) : (model2Long or model2Short) ? 2 : 0
+    int rrPts = sigModelRaw == 1 ? (m1Tp2R >= 2.0 ? 2 : 1) : (m2Tp2R >= 2.0 ? 2 : 1)
+    int sessPts = (inLondon and inNY) ? 2 : inSession ? 1 : 0
+    macroPts + interPts + structPts + ltfPts + rrPts + sessPts
+
+int confluenceScore = f_score()
+float riskPct = confluenceScore <= 4 ? 0.0 : confluenceScore <= 7 ? 0.5 : confluenceScore <= 10 ? 1.0 : 1.5
+bool scoreOk = confluenceScore >= minScoreToTrade and riskPct > 0
+
+// ═════════════════════════════════════════════════════════════
+// COMBINED SIGNAL + COOLDOWN
+// ═════════════════════════════════════════════════════════════
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool amdmLong  = cd and scoreOk and (model1Long or model2Long) and strategy.position_size == 0
+bool amdmShort = cd and scoreOk and (model1Short or model2Short) and strategy.position_size == 0
+int  sigModel  = model1Long or model1Short ? 1 : 2
+
+if amdmLong or amdmShort
+    lastSig := bar_index
+
+// ═════════════════════════════════════════════════════════════
+// RISK-PERCENT POSITION SIZING + EXECUTION
+// Model 2 risk distance references the ACTUAL sweep wick extreme
+// (this bar's low/high), not a flat ATR placeholder — this repo
+// already found and fixed a "stop inside the sweep zone" bug once
+// this session from exactly that shortcut.
+// ═════════════════════════════════════════════════════════════
+if amdmLong or amdmShort
+    int dir = amdmLong ? 1 : -1
+    float riskDist = sigModel == 1 ? (dir == 1 ? m1StopDistLong : m1StopDistShort) : (dir == 1 ? close - low + atr5 * 0.1 : high - close + atr5 * 0.1)
+    float stopPx = dir == 1 ? close - riskDist : close + riskDist
+    float tp1R = sigModel == 1 ? m1Tp1R : m2Tp1R
+    float tp2R = sigModel == 1 ? m1Tp2R : m2Tp2R
+    float tp1Px = dir == 1 ? close + riskDist * tp1R : close - riskDist * tp1R
+    float tp2Px = dir == 1 ? close + riskDist * tp2R : close - riskDist * tp2R
+    float qtySplit1 = sigModel == 1 ? 40.0 : 50.0
+    float qtySplit2 = sigModel == 1 ? 35.0 : 30.0
+    // runner = remaining 25% (Model 1) / 20% (Model 2), exits at TP2's
+    // stop-line via the same strategy.exit call as the TP2 slice —
+    // Pine strategy.exit doesn't support a true trailing "let it run"
+    // leg distinct from a fixed target without extra bar-by-bar trail
+    // logic, so the runner shares TP2's target rather than the source
+    // doc's open-ended trail -- documented simplification, not a bug.
+    //
+    // KNOWN GAP, flagged rather than silently skipped: the source doc
+    // also calls for moving the stop to breakeven once TP1 fills. All
+    // three exit legs below share ONE stop price (stopPx) for the life
+    // of the trade -- there is no breakeven-stop-move after TP1. Doing
+    // that correctly needs fill-event tracking (strategy.opentrades vs.
+    // strategy.closedtrades deltas) to safely cancel and reissue the
+    // remaining bracket orders without double-canceling or racing a
+    // same-bar fill; left as a documented next step rather than shipped
+    // half-correct.
+
+    float riskDollars = strategy.equity * riskPct / 100.0
+    float qty = riskDist > 0 ? riskDollars / riskDist : 0.0
+
+    if qty > 0
+        dayTradeCount += 1
+        if amdmLong
+            strategy.entry("Long", strategy.long, qty=qty)
+            strategy.exit("L-TP1", "Long", stop=stopPx, limit=tp1Px, qty_percent=qtySplit1)
+            strategy.exit("L-TP2", "Long", stop=stopPx, limit=tp2Px, qty_percent=qtySplit2 / (100 - qtySplit1) * 100)
+            strategy.exit("L-RUN", "Long", stop=stopPx, limit=tp2Px)
+        else
+            strategy.entry("Short", strategy.short, qty=qty)
+            strategy.exit("S-TP1", "Short", stop=stopPx, limit=tp1Px, qty_percent=qtySplit1)
+            strategy.exit("S-TP2", "Short", stop=stopPx, limit=tp2Px, qty_percent=qtySplit2 / (100 - qtySplit1) * 100)
+            strategy.exit("S-RUN", "Short", stop=stopPx, limit=tp2Px)
+
+// ═════════════════════════════════════════════════════════════
+// TIME STOP — flatten if neither target/stop hit within the
+// model's time window
+// ═════════════════════════════════════════════════════════════
+var int entryBar = na
+var int entryModel = na
+if amdmLong or amdmShort
+    entryBar := bar_index
+    entryModel := sigModel
+
+int timeStopBars = entryModel == 1 ? m1TimeStopBars : m2TimeStopBars
+if strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= timeStopBars
+    strategy.close_all(comment="Time stop")
+
+// ═════════════════════════════════════════════════════════════
+// SIGNAL LABELS
+// ═════════════════════════════════════════════════════════════
+if amdmLong
+    label.new(bar_index, low, "M" + str.tostring(sigModel) + " LONG", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small)
+if amdmShort
+    label.new(bar_index, high, "M" + str.tostring(sigModel) + " SHORT", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(amdmLong,  "AMDM Long",  "AMDM -- LONG ({{ticker}} {{interval}})")
+alertcondition(amdmShort, "AMDM Short", "AMDM -- SHORT ({{ticker}} {{interval}})")

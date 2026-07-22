@@ -626,12 +626,16 @@ STATUS: SYNTHESIZED / UNTESTED. Two-model regime-switched system:
   entry/RR/session timing) maps to position size, consistent with
   COGNITIVE_ARCHITECTURE.md's existing scoring convention.
 
-Engine: `indicators/amdm_confluence_engine.pine` — see Implementation
-notes in AMDM_confluence_strategy.md and the engine's own header for
-what's built vs. simplified (e.g. no true footprint/delta data on this
-project's feed, same data-limitation caveat as every order-flow-based
-engine in this repo — CVD confirmation uses the existing candle-
-direction proxy, not real bid/ask delta).
+Engine: `indicators/amdm_confluence_engine.pine` (visual/chart version)
+and `strategies/amdm_confluence_strategy.pine` (Strategy Tester version
+-- same detection logic wired into strategy.entry/exit with risk-percent
+position sizing off the 0-12 confluence score, daily loss-limit/trade-
+count circuit breakers, and a time-stop flatten). See both files'
+headers for what's built vs. simplified (e.g. no true footprint/delta
+data on this project's feed -- CVD confirmation uses the existing
+candle-direction proxy, not real bid/ask delta; the strategy version
+also documents one known gap -- no breakeven-stop-move after TP1,
+flagged rather than shipped half-correct).
 
 Next steps per the strategy's own Part IV backtest plan: minimum 100
 manually-tracked trades across 3+ months before any status upgrade past
