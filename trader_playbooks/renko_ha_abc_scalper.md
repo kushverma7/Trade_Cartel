@@ -102,3 +102,20 @@ indicators/renko_abc_scalper.pine — synthetic non-repainting Renko/HA
 construction (ATR-scaled box size), 12/24/36 EMA cluster, floating-brick
 entry trigger, ABC/123 pivot-based structure break, counter-color-run
 exit counter, fib 50/61.8 retracement zone marker.
+
+---
+
+## Audit pass — original transcript recovered from session log (2026-07-22)
+Raw transcript recovered from the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/line1427_2026-07-20.txt` (the
+mentor's live 1-on-1 call with student "John"). Clean match: ABC/1-2-3
+structure, fib 50-61.8% entry ("very strong to go in," quoted verbatim),
+Renko+HA doji-at-reversal logic, 12/24/36 EMA "floating brick" entry and
+"sweet spot between 12 and 24" exit tell, fib measured-move extension,
+FX/news pre-market filter, the 06:00-11:00 ET session window ("starting
+at 6am... 6 to 11... then it dies out" — exact), Monday/Friday avoidance,
+and the "$6k last night" PnL anecdote all verified verbatim. The file's
+second anecdote ("$4.7k") and its three alert types (EMA cross/trendline
+break/rocket candle) aren't in this particular transcript excerpt —
+likely from another session with the same mentor/student pair, not an
+error given the file is explicitly multi-session. No changes needed.

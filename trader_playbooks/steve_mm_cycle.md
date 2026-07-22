@@ -184,3 +184,62 @@ model:
   (Asia+Oceania pairs for off-hours traders, majors/EU crosses for
   London/NY-hours traders) -- operational hygiene, not a new edge
   claim.
+
+---
+
+## Audit pass — original transcripts recovered from session log (2026-07-22)
+Raw transcripts recovered from the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/` (line1291 = day-1 seminar,
+line1625 = the already-logged Nick/GP mentoring call). The ET time grid,
+25-50 pip stop-hunt zone, three-push vector-candle geometry, DNC rule,
+two-hour rule, ADR-thirds level count, and the Nick/GP ADR-box-stacking/
+EMA-cross/TDI/pivot content all check out with no numeric contradictions.
+Real gaps found:
+
+- **Missing entirely — "weekly net change allowance"**: Steve repeatedly
+  teaches that dealers are capped by an IMF/World-Bank-style weekly
+  net-change limit ("given a weekly net change of 500... they run at
+  600-700 pips... reversal back under the 500 limit by Friday close";
+  also "1000 pip movement weekly net change... cannot exceed on the
+  close on Friday"). A distinct, falsifiable claim — a hard ceiling
+  that forces Friday mean-reversion — currently absent even from the
+  "WHAT WE DISCARD" section. Needs a decision: code as a soft cap
+  forcing reversion, or explicitly log as discarded/unfalsifiable.
+- **Missing — ADR-derived market ceiling**: "average daily range... can
+  only move most pairs about 200 pips a day to 600 pips a week."
+- **Missing — 50/200 EMA take-profit mapping + "50 fib" calc**: original
+  day-1 teaching has 50 EMA = first take-profit, 200 EMA = second
+  take-profit, and a "50 fib" = (high-low)/2 added back from the
+  extreme. The file's v2 EMA section only covers the 5/13/50/200/800
+  stack as level-classification/S-R, dropping this original TP-
+  targeting rule and the "50 fib" calculation entirely.
+- **Missing terminology**: 200 EMA nickname "mayonnaise" (used
+  repeatedly as a TP/reversal reference, e.g. "pin to the mayonnaise is
+  a sell") — absent from the playbook's terminology anywhere.
+- **Missing swing-trade pip range**: explicit numbers given — "three to
+  six hundred pips" and "two to six hundred pips" for a caught
+  peak-formation swing — not stated anywhere.
+- **Missing named pattern**: "half a batman" / "reverse half a batman"
+  — used repeatedly in line1625 for a three-hits/head-and-shoulders-
+  style level-3 tell. The v2 section generalizes this only as
+  "head-and-shoulders... at level 3," never recording the actual
+  nickname. ("Quarter wood pattern" is also named in line1625 but never
+  defined in the source itself — flagged as unresolved, not missing.)
+
+### Non-match, logged separately: "Forex James" is NOT this voice
+Two further raw transcripts (line1675, line1694, "Forex James" —
+"how market makers manipulate retail traders") were checked against
+this file on the theory they might be a pen-named extension of Steve's
+model. They are NOT: zero shared mechanics (no ET time grid, Brinks
+windows, ADR-thirds counting, EMA stack, TDI, railroad tracks,
+"mayonnaise," DNC, or level counting), no shared clock times or pip
+numbers, and different named references (cites "Anton Kreil" and a
+"90/90/90 rule," never used by Steve). Content is generic "how market
+makers manipulate retail" 101 (fakeouts, stop hunts, long-wick traps)
+plus unrelated broker-selection/risk-management advice — qualitative,
+no repeatable counting system, low mechanical value. Per the never-
+discard rule this is preserved verbatim at
+`trader_playbooks/sources/raw_transcripts/line1675_2026-07-20.txt` and
+`line1694_2026-07-20.txt` but NOT built into any engine and NOT given a
+voice number — logged here as a source that was found, read, and
+deliberately not developed further, rather than silently dropped.

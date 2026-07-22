@@ -1,0 +1,978 @@
+<title>Trade Cartel — Source Dossier</title>
+<style>
+  :root {
+    --bg: #eae6da;
+    --surface: #f5f2e9;
+    --surface-2: #efeade;
+    --ink: #221f1a;
+    --ink-soft: #5b564b;
+    --ink-faint: #8a8474;
+    --line: #d6cfbc;
+    --accent: #8c5c19;
+    --accent-soft: #96631c22;
+    --tier-high: #3d6b4c;
+    --tier-high-bg: #3d6b4c1a;
+    --tier-med: #9c7223;
+    --tier-med-bg: #9c72231a;
+    --tier-low: #9a4a3a;
+    --tier-low-bg: #9a4a3a1a;
+    --tier-unv: #746b5c;
+    --tier-unv-bg: #746b5c1a;
+    --font-display: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15130e;
+      --surface: #1d1a13;
+      --surface-2: #211d15;
+      --ink: #ede7d8;
+      --ink-soft: #b3aa95;
+      --ink-faint: #7d7666;
+      --line: #39332a;
+      --accent: #ddae55;
+      --accent-soft: #ddae5522;
+      --tier-high: #5c9c71;
+      --tier-high-bg: #5c9c711f;
+      --tier-med: #d2a13f;
+      --tier-med-bg: #d2a13f1f;
+      --tier-low: #c1685a;
+      --tier-low-bg: #c1685a1f;
+      --tier-unv: #9c927e;
+      --tier-unv-bg: #9c927e1f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15130e; --surface: #1d1a13; --surface-2: #211d15;
+    --ink: #ede7d8; --ink-soft: #b3aa95; --ink-faint: #7d7666; --line: #39332a;
+    --accent: #ddae55;
+    --tier-high: #5c9c71; --tier-high-bg: #5c9c711f;
+    --tier-med: #d2a13f; --tier-med-bg: #d2a13f1f;
+    --tier-low: #c1685a; --tier-low-bg: #c1685a1f;
+    --tier-unv: #9c927e; --tier-unv-bg: #9c927e1f;
+  }
+  :root[data-theme="light"] {
+    --bg: #eae6da; --surface: #f5f2e9; --surface-2: #efeade;
+    --ink: #221f1a; --ink-soft: #5b564b; --ink-faint: #8a8474; --line: #d6cfbc;
+    --accent: #8c5c19;
+    --tier-high: #3d6b4c; --tier-high-bg: #3d6b4c1a;
+    --tier-med: #9c7223; --tier-med-bg: #9c72231a;
+    --tier-low: #9a4a3a; --tier-low-bg: #9a4a3a1a;
+    --tier-unv: #746b5c; --tier-unv-bg: #746b5c1a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  ::selection { background: var(--accent-soft); }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 6rem;
+  }
+
+  /* ── Masthead ── */
+  .masthead {
+    border-top: 3px solid var(--ink);
+    border-bottom: 1px solid var(--line);
+    padding: 1.5rem 0 1.75rem;
+    margin-bottom: 2.5rem;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+  h1.title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    margin: 0 0 0.5rem;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+    max-width: 62ch;
+    margin: 0 0 1.4rem;
+  }
+  .stat-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .stat {
+    flex: 1 1 120px;
+    padding: 0.7rem 1rem;
+    border-right: 1px solid var(--line);
+  }
+  .stat:last-child { border-right: none; }
+  .stat .n {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--ink);
+    display: block;
+  }
+  .stat .l {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Section headings ── */
+  h2.section {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 3rem 0 0.35rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  h2.section .count {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    font-weight: 400;
+  }
+  .section-note {
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    max-width: 68ch;
+    margin: 0 0 1.3rem;
+  }
+
+  /* ── Tier legend ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.1rem;
+    margin: 1.6rem 0 0;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+  .legend .chip { margin-right: 0.35rem; }
+
+  /* ── Voice cards ── */
+  .voice-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .voice {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1rem 1.15rem 1.05rem;
+  }
+  .voice-head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.4rem;
+  }
+  .voice-num {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    min-width: 2.6rem;
+  }
+  .voice-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.08rem;
+    margin-right: auto;
+  }
+  .chip {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.5rem;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .tier-high { color: var(--tier-high); background: var(--tier-high-bg); }
+  .tier-med  { color: var(--tier-med);  background: var(--tier-med-bg); }
+  .tier-low  { color: var(--tier-low);  background: var(--tier-low-bg); }
+  .tier-unv  { color: var(--tier-unv);  background: var(--tier-unv-bg); }
+
+  .voice-source {
+    font-size: 0.82rem;
+    color: var(--ink-faint);
+    margin: 0 0 0.5rem;
+    font-style: italic;
+  }
+  .voice-concept {
+    font-size: 0.93rem;
+    color: var(--ink);
+    margin: 0 0 0.6rem;
+  }
+  .voice-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .file-chip {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 0.14rem 0.5rem;
+    border-radius: 2px;
+  }
+
+  /* ── Meta doc list ── */
+  .meta-list {
+    display: grid;
+    gap: 0.7rem;
+  }
+  .meta-item {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 0.9rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.92rem;
+  }
+  .meta-item:last-child { border-bottom: none; }
+  .meta-item .name {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--accent);
+  }
+  .meta-item .desc { color: var(--ink-soft); }
+
+  /* ── Tool list (cross-cutting engines) ── */
+  .tool-list { display: grid; gap: 0.6rem; }
+  .tool {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+    padding: 0.65rem 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  .tool .fname {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent);
+  }
+  .tool .fdesc { font-size: 0.87rem; color: var(--ink-soft); }
+
+  /* ── Rules footer ── */
+  .rules {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .rules ul { margin: 0.6rem 0 0; padding-left: 1.2rem; }
+  .rules li { font-size: 0.88rem; color: var(--ink-soft); margin-bottom: 0.45rem; }
+  .rules strong { color: var(--ink); }
+
+  footer.colophon {
+    margin-top: 3rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    font-family: var(--font-mono);
+  }
+
+  @media (max-width: 520px) {
+    .meta-item { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+
+  /* ── Source file table ── */
+  .file-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; }
+  table.file-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 640px; }
+  table.file-table th {
+    text-align: left; font-family: var(--font-mono); font-size: 0.68rem;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint);
+    padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); background: var(--surface-2);
+  }
+  table.file-table td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.file-table tr:last-child td { border-bottom: none; }
+  table.file-table .fn { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink); }
+  table.file-table .sz { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-faint); white-space: nowrap; }
+  table.file-table .target { font-family: var(--font-mono); font-size: 0.76rem; color: var(--accent); white-space: nowrap; }
+  table.file-table .auth { color: var(--ink-soft); }
+  tr.unusable td { opacity: 0.6; }
+
+  /* ── Audit log ── */
+  .audit-summary {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.7rem; margin-bottom: 1.4rem;
+  }
+  .audit-stat { border: 1px solid var(--line); border-radius: 3px; padding: 0.7rem 0.9rem; background: var(--surface); }
+  .audit-stat .n { font-family: var(--font-mono); font-size: 1.15rem; font-weight: 600; display: block; }
+  .audit-stat .l { font-size: 0.72rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .audit-list { display: grid; gap: 0.55rem; }
+  .audit-row {
+    display: grid; grid-template-columns: 9rem 1fr auto; gap: 0.8rem; align-items: baseline;
+    padding: 0.55rem 0.8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 3px;
+    font-size: 0.86rem;
+  }
+  .audit-row .v { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink); }
+  .audit-row .r { color: var(--ink-soft); }
+  .audit-badge { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.5rem; border-radius: 20px; white-space: nowrap; }
+  .badge-fixed { color: var(--tier-med); background: var(--tier-med-bg); }
+  .badge-clean { color: var(--tier-high); background: var(--tier-high-bg); }
+  .badge-nofile { color: var(--tier-unv); background: var(--tier-unv-bg); }
+  @media (max-width: 620px) {
+    .audit-row { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <p class="eyebrow">Trade Cartel — internal knowledge base — compiled 2026-07-20</p>
+    <h1 class="title">Source Dossier</h1>
+    <p class="subtitle">Every trader, book, transcript, and PDF fed into this project, what was
+      kept from each, and where it lives in code. Nothing here is discarded once logged —
+      low-credibility sources are kept and clearly marked, not deleted.</p>
+    <div class="stat-strip">
+      <div class="stat"><span class="n">21</span><span class="l">Voices</span></div>
+      <div class="stat"><span class="n">72</span><span class="l">Hypotheses (H1–H72)</span></div>
+      <div class="stat"><span class="n">35</span><span class="l">Indicator engines</span></div>
+      <div class="stat"><span class="n">10</span><span class="l">Strategy files</span></div>
+      <div class="stat"><span class="n">0</span><span class="l">"Proven" claims standing</span></div>
+      <div class="stat"><span class="n">21/21</span><span class="l">Re-audited vs. original source</span></div>
+    </div>
+  </div>
+  <p class="section-note" style="margin-top:0.8rem;">Updated 2026-07-22: every original source — PDF, clean-text
+    extraction, or raw pasted transcript — is now permanently archived in the repo at
+    <code>trader_playbooks/sources/</code>, not just held in a session's temporary upload storage. All 21
+    voices have been independently re-audited against their original material.</p>
+
+  <p class="section-note" style="margin-top:0;">Every voice below is tagged with a credibility
+    tier — the tier reflects the STRENGTH OF EVIDENCE for the source's track record, not
+    whether the mechanics were worth coding. Several LOW-tier marketing sources still produced
+    fully mechanical, falsifiable rules that were kept.</p>
+  <div class="legend">
+    <span><span class="chip tier-high">High / Med-High</span> audited or unusually strong evidentiary claim</span>
+    <span><span class="chip tier-med">Medium</span> named/credentialed author, zero independent verification</span>
+    <span><span class="chip tier-low">Low / Low-Med</span> anonymous, marketing framing, or red-flag language</span>
+    <span><span class="chip tier-unv">Unverified</span> theory only, explicitly zero stats in source</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Auction theory &amp; order flow <span class="count">4 voices</span></h2>
+  <p class="section-note">Value-area, aggression/passive order-book mechanics, and volume-profile
+    construction — the project's earliest sources and still its most-corroborated family.</p>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#1</span>
+        <span class="voice-name">PBD Logic</span>
+        <span class="chip tier-unv">Unverified</span>
+      </div>
+      <p class="voice-source">German profile trader, AI-translated video · Steidlmayer/Dalton auction-theory lineage</p>
+      <p class="voice-concept">Markets balance ~70% of the time, trend ~30% (P/b shapes). Closing-price
+        clusters approximate value area; a close breaking balance high/low signals continuation or
+        reversal back to the impulse origin.</p>
+      <div class="voice-files"><span class="file-chip">pbd_logic.md</span><span class="file-chip">pbd_logic_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#2</span>
+        <span class="voice-name">Valentini Momentum-Join Scalping</span>
+        <span class="chip tier-high">High</span>
+      </div>
+      <p class="voice-source">Fabio Valentini, Robbins World Cup scalper · verified 68%/88%/218% quarterly returns, ~500 trades/quarter, NASDAQ futures — highest-credibility source in the register</p>
+      <p class="voice-concept">Never catch the falling knife — join AFTER volume aggression and
+        price follow-through confirm pressure. His own tested data: momentum-join beats reversal
+        trading (50–60% WR vs. 40%). Extended by a companion "Orderflow Effort vs. Result" video
+        (aggressive vs. passive order mechanics, thin-side-of-book price path) — same source
+        family, not separately numbered.</p>
+      <div class="voice-files"><span class="file-chip">valentini_scalping.md</span><span class="file-chip">orderflow_effort_result.md</span><span class="file-chip">valentini_momentum_engine.pine</span><span class="file-chip">effort_result_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#3</span>
+        <span class="voice-name">Kurisko Quad Rotation System</span>
+        <span class="chip tier-unv">Unverified</span>
+      </div>
+      <p class="voice-source">John Kurisko, Day Trading Radio, ~27 years ES/MES futures · "95% accuracy" is marketing, no audited stats</p>
+      <p class="voice-concept">Four stacked stochastic %D bands as a compressed multi-timeframe
+        view. His #1 signal is price/stochastic divergence; the "Super Signal" stacks quad
+        alignment + divergence + a 9-3 trigger crossing back through 20, stop 1–2 ticks under the
+        pattern low.</p>
+      <div class="voice-files"><span class="file-chip">kurisko_quad_rotation.md</span><span class="file-chip">kurisko_quad_rotation.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#14</span>
+        <span class="voice-name">Trader Dale — Order Flow &amp; Volume Profile</span>
+        <span class="chip tier-med">Medium</span>
+      </div>
+      <p class="voice-source">"Order Flow Trading Setups" ebook · full-time trader since 2008, stated finance degree + PM/derivatives certifications</p>
+      <p class="voice-concept">Rolling volume-weighted price histogram (POC/value area/shape
+        classification), HVN/volume-cluster zones with first-test-only retests. True footprint
+        concepts (imbalances, big limit orders) require bid/ask-split data this project doesn't
+        have — explicitly not built rather than faked.</p>
+      <div class="voice-files"><span class="file-chip">trader_dale_orderflow.md</span><span class="file-chip">trader_dale_volume_profile_engine.pine</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Market structure / SMC / ICT lineage <span class="count">6 voices</span></h2>
+  <p class="section-note">Break-of-structure, supply/demand, and liquidity-sweep schools — the
+    largest single family in the register, so overlap between voices is logged as corroboration
+    rather than re-coded.</p>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#4</span>
+        <span class="voice-name">Quarterly Theory (Trader Daye)</span>
+        <span class="chip tier-unv">Unverified</span>
+      </div>
+      <p class="voice-source">Compiled PDF + Daye's own intro videos, ICT-derived · TIME-based, zero stats</p>
+      <p class="voice-concept">Fractal time quarters (yearly → 90-min), True Opens as premium/
+        discount reference prices, AMDX/XAMD phase template (Accumulate → Manipulate/Judas swing
+        → Distribute → Reverse), SMT divergence graded by whether it lands sequentially at a
+        quarter boundary. Not related to Yotov's price-based "Quarters Theory" below despite the name.</p>
+      <div class="voice-files"><span class="file-chip">quarterly_theory.md</span><span class="file-chip">quarterly_theory_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#6</span>
+        <span class="voice-name">Intent/Momentum Reading (Ario, MMT)</span>
+        <span class="chip tier-low">Low</span>
+      </div>
+      <p class="voice-source">Educator video · no track record, education content</p>
+      <p class="voice-concept">Three intents only — higher / lower / consolidation — momentum as
+        a continuous ratio, never binary. A move only counts as evidence after the opposite side
+        tried and failed (tested vs. non-tested moves); stacked failed wicks at a level = that
+        side weakening.</p>
+      <div class="voice-files"><span class="file-chip">ario_intent_reading.md</span><span class="file-chip">intent_reader.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#7</span>
+        <span class="voice-name">Dave — Fractal Market Structure Scalping</span>
+        <span class="chip tier-low">Low</span>
+      </div>
+      <p class="voice-source">Podcast · claimed $700→$89k in 3 weeks, unaudited</p>
+      <p class="voice-concept">Swing-maturity rule: don't fade a point of interest until ~4–6
+        matured swings have formed into it — fewer means the run isn't exhausted. He explicitly
+        dares a backtest across "every pair, any market."</p>
+      <div class="voice-files"><span class="file-chip">dave_market_structure.md</span><span class="file-chip">dave_swing_count.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#10</span>
+        <span class="voice-name">Wendell / Online Trading Academy</span>
+        <span class="chip tier-high">Med-High</span>
+      </div>
+      <p class="voice-source">Brandon Wendell, OTA instructor · Sam Seiden/Wyckoff-descended institutional S/D lineage, ex-hedge-fund</p>
+      <p class="voice-concept">The most precise, rule-based supply/demand zone construction in
+        the register — proximal/distal edges, a freshness filter, basing-candle-count cap,
+        departure-strength filter. Direct rework candidate for the auto-zone logic that produced
+        this project's only recorded failed backtest (PF 0.731).</p>
+      <div class="voice-files"><span class="file-chip">wendell_supply_demand.md</span><span class="file-chip">wendell_zone_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#12</span>
+        <span class="voice-name">Alchemist Forex Concepts</span>
+        <span class="chip tier-low">Low-Med</span>
+      </div>
+      <p class="voice-source">"Alchemist Concepts in Forex Trading" PDF, "White Seraph" · Thai-original, machine-translated</p>
+      <p class="voice-concept">SMC glossary: inducement-gated BOS/CHOCH (a structure break is
+        only trusted after its inducement pullback is swept), SBR/RBS role-flip retest tagging,
+        Quasimodo 5-point pattern. Fibo Storyline/Circle recovered from the PDF's page IMAGES
+        after the text layer alone proved too garbled.</p>
+      <div class="voice-files"><span class="file-chip">alchemist_smc_concepts.md</span><span class="file-chip">alchemist_smc_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#13</span>
+        <span class="voice-name">Pure Price Action &amp; Market Structure (SMC)</span>
+        <span class="chip tier-med">Low-Med to Med</span>
+      </div>
+      <p class="voice-source">Full personal trading-plan/course text, anonymous · unusually precise and operationally complete for this register</p>
+      <p class="voice-concept">A structural point is only STRONG once price later breaks the
+        most recent opposite-type zone — a precise, non-retroactive strength test. IFC (3-candle
+        gap) detection, single freshest zone per side, "who's in control" regime flag.</p>
+      <div class="voice-files"><span class="file-chip">pure_pa_smc.md</span><span class="file-chip">pure_pa_smc_engine.pine</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Cycle &amp; timing models <span class="count">2 voices</span></h2>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#8</span>
+        <span class="voice-name">Steve (MMM4x) — Market Maker Cycle Model</span>
+        <span class="chip tier-low">Low-Med</span>
+      </div>
+      <p class="voice-source">4-day seminar transcript · "90% accurate, will not fail" marketing, conspiratorial framing (unverifiable)</p>
+      <p class="voice-concept">Mechanics kept, mythology discarded: a full daily ET time grid
+        (Brinks windows, Asia-range stop-hunt tiers), 3-tap fade signals, ADR-thirds level
+        counter. v2 adds an EMA 5/13/50/200/800 stack and railroad-track tags.</p>
+      <div class="voice-files"><span class="file-chip">steve_mm_cycle.md</span><span class="file-chip">mm_cycle_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#11</span>
+        <span class="voice-name">Forex Master Pattern (3-phase cycle)</span>
+        <span class="chip tier-low">Low-Med</span>
+      </div>
+      <p class="voice-source">Introductory course video, unnamed instructor · "90% of traders lose" framing, proprietary software references</p>
+      <p class="voice-concept">Every candle on every timeframe classified into Contraction
+        (do-not-trade) → Expansion (the trap, whipsaws both sides of the contraction box) →
+        Trend. Average-price phase detection run on both LTF and HTF simultaneously.</p>
+      <div class="voice-files"><span class="file-chip">fx_master_pattern.md</span><span class="file-chip">fx_master_pattern_engine.pine</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Pattern &amp; structure scalping <span class="count">2 voices</span></h2>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#9</span>
+        <span class="voice-name">Renko/Heikin-Ashi ABC-123 Scalper</span>
+        <span class="chip tier-low">Low</span>
+      </div>
+      <p class="voice-source">Live 1-on-1 mentoring call transcript · anecdotal self-reported PnL, sells a $1,500 EA</p>
+      <p class="voice-concept">Classic ABC/1-2-3 swing-failure reversal on a synthetic
+        non-repainting Renko+HA construct, 12/24/36 EMA cluster, "floating brick" entry trigger.
+        The source's own student doubted gold applicability — left flagged unresolved, not
+        silently assumed.</p>
+      <div class="voice-files"><span class="file-chip">renko_ha_abc_scalper.md</span><span class="file-chip">renko_abc_scalper.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#15</span>
+        <span class="voice-name">Tom Hougaard — The First Trading Manual</span>
+        <span class="chip tier-high">Med-High</span>
+      </div>
+      <p class="voice-source">Professional trader, audited multi-year competition track record (one year ~£25k → ~£1m, no losing year)</p>
+      <p class="voice-concept">4-Bar Fractal — the simplest signal in the whole repo (close beats
+        both the prior bar's AND the bar-3-back's high/low). 3-Bar Swing trend state, 89-period
+        HTF MA bias. Reads mid-trend divergence as CONTINUATION, not reversal — an unresolved
+        tension against every other divergence idea in the register.</p>
+      <div class="voice-files"><span class="file-chip">hougaard_price_action.md</span><span class="file-chip">hougaard_4bar_fractal_engine.pine</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Gann &amp; geometric schools <span class="count">2 voices</span></h2>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#16</span>
+        <span class="voice-name">Gann Square of Nine</span>
+        <span class="chip tier-low">Low-Med</span>
+      </div>
+      <p class="voice-source">"Trading the Gann Square of Nine" (TradingFives, 2003) + W.D. Gann's own 1953 appendix + "The Master Commodities Course" (16,230 lines, read in full)</p>
+      <p class="voice-concept">Major-pivot-anchored Roadmap Chart, Gann Angle fan (1x1/2x1/4x1/8x1)
+        with a "death angle" break alert, price/time squaring detector, Signal Day single-bar
+        reversal tag. 29+ numbered pyramiding rules and all seasonal/astrological material
+        deliberately NOT built — documented, not coded.</p>
+      <div class="voice-files"><span class="file-chip">gann_square_of_nine.md</span><span class="file-chip">gann_square_of_nine_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#19</span>
+        <span class="voice-name">Hima Reddy — Trading Methodologies of W.D. Gann</span>
+        <span class="chip tier-med">Medium</span>
+      </div>
+      <p class="voice-source">FT Press, 2013 · named, published, CMT-credentialed — different voice from #16, covers Gann's TRADING rules only, zero overlap</p>
+      <p class="voice-concept">Eighths retracement (0–100% in 12.5% steps) applied to price AND
+        to RSI's own swings, a 2-bar test-failure rule, 18 numbered Buying/Selling Points, and a
+        trendline-parallel channel anchored to the origin bar's opposite extreme rather than a
+        second touch.</p>
+      <div class="voice-files"><span class="file-chip">hima_reddy_gann_methodology.md</span><span class="file-chip">hima_reddy_gann_engine.pine</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Price-grid &amp; intermarket <span class="count">2 voices</span></h2>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#17</span>
+        <span class="voice-name">Intermarket Lead-Lag Trading</span>
+        <span class="chip tier-low">Low</span>
+      </div>
+      <p class="voice-source">"The Big Secret of Intermarket Trading," 7-page free PDF, unattributed lead-gen funnel</p>
+      <p class="voice-concept">"100% profitable" language treated as disqualifying at face
+        value; every example is a hindsight-annotated screenshot. Only the underlying idea
+        (cross-asset lead-lag) was kept — correlation gate and ATR normalization are this
+        project's own addition, not the source's.</p>
+      <div class="voice-files"><span class="file-chip">intermarket_lag_trading.md</span><span class="file-chip">intermarket_lag_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#18</span>
+        <span class="voice-name">Ilian Yotov — The Quarters Theory</span>
+        <span class="chip tier-low">Low-Med</span>
+      </div>
+      <p class="voice-source">Wiley, 2010 · two webinar transcripts + the published book's own glossary (primary-source correction)</p>
+      <p class="voice-concept">Purely PRICE-based static grid (large/small quarters via modulo
+        arithmetic, zero time component) — unrelated to Trader Daye's #4 despite the near-
+        identical name. Trend Wave cycle counter explicitly rejects Elliott's fixed 5-wave
+        structure. Author's name was initially mis-transcribed and had to be corrected from a
+        fabricated surname once the primary source arrived.</p>
+      <div class="voice-files"><span class="file-chip">yotov_quarters_theory.md</span><span class="file-chip">quarters_theory_price_engine.pine</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Risk architecture <span class="count">1 voice</span></h2>
+  <p class="section-note">Absorbed as portable trade-management rules and corroboration votes,
+    not as a signal engine — different asset class (growth stocks, weekly charts).</p>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-num">#5</span>
+        <span class="voice-name">Roppel Trend-Following (O'Neil/CANSLIM school)</span>
+        <span class="chip tier-med">Independent, unverified</span>
+      </div>
+      <p class="voice-source">Quickfire interview · hedge fund manager since 1985, Livermore/O'Neil lineage</p>
+      <p class="voice-concept">3-5-7 scaled stop (exit thirds at -3%/-5%/-7%, adapted to
+        0.5R/0.75R/1R for gold scalps) instead of full size at one stop. Cushion protocol: no
+        YTD cushion = risk-averse sizing; a real cushion = size can lean into it.</p>
+      <div class="voice-files"><span class="file-chip">roppel_trend_following.md</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Foundational confluence layer <span class="count">not voice-numbered</span></h2>
+  <p class="section-note">Candlestick and chart-pattern reference material — applied as
+    confluence inside every strategy per the project's standing rule, never delivered as a
+    standalone tool. Extended in place by later cheat-sheet sources rather than forked.</p>
+  <div class="voice-grid">
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-name">Candlestick Playbook</span>
+        <span class="chip tier-high">Bulkowski-tiered</span>
+      </div>
+      <p class="voice-source">Nison's canon + multiple corroborating cheat-sheets, tiered by Bulkowski's quantified testing</p>
+      <p class="voice-concept">16+ patterns, each with a mechanical definition, required context
+        (trend + location), and an honest A/B/C reliability tier — C-tier "popular but near
+        coin-flip" patterns are kept off by default rather than deleted.</p>
+      <div class="voice-files"><span class="file-chip">candlestick_patterns.md</span><span class="file-chip">candlestick_engine.pine</span></div>
+    </div>
+
+    <div class="voice">
+      <div class="voice-head">
+        <span class="voice-name">Chart Pattern Engine</span>
+        <span class="chip tier-med">H40</span>
+      </div>
+      <p class="voice-source">Multiple sources including a Josh Trade ebook, cross-checked against page images</p>
+      <p class="voice-concept">Double/Triple Top-Bottom, Head &amp; Shoulders, triangles, wedges,
+        flags, Cup &amp; Handle, Diamond Top/Bottom — pivot-buffer multi-swing geometric
+        detection with measured-move targets.</p>
+      <div class="voice-files"><span class="file-chip">chart_pattern_engine.pine</span></div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Operating system <span class="count">meta-documents</span></h2>
+  <p class="section-note">Read at the start of every session, in this order, before any analysis
+    happens — these govern how the 21 voices above get used, not what they say.</p>
+  <div class="meta-list">
+    <div class="meta-item">
+      <span class="name">COGNITIVE_<wbr>ARCHITECTURE.md</span>
+      <span class="desc">The operating system. Three minds (Macro Architect, Microstructure
+        Predator, Profit Engine w/ veto), an 8-step thinking process, conviction scoring 0–12,
+        pre-mortems, absolute rules (no fabricated data, no trade without a stop).</span>
+    </div>
+    <div class="meta-item">
+      <span class="name">BELIEF_<wbr>REGISTER.md</span>
+      <span class="desc">Every falsifiable hypothesis, H1 through H72, with corroboration
+        tallies and contradiction counts. Three or more independent contradictions triggers a
+        belief review.</span>
+    </div>
+    <div class="meta-item">
+      <span class="name">PLAYBOOK.md</span>
+      <span class="desc">Living setups doc — what's working, what's retired, current market
+        regime notes, the full engine list with build/no-build decisions per voice.</span>
+    </div>
+    <div class="meta-item">
+      <span class="name">USER_TRADING_<wbr>PROFILE.md</span>
+      <span class="desc">Who this system trades as a proxy for — a 5m XAUUSD scalper, standards
+        every build must meet (non-repainting, realistic costs), disproven ideas not to repeat.</span>
+    </div>
+    <div class="meta-item">
+      <span class="name">MEMORY.md</span>
+      <span class="desc">Persistent session memory — git status, tool locations, and the
+        2026-07-20 standing rule that retracted the project's only backtest number for being too
+        small a sample to call evidence.</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Cross-cutting synthesis engines</h2>
+  <p class="section-note">Built by combining the highest-corroboration mechanics across several
+    voices at once, rather than extending one source. None carry "proven" or "flagship"
+    language — every one is logged as a candidate awaiting a real backtest.</p>
+  <div class="tool-list">
+    <div class="tool">
+      <span class="fname">trade_cartel_master_engine.pine</span>
+      <span class="fdesc">The original full synthesis — session timing, value-area regime,
+        tier-A candlesticks, aggression/VWAP, fresh-level and CVD-divergence vetoes, scored 0–12
+        with A+/B grading.</span>
+    </div>
+    <div class="tool">
+      <span class="fname">trade_cartel_clean_signal_engine.pine</span>
+      <span class="fdesc">Same building blocks as the Master Engine, restructured as a hard
+        AND-gate instead of a partial score — fewer, more selective signals — plus auto TP1/TP2/SL
+        lines and a hit-tracker.</span>
+    </div>
+    <div class="tool">
+      <span class="fname">trade_cartel_topbottom_engine.pine</span>
+      <span class="fdesc">A genuine reversal/exhaustion catcher (wall + sweep + RSI + rejection),
+        deliberately excluding auto-regenerating S/D zones after they caused this project's one
+        recorded backtest failure. First engine this session to cross PF 1.0 after three rounds
+        of live-test bug fixes.</span>
+    </div>
+    <div class="tool">
+      <span class="fname">kama_key_level_signal_engine.pine</span>
+      <span class="fdesc">Kaufman Adaptive MA whose smoothing constant is damped near HTF key
+        levels, crossed against an undamped version — the cross itself only means something when
+        it happens at a level.</span>
+    </div>
+    <div class="tool">
+      <span class="fname">spaceman_daye_quarters_engine.pine · spaceman_yotov_quarters_engine.pine</span>
+      <span class="fdesc">Two SEPARATE merges of the SpacemanBTC key-level script with the
+        project's two unrelated "quarter theory" voices (#4 time-based, #18 price-based) — built
+        apart per explicit instruction, not combined into one tool.</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Source materials <span class="count">16 uploaded files + 21 recovered transcripts</span></h2>
+  <p class="section-note">All permanently archived at <code>trader_playbooks/sources/</code> in the
+    repo — 16 uploaded PDFs/text extractions below, plus 21 raw chat-pasted transcripts recovered
+    from the session log for the voices that never had a file (listed in the Audit Log's per-voice
+    rows further down, and indexed in <code>trader_playbooks/sources/README.md</code>).</p>
+  <div class="file-table-wrap">
+    <table class="file-table">
+      <thead>
+        <tr><th>File</th><th>Author / title</th><th>Format</th><th>Size</th><th>Feeds voice</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fn">QuarterlyTheory_1.pdf</td>
+          <td class="auth">Trader Daye (compiled by @ransh28.06), ICT-derived</td>
+          <td>PDF</td><td class="sz">1.8 MB</td>
+          <td class="target">#4 Quarterly Theory</td>
+        </tr>
+        <tr>
+          <td class="fn">QuarterlyTheoryCompiledbyRansh2806.pdf / .txt</td>
+          <td class="auth">Trader Daye — re-upload with a working text layer</td>
+          <td>PDF + TXT</td><td class="sz">508 KB / 27 KB</td>
+          <td class="target">#4 Quarterly Theory</td>
+        </tr>
+        <tr>
+          <td class="fn">TheQuartersTheory2012YotovGlossaryofTerms.txt</td>
+          <td class="auth">Ilian Yotov — "The Quarters Theory" (Wiley, 2010), official glossary chapter</td>
+          <td>TXT (OCR)</td><td class="sz">19 KB</td>
+          <td class="target">#18 Yotov Quarters Theory</td>
+        </tr>
+        <tr>
+          <td class="fn">AlchemistConceptsinForexTradingMsnrOverview.pdf</td>
+          <td class="auth">"White Seraph" — Thai-original, machine-translated (DeepL)</td>
+          <td>PDF</td><td class="sz">4.5 MB</td>
+          <td class="target">#12 Alchemist Forex Concepts</td>
+        </tr>
+        <tr>
+          <td class="fn">BigSecretofIntermarketTrading.pdf</td>
+          <td class="auth">Unattributed lead-gen funnel PDF</td>
+          <td>PDF</td><td class="sz">475 KB</td>
+          <td class="target">#17 Intermarket Lead-Lag</td>
+        </tr>
+        <tr>
+          <td class="fn">TomHougaardtheTradingManualSingles.txt</td>
+          <td class="auth">Tom Hougaard — "The First Trading Manual"</td>
+          <td>TXT</td><td class="sz">214 KB</td>
+          <td class="target">#15 Hougaard Price Action</td>
+        </tr>
+        <tr>
+          <td class="fn">ThePurePriceActionandMarketStructurewiththeSmartMoney.txt</td>
+          <td class="auth">Anonymous personal trading-plan/course text</td>
+          <td>TXT</td><td class="sz">14.5 KB</td>
+          <td class="target">#13 Pure PA / SMC</td>
+        </tr>
+        <tr>
+          <td class="fn">TradingtheGannSquareofNine2.pdf</td>
+          <td class="auth">TradingFives.com (June 2003), incl. Gann's own 1953 appendix</td>
+          <td>PDF</td><td class="sz">884 KB</td>
+          <td class="target">#16 Gann Square of Nine</td>
+        </tr>
+        <tr>
+          <td class="fn">TheWdGannMasterCommoditiesCourse.txt</td>
+          <td class="auth">W.D. Gann — Master Commodities Course</td>
+          <td>TXT</td><td class="sz">815 KB</td>
+          <td class="target">#16 Gann Square of Nine (cross-ref)</td>
+        </tr>
+        <tr>
+          <td class="fn">HimaReddyTheTradingMethodologiesofWDGann.txt</td>
+          <td class="auth">Hima Reddy — FT Press, 2013, CMT-credentialed</td>
+          <td>TXT</td><td class="sz">225 KB</td>
+          <td class="target">#19 Hima Reddy Gann Methodology</td>
+        </tr>
+        <tr>
+          <td class="fn">CandlestickBook.txt</td>
+          <td class="auth">Nison-descended candlestick reference</td>
+          <td>TXT</td><td class="sz">23 KB</td>
+          <td class="target">Candlestick Playbook</td>
+        </tr>
+        <tr>
+          <td class="fn">PriceActionPatterns20Ebookjoshtrade1.pdf</td>
+          <td class="auth">Josh Trade — Price Action Patterns ebook</td>
+          <td>PDF</td><td class="sz">9.4 MB</td>
+          <td class="target">Candlestick / Chart Pattern</td>
+        </tr>
+        <tr>
+          <td class="fn">CHARTPATTERNCHEATSHEET1.pdf</td>
+          <td class="auth">Chart pattern cheat-sheet (diagram-heavy)</td>
+          <td>PDF</td><td class="sz">995 KB</td>
+          <td class="target">Candlestick / Chart Pattern</td>
+        </tr>
+        <tr>
+          <td class="fn">TuanPAOrderFlowTradingSetups3.txt</td>
+          <td class="auth">Trader Dale — "Order Flow Trading Setups" ebook (original filename mismatch, content confirmed by header match)</td>
+          <td>TXT</td><td class="sz">140 KB</td>
+          <td class="target">#14 Trader Dale Order Flow</td>
+        </tr>
+        <tr class="unusable">
+          <td class="fn">JohnJMurphyTechnicalAnalysisoftheFinancialMarkets.txt</td>
+          <td class="auth">John J. Murphy — Technical Analysis of the Financial Markets</td>
+          <td>TXT</td><td class="sz">715 B</td>
+          <td class="target">not usable — extraction failed (see Audit Log)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 class="section">Audit log <span class="count">2026-07-22, two waves</span></h2>
+  <p class="section-note">Run in response to a direct concern that extraction from earlier sessions
+    may have dropped or misrepresented details. Every source — PDF, text extraction, or raw pasted
+    transcript — was re-read in full, independently, and diffed against its extracted playbook by a
+    separate reviewing pass with no access to the original extraction's reasoning — a genuine
+    second read, not a self-check. Wave 1 covered the 10 voices with a retained PDF/text upload.
+    Wave 2 recovered the other 11 voices' original pasted transcripts directly from the session's
+    own log file (the upload folder is ephemeral; the underlying message log is not) and audited
+    those too — <strong>all 21 voices are now covered.</strong></p>
+  <div class="audit-summary">
+    <div class="audit-stat"><span class="n">21/21</span><span class="l">Sources re-read &amp; diffed</span></div>
+    <div class="audit-stat"><span class="n">0</span><span class="l">Fabricated NEW facts found</span></div>
+    <div class="audit-stat"><span class="n">2</span><span class="l">Pre-existing errors found &amp; fixed</span></div>
+    <div class="audit-stat"><span class="n">1</span><span class="l">Load-bearing caveat found dropped</span></div>
+    <div class="audit-stat"><span class="n">~105</span><span class="l">Omitted details added back</span></div>
+    <div class="audit-stat"><span class="n">1</span><span class="l">Source found &amp; deliberately not built</span></div>
+  </div>
+
+  <div class="audit-list">
+    <div class="audit-row"><span class="v">#4 Quarterly Theory</span><span class="r">Missing "MODEL" 4-precondition checklist, softened True-Open directive, unconditional Q4-reversal rule stated too broadly, incomplete session-alternation chain.</span><span class="audit-badge badge-fixed">4 gaps added</span></div>
+    <div class="audit-row"><span class="v">#18 Yotov Quarters</span><span class="r">Six glossary terms never carried over (Major Small Quarter Points, Intra-LQ trade taxonomy, LQ Transitions, Unsuccessful Completion, PIP base unit, and more) — no wrong numbers.</span><span class="audit-badge badge-fixed">6 gaps added</span></div>
+    <div class="audit-row"><span class="v">#12 Alchemist SMC</span><span class="r">Missing SMT correlated-pairs table, SMT×QT entry rule, the "CRT" concept, Valid Pullback's stop-placement step, Engulfing OB's slippage framing.</span><span class="audit-badge badge-fixed">5 gaps added</span></div>
+    <div class="audit-row"><span class="v">#17 Intermarket Lag</span><span class="r">One real error: two distinct lag figures (~3h, ~1h) had been merged into an imprecise "1-3h" range — corrected. Plus a missing correlation taxonomy ("Group One").</span><span class="audit-badge badge-fixed">1 error fixed</span></div>
+    <div class="audit-row"><span class="v">#15 Hougaard</span><span class="r">Missing attribution (Bryce Gilmore), and two fully-numeric methods dropped outright: Mark Douglas's Scaling Out (20/40-point exits) and a Scaling In worked example (+75pt add, 225pt result).</span><span class="audit-badge badge-fixed">5 gaps added</span></div>
+    <div class="audit-row"><span class="v">#13 Pure PA / SMC</span><span class="r">Missing session/pair/broker rules, trend-vs-countertrend framing. Flagged a possible misattribution: the playbook's 3-candle IFC definition doesn't appear verbatim in this source.</span><span class="audit-badge badge-fixed">4 gaps + 1 flagged</span></div>
+    <div class="audit-row"><span class="v">#16 Gann Square of Nine</span><span class="r">Missing an entire chapter ("Squaring Price with Price"), dual-pivot-calculation practice, alternate time-grid methods, and precise "lost motion" numeric tolerances.</span><span class="audit-badge badge-fixed">7 gaps added</span></div>
+    <div class="audit-row"><span class="v">#19 Hima Reddy Gann</span><span class="r"><strong>Most important finding:</strong> source explicitly states its 2-bar test-failure pattern is a trade-management tool, not meant as an entry signal — the built engine currently fires it as a signal. Needs review.</span><span class="audit-badge badge-fixed">Caveat dropped</span></div>
+    <div class="audit-row"><span class="v">Candlestick Playbook</span><span class="r">Missing the cheat sheet's consistent Entry/Stop/Target placement geometry (present on every diagram, previously judged "not extractable"). One Fib-anchor reading flagged as possibly backwards.</span><span class="audit-badge badge-fixed">2 gaps + 1 flagged</span></div>
+    <div class="audit-row"><span class="v">#14 Trader Dale</span><span class="r">Internal count error ("five" setups share a mechanic; source actually gives six) plus missing passive/aggressive prerequisite and concrete Trades Filter calibration numbers (25+ lots on 6E, ~300+ on ES).</span><span class="audit-badge badge-fixed">1 error + 4 gaps</span></div>
+    <div class="audit-row"><span class="v">#1 PBD Logic</span><span class="r">One missing methodological rule (don't filter outlier-close candles — "even the extremes have their justification"). No wrong facts.</span><span class="audit-badge badge-fixed">1 gap added</span></div>
+    <div class="audit-row"><span class="v">#2 Valentini + orderflow</span><span class="r">Biggest wave-2 haul: the "AAA"/Triple-A setup name and P-shape pattern were missing entirely, plus the 3-step Market State→Location→Execution framework, two named systems (Trend vs. Mean-Reversion), commission drag, and a full risk-escalation schedule.</span><span class="audit-badge badge-fixed">~20 gaps added</span></div>
+    <div class="audit-row"><span class="v">#3 Kurisko Quad Rotation</span><span class="r">Clean match, no errors, nothing material missing.</span><span class="audit-badge badge-clean">Verified clean</span></div>
+    <div class="audit-row"><span class="v">#5 Roppel Trend-Following</span><span class="r">Position-sizing conflation (20-22% conviction sizing vs. 0.5% execution cap were two different answers, treated as one), CANSLIM-lineage answer, named setups, book/influence list, and track-record specifics all missing.</span><span class="audit-badge badge-fixed">~10 gaps added</span></div>
+    <div class="audit-row"><span class="v">#6 Ario Intent Reading</span><span class="r">The transcript this voice was built from had no retained file; recovered and confirmed the mechanics match closely. Only the framework's own name ("Evidence-Based Decision-Making") was missing.</span><span class="audit-badge badge-fixed">1 gap added</span></div>
+    <div class="audit-row"><span class="v">#7 Dave Market Structure</span><span class="r"><strong>Header error found:</strong> the "$700→$89k in 3 weeks, publicly verified" claim does not appear anywhere in the recovered transcript, which instead describes losing to $600 and a 4-month rebuild goal. Corrected to flag as unverified.</span><span class="audit-badge badge-fixed">1 error fixed + 6 gaps</span></div>
+    <div class="audit-row"><span class="v">#8 Steve / MMM4x</span><span class="r">A whole falsifiable mechanism — dealers capped by a "weekly net change allowance" forcing Friday mean-reversion — was missing entirely, plus the 50/200 EMA take-profit mapping and the "mayonnaise"/"half a batman" terminology.</span><span class="audit-badge badge-fixed">7 gaps added</span></div>
+    <div class="audit-row"><span class="v">#9 Renko/HA ABC Scalper</span><span class="r">Clean match against the recovered mentor-call transcript — all figures and session windows verified verbatim.</span><span class="audit-badge badge-clean">Verified clean</span></div>
+    <div class="audit-row"><span class="v">#10 Wendell / OTA</span><span class="r"><strong>Fabrication found and fixed:</strong> "7-9 candles at the base" had no source basis — the transcript's one worked example gives exactly 7. Corrected to remove the invented range.</span><span class="audit-badge badge-fixed">1 error fixed + 2 gaps</span></div>
+    <div class="audit-row"><span class="v">#11 FX Master Pattern</span><span class="r">Clean, no fabricated numbers. One wording overreach softened ("both-sides whipsaw" presented as routine when the source usually shows a single-direction fake pop).</span><span class="audit-badge badge-fixed">1 wording fix</span></div>
+    <div class="audit-row"><span class="v">"Forex James" (new find)</span><span class="r">Checked against #8 on a same-voice theory — ruled out, zero shared mechanics. Generic market-maker/broker content, no repeatable model. Archived, read, deliberately not built into any voice or engine.</span><span class="audit-badge badge-nofile">Found, not built</span></div>
+  </div>
+  <p class="section-note" style="margin-top:1rem;">Wave 2 also copied every wave-1 PDF/text upload into
+    <code>trader_playbooks/sources/</code> alongside the newly-recovered transcripts, so none of this
+    material depends on a session's temporary upload storage surviving — see the source-materials
+    table above and <code>trader_playbooks/sources/README.md</code> for the full file→voice index.</p>
+  <p class="section-note" style="margin-top:1rem;">Every fix above landed as a dated addendum in its
+    playbook file (same pattern already used for multi-pass sources like Quarterly Theory's v2-v8) —
+    nothing was silently overwritten. None of the 10 audits found a fabricated fact; every finding
+    was an omission or, in two cases, a real but narrow numeric/logic slip. Fixes are logged in the
+    playbooks; none have been ported into the .pine engines yet — that's the next pass if wanted.</p>
+
+  <div class="rules">
+    <h2 class="section" style="margin-top:0;">Standing rules governing all of the above</h2>
+    <ul>
+      <li><strong>Never discard.</strong> Low-credibility, contradictory, or superseded material
+        stays in the register, clearly tagged — it may connect to something later.</li>
+      <li><strong>One brain per voice.</strong> New material from an already-processed author
+        extends their existing file in place; it never forks a new engine.</li>
+      <li><strong>Confluence, not standalone output.</strong> The 21 voices above are applied
+        as confluence inside strategies — delivered as a knowledge layer, not as 21 separate
+        products, unless directly asked for.</li>
+      <li><strong>No fabricated proof.</strong> As of 2026-07-20, the project's original PF 3.656
+        backtest was formally retracted for being too small a sample (~2 months, 117 trades) to
+        call evidence — nothing in this repo earns "proven" or "flagship" language without a
+        real backtest on a real sample.</li>
+    </ul>
+  </div>
+
+  <footer class="colophon">kushverma7/Trade_Cartel · branch claude/confident-fermi-qku0ic · compiled from trader_playbooks/*.md and indicators/*.pine</footer>
+
+</div>

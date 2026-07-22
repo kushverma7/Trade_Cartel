@@ -1,7 +1,12 @@
 # Dave — Fractal Market Structure Scalping — extracted 2026-07-19
-# Source: podcast. $700->$89k in 3 weeks claimed ("publicly verified"
-# per host — unaudited by us). INDEPENDENT VOICE #7. SMC school,
-# price-over-time philosophy.
+# Source: podcast. INDEPENDENT VOICE #7. SMC school, price-over-time
+# philosophy. CORRECTED 2026-07-22: the "$700->$89k in 3 weeks, publicly
+# verified" claim was NOT found anywhere in the recovered raw transcript
+# (see audit addendum below) -- the transcript instead describes losing
+# down to $600 and a stated goal of rebuilding to $20k over 4 months.
+# The $89k figure likely came from a video title/description never
+# actually pasted into this project. Treat as UNVERIFIED/uncorroborated
+# against source until the original video title claim can be checked.
 
 ## The falsifiable signature rule [H18]
 - SWING MATURITY: expect reversal at a POI only after ~4-6 matured
@@ -112,3 +117,52 @@
   you on the way down. Slow markets (Asia) are the classroom.
 - Losses have patterns too: find where you repeatedly lose, remove
   that environment entirely.
+
+---
+
+## Audit pass — original transcripts recovered from session log (2026-07-22)
+Three raw transcript messages (one continuous session) recovered from
+the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/` (line1170, line1187,
+line1200). Swing-maturity, MMS/zone mechanics, sweep rule, rounding/
+S-accumulation, 21-EMA trailing (incl. swing-3/4 aggressive-trail
+switch), time-based ranges, and multi-TF swing counting all verified
+thoroughly accurate. One important flag and several real gaps:
+
+- **Header claim NOT found in the source (flag, not yet corrected)**:
+  none of these three transcripts state "$700 -> $89,000 in three
+  weeks" or "publicly verified." What the transcript actually describes
+  is a DIFFERENT, less flattering money story — lost down to $18,000,
+  then to $600, with a stated target of rebuilding to $20,000 over 4
+  months trading EUR/USD, US30, and Oil via offshore 500x leverage. The
+  $89k/3-weeks figure used elsewhere in this project (including the
+  published Source Dossier) appears to come from a video title/
+  description that isn't in these transcripts — needs verification
+  against the actual source before repeating that claim again.
+- **Missing entry-type distinction**: "generation of liquidity" (trading
+  within a still-forming range) vs. "sweep of liquidity" (trading the
+  breakout run) presented as two separate tradeable events; only the
+  sweep side is currently captured.
+- **Prop firms — explicit stance missing**: he states he would not use
+  them again, calls the model predatory ("their rules exhaust you"),
+  while framing leverage itself as fine (analogy to a mortgage/auto
+  loan down payment).
+- **Risk-per-trade evolution, not just the end-state**: industry-
+  standard 1-2% cited as a benchmark vs. his own historical 5-8% when
+  trading out of need, settling to the current 3-5% (file only states
+  the 3-5% end-state).
+- **Trade cadence**: ~2-3 trades/day average — missing.
+- **Instrument selection for beginners**: deliberately traded slower
+  pairs (EUR/USD, US30, Oil) and avoided NQ/Gold while building
+  consistency — concrete, teachable, and missing.
+- **Range mechanics, generalized**: "price sweeps high, sweeps low,
+  doesn't respect S/D inside a range until ready to break" — only the
+  first-NY-hour caution is currently captured, not this general
+  range-rebound behavior.
+- **Psychology addition**: "don't confuse yourself flip-flopping short/
+  long" ("trading like a squirrel") — not captured.
+
+Extended childhood/family backstory in the source is psychologically
+interesting but correctly left undistilled — only the actionable line
+("what you don't kill on the way up kills you on the way down") was
+kept, matching this file's existing content.

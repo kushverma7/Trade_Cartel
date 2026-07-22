@@ -1,0 +1,273 @@
+	  
+
+Everything	  you	  wanted	  to	   know	  about	  candlestick	   charts	  
+
+by	  Mark	  Rose	  
+
+• Read candlestick charts accurately • Spot patterns quickly and easily • Use that information to make profitable trading decisions
+
+Contents
+Chapter 1. What is a candlestick chart? Chapter 2. Candlestick shapes: Anatomy of a candle Doji Marubozo Chapter 3. Candlestick Patterns Harami (bullish / bearish) Hammer / Hanging Man Inverted Hammer / Shooting Star Engulfing (bullish/ bearish) Morning Star / Evening Star Three White Soldiers / Three Black Crows Piercing Line / Dark Cloud Cover Chapter 4. The history of candlestick charts Conclusion Candlestick Cheat Sheet
+3
+
+6 6 7 8
+
+9 9 11 13 14 15 16 17
+
+18 20 22
+
+	  
+
+2	  
+
+Chapter 1. What is a candlestick chart?
+Before I start to talk about candlestick patterns, I’d like to get right back to basics on candles: what they are, what they look like, and why we use them …
+
+Drawing lines
+When you look at a chart of market prices, you can usually choose from line charts or candlestick charts. A line chart will take its price levels from the opening or closing prices according to the timeframe you have selected. So, if you’re looking at a one-minute line chart of closing prices, it will plot the closing price for each one-minute period – something like this …
+
+Line charts can be useful for looking at the “bigger picture” and finding long-term trends, but they simply cannot offer up the kind of information contained in a candlestick chart. Here is a one-minute candlestick chart for the same period …
+
+	  
+
+3	  
+
+At first glance, it might look a little confusing, but I can assure you that once you’re used to candlestick charts – you won’t look back. Candlesticks are now such a familiar part of our trading scenery, it’s hard to believe that only 20 years ago, they were a strange and mysterious import from Japan.
+
+Understanding the clues candles hold
+One of the best things about the clues we find in candlesticks is that they are visual and very intuitive to the trader. Think you’re not intuitive? Well try this simple test … Which of these patterns signals an up trend, and which signals a downtrend? 1. Dark cloud cover 2. Morning star 3. Three black crows If you answered “down”, “up”, “down” – you’d be absolutely right. And you’ve just passed your first test in candlestick theory! With practice, reading candlesticks will become second nature – a quick glance can give you confirmation to enter a trade you’re dithering over, or it can tell you that now is the moment to exit and take profits. Over the following pages, I want to show you how you can learn to spot these patterns quickly and easily. I’ll also let you in on the patterns that
+
+	  
+
+4	  
+
+are really worth listening to – and the ones that can be unreliable and should be approached with caution.
+
+	  
+
+5	  
+
+Chapter 2. Candlestick Shapes
+Basic candlestick anatomy
+Whenever you look at a price chart, you will select a timeframe for that chart – perhaps it’s a minute … or an hour … or a day. Rather than simply plotting the open or close price for that time frame, the candlestick gives you information about what went on during that period of time …
+
+Having all this extra information, gives you a heads-up about market sentiment – and can offer invaluable clues about the way the market will move.
+
+	  
+
+6	  
+
+The Doji
+The Doji is a candlestick where the opening and closing prices are the same (or almost the same). It can take many forms, as shown here, depending on what the trading activity was in that period.
+
+What’s key with a doji is that neither the bears nor the bulls have gained control, and that the price has ended where it began. It’s a sign of indecision in the market, and could (in conjunction with other indicators) signal a change in market direction. Applying doji candlesticks: a good trick is to look out for a doji near the edge of a price channel (i.e., if a doji appears at the top of a channel it could indicate a bearish correction.)
+
+	  
+
+7	  
+
+The Marubozu
+The text-book marubozu is a long candle, which implies that the day’s trading range has been large. And it should have no upper or lower wick (“marubozu” in Japanese means “shaved”).
+
+A green (or white) marubozu signals strong conviction among buyers, while a red (or black) marubozu indicates that sellers hare eager to flee.
+
+In practice, when you’re looking at charts, a marubozu will often have a short wick at the top or the bottom.
+
+	  
+
+8	  
+
+Chapter 3. Candlestick Patterns
+Throughout this chapter, I’ve grouped candlestick patterns in pairs where the patterns are very similar, except that one is bullish, and the other is its flipside bearish pattern.
+
+The Harami (Bullish & Bearish)
+The harami is one of the most common candlestick patterns you’ll come across, so it’s important to recognize it – to understand what it means, and to understand its limitations. A harami is a two-session reversal pattern – i.e. it’s made up of two candlesticks and implies that the price is about to turn. It is indicated by a small body of the opposite colour, completely contained by the body of the previous session. It is not essential for the two candles to be opposite colours, but this tends to give a more reliable signal.
+
+As you can see here, the body of the small black candle is completely within the confines of the body of the previous white candle. This indicates that the upward trend is running out of steam. Here are a couple of examples: This bullish harami shows the sellers beginning to dominate as they come back into the market:
+
+!
+
+	  
+
+9	  
+
+This bearish harami has a shadow that extends beyond the body of the previous candle – some traders wouldn’t regard this as a “true” harami. However, it’s body is entirely within the previous green candle, and a reversal follows:
+
+!
+
+I’ll be blunt with you – a harami doesn’t always live up to its hype. While it is touted as a “reversal indicator” – you may find yourself disappointed by its reliability. The psychology behind a harami is that a possible change in sentiment may be happening. The small candle does not necessarily mean a strong reversal is coming. Often with a harami pattern, several days of tight range trading, referred to as “congestion” or “consolidation,” will follow. A harami on its own says “the chart MIGHT reverse.” It is best to look for confirmation and to combine the harami with other longer-term patterns. Be aware of haramis, and watch for what they are telling you about market sentiment – but don’t have a blind faith in them.
+
+	  
+
+10	  
+
+The Hammer (bullish) & The Hanging Man (bearish)
+This is one of the best-known reversal indicators …
+
+It is a candlestick pattern that consists of just one candle (although with candlesticks it is always best to view them in context of the candlesticks around them – in particular the candle that follows immediately after). The hammer or hanging man candle has a long lower wick, short body, and little or no upper wick. Strictly speaking, the lower wick should be at least two times longer than the body – the longer, the better. And depending on where you find it on a chart, it is called either a hammer or a hanging man. A hammer: is found in a downtrend, and signals a bullish reversal. The long lower wick shows a period in which sellers where in control, but the body shows buyers coming back in. From this we can tell that there is strong buying by bulls as the period of sell-off declines. As with all single candlestick patterns, we should wait for next candle to confirm that buyers are in control. Here’s a chart for Eur/USD. Note how the strong selling action and increased volume (indicated by the long lower wick) on the candlestick is reversed as buyers come back in, and that this coincides with an oversold indicator on Stochastics. The green candlestick opening above the body of the hammer confirms the bullish trend.
+
+	  
+
+11	  
+
+A hanging man: is the same shape as hammer, but found in an uptrend. We don’t expect to see strong selling pressure (seen in the long lower wick on the candle) in an uptrend, so here it suggests a change of market sentiment and a reversal to downside. Here’s an example from a FTSE 1-minute chart. In this case, the hanging man shape coincides with the Stochastics showing the price to be overbought, and the next candle confirms the move.
+
+There's no hard and fast rule about what colour a hammer or a hanging man should be – the fact that they have a short body already means that there's indecision coming into the market. However, a green (or white) hammer and a red (or black hanging man) are stronger indicators. (The chart above is quite a good illustration, because you’ll probably be able to spot a couple of hammers on there, too – see what you can find!)
+
+	  
+
+12	  
+
+Inverted Hammer (bullish) & Shooting Star (bearish)
+This candlestick is, as you would expect – a hammer turned on its head …
+
+It is a candle with a small body and long upward wick, signally a possible reversal. Where it appears in a chart affects whether it’s an inverted hammer or a shooting star. An inverted hammer forms after a downtrend or at the bottom of a period of consolidation. The reversal isn’t confirmed until you have a bullish candle in the next period.
+
+A shooting star forms after an uptrend or at the top of a period of consolidation.
+
+Inverted hammers and shooting stars can have green or red bodies – what’s important here is that the body size is small, that the upper wick is at least twice the length of the body, and the lower wick is negligible.
+
+	  
+
+13	  
+
+Engulfing (Bullish & Bearish)
+An engulfing pattern signals a reversal, and can be bullish or bearish. It comprises two candles. The body of the second must engulf the body of the first, and must be the opposite colour to the first.
+
+For a bullish engulfing candle, we have a smaller red candlestick, followed by a green candlestick, the body of which is greater in size that the previous candle.
+
+For a bearish engulfing candle, the first candlestick is smaller and green, followed by a red candlestick, the body of which engulfs the previous candle.
+
+In this example of a bearish engulfing pattern, we have a clear uptrend, where the final candle has a red body, which engulfs the body of the previous candle. This suggests that strong selling pressure has come into the market, and could indicate a reversal or period of stagnation.
+
+!
+
+	  
+
+14	  
+
+Morning Star (Bullish) & Evening Star (Bearish)
+The morning star and the evening star patterns are among the most reliable candlestick signals. They are strong signals – rather like a hammer or shooting star will bells on! A morning star is a three-candle pattern, beginning with a candle that is strongly down. The second candle’s real body should be small and should not touch the prior candle’s real body. The third candle should be strongly up.
+
+An evening star is the same idea, just in reverse. Therefore, its first candle is strongly up. Its second candle’s real body should be small and should not touch the first candle’s real body. And the third candle should be strongly down.
+
+The small body of the star represents indecision by both the bulls and the bears. While the larger trend may be strongly up or strongly down, the presence of the star indicates that the prevailing direction may have come under profit taking or that the other side has actually taken control. Remember, the previous bar should be a strong bar in the direction of the trend which indicates that the bulls (in an up-trending market) or the bears (in a down-trending market) are in control. This strength in direction is what makes the appearance of the star that much more important as this conviction has suddenly evaporated. Here’s an example of a major turning point in the euro last year.
+
+As you can see, we have a strong upward candle, in the direction of the trend, followed by a gap up to a small candle, showing indecision. The next candle, moving strongly downwards confirms the morning star signal. And traders who spotted this evening star reversal signal will have enjoyed a big downward swing.
+
+	  
+
+15	  
+
+Three White Soldiers (Bullish) & Three Black Crows (Bearish)
+Here’s a great example of three black crows I spotted on the AUD/USD chart …
+
+Three long red (or black) candlesticks with lower and lower closes appear within an upward trend (in this case, a rising triangle). They show powerful selling action which strongly suggest that more selling is imminent. And, as we see, the price continued downwards through longterm support at 10536. The flip-side to three black crows are three white soldiers – three strong green (or white) candlesticks within a downtrend. These are a bullish signal of strong buying action at work.
+
+	  
+
+16	  
+
+Piercing Line (Bullish) & Dark Cloud Cover (Bearish)
+The piercing line and dark cloud cover are reversal signals similar to the engulfing pattern except the second candlestick doesn’t completely engulf the body of the first – it should close at least halfway into the real body of the first. A piercing line pattern occurs in a downtrend. A strong red candlestick is followed by a candlestick that opens below its close, which perpetuates the downtrend. However, the price then moves up and closes above the midpoint of the previous candle. This suggests to the bears that a bottom could be forming.
+
+Dark cloud cover occurs in an uptrend, when a red candle opens above the previous candle’s closing price, but then the price retreats to below the midpoint of the previous candle.
+
+As a reversal signal, these are not as strong as engulfing candles. The further the close of the second candle cuts into the body of the first candle, the more valid the signal. What piercing line and dark cloud cover do offer traders is cause to pause – a minor top or bottom may be about to form, or you may be entering a period of consolidation.
+
+	  
+
+17	  
+
+Chapter 4. History of Candlesticks
+
+I will freely admit to being a bit of a candlestick anorak. And my obsession for watching them pop out of the right-hand side of my trading screen at me could be compared to train spotting! For that reason, I couldn’t help but include a bit of background about where these funnyshaped trading tools came from, and their slow rise to fame …
+
+Back in Japan
+While Japanese candlesticks have been around for hundreds of years they have only been widely applied by Western traders in the past couple of decades. The man we can credit for introducing Japanese candlesticks to the West is one Steve Nison – but I should really start this story at the beginning … Four hundred years ago ... … Seventeenth century Japan was under the control of military leaders, or Shoguns. If you remember the old Richard Chamberlain movie, you've probably got the idea - plenty of samurais wielding swords. A number of attempts at creating a hard currency had failed dismally, so, rice had a status pretty close to cash. That meant that rice merchants were the seventeenth-century equivalent of big-city bankers. However, regional imbalances in supply of rice meant that its price lacked any stability. Merchants attempted to set rice prices, but those who were seen to be doing too well, ran the risk of having their heads chopped off by the local warlord. (There's an idea for dealing with bankers' bonuses.) However, towards the end of the century, the Dojima Rice Exchange developed, which allowed merchants to grade and sell their rice at set prices – without the need for bloodshed.
+
+	  
+
+18	  
+
+Derivatives market here we come ...
+By the mid-1700s this process had developed into a sophisticated exchange, where a receipt (or coupon) for rice in the warehouse could effectively be used as currency. This Dojima Rice Exchange, also saw the dawn of the futures market where merchants could "sell" crops from next year (or many years to come) in return for cash in the here and now. These futures were called "empty rice" coupons, and the futures market had developed to such a degree, that in 1749, 110,000 bales of rice were traded on the exchange, while only 30,000 bales of rice existed in the whole of Japan at the time.
+
+Where do the candlesticks come in?
+Don't worry - I'm getting there. Onto this scene steps our hero - Munehisa Homma. The Homma family were to rice what the Murdochs are to newspapers. There was even a saying at the time: "I will never become a Homma, but I would settle to be a local lord." Not very catchy, but you get the drift. At the age of 26, Munehisa Homma took over the family business, and turned out to be rather good at it. He kept careful records of rice prices, weather conditions and of trading on the local exchange. These records led to the development of a theory on forecasting market direction, which came to be known as Sakata rules, and is the backbone of candlestick theory as we know it today. For his services, Homma was honored with the title of samurai. Not even Warren Buffet has managed that!
+
+Candlesticks move westward
+Candlestick charting remained the exclusive preserve of Japanese traders for the next two-hundred-plus, and never really caught on in the West until Steve Nisson published his book, Japanese Candlestick Charting Techniques in 1991. Nison tracked down and translated a huge collection of Japanese texts that described the many candlestick charting methods that traders take for granted today.
+
+	  
+
+19	  
+
+Conclusion
+Whatever trading timescale you work on, candlesticks can be an incredibly powerful trading tool for helping us to judge what’s coming at us from the right of our trading screens. In this publication, I’ve really only scratched the surface of candlestick charting. There are many, many more patterns that you can learn to recognize. However, the patterns I’ve chosen to include are the ones that I find most useful – either they appear regularly in charts, so can be put to practical everyday use; or they are powerful signals that don’t occur very often, but will make traders sit up and listen when they see them. Here, I’d like to add a word of warning – spotting candlestick patterns can be addictive. If you know every possible pattern – you’ll start to find them everywhere, and you can lose sight of other areas of technical analysis. This would be an error. Candlesticks can be powerful trading tools, but they are not best used in isolation. Combine them with simple pieces of technical analysis and they will give you clear signals that the market is ripe for you to open your trade or close out a position. Use them alone, and you may find that you are too “close” to the price picture to see what’s really going on. When used in conjunction with a successful trading strategy, I hope you will find that candlestick analysis will enhance that system and improve its performance. And, as you become more and more familiar with candles, you will learn to instinctively read the story that each one is telling you. Remember, if you’re interested in finding out more, I regularly look at candlestick patterns and other areas of technical analysis in my weekly Trader’s Bulletin newsletter. Regards,
+
+Mark Rose
+
+	  
+
+20	  
+
+It is my intention to be as accurate in fact, detail and comment as possible. However, the publishers and their representatives cannot be held responsible for any error in details, accuracy or judgment whatsoever. This publication is produced on this understanding. The information presented here is for general information only and is not intended to be relied upon by individual readers in making (or not making) specific investment decisions. Appropriate independent advice should be obtained before any such decision. Your capital is at risk when you invest in the markets – you can lose some or all of your money, so never risk more than you can afford to lose. Spread betting carries a high degree of risk to your capital and you may lose more than your initial stake. Always seek personal advice if you are unsure about the suitability of any investment. Everything You Wanted to Know about Candlestick Charts is an unregulated product published by Thames Publishing Ltd. Financial Spread bets and Forex trading are leveraged products and therefore may not be suitable for all investors. Financial Spread Bets and Forex trading carry a high degree of risk to your capital and it is possible to lose more than your initial investment or credit allocation as well as any variation margin that you may be required to deposit from time to time.You should only speculate with money that you can afford to lose. Please ensure that you fully understand the risks involved and seek independent advice if necessary and prior to entering into such transactions. © Thames Publishing Ltd 2011 All rights reserved. No reproduction, copying or transmission of this publication may be made without written permission. No paragraph of this publication may be reproduced, copied or transmitted without written permission, or in accordance with the Copyright Act 1956 (amended). Registered office: The Pines, Boards Head, Crowborough, TN6 3HD Registered in England and Wales: No 6235266. Vat No GB 978 4494 51.
+
+	  
+
+21	  
+
+Trader’s Bulletin Weekly: Candlestick Cheat Sheet 	  
+	   	   	   	   Doji	   	   	  
+
+	  
+
+Basic candle shapes
+Reversal: a sign of market indecision
+
+Marubozo
+
+Continuation: a sign that the trend is maintaining momentum
+
+Bullish patterns
+Bullish Harami
+Reversal indicated by small body of opposite colour entirely contained in body of previous session. Buyers have come in – the downtrend may be about to reverse.
+
+Bearish patterns
+Bearish Harami
+Small body of opposite colour contained in body of previous session signals possible end of uptrend. Suggests that many longs have positions they are trying to sell – may indicate a reversal. Price gap followed by small body to bottom of trading range suggests that bulls are protecting their gains. Second candle opens above the first but is followed by a sell off that engulfs body of first candle – the bears are gaining ground. The small range of the second candle suggests indecision, and the lower close of the third candle confirms the bears. Three consecutive sessions of selling will worry bulls and may snowball into a sell-off.
+
+Hammer
+
+Hanging Man
+
+Inverted Hammer
+
+The small body at the bottom of the trading range should concern bears. Could form a “morning star”. First candle reflects trend; second candle’s body engulfs size of first candle’s body – a reversal is indicated. First candle is long and black; second gaps below first’s close and trades in a small range; third is long and white. Three long white sessions with higher closes each day –powerful buying action is at work. Long black session is followed by opening at a new low, but closes above midpoint of first session.
+
+Shooting Star
+
+Bullish Engulfing
+
+Bearish Engulfing
+
+Morning Star
+
+Evening Star
+
+Three White Soldiers
+
+Three Black Crows
+
+Piercing Line
+
+Dark Cloud Cover
+
+This pullback in the second session will cause bulls to question their stance.
+
+	  
+
+22	  
+
+

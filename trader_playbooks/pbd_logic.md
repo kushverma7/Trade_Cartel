@@ -33,3 +33,18 @@
 
 ## Implementation
 indicators/pbd_logic_engine.pine — 6 scenarios, bar-close, labels+alerts.
+
+---
+
+## Audit pass — original transcript recovered from session log (2026-07-22)
+The raw pasted transcript this file was extracted from had no retained
+file until now; recovered from the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/`. Re-diffed in full.
+
+- **Missing methodological rule**: source explicitly warns AGAINST
+  filtering/removing outlier-close candlesticks from analysis — "even
+  the extremes always have their justification." Not captured anywhere;
+  relevant to any future data-cleaning step in this engine's backtests.
+
+Everything else re-verified accurate. Source gives no stats, matching
+the playbook's existing UNVERIFIED framing — no change there.

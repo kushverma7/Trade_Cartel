@@ -33,3 +33,24 @@ BULL/BEAR/CONSOLIDATION states, tint), SHIFT flip signals, TESTED
 continuation signals (impulse + failed counter-leg + resume close).
 Note: pivots confirm after `pw` bars — states lag by design; the
 TESTED trigger itself fires on the live close (non-repainting).
+
+---
+
+## Audit pass — original transcript recovered from session log (2026-07-22)
+Raw transcript recovered from the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/line1154_2026-07-19.txt`
+("Are you actually a price action trader or do you just know how to
+read concepts?"). This transcript had previously been mis-flagged during
+a prior audit pass as possible "pure_pa_smc.md companion material" — it
+is actually THIS voice's own source. Confirmed match on all 5 core
+claims (three intents, momentum-as-ratio, tested/non-tested moves,
+failure counting, candles-as-compressed-lower-TF-trends). One naming
+gap:
+
+- **Missing the framework's own name**: the instructor explicitly names
+  his overall approach "Evidence-Based Decision-Making" (EBDM), and
+  frames every read as probabilistic ("70% chance"), never certain —
+  the playbook captures the mechanics but never records the EBDM name
+  or its explicit anti-certainty framing.
+
+No wrong facts found.

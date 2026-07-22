@@ -1,0 +1,679 @@
+Quarterly Theory by Trader Daye & Compiled by @ransh28.06
+
+Table of Contents
+
+
+                    1.   Introduction
+                    2.   Foundations of the Quarterly Theory
+                             •    a. Time Division into Quarters
+                             •    b. True Opens
+                             •    c. Accumulation, Manipulation, Distribution, and Reversal/
+                         Continuation Phases
+                    3.   Application of the Quarterly Theory
+                             •    a. Yearly Cycle
+                             •    b. Monthly Cycle
+                             •    c. Weekly Cycle
+                             •    d. Daily Cycle
+                             •    e. Session Quarters
+                             •    f. 90-Minute Quarters
+                    4.   Trading Strategies Based on the Quarterly Theory
+                             •    a. Identifying Market Phases
+                             •    b. Utilizing True Opens for Trade Entries
+                             •    c. Aligning with ICT’s Power of 3 Concept
+                    5.   Practical Application and Considerations
+                             •    a. Market Conditions
+                             •    b. Combining with Other Analysis Methods
+                             •    c. Risk Management
+                    6.   Critiques and Limitations
+                    7.   Conclusion
+
+
+1. Introduction
+
+
+The Quarterly Theory is a trading framework developed by Jevaunie Daye, known as Trader
+Daye, building upon concepts from Michael Huddleston’s Inner Circle Trader (ICT)
+mentorships. Introduced in March 2023, this theory emphasizes dividing time into specific
+quarters to analyze market cycles, aiming to enhance precision in identifying
+accumulation, manipulation, distribution, and reversal/continuation phases within various
+timeframes.
+
+
+2. Foundations of the Quarterly Theory
+
+
+The Quarterly Theory is built upon the concept of dividing time into specific segments to
+analyze and predict market behavior. The primary components of this segmentation
+include:
+
+
+a. Time Division into Quarters
+
+
+Time is considered fractal and is divided into quarters across various timeframes:
+              •   Yearly Quarters: Four quarters of three months each.
+              •   Monthly Quarters: Four quarters of one week each.
+              •   Weekly Quarters: Four quarters of one day each (Monday to Thursday),
+           with Friday having its own specific function.
+              •   Daily Quarters: Four quarters of six hours each, corresponding to four
+           trading sessions of a trading day.
+              •   Session Quarters: Four quarters of 90 minutes each.
+              •   90-Minute Quarters: Four quarters of 22.5 minutes each.
+
+
+           This structured division allows traders to analyze market cycles within these
+           specific time segments.
+
+
+b. True Opens
+
+
+True Opens are the beginning reference points for each cycle, typically the opening price
+at the second quarter (Q2) of the respective timeframe. They serve as filters to anticipate
+Smart Money reversals or stop-runs. For example:
+              •   True Weekly Open: Tuesday midnight open.
+              •   True Daily Open: 12:00 AM.
+              •   True Session Open: 7:30 AM for the New York AM session.
+
+
+           Understanding True Opens aids in framing trade ideas by considering time and
+           price, aligning with the market’s cyclical nature.
+c. Accumulation, Manipulation, Distribution, and Reversal/Continuation Phases
+
+
+Each quarter within a timeframe represents a specific market phase:
+                  1.   Accumulation (A): The phase where positions are accumulated,
+                  often characterized by consolidation.
+             2.   Manipulation (M): The phase where the market moves against the
+prevailing trend to trap traders, known as the Judas Swing.
+                  3.   Distribution (D): The phase where accumulated positions are
+                  distributed, leading to a low resistance liquidity run.
+                  4.   Reversal/Continuation (X): The phase indicating either a reversal or
+                  continuation of the previous quarter’s trend.
+
+
+                  These phases can present in one of two forms:
+              •   Form 1:
+                            •   Q1: Accumulation
+                            •   Q2: Manipulation
+                            •   Q3: Distribution
+                            •   Q4: Reversal/Continuation
+              •   Form 2:
+                            •   Q1: Reversal/Continuation
+                            •   Q2: Accumulation
+                            •   Q3: Manipulation
+                            •   Q4: Distribution
+
+
+                        Recognizing these phases within the quarterly divisions aids
+                        traders in anticipating market movements.
+
+
+3. Application of the Quarterly Theory
+
+
+The Quarterly Theory can be applied across various timeframes, each with its specific
+structure:
+
+
+a. Yearly Cycle
+
+
+The year is divided into four quarters, each consisting of three months:
+The year is divided into four quarters, each consisting of three months:
+              •    Q1: January, February, March.
+              •    Q2: April, May, June (True Open at April Open).
+              •    Q3: July, August, September.
+              •    Q4: October, November, December.
+
+
+            This division aligns with financial quarters and helps in analyzing long-term
+            market cycles.
+
+
+b. Monthly Cycle
+
+
+Considering four weeks in a month, the cycle starts on the first Monday of the month:
+              •    Q1: Week 1 – First Monday of the month.
+              •    Q2: Week 2 – Second Monday of the month (True Open at Daily Candle
+            Open Price).
+              •    Q3: Week 3 – Third Monday of the month.
+              •    Q4: Week 4 – Fourth Monday of the month.
+
+
+            This structure aids in identifying monthly market phases.
+
+
+c. Weekly Cycle
+
+
+The trading week is divided into quarters, with a specific focus on the first four days:
+              •    Q1: Tuesday.
+              •    Q2: Wednesday.
+              •    Q3: Thursday.
+              •    Q4: Friday.
+
+
+            Here, Tuesday midnight open is considered the True Weekly Open, providing a
+            reference point for weekly analysis.
+
+
+d. Daily Cycle
+
+
+Each trading day is divided into four quarters of six hours each:
+              •    Q1: 6:00 PM – 12:00 AM (Asia Session).
+              •    Q2: 12:00 AM – 6:00 AM (London Session, True Daily Open at 12:00 AM).
+             •    Q2: 12:00 AM – 6:00 AM (London Session, True Daily Open at 12:00 AM).
+             •    Q3: 6:00 AM – 12:00 PM (New York AM Session).
+             •    Q4: 12:00 PM – 6:00 PM (New York PM Session).
+
+
+           This division aligns with major trading sessions and aids in intraday analysis.
+
+
+e. Session Quarters
+
+
+Each trading session is further divided into four quarters, similar to the broader quarterly
+structure. This division allows traders to time their entries and exits based on the
+institutional price delivery framework.
+
+
+Structure of Session Quarters:
+
+
+Each trading session (Asia, London, New York) consists of four quarters:
+    1.   Quarter 1 (Q1): Range Formation / Liquidity Pool Creation
+                  •    The session begins with market makers establishing a range.
+                  •    Liquidity is built above and below price to set up a later move.
+                  •    Often characterized by consolidation or small stop hunts.
+    2.   Quarter 2 (Q2): Expansion Phase
+                  •    Institutional traders execute their primary move for the session.
+                  •    Price moves directionally, targeting liquidity pools.
+                  •    Traders align with this move based on higher timeframe bias.
+    3.   Quarter 3 (Q3): Continuation / Pullback
+                  •    Price either continues in the direction of the expansion or pulls
+                 back.
+                  •    If liquidity is still available, another leg of movement can occur.
+                  •    If liquidity is exhausted, price may consolidate.
+    4.   Quarter 4 (Q4): Reversal / Profit-Taking
+                  •    Institutions close positions or reverse price direction.
+                  •    This quarter often results in retracements or full reversals.
+                  •    Provides setups for traders looking for reversals or continuation
+                 plays.
+
+
+Session Quarters Across Different Market Sessions:
+             •     Asian Session: Mostly range-bound, often setting liquidity traps for
+           London.
+             •     London Session: Strongest expansion phase, ideal for trending trades.
+             •     New York Session: Provides continuation or reversal of London’s move.
+
+
+I’ll continue with the remaining sections following the Table of Contents.
+
+
+3F. 90-Minute Quarters
+
+
+In Quarterly Theory, a deeper time-based subdivision involves 90-minute quarters, which
+are derived from the concept of session quarters.
+
+
+Understanding 90-Minute Quarters
+
+
+Each major trading session (Asian, London, New York) is broken down into four 90-minute
+quarters, creating a structured view of how liquidity and price action unfold throughout
+the trading day.
+
+
+These 90-minute segments are critical because they often align with key market
+movements, including:
+    1.   Liquidity shifts: Smart money accumulates, manipulates, and distributes liquidity
+within these windows.
+    2.   Institutional trading activity: Large financial institutions execute orders at these
+times.
+    3.   Significant price reactions: Many reversals, breakouts, and continuations
+originate in these 90-minute cycles.
+
+
+Breakdown of the 90-Minute Quarters in Each Session
+
+
+Session                         90-Minute Quarters             Expected Price Behavior
+Asian (Tokyo)                   00:00 - 01:30 01:30 -          Low volatility,
+                                03:00 03:00 - 04:30            accumulation,
+                                04:30 - 06:00                  occasional false moves
+London                          07:00 - 08:30 08:30 -          High volatility, liquidity
+                                10:00 10:00 - 11:30
+                                11:30 - 13:00
+                                                                   High volatility, liquidity
+                                   10:00 10:00 - 11:30             grabs, manipulation
+                                   11:30 - 13:00
+New York                           13:00 - 14:30 14:30 -           Reversals, trend
+                                   16:00 16:00 - 17:30             continuations, NY-
+                                   17:30 - 19:00                   London overlaps
+Key Takeaways:
+                •    Market makers operate on these 90-minute cycles, targeting liquidity at
+           key points.
+                •    Retail traders get trapped in false breakouts that often occur within
+           these quarters.
+                •    High-impact news events frequently align with these 90-minute
+           intervals.
+
+
+           This concept ties closely to 90SSMT (90-Minute Smart Money Transition),
+           where smart money executes transitions that lead to significant market moves.
+
+
+4. Trading Strategies Based on the Quarterly Theory
+
+
+Now, moving into practical trading strategies based on the Quarterly Theory.
+
+
+4A. Identifying Market Phases
+
+
+Before executing trades, traders must understand the four market phases within the
+Quarterly Theory:
+                1.   Accumulation – Liquidity is built up; smart money positions itself.
+    2.   Manipulation – False moves trigger stop hunts and liquidity grabs.
+                3.   Distribution – Institutions unload positions into retail liquidity.
+    4.   Reversal/Continuation – Either a reversal to a new trend or a continuation of the
+existing one.
+
+
+Application in Trading:
+                •    Look for true opens to confirm phase shifts.
+                •    Identify SMT divergences between correlated assets.
+                •    Use 90-minute quarters to time entries with high-probability setups.
+4B. Utilizing True Opens for Trade Entries
+
+
+True Opens are essential in Quarterly Theory-based trading strategies:
+             •       Market reversals often occur around these key opens.
+             •       Entries & exits should align with how price reacts to True Opens.
+             •       Combining True Opens with SMT and liquidity concepts improves
+           accuracy.
+
+
+Example:
+If London True Open aligns with liquidity sweep and SMT divergence, it signals a high-
+probability entry.
+
+
+4C. Aligning with ICT’s Power of 3 Concept
+
+
+ICT’s Power of 3 (PO3) complements Quarterly Theory as follows:
+             •       Accumulation Phase → Manipulation Phase → Distribution Phase
+             •       In trading, this means price will:
+                     1.   Build liquidity (Accumulation).
+                     2.   Sweep liquidity (Manipulation).
+                     3.   Move in the intended direction (Distribution).
+
+
+Quarterly Theory + PO3:
+             •       Identify high-impact session quarters for price manipulation.
+             •       Use True Opens as reference points for market structure shifts.
+             •       Validate entries with SMT divergences and 90-minute cycles.
+
+
+5. Practical Application and Considerations
+
+
+5A. Market Conditions
+
+
+             •       Quarterly Theory works best in trending markets with institutional
+           participation.
+             •       Less effective in low-liquidity periods or heavily manipulated ranges.
+
+
+5B. Combining with Other Analysis Methods
+To refine entries, Quarterly Theory should be paired with:
+                1.   ICT concepts (Liquidity, SMT, Fair Value Gaps, PO3).
+                2.   Smart Money concepts (Institutional Order Flow, Stop Hunts).
+                3.   Macroeconomic factors (News, Interest Rates, CPI, NFP).
+
+
+5C. Risk Management
+
+
+                •    Stop-loss placement: Above/below liquidity pools instead of arbitrary
+           levels.
+                •    Risk-to-reward (R:R): Aim for 1:5 or better by trading with the quarterly
+           cycle.
+                •    Avoid overtrading: Not every session quarter provides an ideal entry.
+
+
+6. Critiques and Limitations
+
+
+6A. Requires Deep Market Understanding
+
+
+                •    Not easy for beginners; requires strong price action knowledge.
+                •    Must be paired with liquidity concepts to be effective.
+
+
+6B. Works Best in Institutional Trading Hours
+
+
+                •    Less effective in Asian session due to low volume.
+                •    Best applied during London & New York trading sessions.
+
+
+6C. Complex Execution
+
+
+                •    Requires constant observation of session quarters & SMT.
+                •    True Opens need real-time confirmation, making it challenging for part-
+           time traders.
+
+
+7. Conclusion
+
+
+The Quarterly Theory provides a structured approach to market movements, offering
+insights into liquidity shifts, smart money behavior, and institutional trade execution.
+
+
+Key Takeaways:
+                •    The market moves in quarters (yearly, monthly, weekly, daily, and
+              session-based).
+                •    True Opens serve as critical points for price action validation.
+                •    90-minute cycles align with institutional trading activity.
+                •    When combined with SMT, ICT concepts, and liquidity principles,
+              Quarterly Theory becomes a powerful trading framework.
+
+
+              However, it requires skill, patience, and experience to be executed effectively.
+              Traders should continuously backtest and refine their approach to maximize its
+              potential.
+
+
+SMT Divergences in Quarterly Theory
+
+
+Smart Money Technique (SMT) Divergence plays a crucial role in Quarterly Theory by
+helping traders identify liquidity imbalances and institutional manipulation within different
+quarterly cycles (yearly, monthly, weekly, daily, session, and 90-minute quarters).
+
+
+Quarterly Theory primarily incorporates three main types of SMT divergences:
+                1.   Standard SMT Divergence (General SMT)
+                2.   Session-Based SMT (SSMT)
+                3.   90-Minute SMT (90SSMT)
+
+
+              Each type provides a unique perspective on how smart money manipulates
+              price across different time cycles.
+
+
+1. Standard SMT Divergence (General SMT)
+
+
+Definition:
+                •    Occurs when correlated assets or related markets move in different
+              directions, revealing institutional liquidity manipulation.
+
+
+How it Works in Quarterly Theory:
+                •      Used to validate market reversals within Quarterly Cycles (e.g., at the
+              end of a session quarter).
+                •      Commonly applied between indices (NASDAQ vs. S&P500), forex pairs
+              (EUR/USD vs. GBP/USD), or bonds (US10Y vs. US30Y).
+                •      Helps confirm whether price action is driven by real demand or smart
+              money traps.
+
+
+Example in Quarterly Theory:
+                •      If NASDAQ sweeps liquidity at a session quarter high, but S&P500 fails
+              to break the high, it indicates a bearish SMT divergence and a potential short
+              setup.
+
+
+2. Session-Based SMT (SSMT)
+
+
+Definition:
+                •      A specialized form of SMT divergence that occurs within session
+              quarters (Asian, London, New York).
+                •      Compares price action between different trading sessions or session
+              quarters to identify institutional positioning and liquidity grabs.
+
+
+Types of SSMT Divergence
+
+
+ Type                               Description                    Example in Quarterly
+                                                                   Theory
+ London SMT                         Compares price action in If London makes a
+                                    London session quarters higher high but New
+                                    to New York                    York fails, it signals
+                                                                   bearish SMT
+ New York SMT                       SMT divergence                 If NY makes a lower low,
+                                    between London close &         but London does not, it
+                                    NY open                        signals bullish SMT
+ Asian SMT                          Used to detect liquidity       If Asia sweeps liquidity
+                                    traps in low-volume            but London reverses, it
+                                    hours
+                                                                 If Asia sweeps liquidity
+                                                                 but London reverses, it
+                                   hours                         signals a false move
+
+SSMT in Quarterly Theory
+
+
+                •   Occurs within session quarters (e.g., London Open vs. NY Open).
+                •   Helps traders time reversals at True Opens.
+                •   Confirms if price movement is liquidity-driven or trend-based.
+
+
+Example:
+                •   If London True Open sweeps a liquidity pool but NY session does not
+              break that level, it indicates a bearish session SMT, signaling a short trade.
+
+
+3. 90-Minute SMT (90SSMT)
+
+
+Definition:
+                •   A deeper-level SMT divergence that occurs within 90-minute quarters of
+              a trading session.
+                •   Detects institutional liquidity grabs at a finer level compared to session-
+              based SMT.
+
+
+How 90SSMT Works in Quarterly Theory
+
+
+                •   90-minute quarters are key liquidity windows where smart money
+              executes stop hunts, fake breakouts, and reversals.
+                •   90SSMT focuses on SMT divergences within these 90-minute cycles.
+                •   Used for scalping and intraday trading, while session SMT is more
+              suitable for swing trading.
+
+
+Example:
+                •   If first 90-minute quarter in London sweeps liquidity, but the second 90-
+              minute quarter does not make a new high, it signals a bearish SMT divergence.
+                •   If NASDAQ makes a lower low in the 90-minute quarter, but S&P500 fails
+              to, it signals a bullish SMT divergence.
+
+
+Differences Between Standard SMT, SSMT, and 90SSMT
+Type                    Timeframe              Best Used For         Key Advantage
+Standard SMT            Daily to Weekly        Long-term swings Detects
+(General SMT)                                                        institutional price
+                                                                     manipulation
+                                                                     between
+                                                                     correlated assets
+Session-Based           Session quarters       Intraday & Swing      Identifies
+SMT (SSMT)              (London, NY,           trading               session-specific
+                        Asia)                                        liquidity grabs &
+                                                                     market traps
+90-Minute SMT           90-minute              Scalping & Day        Detects precise
+(90SSMT)                quarters               Trading               liquidity grabs in
+                                                                     micro-timeframes
+
+Key Takeaways
+
+
+             1.   Standard SMT is broad and applies to multiple assets.
+             2.   SSMT focuses on session quarters, revealing liquidity shifts between
+           trading sessions.
+             3.   90SSMT is a micro-level SMT, used for fine-tuned scalping and intraday
+           trading.
+             4.   All three SMT types align with Quarterly Theory, enhancing market
+           timing and trade confirmation.
+
+
+  ●   Detailed Strategy: Trading Quarterly Theory with SMT Divergences
+
+
+This strategy combines Quarterly Theory, SMT divergences, and PD Arrays to increase
+trade precision. It follows a systematic approach, ensuring high-probability trade setups.
+
+
+1. Core Principles of This Strategy
+
+
+This trading strategy is built on three key concepts:
+   Quarterly Theory → Time-based market structure (Yearly, Monthly, Weekly, Daily, and
+Session Quarters).
+   SMT Divergence → Liquidity-based divergence to confirm smart money activity.
+   PD Arrays → High-probability price levels where institutional traders enter positions.
+
+
+Each component ensures that a trade setup aligns with institutional footprints, reducing
+fakeouts.
+
+
+2. Step-by-Step Guide to Trading Quarterly Theory with SMT
+
+
+Step 1: Identify the Current Quarter in the Market Cycle
+
+
+              •      Determine which quarter the market is in (e.g., Q1, Q2, Q3, Q4 for
+            Monthly Cycle or Session Quarters).
+              •      Check if the market is in an Accumulation, Manipulation, or Distribution
+            phase.
+              •      Look for signs of liquidity grabs, false breakouts, or consolidation before
+            a major move.
+
+
+                  Example: If it’s Session Q2 (Manipulation Phase), expect stop hunts and
+            liquidity grabs before a trend move in Q3.
+
+
+Step 2: Scan for SMT Divergences Across Correlated Markets
+
+
+SMT (Smart Money Technique) divergence occurs when related assets show liquidity
+imbalances:
+              •      Bullish SMT: One market makes a lower low, while another fails to do so
+            (strong buy signal).
+              •      Bearish SMT: One market makes a higher high, while another fails to do
+            so (strong sell signal).
+
+
+How to Identify SMT?
+
+
+   Compare major correlated markets:
+              •      NASDAQ vs. S&P 500
+              •      EUR/USD vs. GBP/USD
+              •      DXY vs. Forex Pairs
+
+
+                  Example: If NASDAQ makes a lower low but S&P500 doesn’t, this is a bullish
+             SMT—indicating a possible long trade.
+
+
+Step 3: Identify PD Arrays as Entry Points
+
+
+Once SMT divergence is spotted, wait for price to tap into a PD Array in the correct zone:
+              •      For Long Trades: Wait for price to reach Discounted PD Arrays (Bullish
+             Order Block, FVG, Mitigation Block).
+              •      For Short Trades: Wait for price to reach Premium PD Arrays (Bearish
+             Order Block, FVG, Mitigation Block).
+
+
+                  Example: If a bullish SMT occurs, but price is still in a Premium zone, wait
+             for it to drop into a Discounted FVG or Order Block before entering long.
+
+
+Step 4: Confirm Entry with Inversion or Liquidity Grab
+
+
+Once price taps into a PD Array, look for a final confirmation:
+   Inversion Structure: Price reacts, then breaks a short-term high/low, confirming
+direction.
+   Liquidity Grab: Price sweeps liquidity before reversing (e.g., wick below a previous low,
+then quick rejection).
+
+
+   Example: If price taps into a Bullish Order Block after SMT, wait for a 5-minute
+structure shift before entering.
+
+
+Step 5: Set Stop Loss & Take Profit Levels
+
+
+   Stop Loss: Below the liquidity grab or Order Block (logical invalidation point).
+   Take Profit:
+              •      TP1: First liquidity pool or opposing FVG.
+              •      TP2: Q3 High or Q4 Low (depending on trade direction).
+              •      TP3: Major Weekly/Monthly PD Array.
+                 Example: If you’re long on NASDAQ, TP1 could be the previous high, TP2 the
+           Quarterly Q3 High, and TP3 a higher-timeframe liquidity zone.
+
+
+3. Example Trade Setup (NASDAQ Long Trade)
+
+
+   Step 1: Identify Quarter & Market Context
+             •      Session: New York Session, Q2 (Manipulation Phase)
+             •      NASDAQ made a lower low, but S&P500 did not → Bullish SMT detected
+
+
+                 Step 2: Identify PD Array in Discount Zone
+             •      Bullish Order Block found at a Discount Level
+             •      Liquidity below previous session’s low (perfect for liquidity grab)
+
+
+                 Step 3: Entry Confirmation with Inversion
+             •      Price taps Order Block, then makes a higher high on the 5M chart →
+           Entry Triggered
+
+
+                 Step 4: Set SL & TP
+                 SL: Below Order Block (5-10 points buffer).
+                 TP1: First liquidity pool (~1:3 R:R).
+                 TP2: Session Q3 High (~1:6 R:R).
+                 TP3: Major Weekly FVG (~1:10 R:R).
+
+
+4. Key Risk Management & Considerations
+
+
+   Risk Only 1-2% Per Trade
+   Do Not Chase SMT Without PD Array Tap
+   Trade Only Within High-Liquidity Sessions (NY, London)
+
+
+5. Final Thoughts
+
+
+This strategy ensures that each trade aligns with Quarterly Theory, SMT Divergences, and
+PD Array Confirmation—creating high-probability trade setups.
+Compiled by @ransh28.06
+

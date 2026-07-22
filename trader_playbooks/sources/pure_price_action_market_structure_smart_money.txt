@@ -1,0 +1,335 @@
+The Pure Price Action And Market
+Structure with the Smart Money
+Concept 2022 2023
+Session and broker talk
+
+I recommend trading only one pair, metal, or index in a single session
+(London and New York are the best options). Backtesting the chosen pair (I
+strongly recommend using
+
+the TradingView Pro plan so that you can replay price on any timeframe) is a
+good way to master it. First, backtest each selected session by going back a
+few weeks on the chart.
+
+This will help you comprehend the theories and reasoning that underlie
+everything the selected pair does— in the selected session, of course!!!
+
+Using this strategy, you will be confused when trading on four to five or
+more pairs.
+
+I only trade EUR/USD during the New York session, which runs from 2 p.m.
+to 5 p.m. (GMT+2, Hungary), so I'm actively trading three hours a day.I
+began trading foreign
+
+exchange for financial and time freedom. Then, why would I trade eight to
+ten hours a day? Trust me when I say that there are plenty of
+
+chances at every session every single day!
+For me, this is the best time for a session.
+Choice of broker:
+
+Do some research, and go with the broker that can meet your needs, has the
+lowest spreads, and will pay
+you back without a hitch. Personally, I use ICmarkets, and I should give them
+props.
+
+News:
+
+You should check to see if there are any upcoming HIGH IMPACT news
+before each session begins. For this purpose, I recommend the Forex Factory
+calendar at forexfactory It is dangerous to Exchange news. Opening a trade
+before high impacts (marked with a red folder on Fx Factory) is a good way
+to protect your capital. If you have an open position before the news is
+released, you should manage it risk-free (put your stoploss at least BreakEven
+[BE]).
+STRUCTURE WEAK/STRONG POINTS
+One of the most important aspects of trading is structure mapping, which
+involves following the structure of the market and comprehending the pro
+and counter trend.
+The pullback phases of the main trend are depicted by red arrows.
+These kinds of trades are against the trend.
+The Countertrend is more impulsive than the Main Trend. Therefore,
+catching pips in the main trend is simpler and safer.
+
+You can also trade
+countertrends, but always keep in mind that they are more volatile.
+
+On the 15-minute timeframe, the price action in the H4 timeframe looks like
+this.
+
+However, you can use this at any time.
+On the 1m timeframe, the 15m price action (black) will look like this (red).
+Trading the LTF successfully requires an understanding of the HTF (H4, 15M)
+movements.
+
+Before making trades on the 1m, always
+consider the bigger picture. If you don't start by mastering the longer timeframes, it can be noisy.
+Weak or strong points:
+
+Strong highs and lows: When a structural point is able to break through the most recent opposite zone,
+it is confirmed to be strong.for instance:
+
+If it can break through the last supply, demand will be strong.)
+
+Weak highs and lows: If a structural point fails to break through the most recent opposite zone and
+rejects on it, it will be confirmed to be weak.
+It will not make a weak high strong if it overcomes a weak low.
+a series of weak highs and strong lows. The character has changed, and price has begun to form series
+of after the last high broke through the last strong low.
+
+
+
+
+strong highs and weak lows.
+SUPPLY/ DEMAND MITIGATION
+INEFFICIENCY
+
+
+
+
+The definition of supply and demand is a region in which price increases
+rapidly.
+away from (a lot of orders placed), making things inefficient (IFC), breaking the structure (BOS), and
+changing the character (CHoCH).the two (plus one) things you need to pay attention to:
+-Did it establish IFC?
+-Did it alter the character or the structure? (Did it disrupt S/D?
+-(Did it raise money?)
+
+What is mitigated and what is Nonmitigated?
+Price moves away from unmitigated when it enters a d/s zone that has not yet been tapped.
+Our entry points or TP points following CHoCH could be in these unmitigated zones.
+CHoCH example
+
+
+
+
+Continuation example
+To select the most suitable s/d zone:
+Find the areas where an IFC has formed. Find the most recent candle before the IFC. It doesn't have to
+be the candle going in the opposite direction!for instance:You can choose an upside move candle if the
+IFC was created on the long side; it does not have to be a downside move candle.)
+Always select the most recent IFC-creating candle!This will be your valid S/D zone—remember that it
+must break structure and be opposite the S/D zone you're using.
+If the price rapidly declines, creates IFC, and changes character (CHoCH), supply/demand zones are
+the most valuable for me.
+
+(See examples below)
+Always employ the most recent S/D that provided us with the three factors.
+It won't be a setup with a high probability if one of the factors is missing.
+To avoid incurring unnecessary losses, try to only take setups with a high probability.
+
+IFC explanation:
+Typically, price fills the created gap to
+restore equilibrium when the market moves quickly and leaves inefficiency
+behind.You can avoid a lot of early entries and avoid unnecessary losses by
+assigning IFCs and combining them with Supply and Demand zones.
+There are many synonyms in IFC, such as:Unfairness, imbalance, gap in fair
+value, etc.
+
+When should the wicks be used as zones?
+The majority of orders would be stopped out in these scenarios.Before the
+IFC, you should think about the wick!
+RISK ENTRY / CONFIRM ? WHO'S IN
+CONTROL?
+What happens if the price comes from a wide range?
+ALWAYS (!!) check if the price comes from an unmitigated zone, or not.
+You want to trade the controlling side of the market. You can't trade demand without a confirmation if
+you wait for a demand trade to go long but the price comes from an unrestricted supply zone. SUPPLY
+IS IN CONTROL.
+A risk entry can be used in two situations:
+understanding what is in control:
+
+light red Zone: Supply is under control
+The light blue zone: Demand is under control
+We broke through the minor supply, putting pressure on demand to be in charge. After that, the major
+supply rejected the price, restoring supply control. We anticipate that the price will return to the
+extreme of the demand, breaking the minor supply and triggering an impulsive orderflow that left IFC
+behind.Here, there is no limit order!Since there is a limitless supply, supply is in control of the price).
+Finally, we wait for a flip, which puts demand back in control. Who's in control
+
+live examples This is how to use the "who's in control method" to trade between zones.
+FLIPS CHOCH CONTINUATION
+EQUILIBRIUM
+
+
+
+
+Supply and demand flips
+We refer to this pattern as an "s/d flip" because the price reached a new high, tested the "last demand
+zone" (shown in the image), moved away from it, but was unable to reach a higher high (HH). It
+impulsively broke through the "last demand zone" and left behind a supply zone, which is depicted as
+the "last supply zone," rather than establishing a HH.
+Price tested the supply level once more, where we opened our position and placed our limit order.
+Let's look at this move's candle breakdown. This pattern works best when the price moves aggressively
+away from the demand and supply zones and quickly breaks through the "last demand zone," leaving
+inefficiency behind.
+
+If there was a lot of demand, the supply level that had just been created should have been broken.
+Instead, the demand turned out to be weak and broke
+because it was unable to reject enough to push the price to new highs. We are trading on the supply side
+of the market as this indicates that the new supply zone has regained control.
+Live chart examples:
+You can see that the price movement I marked in red is identical to the one I drew on the previous
+page. Long example:
+                                          CHoCH entry
+CHoCH - Change of character Meaning the
+change in the trend.
+The most successful trades are CHoCH ones:
+when they cross at least two s/d zones.
+CHoCH formes after a HTF relief (model above) price incautiously gets through the zones, with few
+huge candles.
+Live chart examples:
+What's the difference between BOS and CHoCH ?
+Continuation entry
+
+If you missed the flip/choch or the PA (price action) opportunity to enter, taking a continuation trade is
+an easy way to scale in.Let's say that the price lowered a 5m demand zone, caused a choch, and made
+demand the
+
+dominant force.
+Since you missed the entry, the TP would be the next unaffected supply.What options do you have
+here?
+
+If price reaches a HTF zone and breaks it, this is another scenario for the continuation entry.
+Price continues to move in this direction, so you can enter based on this.
+
+
+If the WICK of the candle is greater than 50% of the candle as
+a whole, I use an equilibrium entry of 50%.
+If the maximum 2pip SL cannot fit, I use 50% entry in one more situation
+(more on this later).
+As you can see, the ca more than
+2 pips, so the SL can't whole zone.
+
+In this case, I also use equilibrium en
+sure the whole zone is covered, and my SL isn't bigger than 2
+TRADING PLAN
+After reviewing the news, I begin my analysis. This is my "go through" model every day.
+
+Step One:
+
+We don't take trades on the H4 timeframe when we find supply/demand zones; rather, we simply
+decide whether supply or demand are in control. These H4 zones are only used to establish your HTF
+targets and market direction.
+
+We no longer need to wait for these POIs!
+
+
+
+
+Defining the overall trend using the H4
+
+
+
+
+As you can see, the H4 chart is ideal for determining the overall direction. For instance, if we change
+our strategy on the 15m or 5m and react to a H4 demand zone, we can look for buys up to the H4
+supply zone.
+We wait for the same confirmations once we reach the H4 supply and look for short opportunities.
+This will assist you in determining the
+MAIN trend and the Counter trend.
+
+determining the 15m's unmatched supply and demand
+As can be seen, supply is in control in this example, but after tapping in H4 demand, we anticipate a flip or CHoCH.
+Price broke through our previous supply level, so we can look for long entries on the 1m and target the recent unmitigated supply or the H4 supply because demand is now in control.
+
+TROUBLE STEP:
+fine-tune the 15-meter supply/demand zone.
+This is how the refined supply looks in the 5m and 15m, respectively. We refined it down to 31.3 pips
+across the entire zone.
+
+
+
+Make it as precise as possible, even to 1 meter.The cleanliness of the zone determines the
+refinement.Keep the 5m zone if the 1m gives you two unimpeded zones within the 5m zone.
+You can use the zone that has not yet been mitigated if it gives you two zones but only one has
+mitigation.
+I personally complete the three aforementioned steps 30 minutes before the session begins.
+I can switch to 1m after completing the first three steps and wait for the session to begin.The entries
+and execution are my favorite part now.
+
+I also mark the most valuable zones between the 5m zones on the 1m chart.
+I'll be aware of the possible reasons for rejection or entry this way.
+
+
+
+
+FOURTH STEP
+Types of entries When I start a trade, I use three entry types (plus one more confirmation): S/D, D/S
+flips, and CHoCH continuation (additional confirmation: liquidity)
+TRADING PLAN 2.0
+
+
+What is liquidity?
+
+In order for Smart Money (Banks) to purchase a currency pair, they will need
+sellers in the market. The existing facility to place these positions in the
+market is known as liquidity.
+
+Stop losses define liquidity; where stop losses exist, liquidity also exists.
+Smart
+Money must activate the stop losses of
+existing market orders in order to place their positions in the market. On the
+charts,
+
+I mark liquidity with three dollar signs ("$$$").
+Double and triple bottoms and tops —equal highs and lows—are my primary focus when it comes to
+liquidity. These are further confirmations when they occur above or below a zone.
+Trendline liquidity
+There are numerous ways to create liquidity. DOUBLE/TRIPLE TOPS AND BOOMS are the most
+common.
+However, it is also possible to form a Trendline Liquidity.It all stems from the same idea.
+
+Stoplosses for retail traders are set below the "Trendline."
+
+The activation of those stoplosses is the goal of Smart Money.
+BOS or liquidity grab?
+
+LQ grabs typically occur during a single impulsive movement and leave behind a significant wick. In
+order for the pro trend movement to continue, price must collect additional liquidity orders.
+My favorite setup
+FIFTH STEP
+I always take a risk of one percent of my balance when I trade.
+I stop trading for the remainder of the day after a losing streak of 2% and backtest my mistakes.
+
+I manage to close my positions before the session ends because I trade intraday. As I mentioned in the
+"News trading" topic, if I have an open position before any High Impact news is released, I
+immediately manage my stoploss to BE. I DON'T HOLD POSITIONS FOR LONGER THAN ONE
+SESSION.)
+
+I always use a 2 pip or 1.5 pip StopLoss, depending on the entry.
+How I manage my open trades
+Let's see an example:
+How to deal with spreads
+
+Have you ever had a situation in which your limit did not activate but the price reached your limit?
+example is below.
+The spreads are to blame for this. You can easily deal with this.
+The spreads must buffer both your entry limit and your stop loss.
+This is only something I use when spreads are higher than usual and I want to be included in the trade.
+Printable checklist
+1. 1.Checking to see if there are any upcoming highimpact news stories today
+2. 2.H4 SELECT THE OVERALL DIRECTION
+
+3. 3, DETERMINE THE SUPPLY/DEMAND MARKUP Finding and marking up 15-minute supply
+and demand zones
+
+4. 4.FINISH ALL 15m S/D ZONES ON THE 5m (if there are more than one zone, pay attention!You
+already know how to make them better)
+
+5. 5.Switch to 1 minute , and mark any potential one meter zones that could lead to the five meter zone
+Repeat: Please review and verify everything in this PDF!
+You just read, for instance, "S/D flips topic."Do me a favor and practice the flips until you can see
+every flip on the chart and your eyes and brain
+understand how flips look.
+
+6. 6.CHOOSE THE RIGHT ENTRY TYPE
+(risk/confirmation) BEFORE CONDUCTING TRADES ON 1M WITH THE APPROPRIATE
+METHOD
+
+7. 7.MANAGE THE TRADE, GO FOR THE LAST UNMITIGATED S/D ZONE.
+
+Scroll to "CHoCH entries" and perform the same action when you have completed the flips and your
+eyes can clearly see each flip.
+You can only learn this this way.
+

@@ -109,3 +109,29 @@ indicators/fx_master_pattern_engine.pine — contraction-box detection
 request.security (function-call pattern, non-repainting), LTF
 expansion-leg + cross-back entry signals, first-vs-later opportunity
 counter since the last HTF bias confirmation.
+
+---
+
+## Audit pass — original transcript recovered from session log (2026-07-22)
+Raw transcript recovered from the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/line1582_2026-07-20.txt`.
+Unusually clean match, no fabricated numbers found. One wording
+overreach, softened rather than treated as a hard error:
+
+- **"Whipsaw" overstated**: this file describes phase-2 expansion as
+  taking out the contraction box's highs/lows on BOTH sides before
+  resolving. The transcript's worked examples (both directional
+  walkthroughs and the live 4H/15m examples) generally show a
+  SINGLE-direction fake pop out of the box before the real move, not a
+  two-sided sweep every cycle. "Whipsaw"/"beat to a pulp" language is
+  used descriptively for how dangerous the phase is, not as a strict
+  both-sides-swept rule. Engine/description language should be softened
+  to "may sweep one or both sides" rather than implying both are
+  routine.
+
+Verified accurate: 4H/15m two-timeframe example, average-price =
+contraction-box midpoint, entry-on-cross-back (never the counter-trend
+leg), TP at average price or trail to next contraction, invalidation
+logic, "90% of traders lose" framing, NFP/GDP-as-accelerant, sizing/
+first-opportunity insight — all match closely including specific
+quotes.

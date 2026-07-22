@@ -546,3 +546,60 @@ wanted, the user needs to re-supply the original material.
 Full audit findings, source-file inventory (filenames/sizes/authors),
 and this log are also published as an artifact/downloadable HTML
 report ("Trade Cartel — Source Dossier").
+
+=== SOURCE VERIFICATION AUDIT, WAVE 2 — the 11 "unauditable" voices (2026-07-22) ===
+User asked for the remaining 11 voices to be covered too and for
+everything to be permanently stored. Recovered the actual raw pasted
+transcripts for all 11 from this session's own log file (the container's
+uploads folder is ephemeral, but the underlying session transcript
+retains every message verbatim even across multiple auto-compactions) —
+23 large pasted-text messages found, 2 exact duplicates, 21 unique
+transcripts recovered and saved permanently to
+`trader_playbooks/sources/raw_transcripts/` (see its README for the
+file->voice mapping). Every original PDF/txt upload from wave 1 was also
+copied into `trader_playbooks/sources/` for the same reason — session
+uploads do not survive container reclamation, playbooks do.
+
+Ran the same independent second-read audit as wave 1 on all 11: #1 PBD,
+#2 Valentini + orderflow companion, #3 Kurisko, #5 Roppel, #6 Ario, #7
+Dave, #8 Steve/MMM4x, #9 Renko/HA ABC, #10 Wendell, #11 FX Master
+Pattern — plus incidental re-confirmation of #4 Daye and #18 Yotov via
+duplicate transcripts. Combined with wave 1, **all 21 voices are now
+audited against original source material.**
+
+Two real fabrications/errors found and corrected (not just omissions):
+- **#10 Wendell**: playbook stated "7-9 candles at the base" as Wendell's
+  basing-candle-count threshold. The source only gives ONE worked
+  example, an 8-day base counted live on the chart as 7 days — there is
+  no "9" anywhere in the transcript. The range was invented by an
+  earlier extraction pass. Corrected in wendell_supply_demand.md to "7
+  (the one worked example)."
+- **#7 Dave**: playbook's own header claimed "$700->$89k in 3 weeks,
+  publicly verified." None of the three recovered transcript segments
+  (one continuous session) contain this claim — they instead describe
+  losing down to $600 with a stated goal of rebuilding to $20k over 4
+  months. The $89k figure likely came from a video title/description
+  that was never actually pasted into this project. Header corrected to
+  flag this as UNVERIFIED against the actual source pending re-check.
+
+Roughly 60 further omitted details (concrete numbers, named setups,
+worked examples, book/influence lists, risk-sizing schedules) were
+added back as dated addenda across all 11 files — see each playbook's
+own "Audit pass" section for specifics. Highlights: Valentini's actual
+named setup ("AAA"/"Triple A") and P-shape pattern were missing
+entirely; Roppel's CANSLIM-lineage answer and full book/influence list
+were dropped; Steve/MMM4x's "weekly net change allowance" dealer-cap
+claim (a falsifiable Friday-mean-reversion mechanism) was never
+captured at all.
+
+One source explicitly found and NOT built: "Forex James" (2 transcripts,
+checked against Steve/MMM4x on a same-voice theory, ruled out — zero
+shared mechanics). Generic market-maker/broker content with no
+repeatable counting system. Archived per the never-discard rule,
+deliberately not given a voice number or engine — logged here so it's
+findable later rather than silently dropped.
+
+Zero fabricated NEW facts found in any of the 11 (same result as wave
+1) beyond the two corrections above, which were pre-existing errors
+from before this audit, not something this pass introduced. Nothing
+ported to engines yet.

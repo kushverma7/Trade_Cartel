@@ -44,3 +44,50 @@
 - H5 momentum-vs-reversal: +1 momentum side -> tally now 2 vs 2,
   genuinely contested
 - Round numbers: 2 sources
+
+---
+
+## Audit pass — original transcript recovered from session log (2026-07-22)
+Raw transcript recovered from the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/line1142_2026-07-19.txt` (the
+"quickfire gauntlet," 30 topics). The 3-5-7 stop, cushion protocol,
+sweep/shakeout+3, RS-leader entries, climax sells, MA regime gate, and
+overtrading psychology all check out. Real gaps found:
+
+- **Position-sizing conflation (fix needed)**: the transcript gives TWO
+  separate numbers that this file currently treats as one — 20-22% of
+  portfolio for a high-conviction idea (must be highly liquid) is a
+  DIFFERENT answer from "risk no more than 0.5%," which is about not
+  moving the market on execution size, not about position sizing. The
+  file only captures the 0.5% figure as a flat "hard cap."
+- **Named favorite setups, missing**: cup-and-handle (his most
+  dependable), high-tight-flag (biggest upside), breakaway gaps on big
+  volume (his single forced-choice answer) — currently only implied
+  generically, never named as his stated answers.
+- **Bethlehem Steel** (historical case study, first high-tight-flag,
+  broke 400) and the explicit "Livermore large number theory" name are
+  missing — the file has "round numbers = magnets" but strips the
+  naming/example.
+- **Book list, missing entirely**: *How Legendary Traders Made
+  Millions*, *Reminiscences of a Stock Operator*, *Market Wizards*, and
+  specifically start with Darvas's *How I Made $2,000,000 in the Stock
+  Market*. **Named influences**: Livermore, Druckenmiller, Peter Brandt.
+- **Golden-nugget rollover, two failure modes not distinguished**: long
+  slow topping in mature companies vs. sudden non-recoverable breakdown
+  in immature/non-durable names.
+- **CANSLIM connection dropped**: his answer to "what do modern growth
+  traders forget" is prior uptrend + institutional sponsorship —
+  directly on-topic for this CANSLIM-lineage playbook, currently absent.
+- **"Magic elixir"**: highest earnings growth + highest liquidity
+  combo, with the Palantir anomaly (high liquidity, weak institutional
+  uptake) as a named exception — not captured.
+- **Track-record details missing**: biggest loss ($22-25M/day, lesson =
+  "always too bullish at top and bottom, total trend follower"), best
+  trade (JD Edwards/Broadcom, $1M), ~1yr sidelined after the 2000 top
+  holding $150M cash, group-move-bottoms-before-single-leader-emerges
+  as his method for spotting high-potential themes, and "know your max
+  size + sustained discipline" as his stated principle behind
+  triple-digit returns.
+
+Non-trading color (Teddy Roosevelt "man in the arena," Dune's fear
+litany) correctly left unused — not a strategy element.

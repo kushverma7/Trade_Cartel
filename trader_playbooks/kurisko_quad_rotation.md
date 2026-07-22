@@ -41,3 +41,16 @@
 ## Implementation
 indicators/kurisko_quad_rotation.pine — exact math (no proxies):
 SUPER / FLAG / ROT-X scenarios, labels + alerts, bar-close.
+
+---
+
+## Audit pass — original transcript recovered from session log (2026-07-22)
+Raw transcript recovered from the session log and permanently saved to
+`trader_playbooks/sources/raw_transcripts/line1048_2026-07-19.txt`.
+Clean match, no factual errors found, nothing material missing — quad
+rotation bands, the "Super Signal"/Holy Grail stop placement, the 2020
+Bull Flag example, the bear-flag 50%-loser-elimination rule, channel
+1-2-3 + divergence breakout, and the full chart stack (EMA 20/50/200,
+VWAP, S/R lines, pivots) all verified verbatim-accurate. The transcript's
+Voxer alert-network sales pitch was correctly left out as marketing, not
+mechanics.

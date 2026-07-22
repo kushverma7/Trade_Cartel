@@ -125,3 +125,68 @@ NOT a new independent source; execution detail for the same model.
 - Sick/tired/bad sleep = no trading (discretionary edge lives in you)
 - 3 stops mid-session = done; slightly more room at open (4-5)
 - Walk away at day target; ego trades after the AAA are rented, not owned
+
+---
+
+## Audit pass — original transcripts recovered from session log (2026-07-22)
+Three raw transcripts this file (and orderflow_effort_result.md) draw
+from had no retained file until now; recovered from the session log and
+permanently saved to `trader_playbooks/sources/raw_transcripts/`
+(line0896, line0916, line1032, plus the already-logged v3 podcast
+source). Re-diffed in full. Genuinely missing pieces, no wrong numbers:
+
+- **"AAA setup" / "Triple A"** — his own name for the core setup (value-
+  area-low fade -> value-area-high target). Used repeatedly in the
+  live-podcast source but never named as such anywhere in this file —
+  should be the primary setup label.
+- **"P-shape" volume-profile pattern**: volume builds on top, price
+  retests/reaccumulates, then continues — a distinct, named mechanic
+  not yet captured.
+- **"Hyperscalping"** — his own name for this trading style/account.
+- **Contract-sizing baseline**: 30 contracts NY session, 20 contracts
+  London session — not captured (only % risk sizing is).
+- **Named 3-step framework, not yet structured as such**: Market State
+  (balance/imbalance) -> Location (swing point + LVN via profile) ->
+  Execution (aggression filter, ~20-30 contract size threshold).
+- **Two distinct named models**: Trend model (NY session, target =
+  previous balance/POC, exits FULL position, "reverts from POC ~70% of
+  the time") vs. Mean-Reversion model (London/summer, waits for the
+  2ND drive, not the 1st breakout) — the file has fragments of each but
+  never names or structures them as two separate systems.
+- **"Edge decay"**: his claim that orderflow edges decay slower than
+  price-action rules; concrete claim of +4-5 win-rate points from
+  adding a CVD-divergence filter to break-and-retest setups.
+- **Base-rate claims**: only ~30% of textbook trend-following breakout
+  patterns actually run (rest stay in value); waiting for true
+  imbalance raises win rate an estimated 20-30%.
+- **"Three levels of analysis" teaching frame**: lagging indicators /
+  real-time price / leading volume-CVD.
+- **Quarter-by-quarter trade counts**: 350 / 600 / 550 trades for the
+  68% / 88% / 218% quarters. Named competitor "Natrian" (Malaysia,
+  223%, same footprint-scalping style) — independent corroboration
+  detail, not yet logged.
+- **Commission drag**: ~10% of profit eaten by commissions — the 218%
+  quarter was actually ~240% pre-commission.
+- **Full risk-escalation schedule**: starts at 0.25%, raised to
+  0.35-0.40% in month 2 if profitable, scales to 2-2.5%/trade only once
+  ~50%+ of the quarter's profit target is already banked. The file's
+  current "~10% of day's banked profit" language is vaguer than this.
+- **Single-asset discipline**: trades NASDAQ only, explicitly rejects
+  multi-asset watchlists (references his own failed 20-asset-watchlist
+  period) — not stated.
+- **Reversal-window clock time**: best reversal win rate around 8:45pm
+  European time (mid-US session) — not captured.
+- **Psychology datapoint**: floating unrealized P&L drifting down (e.g.
+  +$6k back to -$2k) causes more stress than a realized stop-loss —
+  entirely absent.
+- **Max drawdown-in-a-row anecdote**: 11 stop-losses taken in a
+  stretch. Reference to independent orderflow/LVN scalper "Carmen
+  Rosato" as external corroboration.
+- Minor: a retired correlation/spread-trading model across
+  NASDAQ/US30/SPX, abandoned by him — low materiality, logged for
+  completeness only.
+
+Verified accurate: 68/88/218% quarterly returns, 500 trades/quarter
+(refined above to per-quarter counts), 0.25% base risk, 3-stops/day cap,
+min 1:2 RR, stop 1-2 ticks below the high (not above, to dodge
+acceleration slippage).
