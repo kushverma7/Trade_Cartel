@@ -196,7 +196,20 @@ indicators/spaceman_daye_quarters_engine.pine (merge #1, TIME-based):
   zone rather than beyond it -- effectively guaranteeing an immediate
   stop-out on any retest. Fixed: stop now references low/high (the
   actual sweep extreme) with the ATR buffer applied from there.
-  Re-test pending.
+- **Re-test result (2026-07-20)**: 7 SL / 1 TP2 (8 trades), PF-analog
+  0.14 -- real improvement over 0/12 (confirms the stop-reference fix
+  wasn't a wash), but still clearly not working. Notable signature:
+  TP1 and TP2 reach rate are BOTH exactly 12.5% -- meaning every one
+  of the 7 losses never touched TP1 at all before stopping out. That's
+  different from "stop too tight on a retest" (which would show some
+  TP1 touches before eventual losses); it points to either low-quality
+  JUDAS entries on this data, or the stop buffer (stopBufAtr=0.2)
+  still being too tight against normal post-sweep noise even with the
+  correct reference point. Sample is only 8 trades -- too small to
+  commit to either theory. Next test, not yet run: widen stopBufAtr
+  (e.g. 0.2 -> 0.5-1.0) and re-check whether TP1 starts getting
+  touched before losses, which would isolate stop-tightness as the
+  cause vs. entry quality.
 
 indicators/spaceman_yotov_quarters_engine.pine (merge #2, PRICE-based):
 - Merges SpacemanBTC's structural levels with Yotov's Quarters Theory
