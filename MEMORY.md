@@ -179,3 +179,41 @@ User directive, applies to every future transcript/PDF/document processed:
    twice across two videos). Apply this strictly going forward — when a
    new transcript arrives, first check whether it's the same author/
    lineage as an existing playbook before creating anything new.
+
+---
+
+## STANDING RULE: AMDM Strategy Lens Active (2026-07-22)
+
+User uploaded a full external synthesis package (COGNITIVE_ARCHITECTURE
+v3.1 clean copy, STRATEGY_EXTRACTION_PROTOCOL.md, a "NUCLEAR_PROMPT"
+operating directive, and THE_CONFLUENCE_STRATEGY.md) and adopted the
+**Auction-Momentum Dual Model (AMDM)** as the standing strategy lens.
+Full doc: `trader_playbooks/AMDM_confluence_strategy.md`. Originals
+archived at `trader_playbooks/sources/amdm_synthesis/`.
+
+1. **From now on, every transcript/data point fed into this project is
+   analyzed through the AMDM lens** (Model 1 momentum-join vs. Model 2
+   mean-reversion, switched by auction-state) in ADDITION to the
+   existing 21-voice confluence layer and three-minds architecture —
+   AMDM is a downstream synthesis, not a replacement.
+2. **Operating mode: no clarifying questions before acting.** The
+   user's directive is explicit ("NO MORE QUESTIONS... do not ask what
+   I want") — proceed autonomously on synthesis/build tasks using
+   existing repo context, defaulting to reasonable judgment calls
+   (documented, not silently made) rather than pausing to ask. This does
+   NOT override the separate, harness-level rule about confirming truly
+   risky/irreversible actions (force-push, deleting work, etc.) — it
+   only removes discretionary "what do you prefer" questions from the
+   trading-analysis workflow.
+3. **Honesty rules apply to user-supplied synthesis documents too, not
+   just extracted playbooks.** AMDM's source document contained broken
+   citation markup and at least one unverifiable academic claim
+   ("Medhat & Schmeling +16.4%") — flagged in place in
+   AMDM_confluence_strategy.md's Audit Note rather than silently
+   repeated as fact. The project's "never fabricate data" rule applies
+   to everything that becomes part of the standing operating context,
+   regardless of source.
+4. **AMDM status: SYNTHESIZED / UNTESTED**, same as every other
+   strategy in this repo. No backtest exists yet. Nothing changes about
+   the PF 3.656 retraction or the "no proven/flagship language without
+   a real backtest" rule.

@@ -603,3 +603,36 @@ Zero fabricated NEW facts found in any of the 11 (same result as wave
 1) beyond the two corrections above, which were pre-existing errors
 from before this audit, not something this pass introduced. Nothing
 ported to engines yet.
+
+=== AMDM CONFLUENCE STRATEGY ADOPTED (2026-07-22) ===
+User uploaded a complete external synthesis package and adopted the
+**Auction-Momentum Dual Model (AMDM)** as the project's standing
+strategy lens. Full spec: `trader_playbooks/AMDM_confluence_strategy.md`
+(includes an audit note flagging unverified academic citations —
+see MEMORY.md's "AMDM Strategy Lens Active" entry for the full context).
+
+STATUS: SYNTHESIZED / UNTESTED. Two-model regime-switched system:
+- **Model 1 (Momentum-Join)**: trades outside prior value area / high
+  ATR, BOS + volume + CVD confirmation. Draws on Valentini #2, Hougaard
+  #15, Wendell #10.
+- **Model 2 (Mean-Reversion)**: trades inside prior value area / low
+  ATR, sweep + rejection + volume-exhaustion at VAH/VAL. Draws on PBD
+  #1, Trader Dale #14, Wendell #10, and this repo's own topbottom
+  engine (the only engine here with a small-sample positive live-test
+  result, and the direct model for Model 2's mechanics).
+- Model selection via a real-time decision tree keyed on ATR, position
+  relative to value area, news calendar, and DXY correlation.
+- 0-12 confluence scoring (macro/intermarket/HTF structure/LTF
+  entry/RR/session timing) maps to position size, consistent with
+  COGNITIVE_ARCHITECTURE.md's existing scoring convention.
+
+Engine: `indicators/amdm_confluence_engine.pine` — see Implementation
+notes in AMDM_confluence_strategy.md and the engine's own header for
+what's built vs. simplified (e.g. no true footprint/delta data on this
+project's feed, same data-limitation caveat as every order-flow-based
+engine in this repo — CVD confirmation uses the existing candle-
+direction proxy, not real bid/ask delta).
+
+Next steps per the strategy's own Part IV backtest plan: minimum 100
+manually-tracked trades across 3+ months before any status upgrade past
+SYNTHESIZED/UNTESTED.

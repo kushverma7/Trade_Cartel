@@ -1,0 +1,388 @@
+//@version=6
+indicator("AMDM — Auction-Momentum Dual Model [Confluence]", overlay=true, max_labels_count=300, max_lines_count=100)
+
+// ============================================================
+// AMDM — AUCTION-MOMENTUM DUAL MODEL
+// Source: trader_playbooks/AMDM_confluence_strategy.md, adopted
+// 2026-07-22 as the project's standing strategy lens per explicit user
+// directive. Synthesized externally from this repo's 21-voice dossier;
+// see that file's Audit Note for flagged/unverified academic claims
+// (this engine implements the RULES portion only, not the disputed
+// expectancy numbers -- nothing here should be read as a performance
+// claim. STATUS: SYNTHESIZED / UNTESTED, same as every strategy here).
+//
+// TWO MODELS, ONE SWITCH:
+//   Model 1 (Momentum-Join): trades outside the value area / high ATR.
+//     Voice basis: Valentini #2, Hougaard #15, Wendell #10.
+//   Model 2 (Mean-Reversion): trades inside the value area / low ATR,
+//     fading VAH/VAL on a sweep+rejection+volume-exhaustion signature.
+//     Voice basis: PBD #1, Trader Dale #14, Wendell #10, and this
+//     repo's own topbottom engine (direct mechanical ancestor of
+//     Model 2's sweep+reclaim trigger).
+//   Selection is a real-time decision tree on ATR regime + position
+//   relative to the value area -- not a discretionary choice per trade.
+//
+// DOCUMENTED SIMPLIFICATIONS (per this project's "flag, don't fabricate"
+// rule -- these are honest engineering choices, not silent guesses):
+//   1. "Value area" here is a TRAILING rolling-window volume profile
+//      (same technique as trader_dale_volume_profile_engine.pine), not
+//      a fixed prior-calendar-day profile. Window defaults to ~1
+//      trading day of bars on the chart's own timeframe. This tracks
+//      the strategy doc's intent (recent institutional acceptance
+//      range) without needing exact session-boundary accounting.
+//   2. The strategy doc's rules are written in FX "pips." Gold has no
+//      native pip; this engine uses a configurable `goldPip` (default
+//      $0.10, a common retail-broker XAUUSD convention) to translate
+//      every pip-denominated threshold. Adjustable, flagged UNTESTED
+//      against the source's intent (same caveat pattern already used
+//      for the Gann/Yotov dollar-scale conversions elsewhere in this
+//      repo).
+//   3. "CVD/delta confirmation" uses this repo's existing candle-
+//      direction volume proxy (green candle = +volume, red = -volume),
+//      NOT real bid/ask footprint data -- this project's feed doesn't
+//      have that (same limitation documented in trader_dale_orderflow.md
+//      and orderflow_effort_result.md).
+//   4. "Red-tier news in next 2 hours" has no live calendar feed on this
+//      chart -- implemented as a manual toggle you flip before a known
+//      news window, not an automatic filter.
+//   5. Scale-out (40/35/25 or 50/30/20) is drawn/tracked as TP1/TP2/
+//      runner reference lines + a hit-tracker, same as every other
+//      engine in this repo -- Pine indicators cannot place or resize
+//      real broker orders.
+// ============================================================
+
+// ── ① Value Area / Regime ───────────────────────────────────
+int    vpLen      = input.int(288, "Value Area Window (bars, ~1 trading day on this TF)", minval=50, group="① Value Area / Regime")
+int    vpBins     = input.int(20, "Profile Bins", minval=10, maxval=40, group="① Value Area / Regime")
+float  vaPct      = input.float(0.70, "Value Area %", step=0.05, minval=0.5, maxval=0.9, group="① Value Area / Regime")
+float  goldPip    = input.float(0.10, "Gold 'Pip' Size ($) -- FX-pip convention translated to XAUUSD, adjustable", step=0.01, group="① Value Area / Regime")
+float  atrHiPips  = input.float(25, "Model 1 Threshold: H1 ATR > (pips)", step=1, group="① Value Area / Regime")
+float  atrLoPips  = input.float(20, "Model 2 Threshold: H1 ATR < (pips)", step=1, group="① Value Area / Regime")
+
+// ── ② Model 1: Momentum-Join ────────────────────────────────
+int    swingPw      = input.int(10, "BOS Swing Pivot Width (bars)", minval=3, maxval=30, group="② Model 1: Momentum-Join")
+float  volMult1      = input.float(1.3, "Min Breakout Volume (x 20-bar avg)", step=0.05, group="② Model 1: Momentum-Join")
+bool   useCvd1       = input.bool(true, "Require CVD-Proxy Confirmation", group="② Model 1: Momentum-Join")
+float  m1StopMinAtr  = input.float(0.4, "Min Stop (x ATR5)", step=0.05, group="② Model 1: Momentum-Join")
+float  m1StopMaxAtr  = input.float(1.2, "Max Stop (x ATR5) -- beyond this, setup invalid (too extended)", step=0.05, group="② Model 1: Momentum-Join")
+int    m1TimeStopBars = input.int(8, "Time Stop (bars, ~40min on 5m)", minval=2, group="② Model 1: Momentum-Join")
+
+// ── ③ Model 2: Mean-Reversion ───────────────────────────────
+float  sweepMinAtr   = input.float(0.15, "Min Sweep Depth Beyond VA (x ATR5)", step=0.05, group="③ Model 2: Mean-Reversion")
+float  wickBodyMult  = input.float(2.0, "Min Wick / Body Ratio (rejection)", step=0.1, group="③ Model 2: Mean-Reversion")
+float  sweepVolMult  = input.float(1.2, "Min Sweep-Candle Volume (x 20-bar avg)", step=0.05, group="③ Model 2: Mean-Reversion")
+float  reclaimVolMax = input.float(1.0, "Max Reclaim-Candle Volume (x 20-bar avg, exhaustion)", step=0.05, group="③ Model 2: Mean-Reversion")
+int    m2TimeStopBars = input.int(6, "Time Stop (bars, ~30min on 5m)", minval=2, group="③ Model 2: Mean-Reversion")
+
+// ── ④ Filters ────────────────────────────────────────────────
+string londonSess = input.session("0800-1200", "London Session", group="④ Filters")
+string nySess     = input.session("1330-1700", "NY Session",     group="④ Filters")
+string deadZone   = input.session("1200-1330", "Dead Zone (Model 2 skip)", group="④ Filters")
+string sessTz     = input.string("Etc/UTC", "Session Timezone", group="④ Filters")
+bool   avoidFriPM = input.bool(true, "Avoid Friday After 16:00 (session TZ)", group="④ Filters")
+bool   newsBlackout = input.bool(false, "Manual News Blackout (no live feed -- flip this yourself)", group="④ Filters")
+string dxySymbol  = input.symbol("TVC:DXY", "DXY Symbol (correlation check)", group="④ Filters")
+int    corrLookback = input.int(5, "Correlation Lookback (bars)", minval=2, group="④ Filters")
+
+// ── ⑤ Risk / TP-SL ───────────────────────────────────────────
+float m1Tp1R = input.float(1.5, "Model 1 TP1 (R)", step=0.1, group="⑤ Risk / TP-SL")
+float m1Tp2R = input.float(2.5, "Model 1 TP2 (R)", step=0.1, group="⑤ Risk / TP-SL")
+float m2Tp1R = input.float(1.2, "Model 2 TP1 (R)", step=0.1, group="⑤ Risk / TP-SL")
+float m2Tp2R = input.float(2.0, "Model 2 TP2 (R)", step=0.1, group="⑤ Risk / TP-SL")
+int   lineLen = input.int(40, "Line Length (bars forward)", minval=5, group="⑤ Risk / TP-SL")
+int   cooldown = input.int(10, "Signal Cooldown (bars)", minval=0, group="⑤ Risk / TP-SL")
+
+bool showTable = input.bool(true, "Show Dashboard", group="⑥ Display")
+bool showVA    = input.bool(true, "Show Value Area Lines", group="⑥ Display")
+
+// ═════════════════════════════════════════════════════════════
+// BASICS
+// ═════════════════════════════════════════════════════════════
+float atr5 = ta.atr(14)
+float atrH1 = request.security(syminfo.tickerid, "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
+float atrH1Pips = atrH1 / goldPip
+float volAvg20 = ta.sma(volume, 20)
+
+// ═════════════════════════════════════════════════════════════
+// VALUE AREA (trailing rolling-window profile -- see header note 1)
+// ═════════════════════════════════════════════════════════════
+float winHi = ta.highest(high, vpLen)
+float winLo = ta.lowest(low, vpLen)
+float vstep = math.max((winHi - winLo) / vpBins, syminfo.mintick)
+
+var float[] vbins = array.new_float()
+array.clear(vbins)
+for i = 0 to vpBins - 1
+    array.push(vbins, 0.0)
+for i = 0 to vpLen - 1
+    int b = math.min(vpBins - 1, math.max(0, int((close[i] - winLo) / vstep)))
+    array.set(vbins, b, array.get(vbins, b) + volume[i])
+
+int pocBin = 0
+float pocVol = 0.0
+float totalVol = 0.0
+for i = 0 to vpBins - 1
+    float v = array.get(vbins, i)
+    totalVol += v
+    if v > pocVol
+        pocVol := v
+        pocBin := i
+float poc = winLo + (pocBin + 0.5) * vstep
+
+int need = int(math.ceil(totalVol * vaPct))
+float have = pocVol
+int uB = pocBin
+int dB = pocBin
+while have < need and (uB < vpBins - 1 or dB > 0)
+    float un = uB < vpBins - 1 ? array.get(vbins, uB + 1) : -1.0
+    float dn = dB > 0 ? array.get(vbins, dB - 1) : -1.0
+    if un >= dn
+        uB += 1
+        have += math.max(un, 0.0)
+    else
+        dB -= 1
+        have += math.max(dn, 0.0)
+float vah = winLo + (uB + 1) * vstep
+float val = winLo + dB * vstep
+
+bool insideVA = close <= vah and close >= val
+
+plot(showVA ? vah : na, "VAH", color.new(color.gray, 45), 1, plot.style_linebr)
+plot(showVA ? val : na, "VAL", color.new(color.gray, 45), 1, plot.style_linebr)
+plot(showVA ? poc : na, "POC", color.new(color.orange, 25), 2, plot.style_linebr)
+
+// ═════════════════════════════════════════════════════════════
+// SESSION / FILTER STATE
+// ═════════════════════════════════════════════════════════════
+bool inLondon = not na(time(timeframe.period, londonSess, sessTz))
+bool inNY     = not na(time(timeframe.period, nySess, sessTz))
+bool inDead   = not na(time(timeframe.period, deadZone, sessTz))
+bool inSession = inLondon or inNY
+
+bool isFriPM = avoidFriPM and dayofweek(time, sessTz) == dayofweek.friday and hour(time, sessTz) >= 16
+bool hardTimeFilter = inSession and not isFriPM
+
+float dxyClose = request.security(dxySymbol, timeframe.period, close, lookahead=barmerge.lookahead_on)
+float dxyChg = ta.change(dxyClose, corrLookback)
+float goldChg = ta.change(close, corrLookback)
+bool correlated = (dxyChg > 0 and goldChg > 0) or (dxyChg < 0 and goldChg < 0)
+
+bool hardFilterOk = hardTimeFilter and not newsBlackout and not correlated
+// Soft filters from the source doc ("ATR<12 thin", "first trade of the
+// day", "prior trade was a loss") are session-state/discretionary, not
+// mechanically detectable from chart data alone -- left as the trader's
+// own manual halving-of-size judgment call rather than faked here.
+
+// ═════════════════════════════════════════════════════════════
+// MODEL SELECTION (decision tree)
+// ═════════════════════════════════════════════════════════════
+bool model1Regime = atrH1Pips > atrHiPips or not insideVA
+bool model2Regime = atrH1Pips < atrLoPips and insideVA
+string activeModel = model1Regime ? "Model 1 (Momentum)" : model2Regime ? "Model 2 (Mean-Rev)" : "Transition (no trade)"
+
+// ═════════════════════════════════════════════════════════════
+// MODEL 1: MOMENTUM-JOIN — BOS + volume + CVD-proxy
+// ═════════════════════════════════════════════════════════════
+float swPh = ta.pivothigh(high, swingPw, swingPw)
+float swPl = ta.pivotlow(low, swingPw, swingPw)
+var float lastSwingHigh = na
+var float lastSwingLow  = na
+if not na(swPh)
+    lastSwingHigh := swPh
+if not na(swPl)
+    lastSwingLow := swPl
+
+bool bosUp   = not na(lastSwingHigh) and ta.crossover(close, lastSwingHigh)
+bool bosDown = not na(lastSwingLow)  and ta.crossunder(close, lastSwingLow)
+
+bool volConfirm1 = volume > volAvg20 * volMult1
+
+float cvdDelta = close > open ? volume : close < open ? -volume : 0.0
+float cvd5 = ta.sma(cvdDelta, 5) * 5
+bool cvdBull = not useCvd1 or cvd5 > 0
+bool cvdBear = not useCvd1 or cvd5 < 0
+
+float m1StopDistLong  = close - lastSwingLow
+float m1StopDistShort = lastSwingHigh - close
+bool m1StopOkLong  = not na(lastSwingLow)  and m1StopDistLong  >= atr5 * m1StopMinAtr and m1StopDistLong  <= atr5 * m1StopMaxAtr
+bool m1StopOkShort = not na(lastSwingHigh) and m1StopDistShort >= atr5 * m1StopMinAtr and m1StopDistShort <= atr5 * m1StopMaxAtr
+
+bool model1Long  = model1Regime and bosUp   and volConfirm1 and cvdBull and m1StopOkLong  and hardFilterOk
+bool model1Short = model1Regime and bosDown and volConfirm1 and cvdBear and m1StopOkShort and hardFilterOk
+
+// ═════════════════════════════════════════════════════════════
+// MODEL 2: MEAN-REVERSION — sweep + rejection + volume exhaustion
+// ═════════════════════════════════════════════════════════════
+bool sweepVAL = low  < val and close >= val and (val - low) >= atr5 * sweepMinAtr
+bool sweepVAH = high > vah and close <= vah and (high - vah) >= atr5 * sweepMinAtr
+
+float bodySz = math.abs(close - open)
+float lowerWick = math.min(open, close) - low
+float upperWick = high - math.max(open, close)
+bool rejectLong  = bodySz > 0 ? lowerWick >= bodySz * wickBodyMult : lowerWick > 0
+bool rejectShort = bodySz > 0 ? upperWick >= bodySz * wickBodyMult : upperWick > 0
+
+bool sweepVolOk    = volume > volAvg20 * sweepVolMult
+bool reclaimVolOk  = volume < volAvg20 * reclaimVolMax
+
+bool model2Long  = model2Regime and sweepVAL and rejectLong  and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+bool model2Short = model2Regime and sweepVAH and rejectShort and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+
+// ═════════════════════════════════════════════════════════════
+// COMBINED SIGNAL + COOLDOWN
+// ═════════════════════════════════════════════════════════════
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+bool amdmLong  = cd and (model1Long or model2Long)
+bool amdmShort = cd and (model1Short or model2Short)
+int  sigModel  = model1Long or model1Short ? 1 : 2
+
+if amdmLong or amdmShort
+    lastSig := bar_index
+
+// ═════════════════════════════════════════════════════════════
+// CONFLUENCE SCORE 0-12 (Appendix matrix, simplified to code)
+// ═════════════════════════════════════════════════════════════
+f_score() =>
+    int macroPts = correlated ? 0 : 1
+    macroPts := macroPts + (not na(dxyChg) and not correlated ? 1 : 0)
+    int interPts = not na(dxyClose) ? (correlated ? 0 : 2) : 1
+    int structPts = model1Regime ? (bosUp or bosDown ? 2 : 1) : (sweepVAL or sweepVAH ? 2 : 1)
+    int ltfPts = (model1Long or model1Short) ? (volConfirm1 ? 2 : 1) : (model2Long or model2Short) ? 2 : 0
+    int rrPts = sigModel == 1 ? (m1Tp2R >= 2.0 ? 2 : 1) : (m2Tp2R >= 2.0 ? 2 : 1)
+    int sessPts = (inLondon and inNY) ? 2 : inSession ? 1 : 0
+    macroPts + interPts + structPts + ltfPts + rrPts + sessPts
+
+int confluenceScore = f_score()
+float sizeRec = confluenceScore <= 4 ? 0.0 : confluenceScore <= 7 ? 0.5 : confluenceScore <= 10 ? 1.0 : 1.5
+
+// ═════════════════════════════════════════════════════════════
+// TP1 / TP2 / SL TRACKER (same pattern as topbottom/other engines)
+// ═════════════════════════════════════════════════════════════
+var line slLine  = na
+var line tp1Line = na
+var line tp2Line = na
+var label slLbl  = na
+var label tp1Lbl = na
+var label tp2Lbl = na
+
+var bool  trkActive  = false
+var int   trkDir     = 0
+var int   trkModel   = 0
+var float trkStop    = na
+var float trkTp1     = na
+var float trkTp2     = na
+var int   trkBar     = na
+var int   trkTimeStop = na
+var bool  trkGotTp1  = false
+
+var int m1TpHits = 0
+var int m1SlHits = 0
+var int m2TpHits = 0
+var int m2SlHits = 0
+var int timeStopHits = 0
+
+if amdmLong or amdmShort
+    trkDir   := amdmLong ? 1 : -1
+    trkModel := sigModel
+    // Model 2 risk distance references the ACTUAL sweep wick extreme
+    // (current bar's low/high), not a flat ATR placeholder -- this repo
+    // already found and fixed a "stop inside the sweep zone" bug once
+    // this session (spaceman_daye_quarters_engine.pine) from exactly
+    // that shortcut; don't repeat it here.
+    float riskDist = trkModel == 1 ? (trkDir == 1 ? m1StopDistLong : m1StopDistShort) : (trkDir == 1 ? close - low + atr5 * 0.1 : high - close + atr5 * 0.1)
+    trkStop  := trkDir == 1 ? close - riskDist : close + riskDist
+    float tp1R = trkModel == 1 ? m1Tp1R : m2Tp1R
+    float tp2R = trkModel == 1 ? m1Tp2R : m2Tp2R
+    trkTp1   := trkDir == 1 ? close + riskDist * tp1R : close - riskDist * tp1R
+    trkTp2   := trkDir == 1 ? close + riskDist * tp2R : close - riskDist * tp2R
+    trkBar   := bar_index
+    trkTimeStop := bar_index + (trkModel == 1 ? m1TimeStopBars : m2TimeStopBars)
+    trkActive := true
+    trkGotTp1 := false
+
+    line.delete(slLine)
+    line.delete(tp1Line)
+    line.delete(tp2Line)
+    label.delete(slLbl)
+    label.delete(tp1Lbl)
+    label.delete(tp2Lbl)
+    slLine  := line.new(bar_index, trkStop, bar_index + lineLen, trkStop, color=color.new(color.red, 20), style=line.style_dashed, width=1)
+    tp1Line := line.new(bar_index, trkTp1,  bar_index + lineLen, trkTp1,  color=color.new(color.aqua, 20), style=line.style_dotted, width=1)
+    tp2Line := line.new(bar_index, trkTp2,  bar_index + lineLen, trkTp2,  color=color.new(color.lime, 0),  style=line.style_solid, width=2)
+    slLbl   := label.new(bar_index + lineLen, trkStop, "SL",  style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.red,  size=size.small)
+    tp1Lbl  := label.new(bar_index + lineLen, trkTp1,  "TP1", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.aqua, size=size.small)
+    tp2Lbl  := label.new(bar_index + lineLen, trkTp2,  "TP2", style=label.style_label_left, color=color.new(color.black, 100), textcolor=color.lime, size=size.small)
+
+if trkActive and bar_index > trkBar
+    bool hitStop = trkDir == 1 ? low <= trkStop : high >= trkStop
+    bool hitTp1  = trkDir == 1 ? high >= trkTp1 : low <= trkTp1
+    bool hitTp2  = trkDir == 1 ? high >= trkTp2 : low <= trkTp2
+    bool timedOut = bar_index >= trkTimeStop and not hitTp1 and not hitStop
+    if not trkGotTp1 and hitTp1 and not hitStop
+        trkGotTp1 := true
+    if hitStop
+        if trkModel == 1
+            m1SlHits += 1
+        else
+            m2SlHits += 1
+        trkActive := false
+    else if hitTp2
+        if trkModel == 1
+            m1TpHits += 1
+        else
+            m2TpHits += 1
+        trkActive := false
+    else if timedOut
+        timeStopHits += 1
+        trkActive := false
+
+float m1Pf = m1SlHits > 0 ? (m1TpHits * m1Tp2R) / m1SlHits : na
+float m2Pf = m2SlHits > 0 ? (m2TpHits * m2Tp2R) / m2SlHits : na
+
+// ═════════════════════════════════════════════════════════════
+// SIGNAL LABELS
+// ═════════════════════════════════════════════════════════════
+if amdmLong
+    label.new(bar_index, low, sigModel == 1 ? "M1 LONG" : "M2 LONG", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.normal)
+if amdmShort
+    label.new(bar_index, high, sigModel == 1 ? "M1 SHORT" : "M2 SHORT", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.normal)
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 2, 13, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showTable and barstate.islast
+    table.cell(dash, 0, 0, "AMDM ENGINE", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "SYNTHESIZED/UNTESTED", text_color=color.yellow, text_size=size.tiny)
+    table.cell(dash, 0, 1, "Active Model", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, activeModel, text_color=model1Regime ? color.aqua : model2Regime ? color.fuchsia : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 2, "H1 ATR (pips)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, str.tostring(atrH1Pips, "#.#"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Inside Value Area", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, insideVA ? "yes" : "no", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 4, "Session filter", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, hardTimeFilter ? "OK" : "blocked", text_color=hardTimeFilter ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 0, 5, "DXY correlation", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, correlated ? "CORRELATED (bad)" : "normal", text_color=correlated ? color.orange : color.lime, text_size=size.tiny)
+    table.cell(dash, 0, 6, "News blackout", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, newsBlackout ? "ACTIVE -- no trades" : "clear (manual)", text_color=newsBlackout ? color.orange : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Confluence score / size", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, str.tostring(confluenceScore) + "/12 -> " + str.tostring(sizeRec, "#.##") + "%", text_color=confluenceScore >= 8 ? color.lime : confluenceScore >= 5 ? color.yellow : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 8, "Open trade", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 8, trkActive ? "M" + str.tostring(trkModel) + " " + (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 9, "Model 1 trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 9, str.tostring(m1SlHits) + " / " + str.tostring(m1TpHits), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 10, "Model 1 PF-analog", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 10, na(m1Pf) ? "n/a" : str.tostring(m1Pf, "#.##"), text_color=na(m1Pf) ? color.gray : m1Pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 11, "Model 2 trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 11, str.tostring(m2SlHits) + " / " + str.tostring(m2TpHits), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 12, "Model 2 PF-analog", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 12, na(m2Pf) ? "n/a" : str.tostring(m2Pf, "#.##"), text_color=na(m2Pf) ? color.gray : m2Pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(amdmLong,  "AMDM Long",  "AMDM -- LONG ({{ticker}} {{interval}})")
+alertcondition(amdmShort, "AMDM Short", "AMDM -- SHORT ({{ticker}} {{interval}})")
