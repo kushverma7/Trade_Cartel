@@ -230,6 +230,29 @@ entry/exit" = the most-refined existing mechanics in this repo reused
 here, NOT a claim of backtested performance. UNTESTED, no "proven"
 language, per the 2026-07-20 standing rule.
 
+=== SUPERTREND ENGINE (2026-07-20) ===
+indicators/trade_cartel_supertrend_engine.pine
+- Classic ATR-based SuperTrend (Olivier Seban's original construction)
+  -- structurally different from every other engine in this repo: no
+  walls, no RSI, no confluence stack, no separate TP/SL. The trailing
+  band IS both the stop and the reversal signal, always-in, flip-based.
+  Not tied to any of the 19 knowledge-base voices -- a standalone,
+  independently well-known algorithm, added per the user's explicit
+  visual reference (trailing line + flip Buy/Sell labels).
+- **Bug caught before shipping**: the recursive band-trailing
+  conditions were initially inverted relative to the standard formula
+  (finalUpper should take the min while close[1] < finalUpper[1], not
+  >; finalLower should take the max while close[1] > finalLower[1],
+  not <). Caught by comparing against the well-known reference formula
+  before the user tested it, not via a live-test failure like several
+  of today's other engines.
+- Flip-to-flip hit-tracker: a "trade" runs from one flip to the next
+  opposite flip (matches the always-in visual -- no separate TP/SL),
+  win = positive R-multiple (move captured / ATR at entry).
+- Widely validated as a method across retail TA generally, but per the
+  2026-07-20 standing rule, UNTESTED on this specific instrument/
+  timeframe until run here -- no "proven" language until that happens.
+
 === UPDATED RULES ===
 - Flat into CPI/8:30 prints; trade the confirmation after (B3)
 - Every strategy ships with: non-repainting math, realistic costs,
