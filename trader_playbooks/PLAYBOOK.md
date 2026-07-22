@@ -640,3 +640,29 @@ flagged rather than shipped half-correct).
 Next steps per the strategy's own Part IV backtest plan: minimum 100
 manually-tracked trades across 3+ months before any status upgrade past
 SYNTHESIZED/UNTESTED.
+
+**Live-test result #1 (2026-07-22): zero trades/signals.** Root-cause
+diagnosis (real bugs, not parameter tuning):
+1. Model 2's volume gate was self-contradictory -- required volume
+   simultaneously >120% AND <100% of the 20-bar average on the SAME
+   candle, which can never be true, so Model 2 could never fire at
+   all. Fixed by splitting across two bars (sweep+high-vol+rejection
+   on bar[1], reclaim+exhaustion-vol on the signal bar), which is what
+   the source doc's own "sweep candle... reclaim candle" language
+   actually describes. Stop now references the sweep bar's wick.
+2. Model 1's stop-distance check hard-REJECTED any BOS whose swing
+   pivot sat further than 1.2x ATR away instead of clamping the stop
+   -- but that's the normal state right after a real breakout, so most
+   genuine Model 1 setups were silently vetoed. Now clamps into
+   [min,max] x ATR (same convention as reversal_sniper_strategy.pine).
+3. The FX-pip->dollar ATR regime conversion was a guessed constant;
+   replaced with direct dollar thresholds + a live H1-ATR dashboard
+   readout so the user can tune the regime split to the chart's actual
+   volatility instead of trusting a multiplier picked blind.
+4. Strategy version only: the confluence score was stacking a second
+   silent entry gate on top of the model conditions; now scales size
+   (0.5-1.5%) instead of blocking, with minScoreToTrade defaulted to 0
+   during testing (raise it back once trades are confirmed flowing).
+Both files also gained per-gate diagnostic dashboard rows so any future
+"no signals" report shows WHICH gate is blocking, on-chart. Re-test
+pending.
