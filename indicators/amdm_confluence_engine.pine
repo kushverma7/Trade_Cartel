@@ -31,12 +31,13 @@ indicator("AMDM — Auction-Momentum Dual Model [Confluence]", overlay=true, max
 //      the strategy doc's intent (recent institutional acceptance
 //      range) without needing exact session-boundary accounting.
 //   2. The strategy doc's rules are written in FX "pips." Gold has no
-//      native pip; this engine uses a configurable `goldPip` (default
-//      $0.10, a common retail-broker XAUUSD convention) to translate
-//      every pip-denominated threshold. Adjustable, flagged UNTESTED
-//      against the source's intent (same caveat pattern already used
-//      for the Gann/Yotov dollar-scale conversions elsewhere in this
-//      repo).
+//      native pip, so the ATR regime thresholds are set directly in
+//      DOLLARS instead (an earlier version tried a fixed pip->dollar
+//      multiplier, but the "right" multiplier depends on current gold
+//      volatility and there's no way to know it in advance -- the
+//      dashboard below shows the live H1 ATR in dollars so you can
+//      calibrate the two threshold inputs to whatever regime your
+//      chart is actually in, rather than trusting a guessed constant).
 //   3. "CVD/delta confirmation" uses this repo's existing candle-
 //      direction volume proxy (green candle = +volume, red = -volume),
 //      NOT real bid/ask footprint data -- this project's feed doesn't
@@ -55,9 +56,8 @@ indicator("AMDM — Auction-Momentum Dual Model [Confluence]", overlay=true, max
 int    vpLen      = input.int(288, "Value Area Window (bars, ~1 trading day on this TF)", minval=50, group="① Value Area / Regime")
 int    vpBins     = input.int(20, "Profile Bins", minval=10, maxval=40, group="① Value Area / Regime")
 float  vaPct      = input.float(0.70, "Value Area %", step=0.05, minval=0.5, maxval=0.9, group="① Value Area / Regime")
-float  goldPip    = input.float(0.10, "Gold 'Pip' Size ($) -- FX-pip convention translated to XAUUSD, adjustable", step=0.01, group="① Value Area / Regime")
-float  atrHiPips  = input.float(25, "Model 1 Threshold: H1 ATR > (pips)", step=1, group="① Value Area / Regime")
-float  atrLoPips  = input.float(20, "Model 2 Threshold: H1 ATR < (pips)", step=1, group="① Value Area / Regime")
+float  atrHiDollar = input.float(3.0, "Model 1 Threshold: H1 ATR > ($) -- watch the dashboard's live ATR reading and tune this to your chart's actual regime", step=0.1, group="① Value Area / Regime")
+float  atrLoDollar = input.float(1.5, "Model 2 Threshold: H1 ATR < ($)", step=0.1, group="① Value Area / Regime")
 
 // ── ② Model 1: Momentum-Join ────────────────────────────────
 int    swingPw      = input.int(10, "BOS Swing Pivot Width (bars)", minval=3, maxval=30, group="② Model 1: Momentum-Join")
@@ -100,7 +100,6 @@ bool showVA    = input.bool(true, "Show Value Area Lines", group="⑥ Display")
 // ═════════════════════════════════════════════════════════════
 float atr5 = ta.atr(14)
 float atrH1 = request.security(syminfo.tickerid, "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
-float atrH1Pips = atrH1 / goldPip
 float volAvg20 = ta.sma(volume, 20)
 
 // ═════════════════════════════════════════════════════════════
@@ -176,8 +175,8 @@ bool hardFilterOk = hardTimeFilter and not newsBlackout and not correlated
 // ═════════════════════════════════════════════════════════════
 // MODEL SELECTION (decision tree)
 // ═════════════════════════════════════════════════════════════
-bool model1Regime = atrH1Pips > atrHiPips or not insideVA
-bool model2Regime = atrH1Pips < atrLoPips and insideVA
+bool model1Regime = atrH1 > atrHiDollar or not insideVA
+bool model2Regime = atrH1 < atrLoDollar and insideVA
 string activeModel = model1Regime ? "Model 1 (Momentum)" : model2Regime ? "Model 2 (Mean-Rev)" : "Transition (no trade)"
 
 // ═════════════════════════════════════════════════════════════
@@ -202,31 +201,52 @@ float cvd5 = ta.sma(cvdDelta, 5) * 5
 bool cvdBull = not useCvd1 or cvd5 > 0
 bool cvdBear = not useCvd1 or cvd5 < 0
 
-float m1StopDistLong  = close - lastSwingLow
-float m1StopDistShort = lastSwingHigh - close
-bool m1StopOkLong  = not na(lastSwingLow)  and m1StopDistLong  >= atr5 * m1StopMinAtr and m1StopDistLong  <= atr5 * m1StopMaxAtr
-bool m1StopOkShort = not na(lastSwingHigh) and m1StopDistShort >= atr5 * m1StopMinAtr and m1StopDistShort <= atr5 * m1StopMaxAtr
+// FIX (2026-07-22, live-test debug -- zero signals reported): the raw
+// swing distance is CLAMPED into [min,max] x ATR5 rather than used as a
+// hard reject-the-trade gate. The old version rejected any BOS whose
+// swing pivot happened to sit further than 1.2x ATR away -- but that's
+// exactly the common case right after a real breakout (price has
+// already moved), so it was silently vetoing most real Model 1 setups.
+// Same clamp convention already used in reversal_sniper_strategy.pine.
+float m1StopDistRaw1  = close - lastSwingLow
+float m1StopDistRaw2  = lastSwingHigh - close
+float m1StopDistLong  = math.min(math.max(m1StopDistRaw1, atr5 * m1StopMinAtr), atr5 * m1StopMaxAtr)
+float m1StopDistShort = math.min(math.max(m1StopDistRaw2, atr5 * m1StopMinAtr), atr5 * m1StopMaxAtr)
+bool m1StopOkLong  = not na(lastSwingLow)  and m1StopDistRaw1 >= atr5 * m1StopMinAtr * 0.5
+bool m1StopOkShort = not na(lastSwingHigh) and m1StopDistRaw2 >= atr5 * m1StopMinAtr * 0.5
 
 bool model1Long  = model1Regime and bosUp   and volConfirm1 and cvdBull and m1StopOkLong  and hardFilterOk
 bool model1Short = model1Regime and bosDown and volConfirm1 and cvdBear and m1StopOkShort and hardFilterOk
 
 // ═════════════════════════════════════════════════════════════
 // MODEL 2: MEAN-REVERSION — sweep + rejection + volume exhaustion
+//
+// FIX (2026-07-22, live-test debug -- zero signals reported): the old
+// version required volume > 120% of average AND volume < 100% of
+// average on the SAME bar -- a straight contradiction that can never
+// be true, so Model 2 could never fire, period. The source doc's own
+// language ("volume on the SWEEP candle... volume on the RECLAIM
+// candle") already implies two separate candles; this now checks the
+// sweep on bar[1] and the reclaim/rejection on the current bar,
+// matching that literally instead of colliding both checks onto one.
 // ═════════════════════════════════════════════════════════════
-bool sweepVAL = low  < val and close >= val and (val - low) >= atr5 * sweepMinAtr
-bool sweepVAH = high > vah and close <= vah and (high - vah) >= atr5 * sweepMinAtr
+bool sweepBarVAL = low[1]  < val[1] and (val[1] - low[1])  >= atr5[1] * sweepMinAtr
+bool sweepBarVAH = high[1] > vah[1] and (high[1] - vah[1]) >= atr5[1] * sweepMinAtr
 
-float bodySz = math.abs(close - open)
-float lowerWick = math.min(open, close) - low
-float upperWick = high - math.max(open, close)
-bool rejectLong  = bodySz > 0 ? lowerWick >= bodySz * wickBodyMult : lowerWick > 0
-bool rejectShort = bodySz > 0 ? upperWick >= bodySz * wickBodyMult : upperWick > 0
+float bodySz1    = math.abs(close[1] - open[1])
+float lowerWick1 = math.min(open[1], close[1]) - low[1]
+float upperWick1 = high[1] - math.max(open[1], close[1])
+bool rejectLong  = bodySz1 > 0 ? lowerWick1 >= bodySz1 * wickBodyMult : lowerWick1 > 0
+bool rejectShort = bodySz1 > 0 ? upperWick1 >= bodySz1 * wickBodyMult : upperWick1 > 0
 
-bool sweepVolOk    = volume > volAvg20 * sweepVolMult
+bool reclaimLong  = close >= val
+bool reclaimShort = close <= vah
+
+bool sweepVolOk    = volume[1] > volAvg20[1] * sweepVolMult
 bool reclaimVolOk  = volume < volAvg20 * reclaimVolMax
 
-bool model2Long  = model2Regime and sweepVAL and rejectLong  and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
-bool model2Short = model2Regime and sweepVAH and rejectShort and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+bool model2Long  = model2Regime and sweepBarVAL and reclaimLong  and rejectLong  and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+bool model2Short = model2Regime and sweepBarVAH and reclaimShort and rejectShort and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
 
 // ═════════════════════════════════════════════════════════════
 // COMBINED SIGNAL + COOLDOWN
@@ -248,7 +268,7 @@ f_score() =>
     int macroPts = correlated ? 0 : 1
     macroPts := macroPts + (not na(dxyChg) and not correlated ? 1 : 0)
     int interPts = not na(dxyClose) ? (correlated ? 0 : 2) : 1
-    int structPts = model1Regime ? (bosUp or bosDown ? 2 : 1) : (sweepVAL or sweepVAH ? 2 : 1)
+    int structPts = model1Regime ? (bosUp or bosDown ? 2 : 1) : (sweepBarVAL or sweepBarVAH ? 2 : 1)
     int ltfPts = (model1Long or model1Short) ? (volConfirm1 ? 2 : 1) : (model2Long or model2Short) ? 2 : 0
     int rrPts = sigModel == 1 ? (m1Tp2R >= 2.0 ? 2 : 1) : (m2Tp2R >= 2.0 ? 2 : 1)
     int sessPts = (inLondon and inNY) ? 2 : inSession ? 1 : 0
@@ -291,7 +311,10 @@ if amdmLong or amdmShort
     // already found and fixed a "stop inside the sweep zone" bug once
     // this session (spaceman_daye_quarters_engine.pine) from exactly
     // that shortcut; don't repeat it here.
-    float riskDist = trkModel == 1 ? (trkDir == 1 ? m1StopDistLong : m1StopDistShort) : (trkDir == 1 ? close - low + atr5 * 0.1 : high - close + atr5 * 0.1)
+    // Model 2 now references the SWEEP bar's extreme (low[1]/high[1]),
+    // not the current reclaim bar's -- the sweep bar is where the
+    // actual wick beyond the wall happened.
+    float riskDist = trkModel == 1 ? (trkDir == 1 ? m1StopDistLong : m1StopDistShort) : (trkDir == 1 ? close - low[1] + atr5 * 0.1 : high[1] - close + atr5 * 0.1)
     trkStop  := trkDir == 1 ? close - riskDist : close + riskDist
     float tp1R = trkModel == 1 ? m1Tp1R : m2Tp1R
     float tp2R = trkModel == 1 ? m1Tp2R : m2Tp2R
@@ -352,14 +375,14 @@ if amdmShort
 // ═════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═════════════════════════════════════════════════════════════
-var table dash = table.new(position.bottom_right, 2, 13, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+var table dash = table.new(position.bottom_right, 2, 18, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
 if showTable and barstate.islast
     table.cell(dash, 0, 0, "AMDM ENGINE", text_color=color.orange, text_size=size.small)
     table.cell(dash, 1, 0, "SYNTHESIZED/UNTESTED", text_color=color.yellow, text_size=size.tiny)
     table.cell(dash, 0, 1, "Active Model", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 1, activeModel, text_color=model1Regime ? color.aqua : model2Regime ? color.fuchsia : color.gray, text_size=size.tiny)
-    table.cell(dash, 0, 2, "H1 ATR (pips)", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 2, str.tostring(atrH1Pips, "#.#"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 2, "H1 ATR ($) -- tune thresholds to this", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, str.tostring(atrH1, "#.##") + " (M1>" + str.tostring(atrHiDollar, "#.#") + " / M2<" + str.tostring(atrLoDollar, "#.#") + ")", text_color=color.white, text_size=size.tiny)
     table.cell(dash, 0, 3, "Inside Value Area", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 3, insideVA ? "yes" : "no", text_color=color.white, text_size=size.tiny)
     table.cell(dash, 0, 4, "Session filter", text_color=color.silver, text_size=size.tiny)
@@ -370,16 +393,22 @@ if showTable and barstate.islast
     table.cell(dash, 1, 6, newsBlackout ? "ACTIVE -- no trades" : "clear (manual)", text_color=newsBlackout ? color.orange : color.gray, text_size=size.tiny)
     table.cell(dash, 0, 7, "Confluence score / size", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 7, str.tostring(confluenceScore) + "/12 -> " + str.tostring(sizeRec, "#.##") + "%", text_color=confluenceScore >= 8 ? color.lime : confluenceScore >= 5 ? color.yellow : color.gray, text_size=size.tiny)
-    table.cell(dash, 0, 8, "Open trade", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 8, trkActive ? "M" + str.tostring(trkModel) + " " + (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
-    table.cell(dash, 0, 9, "Model 1 trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 9, str.tostring(m1SlHits) + " / " + str.tostring(m1TpHits), text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 0, 10, "Model 1 PF-analog", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 10, na(m1Pf) ? "n/a" : str.tostring(m1Pf, "#.##"), text_color=na(m1Pf) ? color.gray : m1Pf >= 1 ? color.lime : color.red, text_size=size.tiny)
-    table.cell(dash, 0, 11, "Model 2 trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 11, str.tostring(m2SlHits) + " / " + str.tostring(m2TpHits), text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 0, 12, "Model 2 PF-analog", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 12, na(m2Pf) ? "n/a" : str.tostring(m2Pf, "#.##"), text_color=na(m2Pf) ? color.gray : m2Pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 8, "M1 gates: BOS up/dn", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 8, (bosUp ? "UP " : "-- ") + (bosDown ? "DN" : "--") + " | vol " + (volConfirm1 ? "OK" : "no") + " | cvd " + (cvdBull ? "+" : cvdBear ? "-" : "0"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 9, "M2 gates: sweep VAL/VAH", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 9, (sweepBarVAL ? "VAL " : "-- ") + (sweepBarVAH ? "VAH" : "--") + " | rej " + (rejectLong or rejectShort ? "OK" : "no") + " | vol " + (sweepVolOk and reclaimVolOk ? "OK" : "no"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 10, "Open trade", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 10, trkActive ? "M" + str.tostring(trkModel) + " " + (trkDir == 1 ? "LONG" : "SHORT") + (trkGotTp1 ? " (past TP1)" : "") : "flat", text_color=trkActive ? (trkDir == 1 ? color.aqua : color.yellow) : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 11, "Model 1 trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 11, str.tostring(m1SlHits) + " / " + str.tostring(m1TpHits), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 12, "Model 1 PF-analog", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 12, na(m1Pf) ? "n/a" : str.tostring(m1Pf, "#.##"), text_color=na(m1Pf) ? color.gray : m1Pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 13, "Model 2 trades (SL/TP2)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 13, str.tostring(m2SlHits) + " / " + str.tostring(m2TpHits), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 14, "Model 2 PF-analog", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 14, na(m2Pf) ? "n/a" : str.tostring(m2Pf, "#.##"), text_color=na(m2Pf) ? color.gray : m2Pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 15, "Time stops hit", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 15, str.tostring(timeStopHits), text_color=color.white, text_size=size.tiny)
 
 // ═════════════════════════════════════════════════════════════
 // ALERTS

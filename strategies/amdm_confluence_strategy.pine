@@ -16,9 +16,25 @@
 //
 // Same documented simplifications as the indicator version (see its
 // header for full detail): rolling-window value area (not fixed
-// calendar-day), configurable goldPip FX->XAUUSD translation, candle-
-// direction CVD proxy (not real footprint), manual news-blackout
-// toggle (no live calendar feed), gold-pip stop/target thresholds.
+// calendar-day), ATR regime thresholds set directly in dollars (see
+// note 2 below), candle-direction CVD proxy (not real footprint),
+// manual news-blackout toggle (no live calendar feed).
+//
+// FIXED 2026-07-22 after a live "zero trades" report: (1) Model 2 had
+// a self-contradictory volume check (required volume simultaneously
+// >120% AND <100% of average on the same bar -- impossible, so Model 2
+// could never fire), now split across the sweep bar and the reclaim
+// bar per the source doc's own two-candle language; (2) Model 1
+// rejected any BOS whose swing-pivot stop distance exceeded 1.2x ATR
+// instead of clamping it, which vetoed most real breakouts (stop
+// distance is naturally wide right after a real move); (3) the FX-pip
+// ATR threshold conversion was replaced with direct dollar thresholds
+// plus a live ATR readout in the dashboard so thresholds can be tuned
+// to whatever regime the chart is actually in, instead of trusting a
+// guessed multiplier; (4) min-confluence-score-to-trade default
+// lowered from 5 to 0 so the score no longer double-gates on top of
+// the (now-fixed) model conditions during initial testing -- raise it
+// back up once you've confirmed trades are flowing.
 //
 // POSITION SIZING: risk-percent based, sized off the SAME 0-12
 // confluence score the source doc's Appendix specifies (0-4 = no
@@ -44,9 +60,8 @@ strategy("AMDM — Auction-Momentum Dual Model [Strategy]",
 int    vpLen      = input.int(288, "Value Area Window (bars, ~1 trading day on this TF)", minval=50, group="① Value Area / Regime")
 int    vpBins     = input.int(20, "Profile Bins", minval=10, maxval=40, group="① Value Area / Regime")
 float  vaPct      = input.float(0.70, "Value Area %", step=0.05, minval=0.5, maxval=0.9, group="① Value Area / Regime")
-float  goldPip    = input.float(0.10, "Gold 'Pip' Size ($) -- FX-pip convention translated to XAUUSD, adjustable", step=0.01, group="① Value Area / Regime")
-float  atrHiPips  = input.float(25, "Model 1 Threshold: H1 ATR > (pips)", step=1, group="① Value Area / Regime")
-float  atrLoPips  = input.float(20, "Model 2 Threshold: H1 ATR < (pips)", step=1, group="① Value Area / Regime")
+float  atrHiDollar = input.float(3.0, "Model 1 Threshold: H1 ATR > ($) -- watch the dashboard's live ATR reading and tune this to your chart's actual regime", step=0.1, group="① Value Area / Regime")
+float  atrLoDollar = input.float(1.5, "Model 2 Threshold: H1 ATR < ($)", step=0.1, group="① Value Area / Regime")
 
 // ── ② Model 1: Momentum-Join ────────────────────────────────
 int    swingPw       = input.int(10, "BOS Swing Pivot Width (bars)", minval=3, maxval=30, group="② Model 1: Momentum-Join")
@@ -79,7 +94,7 @@ float m1Tp2R   = input.float(2.5, "Model 1 TP2 (R)", step=0.1, group="⑤ Risk /
 float m2Tp1R   = input.float(1.2, "Model 2 TP1 (R)", step=0.1, group="⑤ Risk / TP-SL")
 float m2Tp2R   = input.float(2.0, "Model 2 TP2 (R)", step=0.1, group="⑤ Risk / TP-SL")
 int   cooldown = input.int(10, "Signal Cooldown (bars)", minval=0, group="⑤ Risk / TP-SL")
-float minScoreToTrade = input.float(5, "Min Confluence Score To Trade (0-12, source: 0-4=no trade)", minval=0, maxval=12, group="⑤ Risk / TP-SL")
+float minScoreToTrade = input.float(0, "Min Confluence Score To Trade (0-12; default 0 while testing so it doesn't double-gate -- source doc says 5+)", minval=0, maxval=12, group="⑤ Risk / TP-SL")
 float dailyLossLimitPct = input.float(2.0, "Daily Loss Limit (% equity) -- halts new entries for the day", step=0.5, group="⑤ Risk / TP-SL")
 int   maxTradesPerDay   = input.int(5, "Max Trades Per Day", minval=1, group="⑤ Risk / TP-SL")
 
@@ -90,7 +105,6 @@ bool showVA = input.bool(true, "Show Value Area Lines", group="⑥ Display")
 // ═════════════════════════════════════════════════════════════
 float atr5 = ta.atr(14)
 float atrH1 = request.security(syminfo.tickerid, "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
-float atrH1Pips = atrH1 / goldPip
 float volAvg20 = ta.sma(volume, 20)
 
 // ═════════════════════════════════════════════════════════════
@@ -175,8 +189,8 @@ bool hardFilterOk = hardTimeFilter and not newsBlackout and not correlated and c
 // ═════════════════════════════════════════════════════════════
 // MODEL SELECTION (decision tree)
 // ═════════════════════════════════════════════════════════════
-bool model1Regime = atrH1Pips > atrHiPips or not insideVA
-bool model2Regime = atrH1Pips < atrLoPips and insideVA
+bool model1Regime = atrH1 > atrHiDollar or not insideVA
+bool model2Regime = atrH1 < atrLoDollar and insideVA
 
 // ═════════════════════════════════════════════════════════════
 // MODEL 1: MOMENTUM-JOIN — BOS + volume + CVD-proxy
@@ -200,10 +214,15 @@ float cvd5 = ta.sma(cvdDelta, 5) * 5
 bool cvdBull = not useCvd1 or cvd5 > 0
 bool cvdBear = not useCvd1 or cvd5 < 0
 
-float m1StopDistLong  = close - lastSwingLow
-float m1StopDistShort = lastSwingHigh - close
-bool m1StopOkLong  = not na(lastSwingLow)  and m1StopDistLong  >= atr5 * m1StopMinAtr and m1StopDistLong  <= atr5 * m1StopMaxAtr
-bool m1StopOkShort = not na(lastSwingHigh) and m1StopDistShort >= atr5 * m1StopMinAtr and m1StopDistShort <= atr5 * m1StopMaxAtr
+// FIX (2026-07-22): raw swing distance CLAMPED into [min,max] x ATR5
+// instead of used as a hard reject-the-trade gate -- the old version
+// silently vetoed most real breakouts (see header).
+float m1StopDistRaw1  = close - lastSwingLow
+float m1StopDistRaw2  = lastSwingHigh - close
+float m1StopDistLong  = math.min(math.max(m1StopDistRaw1, atr5 * m1StopMinAtr), atr5 * m1StopMaxAtr)
+float m1StopDistShort = math.min(math.max(m1StopDistRaw2, atr5 * m1StopMinAtr), atr5 * m1StopMaxAtr)
+bool m1StopOkLong  = not na(lastSwingLow)  and m1StopDistRaw1 >= atr5 * m1StopMinAtr * 0.5
+bool m1StopOkShort = not na(lastSwingHigh) and m1StopDistRaw2 >= atr5 * m1StopMinAtr * 0.5
 
 bool model1Long  = model1Regime and bosUp   and volConfirm1 and cvdBull and m1StopOkLong  and hardFilterOk
 bool model1Short = model1Regime and bosDown and volConfirm1 and cvdBear and m1StopOkShort and hardFilterOk
@@ -211,20 +230,28 @@ bool model1Short = model1Regime and bosDown and volConfirm1 and cvdBear and m1St
 // ═════════════════════════════════════════════════════════════
 // MODEL 2: MEAN-REVERSION — sweep + rejection + volume exhaustion
 // ═════════════════════════════════════════════════════════════
-bool sweepVAL = low  < val and close >= val and (val - low) >= atr5 * sweepMinAtr
-bool sweepVAH = high > vah and close <= vah and (high - vah) >= atr5 * sweepMinAtr
+// FIX (2026-07-22): the old one-bar version required volume > 120%
+// AND < 100% of average on the SAME bar -- impossible, Model 2 could
+// never fire. Now: sweep + high volume + rejection wick on bar[1],
+// reclaim close + low (exhaustion) volume on the current bar, matching
+// the source doc's own two-candle language.
+bool sweepBarVAL = low[1]  < val[1] and (val[1] - low[1])  >= atr5[1] * sweepMinAtr
+bool sweepBarVAH = high[1] > vah[1] and (high[1] - vah[1]) >= atr5[1] * sweepMinAtr
 
-float bodySz = math.abs(close - open)
-float lowerWick = math.min(open, close) - low
-float upperWick = high - math.max(open, close)
-bool rejectLong  = bodySz > 0 ? lowerWick >= bodySz * wickBodyMult : lowerWick > 0
-bool rejectShort = bodySz > 0 ? upperWick >= bodySz * wickBodyMult : upperWick > 0
+float bodySz1    = math.abs(close[1] - open[1])
+float lowerWick1 = math.min(open[1], close[1]) - low[1]
+float upperWick1 = high[1] - math.max(open[1], close[1])
+bool rejectLong  = bodySz1 > 0 ? lowerWick1 >= bodySz1 * wickBodyMult : lowerWick1 > 0
+bool rejectShort = bodySz1 > 0 ? upperWick1 >= bodySz1 * wickBodyMult : upperWick1 > 0
 
-bool sweepVolOk   = volume > volAvg20 * sweepVolMult
+bool reclaimLong  = close >= val
+bool reclaimShort = close <= vah
+
+bool sweepVolOk   = volume[1] > volAvg20[1] * sweepVolMult
 bool reclaimVolOk = volume < volAvg20 * reclaimVolMax
 
-bool model2Long  = model2Regime and sweepVAL and rejectLong  and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
-bool model2Short = model2Regime and sweepVAH and rejectShort and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+bool model2Long  = model2Regime and sweepBarVAL and reclaimLong  and rejectLong  and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
+bool model2Short = model2Regime and sweepBarVAH and reclaimShort and rejectShort and sweepVolOk and reclaimVolOk and not inDead and hardFilterOk
 
 // ═════════════════════════════════════════════════════════════
 // CONFLUENCE SCORE 0-12 (Appendix matrix, simplified to code)
@@ -235,15 +262,18 @@ f_score() =>
     int macroPts = correlated ? 0 : 1
     macroPts := macroPts + (not na(dxyChg) and not correlated ? 1 : 0)
     int interPts = not na(dxyClose) ? (correlated ? 0 : 2) : 1
-    int structPts = model1Regime ? (bosUp or bosDown ? 2 : 1) : (sweepVAL or sweepVAH ? 2 : 1)
+    int structPts = model1Regime ? (bosUp or bosDown ? 2 : 1) : (sweepBarVAL or sweepBarVAH ? 2 : 1)
     int ltfPts = (model1Long or model1Short) ? (volConfirm1 ? 2 : 1) : (model2Long or model2Short) ? 2 : 0
     int rrPts = sigModelRaw == 1 ? (m1Tp2R >= 2.0 ? 2 : 1) : (m2Tp2R >= 2.0 ? 2 : 1)
     int sessPts = (inLondon and inNY) ? 2 : inSession ? 1 : 0
     macroPts + interPts + structPts + ltfPts + rrPts + sessPts
 
 int confluenceScore = f_score()
-float riskPct = confluenceScore <= 4 ? 0.0 : confluenceScore <= 7 ? 0.5 : confluenceScore <= 10 ? 1.0 : 1.5
-bool scoreOk = confluenceScore >= minScoreToTrade and riskPct > 0
+// riskPct floors at 0.5% rather than 0 so a low score shrinks size
+// instead of silently blocking the trade on top of minScoreToTrade --
+// one gate, not two stacked ones (part of the zero-trades fix).
+float riskPct = confluenceScore <= 4 ? 0.5 : confluenceScore <= 7 ? 0.5 : confluenceScore <= 10 ? 1.0 : 1.5
+bool scoreOk = confluenceScore >= minScoreToTrade
 
 // ═════════════════════════════════════════════════════════════
 // COMBINED SIGNAL + COOLDOWN
@@ -267,7 +297,9 @@ if amdmLong or amdmShort
 // ═════════════════════════════════════════════════════════════
 if amdmLong or amdmShort
     int dir = amdmLong ? 1 : -1
-    float riskDist = sigModel == 1 ? (dir == 1 ? m1StopDistLong : m1StopDistShort) : (dir == 1 ? close - low + atr5 * 0.1 : high - close + atr5 * 0.1)
+    // Model 2 references the SWEEP bar's extreme (low[1]/high[1]) --
+    // that's where the actual wick beyond the wall happened.
+    float riskDist = sigModel == 1 ? (dir == 1 ? m1StopDistLong : m1StopDistShort) : (dir == 1 ? close - low[1] + atr5 * 0.1 : high[1] - close + atr5 * 0.1)
     float stopPx = dir == 1 ? close - riskDist : close + riskDist
     float tp1R = sigModel == 1 ? m1Tp1R : m2Tp1R
     float tp2R = sigModel == 1 ? m1Tp2R : m2Tp2R
@@ -329,6 +361,29 @@ if amdmLong
     label.new(bar_index, low, "M" + str.tostring(sigModel) + " LONG", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small)
 if amdmShort
     label.new(bar_index, high, "M" + str.tostring(sigModel) + " SHORT", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small)
+
+// ═════════════════════════════════════════════════════════════
+// DIAGNOSTIC DASHBOARD — every gate visible, so "no trades" is
+// self-explaining instead of a mystery
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 2, 8, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    table.cell(dash, 0, 0, "AMDM STRATEGY", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "UNTESTED", text_color=color.yellow, text_size=size.tiny)
+    table.cell(dash, 0, 1, "Regime", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, model1Regime ? "Model 1 (Momentum)" : model2Regime ? "Model 2 (Mean-Rev)" : "Transition (no trade)", text_color=model1Regime ? color.aqua : model2Regime ? color.fuchsia : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 2, "H1 ATR ($) vs M1>/M2<", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, str.tostring(atrH1, "#.##") + " vs " + str.tostring(atrHiDollar, "#.#") + "/" + str.tostring(atrLoDollar, "#.#"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Inside VA / session / DXY", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, (insideVA ? "in" : "out") + " / " + (hardTimeFilter ? "OK" : "blocked") + " / " + (correlated ? "corr!" : "ok"), text_color=hardTimeFilter and not correlated ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 0, 4, "M1 gates BOS/vol/cvd", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, (bosUp ? "UP" : bosDown ? "DN" : "--") + "/" + (volConfirm1 ? "OK" : "no") + "/" + (cvdBull ? "+" : cvdBear ? "-" : "0"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 5, "M2 gates sweep/rej/vol", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, (sweepBarVAL ? "VAL" : sweepBarVAH ? "VAH" : "--") + "/" + (rejectLong or rejectShort ? "OK" : "no") + "/" + (sweepVolOk and reclaimVolOk ? "OK" : "no"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 6, "Score / risk %", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, str.tostring(confluenceScore) + "/12 -> " + str.tostring(riskPct, "#.##") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Day: trades / halted", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, str.tostring(dayTradeCount) + "/" + str.tostring(maxTradesPerDay) + " / " + (dayHalted ? "HALTED" : "ok"), text_color=dayHalted ? color.orange : color.white, text_size=size.tiny)
 
 // ═════════════════════════════════════════════════════════════
 // ALERTS
