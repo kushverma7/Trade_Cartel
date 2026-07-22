@@ -175,3 +175,38 @@ entry signal, the 3-Bar Swing trend-state flag, an 89-period HTF MA
 bias filter, and a Stochastic/price divergence-as-continuation tag
 that upgrades a same-direction Fractal signal when it fires mid-trend
 with supporting divergence. All bar-close, non-repainting.
+
+---
+
+## Audit pass against original source text (2026-07-22)
+Re-read the full manual. All gaps are omissions, no wrong facts:
+
+- **Missing attribution — 3-Bar Swing**: source says "I call it the Three
+  Bar Swing. I was taught this technique by Bryce Gilmore" — dropped,
+  inconsistent with the 4-Bar Fractal's correctly-kept Dr. David Paul
+  attribution.
+- **Missing — Scaling Out (Mark Douglas method, concrete numbers)**:
+  source gives a full named method from *Trading in the Zone*: exit 1/3
+  at ~20 points, exit 1/3 at the next significant high (often ~40 points)
+  with stop to breakeven, let the final 1/3 run. This playbook only notes
+  Hougaard's "either you're in or out" counterpoint and assumes the
+  register's generic 1/3@1R/1/3@2R convention covers it — it doesn't;
+  this is a distinct, named, numerically specific method.
+- **Missing — Scaling In, worked example with numbers**: add at +75
+  points (4H chart), double the position, stop to entry; exit at +150
+  nets 225 points for 75 risked (R:R ~2->3). Source also states this
+  "brings the success rate down markedly," ~40% of trades running far
+  enough is what pays for it. None of these figures were captured.
+- **Missing concrete stat**: source's example of an 85%-hit-rate coached
+  trader whose losing 15% cost 20x what the winners made — only the
+  general principle was paraphrased.
+- **Missing risk-sizing detail (Stanley case study, fake-out/trendline
+  pattern)**: 1-minute chart, 3-4 tops to draw the trendline, stop below
+  the last low, caps risk at 1% of account (reduce stake if the stop
+  distance is too wide). The pattern itself was captured as pure
+  structure with none of this execution convention.
+
+Verified accurate: 4-Bar Fractal definition/attribution, 89-period weekly
+MA rule, MTF fade philosophy, ABCD/fake-out shape, price-behavior axioms,
+engulfing entry tiers, copy-trendline technique. Not yet ported to the
+engine.

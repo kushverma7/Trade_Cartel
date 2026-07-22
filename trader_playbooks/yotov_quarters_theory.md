@@ -277,3 +277,37 @@ several fronts:
   (Valentini/Roppel, already 2 independent sources) but that's a much
   looser "round numbers matter" observation, not a precise nested
   25%-division grid with a stated completion tolerance.
+
+## 6. v3 — audit pass against original glossary source (2026-07-22)
+Re-read `TheQuartersTheory2012YotovGlossaryofTerms.txt` in full to verify
+the v2 pass. Terms/omissions, not factual errors — no numbers contradicted:
+
+- **Major Small Quarter Points (missing)**: Small Quarter Points that
+  coincide with regular Whole Numbers (e.g. 1.31/1.32/1.33) — mark the
+  end/start of a 100-pip range. Distinct from Large Quarter Points; not
+  in section 1 above.
+- **"Important Price Points within the Large Quarters" (missing as a named
+  term)**: source's formal grouping = End of Hesitation Zone + Half Point
+  of a Large Quarter + Whole Number preceding a Large Quarter Point + "any
+  major Short/Mid/Long-Term S/R level positioned within the range of a
+  Large Quarter." The individual pieces are covered above but the general
+  "any major S/R level inside the LQ range also counts" clause is new.
+- **Trade-objective taxonomy (missing)**: source splits ALL named trades
+  into two categories — "Large Quarter Completion Trades" vs. "Intra-Large
+  Quarter Trades." Neither term appears above, though the trade list
+  itself is otherwise reproduced.
+- **Large Quarter Transitions (missing, distinct from what's built)**: the
+  transfer of price from one Large Quarter's 250-pip range into the next
+  Large Quarter's range WITHIN the same 1,000-pip range — smaller/more
+  frequent than the "Major range transition" (crossing a major whole
+  number) already tracked. Not yet a separate tag.
+- **Unsuccessful Large Quarter Completion / 1000 PIP Range Completion
+  (missing)**: both explicitly named/defined in the glossary; only the
+  positive/successful case is covered above.
+- **PIP baseline definition (missing)**: source gives the precise unit
+  chain — EUR/USD 1 PIP = .0001 USD; 100 PIPs = 1 sub-unit; 1000 PIPs =
+  10 cents/pence/yen; 10,000 PIPs = 1 full unit. Never restated here,
+  relevant context for the gold $-scale conversion in section 1.
+
+No factual contradictions found — all gaps are omitted terms, not wrong
+numbers. Not yet ported to the engine.

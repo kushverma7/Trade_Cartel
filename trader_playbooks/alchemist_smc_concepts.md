@@ -177,3 +177,37 @@ SBR/RBS role-flip tracker, Quasimodo (QML) pattern detector, Fibo
 Storyline KEY-zone entry + scale-in (v2), Fibo Circle KEY extension
 retest (v2). All bar-close, non-repainting (pivots confirm with a lag,
 structure breaks/role flips/fib checks only fire on closed bars).
+
+---
+
+## Audit pass against original PDF (2026-07-22)
+Re-read the full source PDF. Found real gaps, no wrong numbers:
+
+- **SMT correlated-pairs table (missing, p.50)**: source gives a concrete
+  list — XAUUSD-XAGUSD, EURUSD-GBPUSD, AUDUSD-NZDUSD, EURJPY-GBPJPY,
+  AUDJPY-NZDJPY, EURCAD-NZDCAD, USDJPY-USDCHF. Never captured; SMT is
+  only referenced in passing as "same lineage" as voice #4.
+- **SMT x QT entry rule (missing, pp.51-52)**: SMT divergence forms
+  during Q1-Q2 of a QT cycle, entry trigger fires at the Q3 open. Not
+  described anywhere.
+- **CRT concept (missing entirely, p.6)**: source names "CRT" as a
+  distinct concept ("when playing together, such as playing CRT, we will
+  find the setup. The SNR inside the CRT is not good") — not mentioned or
+  flagged as skipped.
+- **Valid Pullback's 3-step mechanic (incomplete, pp.32-33)**: source
+  defines it as (1) mark the pullback extreme, (2) break the opposing S/R
+  level, (3) place a stop-loss ON that breakout — the IDM section
+  paraphrases (1)-(2) but drops the stop-placement step as part of the
+  defined mechanic.
+- **Engulfing OB's second framing (missing, p.16)**: source also
+  describes it as preventing slippage ("an OB that has a limit"), with
+  an explicit comparison to AOI/FVG entries. Only the reversal+sweep
+  framing (p.15) made it in.
+- **Open question, not a confirmed error**: this playbook's own text (§7)
+  dismisses the QT 90-min cycle table (p.42) as "column-garbled." Re-check
+  found the table legible and internally consistent — worth re-verifying
+  whether the exclusion is still warranted before the next engine pass.
+
+Everything else (IDM, Classic A/V, SBR/RBS, Quasimodo, Trendline Key
+three-touch rule, Fibo Storyline/Circle ratio sets, setup checklist)
+re-verified accurate. Not yet ported to the engine.

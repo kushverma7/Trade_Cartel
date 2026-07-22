@@ -503,3 +503,46 @@ operational hygiene:
   profile as voice #17), not replicated here. This engine's zone/RSI-
   table visual language is built from the book's real documented
   mechanics instead. UNTESTED, brand new construct, no backtest.
+
+=== SOURCE VERIFICATION AUDIT (2026-07-22) ===
+User flagged a concern that earlier extraction passes may have dropped
+or misrepresented details from the source PDFs/transcripts. Ran a real
+second-read audit: for every source file still held in this session's
+upload storage, an independent reviewing pass (no access to the
+original extraction's reasoning) re-read the FULL source and diffed it
+against the corresponding playbook.md.
+
+10 sources audited (voices #4, #12, #13, #14, #15, #16, #17, #18, #19,
+Candlestick Playbook). Result: zero fabricated facts found in any of
+the 10. Findings were overwhelmingly omissions (concrete numbers,
+named sub-concepts, worked examples that didn't make it into the
+distilled version), not wrong facts. Two exceptions worth flagging
+here specifically:
+- **#17 Intermarket Lag**: one real numeric error — two distinct lag
+  figures (~3h JPY->NASDAQ100, ~1h JPY->crude oil) had been merged
+  into an imprecise "1-3h" range. Fixed.
+- **#19 Hima Reddy Gann — ACTION NEEDED**: the source explicitly states
+  its 2-bar test-failure pattern is a trade-MANAGEMENT tool for an
+  already-open position, "not a signal meant to be targeted for market
+  entry." The built engine (hima_reddy_gann_engine.pine) currently
+  fires it as a bidirectional entry signal, and the Top/Bottom engine's
+  `useTestFail` toggle reuses the same mechanic as an entry trigger.
+  This should be reviewed/reconciled before further tuning either
+  engine on this signal.
+
+All fixes landed as dated addenda in the relevant playbook.md files
+(same versioned-addendum pattern already used for Quarterly Theory's
+v2-v8 passes) — nothing was silently overwritten. None of the fixes
+have been ported into the .pine engines yet.
+
+11 voices (#1 PBD, #2 Valentini/orderflow, #3 Kurisko, #5 Roppel, #6
+Ario, #7 Dave, #8 Steve/MMM4x, #9 Renko/HA, #10 Wendell, #11 FX Master
+Pattern) have NO retained source file in this session's storage — they
+were pasted as chat text in earlier sessions and the raw text isn't
+recoverable now. These could not be re-diffed against original wording;
+only internal consistency was checkable. If a real re-audit of these is
+wanted, the user needs to re-supply the original material.
+
+Full audit findings, source-file inventory (filenames/sizes/authors),
+and this log are also published as an artifact/downloadable HTML
+report ("Trade Cartel — Source Dossier").

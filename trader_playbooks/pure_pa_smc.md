@@ -154,3 +154,41 @@ freshest zone per side with mitigated/unmitigated status, "who's in
 control" regime flag, S/D flip detector, liquidity-grab (wick-
 dominant single candle) vs BOS (body-close, multi-candle) tagging,
 equilibrium 50% entry marker. All bar-close, non-repainting.
+
+---
+
+## Audit pass against original source text (2026-07-22)
+Re-read the full source. Found one likely misattribution and several
+omissions (mostly discretionary/session rules, not core mechanics):
+
+- **Missing — session/pair/broker rules (whole opening section)**: trade
+  only ONE pair/session; author trades EUR/USD, New York session only,
+  2pm-5pm GMT+2 (~3 hrs/day); recommends TradingView Pro for replay
+  backtesting; broker criteria (low spreads, reliable payout, cites
+  ICMarkets). None of this is in the playbook — not codeable as an
+  indicator rule but relevant discretionary context.
+- **Missing — main trend vs. countertrend framing**: source states
+  countertrend moves are more impulsive/volatile, main-trend pips are
+  "simpler and safer" to catch, pullback phases marked with red arrows.
+- **Missing — "risk entry" as a distinct entry type**: source's "RISK
+  ENTRY / CONFIRM — WHO'S IN CONTROL" section implies a non-confirmed
+  entry vs. a confirmation entry as two different execution choices; only
+  the "who's in control" framing itself was captured.
+- **Missing minor details**: a worked example narrows a 15m zone to
+  "31.3 pips across the entire zone"; the first three prep steps (news
+  check, H4 direction, 15m S/D markup) are done "30 minutes before the
+  session begins"; a note that wicks should be used as zone boundaries
+  because most orders get stopped out there.
+- **Possible misattribution, flagged not corrected**: the playbook's IFC
+  definition states a precise "3-candle gap, candle 1 doesn't overlap
+  candle 3" FVG-style mechanic. The source only says price "fills the
+  created gap ... when the market moves quickly and leaves inefficiency
+  behind" — it never states the 3-candle rule. This looks like imported
+  standard ICT knowledge attributed to this source rather than something
+  this source actually says. Needs a decision: keep as general-knowledge
+  confluence (re-tag the source) or verify against a different document.
+
+Verified accurate: risk rules (1%/trade, -2%/day halt), flat-before-
+session-end, spread-buffering, equilibrium 50% trigger, liquidity
+marking, strong/weak structure points, S/D flip, CHoCH vs. continuation,
+MTF H4->15m->5m->1m workflow. Not yet ported to the engine.

@@ -97,3 +97,34 @@ lag window, catch-up long/short signal + alerts. Bar-close,
 non-repainting (uses `request.security` with default lookahead
 behavior on already-closed reference-symbol bars, consistent with the
 SMT reference pattern already used in quarterly_theory_engine.pine).
+
+---
+
+## Audit pass against original PDF (2026-07-22)
+Re-read the full source PDF ("The Big Secret of Intermarket Trading").
+Found one real inaccuracy and several omissions:
+
+- **Wrong lag number (fix needed)**: this playbook states "USD/JPY leads
+  NASDAQ100/crude oil (lag ~1-3h)." Source gives two SEPARATE figures —
+  USD/JPY->NASDAQ100 is "about three hours," USD/JPY->crude oil is
+  "around 1H" — which got merged into one imprecise "1-3h" range.
+- **Missing general lag range**: source states a standalone claim,
+  distinct from the per-example figures — "in many occasions you can find
+  a lag (usually 1-6 hours)" between correlated markets.
+- **Missing "Group One" correlation taxonomy**: source's structure —
+  USD/JPY, S&P500, NASDAQ100, FTSE (UK100), DAX (GER30), crude oil, and
+  US Dollar Index all positively correlate with each other ("group one");
+  EUR/USD and gold positively correlate with each other but negatively
+  with group one. Only the DXY/gold negative correlation made it in; DAX/
+  GER30 and EUR/USD aren't mentioned at all.
+- **Missing leading-asset claim**: source states currencies (EUR/USD,
+  USD/JPY) are "most of the times" the leading asset, stocks/gold/crude
+  oil leading only "in less frequent occasions."
+- **Minor, low-materiality**: source's suggested charting tool
+  (netdania.com/charts) and 1H-timeframe framing recommendation weren't
+  carried over — not load-bearing, noted for completeness.
+
+Verified accurate: the four numeric lag examples (~3h JPY/NAS100, ~1h
+JPY/crude, ~1h DXY/SPX, 1-2h SPX/gold negative, ~20h gold/FTSE negative),
+the hindsight-annotation critique, page-4 chart/caption match. Not yet
+ported to the engine.

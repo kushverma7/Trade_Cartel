@@ -401,3 +401,37 @@ genuinely used this) but explicitly not evaluated or built.
 
 ## Belief-register hypotheses from this section: H62-H64 (see
 BELIEF_REGISTER.md).
+
+---
+
+## Audit pass against both original sources (2026-07-22)
+Re-read the full 57-page PDF (including the scanned 1953 appendix) plus
+targeted spot-checks of the Master Commodities Course text file. Core
+formulas (rotation, Futia degrees, reverse formula, degrees-to-factor
+table down to 45 deg) all verified correct. Seven gaps, all omissions —
+no wrong formulas or fabricated numbers found:
+
+- **Missing — 22.5 deg = .125 base entry** in the degrees-to-factor table.
+- **Missing pivot categories**: major-pivot list only keeps all-time/
+  52-week/contract highs-lows; source's 10-year and 5-year high/low
+  categories were dropped.
+- **Missing chapter — "Squaring Price with Price"**: an entire static,
+  time-free support/resistance method off major pivots is absent.
+- **Missing practice — dual pivot calculation**: source says to calculate
+  every major pivot TWICE (extreme vs. close) and to maintain both a
+  high/low chart and a close chart in parallel; not captured.
+- **Missing — alternate time-grid methods**: only one vertical time-grid
+  method is implemented; source describes two further "more precise"
+  time-spacing variants.
+- **Missing — numeric "lost motion" tolerances**: source gives specific
+  cutoffs (1-2 bar near-miss for time; 2-3 deg hit / 4-5 deg near-miss for
+  price-time squaring) that got compressed into vague language.
+- **Overgeneralized — the "2-consecutive-close" channel-breach rule**:
+  presented in this playbook as the book's general standard, but the
+  source only applies it in one specific worked hourly example; the
+  book's actual general rule carries no fixed bar-count.
+
+Verified accurate: 5-ways-price-squares-time list, Gann Angle Fan
+mechanics, Signal Day, Square of 44/67/28, Hexagon, and the "United
+States Steel" letter-count square (all cross-checked against the Master
+Commodities Course text). Not yet ported to the engine.

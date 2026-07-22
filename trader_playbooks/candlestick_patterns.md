@@ -254,3 +254,39 @@ new detail this source adds:
   counter direction before the real breakout) -- informal corroboration
   of the already-dominant sweep-reversal family (8+ sources), not
   logged as a new H-number given how thin the source detail is.
+
+---
+
+## Audit pass against all three original sources (2026-07-22)
+Re-read the candlestick book (Mark Rose), the PriceActionPatterns20
+ebook, and the Chart Pattern Cheat Sheet PDF in full.
+
+- **Missing — Entry/Stop/Target placement convention**: every single page
+  in the cheat sheet (candlestick pages 3-10, chart-pattern pages 11-34,
+  shared with the ebook) diagrams a consistent convention: Entry at the
+  breakout/confirmation candle's extreme, Stop-Loss at the pattern's
+  opposite extreme, Target projected beyond. This playbook's note that
+  the cheat sheet has "no numeric criteria extractable" is true for wick
+  ratios but overlooks that this entry/stop/target geometry IS
+  consistently extractable, unlike the wick percentages — a real,
+  non-trivial gap, not yet flagged as "not implemented" either.
+- **Possibly misread — 0.382 Fib anchor**: the descending-triangle page's
+  "0.382 Fibo Retracement" label was read as marking the post-breakdown
+  retest zone. Re-checking the page, it more plausibly marks the
+  pre-breakdown consolidation/triangle-support relative to the prior
+  down-leg (i.e. where the triangle itself formed). Flagged as still
+  ambiguous, not corrected outright.
+- **Minor — Rising Wedge's dual treatment**: the ebook presents it twice —
+  once as a bearish REVERSAL (uptrend, p.17), once as a bearish
+  CONTINUATION (explicitly "in the downtrend," p.27). Both resolve
+  bearish so the single "typically resolves DOWN" line isn't wrong, but
+  the context-dependent framing (reversal vs. continuation) isn't noted.
+
+Verified accurate: all Mark Rose book definitions and reliability
+language (Morning/Evening Star tier A; harami unreliability; piercing/
+dark-cloud tier B vs engulfing tier A; 2x wick ratio for hammer/shooting
+star), the cheat sheet's shape/name inventory, H&S "high-probability"
+quote, symmetrical-triangle measured-move quote, volume-confirmation
+notes, 1:3/1:4 R:R tallies. Confirmed `indicators/chart_pattern_engine.
+pine`'s own header holds no separate hidden text content. Not yet
+ported to the engine.

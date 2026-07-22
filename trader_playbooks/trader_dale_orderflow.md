@@ -189,3 +189,44 @@ entries (the one pattern underlying five of the book's named setups),
 volume-based TP target + low-volume-area SL placement with ADR-width
 guard, and the wick-based Unfinished-Business proxy. All bar-close,
 non-repainting.
+
+---
+
+## Audit pass against original source ebook (2026-07-22)
+Re-read the full ebook. One internal counting error, rest are omissions:
+
+- **Fix — miscounted setups**: this playbook says the repeating
+  zone-then-pullback pattern underlies "FIVE" named setups but then lists
+  six (Volume Clusters trend, Volume Clusters rejection, Multiple Nodes,
+  Volume Accumulation, VP Trend Setup, VP Rejection Setup). Should read
+  six. Source has 5 Order-Flow setups + 3 Volume Profile setups = 8 named
+  setups total, 6 of which share this mechanic.
+- **Missing — passive vs. active (aggressive) participants**: the book's
+  own stated "vital" prerequisite (pp.19-23) — BID prints show aggressive
+  sellers OR passive buyers, ASK prints show aggressive buyers OR passive
+  sellers, and you can never know which with certainty. Every downstream
+  mechanic (absorption, aggressive-order confirmation, imbalances)
+  depends on this distinction but it's never stated in the playbook.
+- **Missing — concrete Trades Filter calibration numbers**: 25+ lots
+  threshold on EUR Futures (6E), ~300+ on ES (S&P 500 futures); ES
+  signals only fire in the US session; rule of thumb is tuning the
+  threshold for 5-10 signals/day. Section 6 correctly flags this setup as
+  "not buildable" (needs footprint data) but drops these numbers rather
+  than preserving them for a future data source.
+- **Missing — full trailing-exit warning list**: source names four
+  signals that should stop a trail: Limit-order confirmation, Absorption,
+  Aggressive orders against the position, Price/Delta divergence near an
+  S/R zone. Playbook only generically says "Imbalance/Delta signals,"
+  dropping Limit Orders and Absorption.
+- **Missing — confirmation-stacking bonus**: source notes the strongest
+  signal is Confirmation #1 (Limit Orders) or #2 (Absorption) FOLLOWED BY
+  Confirmation #3 (Aggressive Orders/Delta) — a snowball effect, not
+  mentioned.
+- **Minor**: Delta's exact formula (Delta = Ask - Bid) and the Imbalance/
+  Stacked-Imbalance thresholds (300% diagonal comparison, 3+ stacked) are
+  implied but not stated verbatim — defensible since filed under
+  "not buildable," but worth restating for when real footprint data
+  becomes available.
+
+No outright false claims beyond the "five vs. six" count. Not yet ported
+to the engine.

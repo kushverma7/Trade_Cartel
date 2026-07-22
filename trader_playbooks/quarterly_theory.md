@@ -216,3 +216,38 @@ London/NY hours not Asia, execution complexity/needs real-time True
 Open confirmation) -- not falsifiable/codeable, no H-number, recorded
 here as source-stated caveats only. No engine changes, no new
 BELIEF_REGISTER entries.
+
+---
+
+## v8 — audit pass against original source PDF (2026-07-22)
+Re-read `QuarterlyTheory_1.pdf` in full (including image-only boxes) to
+verify nothing was lost in the original extraction. Found four real gaps:
+
+- **"MODEL" checklist (missing)**: source has a highlighted box, "Complete
+  trading model in five sentences," with 4 hard preconditions: (1) the
+  PRIOR quarter must have been low-probability/consolidating, (2) price
+  must be trading during a "KZ" (Kill Zone — a specific narrower sub-window
+  than "high-liquidity sessions," source's own time table labels windows
+  e.g. "Asia KZ"), (3) True Open determines directional bias (above = sell,
+  below = buy), (4) price must touch an HTF PD-array. Not yet coded as a
+  single gated checklist — item 7's "high-liquidity sessions" language
+  conflates with the narrower KZ concept; needs reconciling.
+- **True Open directive was softened in extraction**: source states it
+  bluntly as a "thermometer" — "price trades above it, you sell; below it,
+  you buy." Item 2 above only has the vaguer "premium/discount frame;
+  reversals cluster near them" — losing the crisp binary rule.
+- **Q4-reversal rule is conditional, not unconditional**: source's
+  trade-example annotations qualify it — "Q4 always be a reversal IF past
+  quarters moved in same direction." Item 4 above states it flatly as
+  "Q4 reversal/profit-taking," dropping the condition.
+- **Session-alternation chain is incomplete**: the Q-ALTERNATION RULE (v2,
+  H15) only encodes the Asia->London hop. Source gives a full 4-session
+  forecast chain: Asia consolidates -> trade London, skip NY, trade PM;
+  Asia expands -> skip London, trade NY, skip PM. The NY/PM legs are not
+  yet in the engine or the stated rule.
+
+Everything else (True Opens taxonomy, AMDX/XAMD mapping, SSMT->PSP
+pairing, PSP entry rule, asset-triad requirement, 90-min quarter times,
+yearly/monthly/weekly true-open table) re-verified accurate against the
+source, no changes needed. Not yet ported to the engine — logged here
+first per standing rule; engine update pending.

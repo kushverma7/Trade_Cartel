@@ -197,3 +197,45 @@ position in a different but related commodity (#22).
 H70 (eighths retracement + RSI-applied variant), H71 (test-failure 2-bar
 rule), H72 (trendline channel parallel-from-origin-bar construction). See
 BELIEF_REGISTER.md for full writeups.
+
+---
+
+## Audit pass against original source text (2026-07-22)
+Re-read the full book. Found one load-bearing caveat that was dropped and
+several omissions:
+
+- **IMPORTANT — test-failure is NOT an entry signal in the source**: the
+  book explicitly states (the 2-bar test-failure pattern) "is not a signal
+  that is meant to be targeted for market entry" — it's a trade-management/
+  exit-warning tool for an ALREADY-OPEN position, not an entry trigger.
+  This playbook's own "what's built" section describes a test-failure
+  detector firing signals in both directions without this constraint —
+  risking exactly the misuse the source warns against. This engine (and
+  any downstream engine reusing this rule, e.g. the Top/Bottom engine's
+  `useTestFail` toggle) should be reviewed against this caveat.
+- **Wrong — Buying/Selling Points mirror by concept, not by number**:
+  playbook's "(sell: mirror)" notation implies same-numbered symmetry.
+  Actual mirroring isn't 1:1 by index — Buying Point #5 (time-exceedance
+  vs. last rally) mirrors Selling Point #6, not #5.
+- **Missing — Gann's documented track record**: source cites the 1909
+  Wyckoff/Gilley account — 286 observed trades, 264 winners, 92% —  one of
+  the book's key credibility anchors, not mentioned anywhere.
+- **Missing — the 8-phase trade cycle**: Trend assessment -> Signal
+  observation -> Risk assessment -> Order placement -> Trade initiation ->
+  Trade management -> Trade exit -> Review. This is the organizing
+  structure the built material is drawn from but the framework itself
+  isn't captured.
+- **Missing — concrete stop-loss distance rule (Gann Rule #2)**: 1-3
+  cents (max 5) for commodities generally, 20-40 points (max 60) for
+  cotton, 3-5 points for stocks. The capital-management section covers
+  %-risk but drops this price-distance rule.
+- **Missing — Gann Rule #8, portfolio-level cap**: aggregate risk <10% of
+  capital per MARKET (not just per trade), explicitly allowing
+  diversification across 2-3 commodities/4-5 stocks. Only the per-trade
+  10% rule made it in.
+
+Verified accurate: eighths retracement mechanics, 28-rules citations
+(#13/#16/#22/#24/#27), trendline channel/GOOG example, fourths trailing-
+stop, breakeven rule, pyramiding rules. Not yet ported to the engine —
+the test-failure caveat especially should be addressed before further
+tuning of engines that use it.
