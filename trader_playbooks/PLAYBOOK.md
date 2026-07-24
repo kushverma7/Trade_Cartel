@@ -666,3 +666,27 @@ diagnosis (real bugs, not parameter tuning):
 Both files also gained per-gate diagnostic dashboard rows so any future
 "no signals" report shows WHICH gate is blocking, on-chart. Re-test
 pending.
+
+**Round 2 (2026-07-22, external code review supplied by user).** Four
+claims assessed per the receiving-code-review discipline (verify, don't
+blindly agree):
+1. CONFIRMED -- pivot-based BOS was structurally mute: ta.pivothigh
+   (10,10) confirms the swing level 10 bars after it forms, by which
+   time price is already past it, so ta.crossover almost never fired.
+   Replaced with a real-time Donchian-style breakout (close crossing
+   the prior N-bar high/low, [1]-offset, non-repainting). This was the
+   dominant remaining cause of Model 1 silence.
+2. CONFIRMED (the moving-reference half) -- Model 2's reclaim compared
+   against the CURRENT bar's recalculated rolling value area, which
+   shifts with the very move being judged. Now frozen to the sweep
+   bar's level (val[1]/vah[1]).
+3. PARTIALLY ACCEPTED -- the CVD proxy was never claimed to be real
+   CVD (documented limitation), but the redundancy critique is right:
+   it mostly double-counts the BOS candle's own direction. Defaulted
+   OFF, kept as an optional stricter toggle.
+4. REJECTED ON THE MATH, noted on the substance -- reviewer claimed
+   288x20 = 5,760 ops/bar; the loops are sequential, not nested
+   (~300 ops/bar), same pattern as trader_dale_volume_profile_engine
+   at no observed cost. No change made; logged so the claim isn't
+   re-litigated later.
+Re-test pending after round 2.

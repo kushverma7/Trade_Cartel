@@ -60,9 +60,9 @@ float  atrHiDollar = input.float(3.0, "Model 1 Threshold: H1 ATR > ($) -- watch 
 float  atrLoDollar = input.float(1.5, "Model 2 Threshold: H1 ATR < ($)", step=0.1, group="① Value Area / Regime")
 
 // ── ② Model 1: Momentum-Join ────────────────────────────────
-int    swingPw      = input.int(10, "BOS Swing Pivot Width (bars)", minval=3, maxval=30, group="② Model 1: Momentum-Join")
+int    swingPw      = input.int(10, "Breakout Lookback (bars) -- close beyond the prior N-bar high/low = BOS", minval=3, maxval=30, group="② Model 1: Momentum-Join")
 float  volMult1      = input.float(1.3, "Min Breakout Volume (x 20-bar avg)", step=0.05, group="② Model 1: Momentum-Join")
-bool   useCvd1       = input.bool(true, "Require CVD-Proxy Confirmation", group="② Model 1: Momentum-Join")
+bool   useCvd1       = input.bool(false, "Require CVD-Proxy Confirmation -- OFF by default: proxy double-counts the BOS candle's own direction (round-2 fix)", group="② Model 1: Momentum-Join")
 float  m1StopMinAtr  = input.float(0.4, "Min Stop (x ATR5)", step=0.05, group="② Model 1: Momentum-Join")
 float  m1StopMaxAtr  = input.float(1.2, "Max Stop (x ATR5) -- beyond this, setup invalid (too extended)", step=0.05, group="② Model 1: Momentum-Join")
 int    m1TimeStopBars = input.int(8, "Time Stop (bars, ~40min on 5m)", minval=2, group="② Model 1: Momentum-Join")
@@ -180,43 +180,44 @@ bool model2Regime = atrH1 < atrLoDollar and insideVA
 string activeModel = model1Regime ? "Model 1 (Momentum)" : model2Regime ? "Model 2 (Mean-Rev)" : "Transition (no trade)"
 
 // ═════════════════════════════════════════════════════════════
-// MODEL 1: MOMENTUM-JOIN — BOS + volume + CVD-proxy
+// MODEL 1: MOMENTUM-JOIN — real-time range breakout + volume
+//
+// FIX round 2 (2026-07-22, external review confirmed): the previous
+// pivot-based BOS (ta.pivothigh 10/10) confirmed the swing level 10
+// bars AFTER it formed -- by then price was usually already past it,
+// so ta.crossover almost never fired and Model 1 was nearly mute.
+// Replaced with a real-time Donchian-style breakout: close crossing
+// the highest high / lowest low of the PRIOR swingPw bars ([1]-offset
+// so the current bar isn't compared against itself). Fires the bar
+// the breakout actually closes, no pivot confirmation lag,
+// non-repainting.
 // ═════════════════════════════════════════════════════════════
-float swPh = ta.pivothigh(high, swingPw, swingPw)
-float swPl = ta.pivotlow(low, swingPw, swingPw)
-var float lastSwingHigh = na
-var float lastSwingLow  = na
-if not na(swPh)
-    lastSwingHigh := swPh
-if not na(swPl)
-    lastSwingLow := swPl
+float rangeHi = ta.highest(high, swingPw)[1]
+float rangeLo = ta.lowest(low, swingPw)[1]
 
-bool bosUp   = not na(lastSwingHigh) and ta.crossover(close, lastSwingHigh)
-bool bosDown = not na(lastSwingLow)  and ta.crossunder(close, lastSwingLow)
+bool bosUp   = close > rangeHi and close[1] <= rangeHi
+bool bosDown = close < rangeLo and close[1] >= rangeLo
 
 bool volConfirm1 = volume > volAvg20 * volMult1
 
+// CVD-proxy: default OFF (round-2 fix). Always was a documented
+// candle-direction proxy, not real CVD -- but as an entry gate it
+// mostly double-counts the BOS candle's own direction. Optional
+// stricter toggle only.
 float cvdDelta = close > open ? volume : close < open ? -volume : 0.0
 float cvd5 = ta.sma(cvdDelta, 5) * 5
 bool cvdBull = not useCvd1 or cvd5 > 0
 bool cvdBear = not useCvd1 or cvd5 < 0
 
-// FIX (2026-07-22, live-test debug -- zero signals reported): the raw
-// swing distance is CLAMPED into [min,max] x ATR5 rather than used as a
-// hard reject-the-trade gate. The old version rejected any BOS whose
-// swing pivot happened to sit further than 1.2x ATR away -- but that's
-// exactly the common case right after a real breakout (price has
-// already moved), so it was silently vetoing most real Model 1 setups.
-// Same clamp convention already used in reversal_sniper_strategy.pine.
-float m1StopDistRaw1  = close - lastSwingLow
-float m1StopDistRaw2  = lastSwingHigh - close
+// stop = beyond the opposite side of the broken range, clamped into
+// [min,max] x ATR5 (clamp, not reject -- round-1 fix retained)
+float m1StopDistRaw1  = close - rangeLo
+float m1StopDistRaw2  = rangeHi - close
 float m1StopDistLong  = math.min(math.max(m1StopDistRaw1, atr5 * m1StopMinAtr), atr5 * m1StopMaxAtr)
 float m1StopDistShort = math.min(math.max(m1StopDistRaw2, atr5 * m1StopMinAtr), atr5 * m1StopMaxAtr)
-bool m1StopOkLong  = not na(lastSwingLow)  and m1StopDistRaw1 >= atr5 * m1StopMinAtr * 0.5
-bool m1StopOkShort = not na(lastSwingHigh) and m1StopDistRaw2 >= atr5 * m1StopMinAtr * 0.5
 
-bool model1Long  = model1Regime and bosUp   and volConfirm1 and cvdBull and m1StopOkLong  and hardFilterOk
-bool model1Short = model1Regime and bosDown and volConfirm1 and cvdBear and m1StopOkShort and hardFilterOk
+bool model1Long  = model1Regime and bosUp   and volConfirm1 and cvdBull and hardFilterOk
+bool model1Short = model1Regime and bosDown and volConfirm1 and cvdBear and hardFilterOk
 
 // ═════════════════════════════════════════════════════════════
 // MODEL 2: MEAN-REVERSION — sweep + rejection + volume exhaustion
@@ -239,8 +240,11 @@ float upperWick1 = high[1] - math.max(open[1], close[1])
 bool rejectLong  = bodySz1 > 0 ? lowerWick1 >= bodySz1 * wickBodyMult : lowerWick1 > 0
 bool rejectShort = bodySz1 > 0 ? upperWick1 >= bodySz1 * wickBodyMult : upperWick1 > 0
 
-bool reclaimLong  = close >= val
-bool reclaimShort = close <= vah
+// FIX round 2: reclaim judged against the SWEEP BAR's frozen level
+// (val[1]/vah[1]), not the current bar's recalculated rolling value --
+// sweep and reclaim must reference the SAME level.
+bool reclaimLong  = close >= val[1]
+bool reclaimShort = close <= vah[1]
 
 bool sweepVolOk    = volume[1] > volAvg20[1] * sweepVolMult
 bool reclaimVolOk  = volume < volAvg20 * reclaimVolMax
