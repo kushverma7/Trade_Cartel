@@ -6,9 +6,13 @@
 3. `trader_playbooks/USER_TRADING_PROFILE.md` — who the user is as a trader; act as their proxy
 4. `trader_playbooks/BELIEF_REGISTER.md` — active beliefs w/ evidence + invalidations; update when contradicted (3+ sources -> Belief Review)
 5. `trader_playbooks/PLAYBOOK.md` — living setups doc: what's working, what's retired, current regime, rules
-6. `trader_playbooks/` (all other files) — the knowledge/confluence layer (candlestick patterns, trader rules). STANDING RULE: this layer is applied as confluence inside every strategy built or tuned — aligned tier-A signals upgrade entries, opposing ones veto/de-risk. It is never delivered as standalone output unless asked.
+6. `trader_playbooks/CODE_DELIVERY_PROTOCOL.md` — MANDATORY before writing/delivering ANY Pine code: 7-phase pre-flight (spec freeze, truth table, static analysis, self-review, desk check, output validation, known-limitations report). No code ships without the sign-off.
+7. `trader_playbooks/bugs/BUG_REGISTRY.md` — every code bug ever found here, with root cause + prevention. Check new code against it; never repeat a registered bug.
+8. `trader_playbooks/skills/SKILL_REGISTRY.md` — validated reusable Pine patterns. Use them by name; don't rewrite them. `trader_playbooks/tests/TEST_REGISTRY.md` — known-scenario test cases; run relevant ones mentally before delivery (see SKILL_EXPANSION_FRAMEWORK.md for how all three registries evolve).
+9. `trader_playbooks/AMDM_confluence_strategy.md` — the standing strategy lens: every transcript/data point gets analyzed through AMDM (Model 1 momentum-join vs Model 2 mean-reversion) in addition to the voice layer.
+10. `trader_playbooks/` (all other files) — the knowledge/confluence layer (candlestick patterns, trader rules). STANDING RULE: this layer is applied as confluence inside every strategy built or tuned — aligned tier-A signals upgrade entries, opposing ones veto/de-risk. It is never delivered as standalone output unless asked.
 
-LEARNING CAPTURE (mandatory): every session that produces analysis, backtest results, or user trade feedback must update BELIEF_REGISTER.md / PLAYBOOK.md / MEMORY.md before ending. If it isn't captured, it wasn't learned.
+LEARNING CAPTURE (mandatory): every session that produces analysis, backtest results, or user trade feedback must update BELIEF_REGISTER.md / PLAYBOOK.md / MEMORY.md before ending. Every code bug found must be added to bugs/BUG_REGISTRY.md; every validated pattern to skills/SKILL_REGISTRY.md. If it isn't captured, it wasn't learned.
 
 Then: `git config user.email noreply@anthropic.com && git config user.name Claude`, check `git status`, and push any unpushed commits from previous sessions.
 

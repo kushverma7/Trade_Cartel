@@ -217,3 +217,34 @@ archived at `trader_playbooks/sources/amdm_synthesis/`.
    strategy in this repo. No backtest exists yet. Nothing changes about
    the PF 3.656 retraction or the "no proven/flagship language without
    a real backtest" rule.
+
+---
+
+## STANDING RULE: Code Delivery Protocol + Registries Active (2026-07-22)
+
+User uploaded and adopted two more framework docs (archived at
+`trader_playbooks/sources/amdm_synthesis/`, installed at
+`trader_playbooks/CODE_DELIVERY_PROTOCOL.md` and
+`trader_playbooks/SKILL_EXPANSION_FRAMEWORK.md`):
+
+1. **CODE_DELIVERY_PROTOCOL.md is mandatory for all Pine code.** The
+   7-phase pre-flight (spec freeze + truth table, static analysis with
+   a first-3-bars walkthrough, guarded construction, line-by-line
+   self-review, bar-by-bar desk check, output validation, and a
+   known-limitations report delivered WITH the code) runs before any
+   code reaches the user. If time pressure forces a draft, it ships
+   with an explicit DRAFT warning, never silently.
+2. **Three registries are live and load at session start:**
+   - `bugs/BUG_REGISTRY.md` — seeded with the project's 11 real
+     historical bugs (BUG-001..011) + 5 cross-cutting lessons. Every
+     new bug gets an entry; new code is checked against it.
+   - `skills/SKILL_REGISTRY.md` + `skills/*.pine` — reusable patterns
+     with HONEST validation statuses (nothing marked "validated on 3+
+     assets" until that test has actually been run).
+   - `tests/TEST_REGISTRY.md` — deliberately empty of cases until the
+     user supplies real chart scenarios; expected outputs are never
+     fabricated from imagination (would poison the suite).
+3. **Truth-table rule (from BUG-006/007):** any AND/OR condition stack
+   in signal logic gets its combinations enumerated before delivery —
+   an all-false output column or a nearly-always-true OR branch means
+   the logic is dead and must be fixed at spec level.

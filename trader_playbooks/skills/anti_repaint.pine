@@ -1,0 +1,43 @@
+// ============================================================
+// SKILL: Anti-Repaint & Signal-Hygiene Idioms
+// Extracted 2026-07-22 from patterns in live use across every
+// engine this project ships. Status: in-use, not formally
+// cross-asset validated. NOT a standalone indicator.
+// ============================================================
+
+// §1 — ta.* calls run UNCONDITIONALLY at top level (BUG-004).
+// Cross/stateful functions (ta.crossover, ta.rsi, ta.barssince...)
+// nested inside `if` blocks miss bars and corrupt their state.
+// Pattern: compute every series every bar; gate only the ACTION:
+//
+// bool crossed = ta.crossover(a, b)   // top level, every bar
+// if enabled and crossed
+//     doThing()
+
+// §2 — HTF references, non-repainting idiom used repo-wide:
+// prior-period values with lookahead_on = a FIXED, already-closed
+// value that never changes intrabar:
+//
+// prevDayHigh = request.security(syminfo.tickerid, "D", high[1],
+//      lookahead = barmerge.lookahead_on)
+//
+// (high[1] + lookahead_on = yesterday's completed high, static all
+// day. lookahead_on with a NON-offset series would be lookahead
+// bias -- the [1] is what makes this safe.)
+
+// §3 — Cooldown + price-distance re-arm state machine (BUG-006).
+// Bar-count cooldown alone lets a static level re-fire; identity-
+// change checks are trivially true. Gate on price distance ALONE:
+//
+// var int   lastSigBar   = -9999
+// var float lastSigPrice = na
+// bool cd    = bar_index - lastSigBar > cooldownBars
+// bool rearm = na(lastSigPrice) or math.abs(close - lastSigPrice) >= atr * minReArmAtr
+// if signal and cd and rearm
+//     lastSigBar := bar_index
+//     lastSigPrice := close
+
+// §4 — Hit-tracking never checks the entry bar (standard tracker):
+// if trkActive and bar_index > trkBar
+//     ... stop/target checks ...
+// (same-bar checks let the entry candle's own range fake a fill)

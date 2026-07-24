@@ -1,0 +1,37 @@
+// ============================================================
+// SKILL: Responsive Swing Detection / Real-Time BOS
+// Extracted from the AMDM round-2 fix (BUG-008), 2026-07-22.
+// Status: code-reviewed; live re-test pending. NOT a standalone
+// indicator -- copy these patterns into an engine.
+//
+// WHY THIS EXISTS: ta.pivothigh(N,N) confirms a swing level N bars
+// AFTER it forms. By then price is usually already past it, so
+// ta.crossover(close, pivotLevel) almost never fires (BUG-008).
+// The responsive form uses the prior N-bar extreme directly --
+// fires the bar the breakout closes, no confirmation lag,
+// non-repainting (the [1] offset keeps the current bar out of its
+// own reference range).
+// ============================================================
+
+// §1 — Real-time range breakout (BOS)
+// float rangeHi = ta.highest(high, len)[1]
+// float rangeLo = ta.lowest(low, len)[1]
+// bool bosUp    = close > rangeHi and close[1] <= rangeHi
+// bool bosDown  = close < rangeLo and close[1] >= rangeLo
+//
+// The close[1] term makes it fire ONCE per breakout (first closing
+// cross), not every bar price stays beyond the range.
+
+// §2 — Sweep-stop placement (companion pattern, from BUG-005)
+// The stop for a sweep/reversal signal references the sweep bar's
+// ACTUAL wick extreme, never the level that was swept (that level is
+// already pierced by definition -- a stop there sits inside the
+// sweep zone and dies on the retest):
+//   one-bar sweep signal:  stop beyond low / high  (+ ATR buffer)
+//   two-bar sweep+reclaim: stop beyond low[1] / high[1] (+ buffer)
+
+// §3 — When you DO want confirmed pivots (structure mapping, not
+// entries): ta.pivothigh/pivotlow are fine for drawing frozen
+// structural levels the trade will REFERENCE later -- the lag is
+// acceptable there because nothing is being triggered by the cross.
+// Rule of thumb: pivots for LEVELS, rolling extremes for TRIGGERS.
