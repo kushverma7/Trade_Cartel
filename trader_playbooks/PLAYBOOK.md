@@ -651,14 +651,38 @@ stop-and-reversed every flip: half of all trades were counter-trend
 by construction.
 
 ITERATION 2 (one logic change + display fix): added HTF trend bias
-gate (longs only above / shorts only below the 1H EMA-89, prior-bar
-non-repainting; TF and length are inputs) to
-trendline_key_level_strategy.pine. Expected: trade count roughly
-halves, counter-trend bleed removed. Display: added Spaceman-style
-right-edge level labels (PDH/PDL/DO/WO/PWH/PWL/Monday/4H/Asia) so the
-key levels render like the real SpacemanBTC indicator, per user
-request. Next levers if still <1.0: session filter (all-hours ->
-London+NY), cooldown up, minRR1 up. Re-test pending.
+gate (longs only above / shorts only below the 1H EMA-89) to
+trendline_key_level_strategy.pine. Expected: counter-trend bleed
+removed, PF up.
+
+ITERATION 2 RESULT — FAILED, REVERTED: 301 trades, WR 39.2%,
+PF 0.819 (worse than v1's 0.882), -13.34%, DD 15.69%. Per the OMNIBUS
+verify rule (metrics worsened -> revert), useTrendBias default is
+back to OFF, kept as an A/B toggle labeled with the result. Register
+note: the Hougaard-89/momentum-join bias thesis did NOT transfer to
+this 5m trendline-flip engine on this window -- second time a
+"logical" trend filter failed empirically here (ADX veto on the
+topbottom engine was the first). Pattern worth a belief entry if a
+third instance appears.
+
+ITERATION 3 (display only, no logic change): the level display was
+also wrong twice -- plot() series lines instead of the SpacemanBTC
+look the user asked for. Replaced the whole level display with a
+PORT OF THE ACTUAL SPACEMAN DRAWING ENGINE: anchored line.new from
+each level's own origin time to right of the last bar, right-edge
+text labels, and the original's f_LevelMerge (same-price levels share
+one combined label, e.g. "Weekly Open / Daily Open"). All 28 tracked
+levels drawn: D/W/M opens + prev H/L/mids, Q/Y opens, Monday range,
+prev 4H, Asia/London/NY H/L/O. Re-test pending.
+
+HONEST STATUS after 4 architectures x 5 tests: every variant lands
+PF 0.82-0.89 on this same Jun-Jul window. No entry logic tried so far
+has a pre-cost edge on 5m gold stop-and-reverse signals. The next
+serious moves are structural, not parameter nudges: (a) test on 15m
+where noise/cost ratio improves, (b) cut trade count hard (session +
+cooldown + room all together), or (c) accept this signal family is
+edgeless and return to the topbottom engine lineage (the only one
+that ever crossed PF 1.0 live).
 
 === AMDM CONFLUENCE STRATEGY ADOPTED (2026-07-22) ===
 User uploaded a complete external synthesis package and adopted the

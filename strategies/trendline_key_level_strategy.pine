@@ -64,7 +64,7 @@ bool  reverseOnFlip = input.bool(true, "Stop-And-Reverse On Opposite Signal", gr
 // (382 trades, PF 0.882) stop-and-reversed every flip -- half of all
 // trades were counter-trend by construction. Longs only above the
 // HTF MA, shorts only below.
-bool useTrendBias = input.bool(true, "HTF Trend Bias (longs above / shorts below the HTF MA)", group="②b Edge Filter")
+bool useTrendBias = input.bool(false, "HTF Trend Bias -- REVERTED to off: made PF worse (0.882 -> 0.819) on live test; A/B toggle only", group="②b Edge Filter")
 string biasTf     = input.string("60", "Bias Timeframe", options=["15", "30", "60", "240"], group="②b Edge Filter")
 int    biasLen    = input.int(89, "Bias MA Length (89 = Hougaard #15)", minval=10, group="②b Edge Filter")
 
@@ -235,56 +235,68 @@ bool buySignal  = sig ==  1 and sig[1] != 1
 bool sellSignal = sig == -1 and sig[1] != -1
 
 // ═════════════════════════════════════════════════════════════
-// SPACEMAN KEY LEVELS (computation layer, prior-period idiom)
+// SPACEMAN KEY LEVELS — values AND origin times, exactly like the
+// original indicator (tuple security calls, prior-period idiom)
 // ═════════════════════════════════════════════════════════════
-float dOpen = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
-float pdh   = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
-float pdl   = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+[dTime, dOpen]   = request.security(syminfo.tickerid, "D", [time, open], lookahead=barmerge.lookahead_on)
+[pdhT, pdh]      = request.security(syminfo.tickerid, "D", [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[pdlT, pdl]      = request.security(syminfo.tickerid, "D", [time[1], low[1]],  lookahead=barmerge.lookahead_on)
 float pdm   = (pdh + pdl) / 2
-float wOpen = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
-float pwh   = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
-float pwl   = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+[wTime, wOpen]   = request.security(syminfo.tickerid, "W", [time, open], lookahead=barmerge.lookahead_on)
+[pwhT, pwh]      = request.security(syminfo.tickerid, "W", [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[pwlT, pwl]      = request.security(syminfo.tickerid, "W", [time[1], low[1]],  lookahead=barmerge.lookahead_on)
 float pwm   = (pwh + pwl) / 2
-float mOpen = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
-float pmh   = request.security(syminfo.tickerid, "M", high[1], lookahead=barmerge.lookahead_on)
-float pml   = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lookahead_on)
+[mTime, mOpen]   = request.security(syminfo.tickerid, "M", [time, open], lookahead=barmerge.lookahead_on)
+[pmhT, pmh]      = request.security(syminfo.tickerid, "M", [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[pmlT, pml]      = request.security(syminfo.tickerid, "M", [time[1], low[1]],  lookahead=barmerge.lookahead_on)
 float pmm   = (pmh + pml) / 2
-float qOpen = request.security(syminfo.tickerid, "3M", open, lookahead=barmerge.lookahead_on)
-float yOpen = request.security(syminfo.tickerid, "12M", open, lookahead=barmerge.lookahead_on)
-float p4h = request.security(syminfo.tickerid, "240", high[1], lookahead=barmerge.lookahead_on)
-float p4l = request.security(syminfo.tickerid, "240", low[1],  lookahead=barmerge.lookahead_on)
+[qTime, qOpen]   = request.security(syminfo.tickerid, "3M", [time, open], lookahead=barmerge.lookahead_on)
+[yTime, yOpen]   = request.security(syminfo.tickerid, "12M", [time, open], lookahead=barmerge.lookahead_on)
+[p4hT, p4h]      = request.security(syminfo.tickerid, "240", [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[p4lT, p4l]      = request.security(syminfo.tickerid, "240", [time[1], low[1]],  lookahead=barmerge.lookahead_on)
 
 var float monHi = na
 var float monLo = na
+var int   monT  = na
 bool isMonday = dayofweek(time, sessTz) == dayofweek.monday
 if isMonday and not isMonday[1]
     monHi := high
     monLo := low
+    monT  := time
 else if isMonday
     monHi := math.max(monHi, high)
     monLo := math.min(monLo, low)
 bool monReady = useMonday and not isMonday and not na(monHi)
 float monMid = monReady ? (monHi + monLo) / 2 : na
 
-f_sessTrack(bool active, float hi0, float lo0) =>
+// session tracker: completed range + open + origin time (Spaceman)
+f_sessTrack(bool active, float hi0, float lo0, float op0) =>
     var float curHi = na
     var float curLo = na
+    var float curOp = na
+    var int   curT  = na
     var float finHi = na
     var float finLo = na
+    var float finOp = na
+    var int   finT  = na
     if active and not active[1]
         curHi := hi0
         curLo := lo0
+        curOp := op0
+        curT  := time
     else if active
         curHi := math.max(curHi, hi0)
         curLo := math.min(curLo, lo0)
     if not active and active[1]
         finHi := curHi
         finLo := curLo
-    [finHi, finLo]
+        finOp := curOp
+        finT  := curT
+    [finHi, finLo, finOp, finT]
 
-[asiaH, asiaL] = f_sessTrack(inAsia, high, low)
-[lonH, lonL]   = f_sessTrack(inLondon, high, low)
-[nyH, nyL]     = f_sessTrack(inNY, high, low)
+[asiaH, asiaL, asiaO, asiaT] = f_sessTrack(inAsia, high, low, open)
+[lonH, lonL, lonO, lonT]     = f_sessTrack(inLondon, high, low, open)
+[nyH, nyL, nyO, nyT]         = f_sessTrack(inNY, high, low, open)
 
 var float[] lvls = array.new_float()
 array.clear(lvls)
@@ -319,10 +331,13 @@ f_push(use4H, p4h)
 f_push(use4H, p4l)
 f_push(useSessions, asiaH)
 f_push(useSessions, asiaL)
+f_push(useSessions, asiaO)
 f_push(useSessions, lonH)
 f_push(useSessions, lonL)
+f_push(useSessions, lonO)
 f_push(useSessions, nyH)
 f_push(useSessions, nyL)
+f_push(useSessions, nyO)
 
 f_nextAbove(float px) =>
     float best = na
@@ -401,45 +416,94 @@ bgcolor(showBg and sig == -1 ? COL_SHORT_BG : na, title="Short Zone")
 plotshape(buySignal,  title="BUY",  style=shape.triangleup,   location=location.belowbar, color=COL_BUY,  size=size.small, text="BUY")
 plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.abovebar, color=COL_SELL, size=size.small, text="SELL")
 
-plot(showLevels and useDaily ? pdh : na, "PDH", color.new(color.red, 55), 1, plot.style_linebr)
-plot(showLevels and useDaily ? pdl : na, "PDL", color.new(color.lime, 55), 1, plot.style_linebr)
-plot(showLevels and useDaily ? dOpen : na, "DO", color.new(#08bcd4, 45), 1, plot.style_linebr)
-plot(showLevels and useWeekly ? wOpen : na, "WO", color.new(#fffcbc, 45), 1, plot.style_linebr)
-plot(showLevels and useWeekly ? pwh : na, "PWH", color.new(color.maroon, 60), 1, plot.style_linebr)
-plot(showLevels and useWeekly ? pwl : na, "PWL", color.new(color.teal, 60), 1, plot.style_linebr)
-plot(showLevels and monReady ? monHi : na, "Monday High", color.new(color.white, 60), 1, plot.style_linebr)
-plot(showLevels and monReady ? monLo : na, "Monday Low", color.new(color.white, 60), 1, plot.style_linebr)
-plot(showLevels and use4H ? p4h : na, "Prev 4H High", color.new(color.orange, 55), 1, plot.style_linebr)
-plot(showLevels and use4H ? p4l : na, "Prev 4H Low", color.new(color.orange, 55), 1, plot.style_linebr)
-plot(showLevels and useSessions ? asiaH : na, "AS-H", color.new(#4a72ff, 55), 1, plot.style_linebr)
-plot(showLevels and useSessions ? asiaL : na, "AS-L", color.new(#4a72ff, 55), 1, plot.style_linebr)
 plot(useTrendBias ? htfMa : na, "HTF Bias MA", color.new(color.fuchsia, 35), 2)
 
-// ── Spaceman-style right-edge level labels ───────────────────
-f_lvlLabel(bool en, float y, string txt, color c) =>
+// ═════════════════════════════════════════════════════════════
+// SPACEMAN DRAWING ENGINE — ported from the user's V13.1 source:
+// one anchored horizontal line per level (x1 = the level's own
+// origin time, x2 = projected right of the last bar) + a text label
+// at the right edge, with the original's label-merge behavior
+// (levels at the same price share one combined label, e.g.
+// "Weekly Open / Daily Open"). All drawn on the last bar only.
+// ═════════════════════════════════════════════════════════════
+var pricearray = array.new_float(0)
+var labelarray = array.new_label(0)
+f_LevelMerge(float currentprice, label currentlabel, color currentcolor) =>
+    if array.includes(pricearray, currentprice)
+        int whichindex = array.indexof(pricearray, currentprice)
+        label labelhold = array.get(labelarray, whichindex)
+        string whichtext = label.get_text(labelhold)
+        label.set_text(labelhold, label.get_text(currentlabel) + " / " + whichtext)
+        label.set_text(currentlabel, "")
+        label.set_textcolor(labelhold, currentcolor)
+    else
+        array.push(pricearray, currentprice)
+        array.push(labelarray, currentlabel)
+
+get_limit_right() =>
+    timenow + (time - time[1]) * 30
+
+f_klvl(bool en, int t, float y, string txt, color c) =>
+    var line  ln = na
     var label lb = na
-    if na(lb)
-        lb := label.new(bar_index, close, "", style=label.style_none, textcolor=c, size=size.small)
+    if na(ln)
+        ln := line.new(x1=time, y1=close, x2=time, y2=close, xloc=xloc.bar_time, color=color.new(color.white, 100), width=1, style=line.style_solid)
+        lb := label.new(x=time, y=close, text="", style=label.style_none, textcolor=c, size=size.small, xloc=xloc.bar_time)
     if barstate.islast
-        if en and not na(y)
-            label.set_xy(lb, bar_index + 8, y)
+        int lim = get_limit_right()
+        if en and not na(y) and not na(t)
+            line.set_xy1(ln, t, y)
+            line.set_xy2(ln, lim, y)
+            line.set_color(ln, c)
+            label.set_xy(lb, lim, y)
             label.set_text(lb, txt)
             label.set_textcolor(lb, c)
+            f_LevelMerge(y, lb, c)
         else
+            line.set_color(ln, color.new(color.white, 100))
             label.set_text(lb, "")
-f_lvlLabel(showLevels and useDaily, pdh, "PDH", color.new(color.red, 20))
-f_lvlLabel(showLevels and useDaily, pdl, "PDL", color.new(color.lime, 20))
-f_lvlLabel(showLevels and useDaily, dOpen, "Daily Open", #08bcd4)
-f_lvlLabel(showLevels and useWeekly, wOpen, "Weekly Open", #fffcbc)
-f_lvlLabel(showLevels and useWeekly, pwh, "PWH", color.new(color.maroon, 10))
-f_lvlLabel(showLevels and useWeekly, pwl, "PWL", color.new(color.teal, 10))
-f_lvlLabel(showLevels and monReady, monHi, "Monday High", color.white)
-f_lvlLabel(showLevels and monReady, monLo, "Monday Low", color.white)
-f_lvlLabel(showLevels and monReady, monMid, "Monday Mid", color.new(color.white, 30))
-f_lvlLabel(showLevels and use4H, p4h, "Prev 4H High", color.orange)
-f_lvlLabel(showLevels and use4H, p4l, "Prev 4H Low", color.orange)
-f_lvlLabel(showLevels and useSessions, asiaH, "AS-H", #4a72ff)
-f_lvlLabel(showLevels and useSessions, asiaL, "AS-L", #4a72ff)
+
+// colors = Spaceman defaults
+color DailyColor   = #08bcd4
+color WeeklyColor  = #fffcbc
+color MonthlyColor = #08d48c
+color MondayColor  = color.white
+color QYColor      = color.red
+color IntraColor   = color.orange
+color SessColor    = #4a72ff
+
+if barstate.islast
+    array.clear(pricearray)
+    array.clear(labelarray)
+
+f_klvl(showLevels and useDaily,   dTime, dOpen, "Daily Open", DailyColor)
+f_klvl(showLevels and useDaily,   pdhT,  pdh,   "Prev Day High", DailyColor)
+f_klvl(showLevels and useDaily,   pdlT,  pdl,   "Prev Day Low", DailyColor)
+f_klvl(showLevels and useDaily,   pdhT,  pdm,   "Prev Day Mid", DailyColor)
+f_klvl(showLevels and useWeekly,  wTime, wOpen, "Weekly Open", WeeklyColor)
+f_klvl(showLevels and useWeekly,  pwhT,  pwh,   "Prev Week High", WeeklyColor)
+f_klvl(showLevels and useWeekly,  pwlT,  pwl,   "Prev Week Low", WeeklyColor)
+f_klvl(showLevels and useWeekly,  pwhT,  pwm,   "Prev Week Mid", WeeklyColor)
+f_klvl(showLevels and useMonthly, mTime, mOpen, "Monthly Open", MonthlyColor)
+f_klvl(showLevels and useMonthly, pmhT,  pmh,   "Prev Month High", MonthlyColor)
+f_klvl(showLevels and useMonthly, pmlT,  pml,   "Prev Month Low", MonthlyColor)
+f_klvl(showLevels and useMonthly, pmhT,  pmm,   "Prev Month Mid", MonthlyColor)
+f_klvl(showLevels and useQY,      qTime, qOpen, "Quarterly Open", QYColor)
+f_klvl(showLevels and useQY,      yTime, yOpen, "Yearly Open", QYColor)
+f_klvl(showLevels and monReady,   monT,  monHi, "Monday High", MondayColor)
+f_klvl(showLevels and monReady,   monT,  monLo, "Monday Low", MondayColor)
+f_klvl(showLevels and monReady,   monT,  monMid, "Monday Mid", MondayColor)
+f_klvl(showLevels and use4H,      p4hT,  p4h,   "Prev 4H High", IntraColor)
+f_klvl(showLevels and use4H,      p4lT,  p4l,   "Prev 4H Low", IntraColor)
+f_klvl(showLevels and useSessions, asiaT, asiaH, "AS-H", SessColor)
+f_klvl(showLevels and useSessions, asiaT, asiaL, "AS-L", SessColor)
+f_klvl(showLevels and useSessions, asiaT, asiaO, "AS-O", SessColor)
+f_klvl(showLevels and useSessions, lonT,  lonH,  "Lon-H", SessColor)
+f_klvl(showLevels and useSessions, lonT,  lonL,  "Lon-L", SessColor)
+f_klvl(showLevels and useSessions, lonT,  lonO,  "Lon-O", SessColor)
+f_klvl(showLevels and useSessions, nyT,   nyH,   "NY-H", SessColor)
+f_klvl(showLevels and useSessions, nyT,   nyL,   "NY-L", SessColor)
+f_klvl(showLevels and useSessions, nyT,   nyO,   "NY-O", SessColor)
 
 // ═════════════════════════════════════════════════════════════
 // DASHBOARD
