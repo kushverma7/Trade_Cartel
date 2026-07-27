@@ -248,3 +248,33 @@ User uploaded and adopted two more framework docs (archived at
    in signal logic gets its combinations enumerated before delivery —
    an all-false output column or a nearly-always-true OR branch means
    the logic is dead and must be fixed at spec level.
+
+---
+
+## STANDING RULE: OMNIBUS Iteration Loop Active (2026-07-22)
+
+User adopted OMNIBUS_PROTOCOL.md (installed at
+`trader_playbooks/OMNIBUS_PROTOCOL.md` with a corrections preamble;
+original archived in sources/amdm_synthesis/). Operating consequences:
+
+1. **The iteration loop is the default work mode** for strategy/engine
+   work: build -> static-validate -> deliver -> user tests on chart ->
+   3-mind diagnosis of results -> ONE change per iteration -> verify
+   against before/after metrics -> document -> repeat. Never declare
+   "good enough"; iterate until the user says stop.
+2. **One change per iteration, always** — if metrics worsen, revert
+   rather than stack a second guess on top (this codifies what the
+   topbottom engine's ADX-veto episode already taught).
+3. **Profit Engine veto:** any proposed filter/complexity must state
+   its expected metric impact; if a change cuts trade frequency
+   drastically for marginal win-rate gain, it dies.
+4. **Metrics dashboard reporting** after every user-reported test:
+   per-model, per-session where available; negative-expectancy
+   models get fixed or killed, not tolerated.
+5. **CRITICAL CORRECTION carried in the adoption note:** the
+   protocol's voice map lists a fabricated "#19 Jared Tendler (HIGH)"
+   voice — NO Tendler material exists in this project; voice #19 is
+   Hima Reddy, and the register holds 21 voices. The audited per-voice
+   playbook headers always outrank the protocol's quick-reference map.
+   "Discarded" in that map means excluded from AMDM specifically, not
+   removed from the repo (never-discard rule unchanged).
