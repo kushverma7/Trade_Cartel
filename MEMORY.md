@@ -278,3 +278,28 @@ original archived in sources/amdm_synthesis/). Operating consequences:
    playbook headers always outrank the protocol's quick-reference map.
    "Discarded" in that map means excluded from AMDM specifically, not
    removed from the repo (never-discard rule unchanged).
+
+---
+
+## STANDING RULE: Kronos Foundation Model Adopted (2026-07-27)
+
+User directive: download github.com/shiyu-coder/Kronos and "use it always."
+Cloned to `/home/user/Kronos`; wrapper at `kronos/kronos_signal_filter.py`.
+
+1. **Kronos is consulted on every strategy/signal question from now on** —
+   `--mode validate` before any further entry-logic tuning (it answers
+   "does this timeframe have structure at all?"), `--mode filter` for
+   directional bias + a predicted high/low envelope to check TP/SL against.
+2. **Hard limitation, never paper over:** Kronos is a PyTorch transformer
+   and CANNOT run inside TradingView Pine. Kronos = research/filter layer,
+   Pine = execution layer. Never claim Kronos is "inside" a .pine file.
+3. **Environment blocker (verified 2026-07-27):** huggingface.co returns 403
+   at the container proxy, so the NeoQuasar/Kronos-* pretrained weights
+   cannot be downloaded here. torch 2.13 + deps installed, code path
+   verified, CSV loader tested. Unblock by allowing huggingface.co in the
+   environment's network policy, or supply weights via `--model-dir`.
+4. **First job for Kronos once weights land:** run `--mode validate` on the
+   same XAUUSD 5m Jun-Jul window used for the six PF 0.82-0.89 engine tests.
+   If directional accuracy is ~50%, that is the answer to why every entry
+   architecture landed at the same PF, and the decision becomes "change
+   timeframe," not "tune again."

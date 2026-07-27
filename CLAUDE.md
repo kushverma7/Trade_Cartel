@@ -24,6 +24,29 @@ This project has the following tools, MCP servers, and skills installed and acti
 - **tradingview** — TradingView MCP server at `/home/user/tradingview-mcp/src/server.js`. Use for chart data, symbol lookups, and market analysis.
 - **mcp-search** (claude-mem) — Memory/knowledge MCP at `/home/user/claude-mem`. Use `mem_search`, `timeline`, and `get_observations` tools to recall past decisions and context.
 
+## Kronos Foundation Model (STANDING TOOL — use in every session)
+
+**Kronos** (`/home/user/Kronos`, github.com/shiyu-coder/Kronos, AAAI 2026) — the first
+open-source transformer foundation model for candlesticks, trained on 45 global exchanges.
+Integration wrapper: `kronos/kronos_signal_filter.py` (in this repo).
+
+STANDING RULE: consult Kronos on every strategy/signal question. Two modes:
+- `--mode validate` — walk-forward directional-accuracy test. This is the arbiter for
+  "does this timeframe have exploitable structure at all?" Use it BEFORE another round of
+  entry-logic tuning. ~50% = no edge at that timeframe/horizon; stop tuning, change the
+  timeframe.
+- `--mode filter` — current-bar directional bias + predicted high/low envelope. Use to gate
+  Pine signal direction and to sanity-check TP/SL targets against a model-derived envelope.
+
+HARD LIMITATION (never paper over this): Kronos is PyTorch and **cannot run inside
+TradingView**. Pine has no ML inference. Kronos is the research/filter layer; Pine is the
+execution layer. Any claim that Kronos is "in" a .pine strategy is false.
+
+WEIGHTS: requires HuggingFace `NeoQuasar/Kronos-*`. huggingface.co is BLOCKED by this
+container's network policy (403 at the proxy) — verified 2026-07-27. torch 2.13 + all deps
+are installed and the code path is verified. To run: either allow huggingface.co in the
+environment's network settings, or place weights locally and pass `--model-dir`.
+
 ## Installed CLI Tools
 
 - **vibe-trading** (`vibe-trading` CLI) — Natural-language finance research and market analysis. Run as: `vibe-trading "<query>"`. Installed globally via pip. Use for market research, stock analysis, crypto data.
