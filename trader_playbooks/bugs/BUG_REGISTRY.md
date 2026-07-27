@@ -157,6 +157,30 @@ all REAL bugs that actually occurred here, not hypotheticals.
   removed from repo for unrelated scope reasons)
 - **Status:** Fixed then file removed
 
+### BUG-012: Silent order rejection — risk sizing vs. default 100% margin
+- **Date Found:** 2026-07-22 (live test: labels drew, zero trades in tester)
+- **Severity:** Critical (execution — every order skipped)
+- **Symptom:** Signal labels appear on the chart but the Strategy
+  Tester reports "This report requires trade data" — zero trades. The
+  label proving the entry code path ran is the diagnostic tell.
+- **Root Cause:** Pine v6 strategies default `margin_long`/`margin_short`
+  to 100% (no leverage). Risk-percent sizing (`equity x risk% / stop
+  distance`) on a tight gold stop demands multi-million-dollar
+  notional on a 5-figure account; TradingView SILENTLY skips any
+  order exceeding buying power — no error, no log.
+- **Fix:** Declare `margin_long=5, margin_short=5` (20:1, typical gold
+  CFD) AND hard-cap qty at `equity x maxLeverage / close` so sizing
+  can never demand more notional than the account holds.
+- **Prevention:** Phase 0 edge-case inventory gains a permanent entry:
+  "what is the LARGEST position this sizing formula can request, and
+  can the tester actually fill it?" Any strategy using qty= sizing
+  must declare margins explicitly.
+- **Which Mind Found It:** Profit Engine (label-vs-tester divergence
+  pointed at execution, not signal logic)
+- **Affected Files:** omnibus_four_model_engine.pine,
+  amdm_confluence_strategy.pine (same sizing chassis)
+- **Status:** Fixed in both
+
 ---
 
 ## Cross-cutting lessons (read these even if skimming)
@@ -170,3 +194,5 @@ all REAL bugs that actually occurred here, not hypotheticals.
 4. **Clamp, don't reject, when a distance is merely large** (BUG-009).
 5. **Rolling/recalculated references must be frozen when comparing
    across bars** (BUG-010).
+6. **"Labels but no trades" = execution rejection, not signal logic**
+   — check margin/qty first, not the entry conditions (BUG-012).

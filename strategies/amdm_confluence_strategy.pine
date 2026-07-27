@@ -54,7 +54,12 @@ strategy("AMDM — Auction-Momentum Dual Model [Strategy]",
      commission_type    = strategy.commission.cash_per_contract,
      commission_value   = 0.07,
      slippage           = 5,
-     process_orders_on_close = true)
+     process_orders_on_close = true,
+     margin_long        = 5,
+     margin_short       = 5)
+// margin 5% (20:1) -- BUG-012 fix: v6 default margin is 100%, so
+// risk-based sizing on tight gold stops exceeded buying power and the
+// tester silently skipped every order. Sizing is also leverage-capped.
 
 // ── ① Value Area / Regime ───────────────────────────────────
 int    vpLen      = input.int(288, "Value Area Window (bars, ~1 trading day on this TF)", minval=50, group="① Value Area / Regime")
@@ -336,7 +341,8 @@ if amdmLong or amdmShort
     // half-correct.
 
     float riskDollars = strategy.equity * riskPct / 100.0
-    float qty = riskDist > 0 ? riskDollars / riskDist : 0.0
+    // hard-capped at 20x equity notional (BUG-012)
+    float qty = riskDist > 0 ? math.min(riskDollars / riskDist, strategy.equity * 20 / close) : 0.0
 
     if qty > 0
         dayTradeCount += 1

@@ -64,7 +64,14 @@ strategy("OMNIBUS Four-Model Engine [Strategy]",
      commission_type    = strategy.commission.cash_per_contract,
      commission_value   = 0.07,
      slippage           = 5,
-     process_orders_on_close = true)
+     process_orders_on_close = true,
+     margin_long        = 5,
+     margin_short       = 5)
+// margin_long/short = 5 (20:1 leverage, typical gold CFD). FIX for
+// BUG-012: Pine v6 defaults margin to 100% (no leverage); risk-based
+// sizing on a tight gold stop demands multi-million-dollar notional,
+// so the tester SILENTLY skipped every order -- labels drew, zero
+// trades recorded. Sizing below is also hard-capped at this leverage.
 
 // ── ① Models on/off ──────────────────────────────────────────
 bool enA = input.bool(true, "MODEL A — Structure (Donchian BOS + volume)", group="① Models")
@@ -104,6 +111,7 @@ float dailyLossLimitPct = input.float(2.0, "Daily Loss Limit (% equity)", step=0
 int   maxTradesPerDay = input.int(5, "Max Trades Per Day", minval=1, group="⑥ Shared")
 float minStopAtr  = input.float(0.4, "Min Stop Distance (x ATR)", step=0.05, group="⑥ Shared")
 float maxStopAtr  = input.float(2.0, "Max Stop Distance (x ATR) — clamp, not reject", step=0.1, group="⑥ Shared")
+float maxLeverage = input.float(20, "Max Leverage (x equity notional cap) — match your broker", minval=1, maxval=100, group="⑥ Shared")
 
 bool showLevels = input.bool(true, "Show Levels", group="⑦ Display")
 bool showDash   = input.bool(true, "Show Per-Model Dashboard", group="⑦ Display")
@@ -278,7 +286,10 @@ float stopDistS = mShort == "A" ? aStopDistS : mShort == "B" ? bStopDistS : mSho
 // ═════════════════════════════════════════════════════════════
 var int entryBar = na
 if goLong and not na(stopDistL) and stopDistL > 0
-    float qty = strategy.equity * riskPct / 100.0 / stopDistL
+    // risk-based size, hard-capped at maxLeverage x equity notional
+    // (BUG-012: uncapped risk sizing exceeded buying power and the
+    // tester silently rejected every order)
+    float qty = math.min(strategy.equity * riskPct / 100.0 / stopDistL, strategy.equity * maxLeverage / close)
     if qty > 0
         string id = mLong + "-L"
         strategy.entry(id, strategy.long, qty=qty)
@@ -292,7 +303,7 @@ if goLong and not na(stopDistL) and stopDistL > 0
         label.new(bar_index, low, mLong + " LONG", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small)
 
 if goShort and not na(stopDistS) and stopDistS > 0
-    float qty = strategy.equity * riskPct / 100.0 / stopDistS
+    float qty = math.min(strategy.equity * riskPct / 100.0 / stopDistS, strategy.equity * maxLeverage / close)
     if qty > 0
         string id = mShort + "-S"
         strategy.entry(id, strategy.short, qty=qty)
