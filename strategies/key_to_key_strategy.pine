@@ -1,0 +1,413 @@
+// ============================================================
+// KEY-TO-KEY LEVEL STRATEGY [SpacemanBTC levels / Backtestable]
+// Built 2026-07-27 per user directive: "key level to key level
+// trading". Level COMPUTATIONS reused from the SpacemanBTC Key Level
+// V13.1 indicator already archived in this repo
+// (indicators/key_levels_spaceman.pine) -- same prior-period
+// request.security idiom, none of its drawing layer. Trigger
+// patterns reuse this repo's validated skills (sweep+reclaim,
+// responsive break) and the full BUG-001..012 registry.
+//
+// CORE CONCEPT (the whole strategy in three rules):
+//   1. Only enter AT a key level: either a sweep+reclaim REJECTION
+//      of it (reversal away from the level) or a volume BREAK
+//      through it (continuation through the level).
+//   2. TP1 = the NEXT key level in the trade direction. TP2 = the
+//      level after that (fallback: 2R if none tracked).
+//   3. If the next level is closer than minRR x risk -> NO TRADE.
+//      No room to travel = no trade. This is the chop filter: the
+//      OMNIBUS run (298 trades, PF 0.843) bled on trades taken in
+//      the dead space BETWEEN levels; this engine cannot take those
+//      by construction.
+//
+// LEVEL SET (each toggleable): Daily open + prev day H/L/mid;
+// Weekly open + prev week H/L/mid; Monthly open + prev month
+// H/L/mid; Quarterly open; Yearly open; Monday range H/L/mid;
+// prev 4H H/L; Asia / London / NY completed session H/L.
+//
+// STATUS: SYNTHESIZED / UNTESTED. Per the standing rule (PF 3.656
+// retraction), nothing here earns "proven" language until a real
+// multi-month sample says so.
+//
+// KNOWN LIMITATIONS (Phase 6):
+//   1. Needs 1-2 sessions/periods of history before levels exist --
+//      early bars are silent by design.
+//   2. Session times are UTC inputs -- match your broker.
+//   3. Same-price merged levels (e.g. WO == DO on Monday) are
+//      deduplicated within one tick.
+//   4. No breakeven-stop-move after TP1 (documented repo-wide gap).
+//   5. XAUUSD CFD volume is tick-count, not real volume (BREAK
+//      entries inherit this).
+// ============================================================
+//@version=6
+strategy("Key-to-Key Level Strategy [Spaceman]",
+     overlay            = true,
+     max_labels_count   = 200,
+     max_lines_count    = 100,
+     initial_capital    = 10000,
+     currency           = currency.USD,
+     default_qty_type   = strategy.cash,
+     default_qty_value  = 1000,
+     commission_type    = strategy.commission.cash_per_contract,
+     commission_value   = 0.07,
+     slippage           = 5,
+     process_orders_on_close = true,
+     margin_long        = 5,
+     margin_short       = 5)
+
+// ── ① Entries ────────────────────────────────────────────────
+bool useReject = input.bool(true, "REJECT: sweep + reclaim of a level (reversal)", group="① Entries")
+bool useBreak  = input.bool(true, "BREAK: volume close through a level (continuation)", group="① Entries")
+float maxPokeAtr  = input.float(1.0, "Reject: Max Sweep Depth (x ATR)", step=0.1, group="① Entries")
+float brkVolMult  = input.float(1.3, "Break: Min Volume (x 20-bar avg)", step=0.05, group="① Entries")
+float touchTolAtr = input.float(0.05, "Level Touch Tolerance (x ATR)", step=0.01, group="① Entries")
+
+// ── ② Key-to-key targets / risk ─────────────────────────────
+float minRR1     = input.float(1.0, "Min R to NEXT level (else NO TRADE -- the room filter)", step=0.1, group="② Key-to-Key")
+float tp1Pct     = input.float(50, "% Closed at TP1 (next level)", minval=10, maxval=90, group="② Key-to-Key")
+float stopBufAtr = input.float(0.3, "Stop Buffer Beyond Wick/Level (x ATR)", step=0.05, group="② Key-to-Key")
+float minStopAtr = input.float(0.4, "Min Stop (x ATR)", step=0.05, group="② Key-to-Key")
+float maxStopAtr = input.float(2.0, "Max Stop (x ATR) -- clamp, not reject", step=0.1, group="② Key-to-Key")
+float tpBufAtr   = input.float(0.1, "TP Set-Back Before Level (x ATR, front-run the level)", step=0.05, group="② Key-to-Key")
+
+// ── ③ Levels on/off ─────────────────────────────────────────
+bool useDaily   = input.bool(true, "Daily Open + Prev Day H/L/Mid", group="③ Levels")
+bool useWeekly  = input.bool(true, "Weekly Open + Prev Week H/L/Mid", group="③ Levels")
+bool useMonthly = input.bool(true, "Monthly Open + Prev Month H/L/Mid", group="③ Levels")
+bool useQY      = input.bool(true, "Quarterly + Yearly Open", group="③ Levels")
+bool useMonday  = input.bool(true, "Monday Range H/L/Mid", group="③ Levels")
+bool use4H      = input.bool(true, "Prev 4H H/L", group="③ Levels")
+bool useSessions = input.bool(true, "Asia / London / NY Session H/L", group="③ Levels")
+
+// ── ④ Filters / risk chassis ─────────────────────────────────
+string asiaSess   = input.session("0000-0900", "Asia Session", group="④ Filters")
+string londonSess = input.session("0800-1600", "London Session", group="④ Filters")
+string nySess     = input.session("1400-2100", "New York Session", group="④ Filters")
+string sessTz     = input.string("Etc/UTC", "Session Timezone", group="④ Filters")
+bool  tradeAllHours = input.bool(false, "Trade All Hours (off = London+NY only)", group="④ Filters")
+bool  avoidFriPM  = input.bool(true, "Avoid Friday After 16:00", group="④ Filters")
+bool  newsBlackout = input.bool(false, "Manual News Blackout", group="④ Filters")
+float riskPct     = input.float(1.0, "Risk Per Trade (% equity)", step=0.25, minval=0.25, maxval=2.0, group="④ Filters")
+float maxLeverage = input.float(20, "Max Leverage (notional cap)", minval=1, maxval=100, group="④ Filters")
+int   cooldown    = input.int(6, "Signal Cooldown (bars)", minval=0, group="④ Filters")
+int   timeStopBars = input.int(36, "Time Stop (bars, 36 = 3h on 5m)", minval=4, group="④ Filters")
+float dailyLossLimitPct = input.float(2.0, "Daily Loss Limit (% equity)", step=0.5, group="④ Filters")
+int   maxTradesPerDay = input.int(5, "Max Trades Per Day", minval=1, group="④ Filters")
+
+bool showDash = input.bool(true, "Show Dashboard", group="⑤ Display")
+
+// ═════════════════════════════════════════════════════════════
+// BASICS (ta.* unconditional at top level -- BUG-004)
+// ═════════════════════════════════════════════════════════════
+float atr = ta.atr(14)
+float volAvg20 = ta.sma(volume, 20)
+
+bool inAsia   = not na(time(timeframe.period, asiaSess, sessTz))
+bool inLondon = not na(time(timeframe.period, londonSess, sessTz))
+bool inNY     = not na(time(timeframe.period, nySess, sessTz))
+bool inSession = tradeAllHours or inLondon or inNY
+bool isFriPM = avoidFriPM and dayofweek(time, sessTz) == dayofweek.friday and hour(time, sessTz) >= 16
+
+var int   dayTradeCount = 0
+var float dayStartEquity = na
+var bool  dayHalted = false
+bool newDay = na(dayStartEquity) or dayofmonth(time, sessTz) != dayofmonth(time[1], sessTz)
+if newDay
+    dayTradeCount := 0
+    dayStartEquity := strategy.equity
+    dayHalted := false
+if not na(dayStartEquity) and (strategy.equity - dayStartEquity) <= -dayStartEquity * dailyLossLimitPct / 100.0
+    dayHalted := true
+bool circuitOk = not dayHalted and dayTradeCount < maxTradesPerDay
+bool hardOk = inSession and not isFriPM and not newsBlackout and circuitOk
+
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ═════════════════════════════════════════════════════════════
+// LEVEL COMPUTATION (SpacemanBTC V13.1 level set, prior-period
+// security idiom: [1]-offset + lookahead_on = completed-period
+// values, static and non-repainting intraperiod)
+// ═════════════════════════════════════════════════════════════
+float dOpen = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+float pdh   = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+float pdl   = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+float pdm   = (pdh + pdl) / 2
+
+float wOpen = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+float pwh   = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+float pwl   = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+float pwm   = (pwh + pwl) / 2
+
+float mOpen = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+float pmh   = request.security(syminfo.tickerid, "M", high[1], lookahead=barmerge.lookahead_on)
+float pml   = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lookahead_on)
+float pmm   = (pmh + pml) / 2
+
+float qOpen = request.security(syminfo.tickerid, "3M", open, lookahead=barmerge.lookahead_on)
+float yOpen = request.security(syminfo.tickerid, "12M", open, lookahead=barmerge.lookahead_on)
+
+float p4h = request.security(syminfo.tickerid, "240", high[1], lookahead=barmerge.lookahead_on)
+float p4l = request.security(syminfo.tickerid, "240", low[1],  lookahead=barmerge.lookahead_on)
+
+// Monday range (built live on Monday, USED from Tuesday on)
+var float monHi = na
+var float monLo = na
+bool isMonday = dayofweek(time, sessTz) == dayofweek.monday
+if isMonday and not isMonday[1]
+    monHi := high
+    monLo := low
+else if isMonday
+    monHi := math.max(monHi, high)
+    monLo := math.min(monLo, low)
+bool monReady = useMonday and not isMonday and not na(monHi)
+float monMid = monReady ? (monHi + monLo) / 2 : na
+
+// completed session ranges (Spaceman session-tracker logic, compact)
+f_sessTrack(bool active, float hi0, float lo0) =>
+    var float curHi = na
+    var float curLo = na
+    var float finHi = na
+    var float finLo = na
+    if active and not active[1]
+        curHi := hi0
+        curLo := lo0
+    else if active
+        curHi := math.max(curHi, hi0)
+        curLo := math.min(curLo, lo0)
+    if not active and active[1]
+        finHi := curHi
+        finLo := curLo
+    [finHi, finLo]
+
+[asiaH, asiaL] = f_sessTrack(inAsia, high, low)
+[lonH, lonL]   = f_sessTrack(inLondon, high, low)
+[nyH, nyL]     = f_sessTrack(inNY, high, low)
+
+// ── build the level array fresh each bar (guarded per BUG-001) ──
+var float[] lvls = array.new_float()
+array.clear(lvls)
+f_push(bool en, float v) =>
+    // dedupe within one tick (Spaceman's merge concept, price-only)
+    if en and not na(v)
+        bool dupe = false
+        int sz = array.size(lvls)
+        if sz > 0
+            for i = 0 to sz - 1
+                if math.abs(array.get(lvls, i) - v) <= syminfo.mintick
+                    dupe := true
+        if not dupe
+            array.push(lvls, v)
+f_push(useDaily, dOpen)
+f_push(useDaily, pdh)
+f_push(useDaily, pdl)
+f_push(useDaily, pdm)
+f_push(useWeekly, wOpen)
+f_push(useWeekly, pwh)
+f_push(useWeekly, pwl)
+f_push(useWeekly, pwm)
+f_push(useMonthly, mOpen)
+f_push(useMonthly, pmh)
+f_push(useMonthly, pml)
+f_push(useMonthly, pmm)
+f_push(useQY, qOpen)
+f_push(useQY, yOpen)
+f_push(monReady, monHi)
+f_push(monReady, monLo)
+f_push(monReady, monMid)
+f_push(use4H, p4h)
+f_push(use4H, p4l)
+f_push(useSessions, asiaH)
+f_push(useSessions, asiaL)
+f_push(useSessions, lonH)
+f_push(useSessions, lonL)
+f_push(useSessions, nyH)
+f_push(useSessions, nyL)
+
+// nearest level above/below a price, with an exclusion band so the
+// entry level itself is never returned as its own target
+f_nextAbove(float px, float excl) =>
+    float best = na
+    int sz = array.size(lvls)
+    if sz > 0
+        for i = 0 to sz - 1
+            float v = array.get(lvls, i)
+            if v > px + excl and (na(best) or v < best)
+                best := v
+    best
+f_nextBelow(float px, float excl) =>
+    float best = na
+    int sz = array.size(lvls)
+    if sz > 0
+        for i = 0 to sz - 1
+            float v = array.get(lvls, i)
+            if v < px - excl and (na(best) or v > best)
+                best := v
+    best
+
+// ═════════════════════════════════════════════════════════════
+// TRIGGERS AT A LEVEL
+// REJECT = validated sweep+reclaim (wick pierces level <= maxPoke
+// ATR deep, body closes back on the reclaim side). BREAK = close
+// crosses the level with volume (responsive, [1]-offset).
+// Loops find the triggering level; guarded (BUG-001).
+// ═════════════════════════════════════════════════════════════
+float rejLevelUp = na    // level swept BELOW us -> long away from it
+float rejLevelDn = na    // level swept ABOVE us -> short away from it
+float brkLevelUp = na    // level broken upward -> long through it
+float brkLevelDn = na    // level broken downward -> short through it
+int szL = array.size(lvls)
+if szL > 0
+    for i = 0 to szL - 1
+        float v = array.get(lvls, i)
+        // sweep below + reclaim (long)
+        if useReject and low < v and close > v + atr * touchTolAtr and close > open and (v - low) <= atr * maxPokeAtr
+            if na(rejLevelUp) or v > rejLevelUp
+                rejLevelUp := v
+        // sweep above + reclaim (short)
+        if useReject and high > v and close < v - atr * touchTolAtr and close < open and (high - v) <= atr * maxPokeAtr
+            if na(rejLevelDn) or v < rejLevelDn
+                rejLevelDn := v
+        // break up through level (long)
+        if useBreak and close > v and close[1] <= v and volume > volAvg20 * brkVolMult
+            if na(brkLevelUp) or v > brkLevelUp
+                brkLevelUp := v
+        // break down through level (short)
+        if useBreak and close < v and close[1] >= v and volume > volAvg20 * brkVolMult
+            if na(brkLevelDn) or v < brkLevelDn
+                brkLevelDn := v
+
+// priority: REJECT beats BREAK (reversal at a level is this repo's
+// most-tested signal); long+short same bar = conflict = no trade
+bool rawLong  = not na(rejLevelUp) or not na(brkLevelUp)
+bool rawShort = not na(rejLevelDn) or not na(brkLevelDn)
+bool conflict = rawLong and rawShort
+string longKind  = not na(rejLevelUp) ? "REJ" : "BRK"
+string shortKind = not na(rejLevelDn) ? "REJ" : "BRK"
+
+// ═════════════════════════════════════════════════════════════
+// KEY-TO-KEY ROOM CHECK + EXECUTION
+// stop: beyond the sweep wick (REJECT, BUG-005) or beyond the
+// broken level (BREAK), buffered + clamped (BUG-009). TP1 = next
+// level (front-run by tpBufAtr); NO TRADE if TP1 < minRR1 x risk.
+// TP2 = level after TP1 (fallback 2R). Sizing leverage-capped
+// (BUG-012).
+// ═════════════════════════════════════════════════════════════
+bool canEnter = cd and hardOk and not conflict and strategy.position_size == 0
+var int entryBar = na
+
+if canEnter and rawLong
+    float lvl = longKind == "REJ" ? rejLevelUp : brkLevelUp
+    float rawStop = longKind == "REJ" ? low - atr * stopBufAtr : lvl - atr * stopBufAtr
+    float riskDist = math.min(math.max(close - rawStop, atr * minStopAtr), atr * maxStopAtr)
+    float stopPx = close - riskDist
+    float nxt1 = f_nextAbove(close, atr * touchTolAtr)
+    float nxt2 = na(nxt1) ? na : f_nextAbove(nxt1, syminfo.mintick)
+    float tp1 = na(nxt1) ? na : nxt1 - atr * tpBufAtr
+    // TP2 fallback: if no second level exists (or it sits inside TP1),
+    // extend one extra R beyond TP1 rather than killing the trade
+    float tp2 = na(nxt2) or (not na(tp1) and nxt2 - atr * tpBufAtr <= tp1) ? tp1 + riskDist : nxt2 - atr * tpBufAtr
+    // THE room filter: next level must be worth the risk
+    if not na(tp1) and (tp1 - close) >= riskDist * minRR1
+        float qty = math.min(strategy.equity * riskPct / 100.0 / riskDist, strategy.equity * maxLeverage / close)
+        if qty > 0
+            string id = longKind + "-L"
+            strategy.entry(id, strategy.long, qty=qty)
+            strategy.exit(id + "-TP1", id, stop=stopPx, limit=tp1, qty_percent=tp1Pct)
+            strategy.exit(id + "-TP2", id, stop=stopPx, limit=tp2)
+            lastSig := bar_index
+            entryBar := bar_index
+            dayTradeCount += 1
+            label.new(bar_index, low, longKind + " LONG", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small,
+                 tooltip="Level " + str.tostring(lvl, format.mintick) + " -> TP1 " + str.tostring(tp1, format.mintick))
+
+if canEnter and rawShort
+    float lvl = shortKind == "REJ" ? rejLevelDn : brkLevelDn
+    float rawStop = shortKind == "REJ" ? high + atr * stopBufAtr : lvl + atr * stopBufAtr
+    float riskDist = math.min(math.max(rawStop - close, atr * minStopAtr), atr * maxStopAtr)
+    float stopPx = close + riskDist
+    float nxt1 = f_nextBelow(close, atr * touchTolAtr)
+    float nxt2 = na(nxt1) ? na : f_nextBelow(nxt1, syminfo.mintick)
+    float tp1 = na(nxt1) ? na : nxt1 + atr * tpBufAtr
+    float tp2 = na(nxt2) or (not na(tp1) and nxt2 + atr * tpBufAtr >= tp1) ? tp1 - riskDist : nxt2 + atr * tpBufAtr
+    if not na(tp1) and (close - tp1) >= riskDist * minRR1
+        float qty = math.min(strategy.equity * riskPct / 100.0 / riskDist, strategy.equity * maxLeverage / close)
+        if qty > 0
+            string id = shortKind + "-S"
+            strategy.entry(id, strategy.short, qty=qty)
+            strategy.exit(id + "-TP1", id, stop=stopPx, limit=tp1, qty_percent=tp1Pct)
+            strategy.exit(id + "-TP2", id, stop=stopPx, limit=tp2)
+            lastSig := bar_index
+            entryBar := bar_index
+            dayTradeCount += 1
+            label.new(bar_index, high, shortKind + " SHORT", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small,
+                 tooltip="Level " + str.tostring(lvl, format.mintick) + " -> TP1 " + str.tostring(tp1, format.mintick))
+
+if strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= timeStopBars
+    strategy.close_all(comment="Time stop")
+
+// ═════════════════════════════════════════════════════════════
+// LEVEL PLOTS (core set only -- run the full SpacemanBTC indicator
+// alongside for the complete labeled display)
+// ═════════════════════════════════════════════════════════════
+plot(useDaily ? pdh : na, "PDH", color.new(color.red, 55), 1, plot.style_linebr)
+plot(useDaily ? pdl : na, "PDL", color.new(color.lime, 55), 1, plot.style_linebr)
+plot(useDaily ? dOpen : na, "DO", color.new(#08bcd4, 45), 1, plot.style_linebr)
+plot(useWeekly ? wOpen : na, "WO", color.new(#fffcbc, 45), 1, plot.style_linebr)
+plot(useWeekly ? pwh : na, "PWH", color.new(color.maroon, 60), 1, plot.style_linebr)
+plot(useWeekly ? pwl : na, "PWL", color.new(color.teal, 60), 1, plot.style_linebr)
+plot(monReady ? monHi : na, "Monday High", color.new(color.white, 60), 1, plot.style_linebr)
+plot(monReady ? monLo : na, "Monday Low", color.new(color.white, 60), 1, plot.style_linebr)
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD -- REJ vs BRK split from the tester's own trades
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 5, 4, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+
+f_row(int r, string nm, int n, int w, float gw, float gl) =>
+    float wr = n > 0 ? w / n * 100.0 : na
+    float pf = gl > 0 ? gw / gl : na
+    table.cell(dash, 0, r, nm, text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, r, str.tostring(n), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 2, r, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 3, r, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 4, r, str.tostring(gw - gl, "#.#"), text_color=gw - gl >= 0 ? color.lime : color.red, text_size=size.tiny)
+
+if showDash and barstate.islast
+    int nR = 0
+    int nK = 0
+    int wR = 0
+    int wK = 0
+    float gwR = 0.0
+    float gwK = 0.0
+    float glR = 0.0
+    float glK = 0.0
+    int nTr = strategy.closedtrades
+    if nTr > 0
+        for i = 0 to nTr - 1
+            string eid = strategy.closedtrades.entry_id(i)
+            float p = strategy.closedtrades.profit(i)
+            if str.startswith(eid, "REJ")
+                nR += 1
+                wR += p > 0 ? 1 : 0
+                gwR += p > 0 ? p : 0.0
+                glR += p < 0 ? -p : 0.0
+            else
+                nK += 1
+                wK += p > 0 ? 1 : 0
+                gwK += p > 0 ? p : 0.0
+                glK += p < 0 ? -p : 0.0
+    table.cell(dash, 0, 0, "KEY-TO-KEY", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "Trades", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 2, 0, "Win%", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 3, 0, "PF", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 4, 0, "Net $", text_color=color.silver, text_size=size.tiny)
+    f_row(1, "REJECT", nR, wR, gwR, glR)
+    f_row(2, "BREAK", nK, wK, gwK, glK)
+    f_row(3, "TOTAL", nR + nK, wR + wK, gwR + gwK, glR + glK)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(canEnter and rawLong,  "Key-to-Key Long",  "K2K LONG ({{ticker}} {{interval}})")
+alertcondition(canEnter and rawShort, "Key-to-Key Short", "K2K SHORT ({{ticker}} {{interval}})")
