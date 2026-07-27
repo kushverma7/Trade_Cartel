@@ -604,6 +604,31 @@ Zero fabricated NEW facts found in any of the 11 (same result as wave
 from before this audit, not something this pass introduced. Nothing
 ported to engines yet.
 
+=== OMNIBUS FOUR-MODEL ENGINE — ITERATION LOG (2026-07-22) ===
+strategies/omnibus_four_model_engine.pine. Built to the OMNIBUS
+protocol's A/B/C/D architecture with per-model tester-derived metrics.
+
+**Iteration 1 (zero trades):** signal labels drew but the tester
+recorded nothing -> BUG-012: Pine v6 defaults strategy margin to 100%;
+risk-percent sizing on tight gold stops requested multi-million-dollar
+notional and every order was silently skipped. Fixed with margin 5%
+(20:1) + leverage-capped qty in BOTH this engine and the AMDM
+strategy (shared sizing chassis). Lesson registered: "labels but no
+trades = execution rejection, not signal logic."
+
+**Iteration 2 (first real dataset, Jun 1 - Jul 27 2026, XAUUSD 5m
+OANDA, 100K):** 298 trades (~150/month), WR 40.6%, PF 0.843, -13.01%,
+max DD 16.01%. Profit Engine: breakeven WR for the 1R/2R split exit is
+exactly 40% -- system is a pre-cost coin flip being ground down by
+~300 trades of commission/slippage (pre-mortem scenario 3). Visible
+tape: Model C (FVG) is the churn driver (dense C-L/C-S clusters,
+largest visible losses all C), consistent with its 0.2xATR min gap
+being spread-sized on 5m gold (~$0.30-0.50). ONE change: C min gap
+0.2 -> 0.5 ATR (input-only, user can flip on-chart). Expected: trade
+count down materially, C quality up, cost drag down. Per-model
+dashboard numbers requested from the user to drive iteration 3
+kill/fix decisions with real per-model splits instead of tape reads.
+
 === AMDM CONFLUENCE STRATEGY ADOPTED (2026-07-22) ===
 User uploaded a complete external synthesis package and adopted the
 **Auction-Momentum Dual Model (AMDM)** as the project's standing

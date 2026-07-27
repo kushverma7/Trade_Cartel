@@ -90,7 +90,7 @@ float bStopBufAtr = input.float(0.3, "B: Stop Buffer Beyond Sweep Wick (x ATR)",
 
 // ── ④ Model C ────────────────────────────────────────────────
 int   cEmaLen  = input.int(50, "C: Trend Filter EMA Length", minval=10, group="④ Model C — FVG")
-float cMinGapAtr = input.float(0.2, "C: Min Gap Height (x ATR)", step=0.05, group="④ Model C — FVG")
+float cMinGapAtr = input.float(0.5, "C: Min Gap Height (x ATR) -- raised 0.2->0.5 in iteration 2: 0.2xATR on 5m gold is spread-sized noise; C was the churn driver (PF 0.843 run)", step=0.05, group="④ Model C — FVG")
 float cStopBufAtr = input.float(0.2, "C: Stop Buffer Beyond Gap (x ATR)", step=0.05, group="④ Model C — FVG")
 
 // ── ⑤ Model D ────────────────────────────────────────────────
