@@ -1,0 +1,451 @@
+// ============================================================
+// CONFLUENCE SNIPER — Spaceman Key Levels + Sweep Reversal
+// Built 2026-07-27. This is the register-driven answer to "find the
+// best, most accurate signal", replacing the high-frequency engines
+// (OMNIBUS PF 0.843 / K2K 0.886 / TLxKL 0.882 / TLxKL+bias 0.819).
+//
+// WHY THIS DESIGN (voice register, not guesswork):
+//   * SWEEP+RECLAIM AT A REAL LEVEL -- the single most corroborated
+//     concept in the register: 8+ independent sources (PBD #1, Daye
+//     JUDAS #4, Wendell #10, Alchemist #12, Steve 3-tap #8, Hima
+//     test-failure #19, Dave #7, Pure PA liquidity-grab #13).
+//   * CONFIRMATION AFTER THE SWEEP, never on the touch -- 6+ sources.
+//   * FRESHNESS / FIRST TEST ONLY -- Wendell #10 (HIGH), Trader Dale
+//     #14, PBD #1. Absent from every engine since the topbottom one.
+//   * RSI EXHAUSTION + REJECTION CANDLE -- the exact components, and
+//     the exact thresholds (72 / 31 / close-in-far-20%), that gave
+//     trade_cartel_topbottom_engine.pine this repo's ONLY live PF>1
+//     result (1.11, WR 35.7%, 40 trades).
+//   * LONDON/NY ONLY -- Valentini #2 (HIGH), Steve #8, Daye #4.
+//   * TRADE RARELY -- Hougaard #15 (HIGH), Valentini #2 (HIGH),
+//     Roppel #5. The four failed engines all took 250-400 trades in
+//     2 months. This one is built to take ~30-60 and skip the rest.
+//   * WALLS ARE SPACEMAN KEY LEVELS ONLY (never auto-generated
+//     pivot zones -- those caused this repo's PF 0.731 failure).
+//
+// STATUS: SYNTHESIZED / UNTESTED. No "proven" language until a real
+// multi-month sample says so (PF 3.656 retraction rule).
+//
+// KNOWN LIMITATIONS:
+//   1. Deliberately low trade count. If it takes <15 trades in 2
+//      months, loosen ONE gate at a time (RSI window first).
+//   2. Needs 1-2 sessions of history before levels exist.
+//   3. Session times are UTC inputs -- match your broker.
+//   4. XAUUSD CFD volume is tick-count, not real volume.
+// ============================================================
+//@version=6
+strategy("Confluence Sniper [Key Levels + Sweep]",
+     overlay            = true,
+     max_lines_count    = 500,
+     max_labels_count   = 500,
+     initial_capital    = 10000,
+     currency           = currency.USD,
+     default_qty_type   = strategy.cash,
+     default_qty_value  = 1000,
+     commission_type    = strategy.commission.cash_per_contract,
+     commission_value   = 0.07,
+     slippage           = 5,
+     process_orders_on_close = true,
+     margin_long        = 5,
+     margin_short       = 5)
+
+// ── ① Signal core (topbottom-engine thresholds that made PF 1.11) ──
+float maxPokeAtr  = input.float(1.0, "Max Sweep Depth Beyond Level (x ATR)", step=0.1, group="① Signal")
+float minPokeAtr  = input.float(0.05, "Min Sweep Depth (x ATR) -- must actually pierce", step=0.01, group="① Signal")
+int   rsiLen      = input.int(14, "RSI Length", group="① Signal")
+int   rsiOb       = input.int(72, "RSI Overbought (72 = the PF 1.11 setting)", minval=55, maxval=90, group="① Signal")
+int   rsiOs       = input.int(31, "RSI Oversold (31 = the PF 1.11 setting)", minval=10, maxval=45, group="① Signal")
+int   rsiWin      = input.int(5, "RSI Extreme Within (bars)", minval=1, maxval=20, group="① Signal")
+float minRangeAtr = input.float(0.6, "Min Candle Range (x ATR)", step=0.1, group="① Signal")
+float closePosPct = input.float(0.2, "Close In Far % Of Range (0.2 = the PF 1.11 setting)", step=0.05, group="① Signal")
+bool  useTierA    = input.bool(true, "Veto On Opposing Tier-A Candle [Nison]", group="① Signal")
+
+// ── ② Selectivity (the 'trade rarely' mandate) ──────────────
+float minReArmAtr = input.float(2.0, "Min Move From Last Signal Before Re-Arm (x ATR)", step=0.25, group="② Selectivity")
+int   cooldown    = input.int(24, "Cooldown Bars", minval=0, group="② Selectivity")
+int   freshBars   = input.int(48, "Level Freshness: skip if swept within N bars", minval=0, group="② Selectivity")
+float minRR1      = input.float(1.5, "Min R To Next Level (room filter)", step=0.1, group="② Selectivity")
+int   maxTradesPerDay = input.int(3, "Max Trades Per Day", minval=1, group="② Selectivity")
+bool  useRegime   = input.bool(true, "ATR Regime Filter (skip dead chop)", group="② Selectivity")
+int   regimeLen   = input.int(100, "Regime Baseline Length", group="② Selectivity")
+float regimeMin   = input.float(0.6, "Min ATR (x baseline)", step=0.05, group="② Selectivity")
+
+// ── ③ Exits ──────────────────────────────────────────────────
+float stopBufAtr = input.float(0.4, "Stop Beyond Sweep Wick (x ATR)", step=0.05, group="③ Exits")
+float minStopAtr = input.float(0.4, "Min Stop (x ATR)", step=0.05, group="③ Exits")
+float maxStopAtr = input.float(2.0, "Max Stop (x ATR) -- clamp", step=0.1, group="③ Exits")
+float tp1Pct     = input.float(50, "% Closed at TP1", minval=10, maxval=90, group="③ Exits")
+float tpBufAtr   = input.float(0.1, "TP Set-Back Before Level (x ATR)", step=0.05, group="③ Exits")
+float tp2Fallback = input.float(2.0, "TP2 Fallback (R) if no 2nd level", step=0.1, group="③ Exits")
+int   timeStopBars = input.int(48, "Time Stop (bars)", minval=4, group="③ Exits")
+
+// ── ④ Levels ────────────────────────────────────────────────
+bool useDaily   = input.bool(true, "Daily Open + Prev Day H/L/Mid", group="④ Levels")
+bool useWeekly  = input.bool(true, "Weekly Open + Prev Week H/L/Mid", group="④ Levels")
+bool useMonthly = input.bool(true, "Monthly Open + Prev Month H/L/Mid", group="④ Levels")
+bool useQY      = input.bool(true, "Quarterly + Yearly Open", group="④ Levels")
+bool useMonday  = input.bool(true, "Monday Range H/L/Mid", group="④ Levels")
+bool use4H      = input.bool(true, "Prev 4H H/L", group="④ Levels")
+bool useSessions = input.bool(true, "Asia / London / NY Session H/L/O", group="④ Levels")
+bool showLevels = input.bool(true, "Draw Key Levels", group="④ Levels")
+
+// ── ⑤ Sessions / risk ───────────────────────────────────────
+string asiaSess   = input.session("0000-0900", "Asia Session", group="⑤ Sessions / Risk")
+string londonSess = input.session("0800-1600", "London Session", group="⑤ Sessions / Risk")
+string nySess     = input.session("1400-2100", "New York Session", group="⑤ Sessions / Risk")
+string sessTz     = input.string("Etc/UTC", "Session Timezone", group="⑤ Sessions / Risk")
+bool  londonNyOnly = input.bool(true, "London/NY Only (Valentini #2, Steve #8, Daye #4)", group="⑤ Sessions / Risk")
+bool  avoidFriPM  = input.bool(true, "Avoid Friday After 16:00", group="⑤ Sessions / Risk")
+float riskPct     = input.float(1.0, "Risk Per Trade (% equity)", step=0.25, minval=0.25, maxval=3.0, group="⑤ Sessions / Risk")
+float maxLeverage = input.float(20, "Max Leverage (notional cap)", minval=1, maxval=100, group="⑤ Sessions / Risk")
+float dailyLossLimitPct = input.float(2.0, "Daily Loss Limit (% equity)", step=0.5, group="⑤ Sessions / Risk")
+bool  showDash = input.bool(true, "Show Dashboard", group="⑤ Sessions / Risk")
+
+// ═════════════════════════════════════════════════════════════
+// BASICS (all ta.* unconditional -- BUG-004)
+// ═════════════════════════════════════════════════════════════
+float atr    = ta.atr(14)
+float atrBase = ta.sma(atr, regimeLen)
+bool regimeOk = not useRegime or atr >= atrBase * regimeMin
+float rsiV   = ta.rsi(close, rsiLen)
+
+bool inAsia   = not na(time(timeframe.period, asiaSess, sessTz))
+bool inLondon = not na(time(timeframe.period, londonSess, sessTz))
+bool inNY     = not na(time(timeframe.period, nySess, sessTz))
+bool sessOk   = not londonNyOnly or inLondon or inNY
+bool isFriPM  = avoidFriPM and dayofweek(time, sessTz) == dayofweek.friday and hour(time, sessTz) >= 16
+
+var int   dayTradeCount = 0
+var float dayStartEquity = na
+var bool  dayHalted = false
+bool newDay = na(dayStartEquity) or dayofmonth(time, sessTz) != dayofmonth(time[1], sessTz)
+if newDay
+    dayTradeCount := 0
+    dayStartEquity := strategy.equity
+    dayHalted := false
+if not na(dayStartEquity) and (strategy.equity - dayStartEquity) <= -dayStartEquity * dailyLossLimitPct / 100.0
+    dayHalted := true
+bool circuitOk = not dayHalted and dayTradeCount < maxTradesPerDay
+
+// ═════════════════════════════════════════════════════════════
+// SPACEMAN KEY LEVELS (prior-period idiom, non-repainting)
+// ═════════════════════════════════════════════════════════════
+float dOpen = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+float pdh   = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+float pdl   = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+float pdm   = (pdh + pdl) / 2
+float wOpen = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+float pwh   = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+float pwl   = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+float pwm   = (pwh + pwl) / 2
+float mOpen = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+float pmh   = request.security(syminfo.tickerid, "M", high[1], lookahead=barmerge.lookahead_on)
+float pml   = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lookahead_on)
+float pmm   = (pmh + pml) / 2
+float qOpen = request.security(syminfo.tickerid, "3M", open, lookahead=barmerge.lookahead_on)
+float yOpen = request.security(syminfo.tickerid, "12M", open, lookahead=barmerge.lookahead_on)
+float p4h   = request.security(syminfo.tickerid, "240", high[1], lookahead=barmerge.lookahead_on)
+float p4l   = request.security(syminfo.tickerid, "240", low[1],  lookahead=barmerge.lookahead_on)
+
+var float monHi = na
+var float monLo = na
+bool isMonday = dayofweek(time, sessTz) == dayofweek.monday
+if isMonday and not isMonday[1]
+    monHi := high
+    monLo := low
+else if isMonday
+    monHi := math.max(monHi, high)
+    monLo := math.min(monLo, low)
+bool monReady = useMonday and not isMonday and not na(monHi)
+float monMid = monReady ? (monHi + monLo) / 2 : na
+
+f_sessTrack(bool active, float hi0, float lo0, float op0) =>
+    var float curHi = na
+    var float curLo = na
+    var float curOp = na
+    var float finHi = na
+    var float finLo = na
+    var float finOp = na
+    if active and not active[1]
+        curHi := hi0
+        curLo := lo0
+        curOp := op0
+    else if active
+        curHi := math.max(curHi, hi0)
+        curLo := math.min(curLo, lo0)
+    if not active and active[1]
+        finHi := curHi
+        finLo := curLo
+        finOp := curOp
+    [finHi, finLo, finOp]
+
+[asiaH, asiaL, asiaO] = f_sessTrack(inAsia, high, low, open)
+[lonH, lonL, lonO]    = f_sessTrack(inLondon, high, low, open)
+[nyH, nyL, nyO]       = f_sessTrack(inNY, high, low, open)
+
+// level array, rebuilt each bar, deduped within a tick
+var float[] lvls = array.new_float()
+array.clear(lvls)
+f_push(bool en, float v) =>
+    if en and not na(v)
+        bool dupe = false
+        int sz = array.size(lvls)
+        if sz > 0
+            for i = 0 to sz - 1
+                if math.abs(array.get(lvls, i) - v) <= syminfo.mintick
+                    dupe := true
+        if not dupe
+            array.push(lvls, v)
+f_push(useDaily, dOpen)
+f_push(useDaily, pdh)
+f_push(useDaily, pdl)
+f_push(useDaily, pdm)
+f_push(useWeekly, wOpen)
+f_push(useWeekly, pwh)
+f_push(useWeekly, pwl)
+f_push(useWeekly, pwm)
+f_push(useMonthly, mOpen)
+f_push(useMonthly, pmh)
+f_push(useMonthly, pml)
+f_push(useMonthly, pmm)
+f_push(useQY, qOpen)
+f_push(useQY, yOpen)
+f_push(monReady, monHi)
+f_push(monReady, monLo)
+f_push(monReady, monMid)
+f_push(use4H, p4h)
+f_push(use4H, p4l)
+f_push(useSessions, asiaH)
+f_push(useSessions, asiaL)
+f_push(useSessions, asiaO)
+f_push(useSessions, lonH)
+f_push(useSessions, lonL)
+f_push(useSessions, lonO)
+f_push(useSessions, nyH)
+f_push(useSessions, nyL)
+f_push(useSessions, nyO)
+
+f_nextAbove(float px) =>
+    float best = na
+    int sz = array.size(lvls)
+    if sz > 0
+        for i = 0 to sz - 1
+            float v = array.get(lvls, i)
+            if v > px and (na(best) or v < best)
+                best := v
+    best
+f_nextBelow(float px) =>
+    float best = na
+    int sz = array.size(lvls)
+    if sz > 0
+        for i = 0 to sz - 1
+            float v = array.get(lvls, i)
+            if v < px and (na(best) or v > best)
+                best := v
+    best
+
+// ═════════════════════════════════════════════════════════════
+// THE SIGNAL — sweep a key level, reclaim, exhaustion, rejection
+// ═════════════════════════════════════════════════════════════
+// exhaustion (topbottom engine's validated form)
+bool rsiHot  = ta.highest(rsiV, rsiWin) >= rsiOb and rsiV < rsiV[1]
+bool rsiCold = ta.lowest(rsiV,  rsiWin) <= rsiOs and rsiV > rsiV[1]
+
+// rejection candle
+float barRange = high - low
+bool rangeOk   = barRange >= atr * minRangeAtr
+bool rejectTop = rangeOk and (close - low) / math.max(barRange, syminfo.mintick) <= closePosPct
+bool rejectBot = rangeOk and (high - close) / math.max(barRange, syminfo.mintick) <= closePosPct
+
+// tier-A candles [Nison] used only as an opposing veto
+float avgBody = ta.sma(math.abs(close - open), 14)
+float body = math.abs(close - open)
+bool bullEng = close > open and close[1] < open[1] and body >= avgBody and close >= math.max(close[1], open[1]) and open <= math.min(close[1], open[1])
+bool bearEng = close < open and close[1] > open[1] and body >= avgBody and open >= math.max(close[1], open[1]) and close <= math.min(close[1], open[1])
+bool hammer    = rangeOk and rejectBot and (open - low) > body * 2 and (high - math.max(open, close)) < body * 0.5
+bool shootStar = rangeOk and rejectTop and (high - open) > body * 2 and (math.min(open, close) - low) < body * 0.5
+bool tierABull = bullEng or hammer
+bool tierABear = bearEng or shootStar
+
+// freshness: remember when each side was last swept (BUG-006 form --
+// price distance, not identity, is the gate)
+var int   lastSweepBar = -99999
+var float lastSigPrice = na
+bool freshOk = bar_index - lastSweepBar > freshBars
+bool reArmOk = na(lastSigPrice) or math.abs(close - lastSigPrice) >= atr * minReArmAtr
+
+// find the swept level (guarded loops -- BUG-001)
+float sweptLvlUp = na   // level pierced from above -> long
+float sweptLvlDn = na   // level pierced from below -> short
+int szL = array.size(lvls)
+if szL > 0
+    for i = 0 to szL - 1
+        float v = array.get(lvls, i)
+        float pokeDn = v - low
+        float pokeUp = high - v
+        if low < v and close > v and close > open and pokeDn <= atr * maxPokeAtr and pokeDn >= atr * minPokeAtr
+            if na(sweptLvlUp) or v > sweptLvlUp
+                sweptLvlUp := v
+        if high > v and close < v and close < open and pokeUp <= atr * maxPokeAtr and pokeUp >= atr * minPokeAtr
+            if na(sweptLvlDn) or v < sweptLvlDn
+                sweptLvlDn := v
+
+bool baseOk = regimeOk and sessOk and not isFriPM and circuitOk and freshOk and reArmOk and strategy.position_size == 0
+
+bool longRaw  = baseOk and not na(sweptLvlUp) and rsiCold and rejectBot and (not useTierA or not tierABear)
+bool shortRaw = baseOk and not na(sweptLvlDn) and rsiHot  and rejectTop and (not useTierA or not tierABull)
+bool conflict = longRaw and shortRaw
+
+// ═════════════════════════════════════════════════════════════
+// EXECUTION — stop beyond the sweep wick (BUG-005), TP at the
+// next key level, room filter kills no-travel setups
+// ═════════════════════════════════════════════════════════════
+var int entryBar = na
+if longRaw and not conflict
+    float riskDist = math.min(math.max(close - low + atr * stopBufAtr, atr * minStopAtr), atr * maxStopAtr)
+    float stopPx = close - riskDist
+    float nxt1 = f_nextAbove(close)
+    float nxt2 = na(nxt1) ? na : f_nextAbove(nxt1 + syminfo.mintick)
+    float tp1 = na(nxt1) ? close + riskDist * tp2Fallback : nxt1 - atr * tpBufAtr
+    float tp2 = na(nxt2) or (nxt2 - atr * tpBufAtr <= tp1) ? close + riskDist * tp2Fallback : nxt2 - atr * tpBufAtr
+    if (tp1 - close) >= riskDist * minRR1 and tp2 > tp1
+        float qty = math.min(strategy.equity * riskPct / 100.0 / riskDist, strategy.equity * maxLeverage / close)
+        if qty > 0
+            strategy.entry("SNP-L", strategy.long, qty=qty)
+            strategy.exit("L-TP1", "SNP-L", stop=stopPx, limit=tp1, qty_percent=tp1Pct)
+            strategy.exit("L-TP2", "SNP-L", stop=stopPx, limit=tp2)
+            lastSweepBar := bar_index
+            lastSigPrice := close
+            entryBar := bar_index
+            dayTradeCount += 1
+            label.new(bar_index, low, "BUY", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small,
+                 tooltip="Swept " + str.tostring(sweptLvlUp, format.mintick) + " -> TP1 " + str.tostring(tp1, format.mintick))
+
+if shortRaw and not conflict
+    float riskDist = math.min(math.max(high - close + atr * stopBufAtr, atr * minStopAtr), atr * maxStopAtr)
+    float stopPx = close + riskDist
+    float nxt1 = f_nextBelow(close)
+    float nxt2 = na(nxt1) ? na : f_nextBelow(nxt1 - syminfo.mintick)
+    float tp1 = na(nxt1) ? close - riskDist * tp2Fallback : nxt1 + atr * tpBufAtr
+    float tp2 = na(nxt2) or (nxt2 + atr * tpBufAtr >= tp1) ? close - riskDist * tp2Fallback : nxt2 + atr * tpBufAtr
+    if (close - tp1) >= riskDist * minRR1 and tp2 < tp1
+        float qty = math.min(strategy.equity * riskPct / 100.0 / riskDist, strategy.equity * maxLeverage / close)
+        if qty > 0
+            strategy.entry("SNP-S", strategy.short, qty=qty)
+            strategy.exit("S-TP1", "SNP-S", stop=stopPx, limit=tp1, qty_percent=tp1Pct)
+            strategy.exit("S-TP2", "SNP-S", stop=stopPx, limit=tp2)
+            lastSweepBar := bar_index
+            lastSigPrice := close
+            entryBar := bar_index
+            dayTradeCount += 1
+            label.new(bar_index, high, "SELL", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small,
+                 tooltip="Swept " + str.tostring(sweptLvlDn, format.mintick) + " -> TP1 " + str.tostring(tp1, format.mintick))
+
+if strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= timeStopBars
+    strategy.close_all(comment="Time stop")
+
+// ═════════════════════════════════════════════════════════════
+// KEY LEVEL DRAWING — bar_index + extend.right, created fresh on
+// the last bar. (v4 used xloc.bar_time + a timenow projection that
+// pushed labels off-screen and failed to render; this is the
+// simplest pattern that always works.)
+// ═════════════════════════════════════════════════════════════
+var line[]  klines  = array.new_line()
+var label[] klabels = array.new_label()
+
+f_draw(bool en, float y, string txt, color c) =>
+    if en and not na(y)
+        int x0 = math.max(0, bar_index - 200)
+        line ln = line.new(x0, y, bar_index, y, extend=extend.right, color=c, width=1)
+        label lb = label.new(bar_index + 12, y, txt, style=label.style_none, textcolor=c, size=size.small)
+        array.push(klines, ln)
+        array.push(klabels, lb)
+
+color DailyColor   = #08bcd4
+color WeeklyColor  = #fffcbc
+color MonthlyColor = #08d48c
+color MondayColor  = color.white
+color QYColor      = color.red
+color IntraColor   = color.orange
+color SessColor    = #4a72ff
+
+if barstate.islast and showLevels
+    if array.size(klines) > 0
+        for i = 0 to array.size(klines) - 1
+            line.delete(array.get(klines, i))
+        array.clear(klines)
+    if array.size(klabels) > 0
+        for i = 0 to array.size(klabels) - 1
+            label.delete(array.get(klabels, i))
+        array.clear(klabels)
+    f_draw(useDaily, dOpen, "Daily Open", DailyColor)
+    f_draw(useDaily, pdh, "Prev Day High", DailyColor)
+    f_draw(useDaily, pdl, "Prev Day Low", DailyColor)
+    f_draw(useDaily, pdm, "Prev Day Mid", DailyColor)
+    f_draw(useWeekly, wOpen, "Weekly Open", WeeklyColor)
+    f_draw(useWeekly, pwh, "Prev Week High", WeeklyColor)
+    f_draw(useWeekly, pwl, "Prev Week Low", WeeklyColor)
+    f_draw(useWeekly, pwm, "Prev Week Mid", WeeklyColor)
+    f_draw(useMonthly, mOpen, "Monthly Open", MonthlyColor)
+    f_draw(useMonthly, pmh, "Prev Month High", MonthlyColor)
+    f_draw(useMonthly, pml, "Prev Month Low", MonthlyColor)
+    f_draw(useMonthly, pmm, "Prev Month Mid", MonthlyColor)
+    f_draw(useQY, qOpen, "Quarterly Open", QYColor)
+    f_draw(useQY, yOpen, "Yearly Open", QYColor)
+    f_draw(monReady, monHi, "Monday High", MondayColor)
+    f_draw(monReady, monLo, "Monday Low", MondayColor)
+    f_draw(monReady, monMid, "Monday Mid", MondayColor)
+    f_draw(use4H, p4h, "Prev 4H High", IntraColor)
+    f_draw(use4H, p4l, "Prev 4H Low", IntraColor)
+    f_draw(useSessions, asiaH, "AS-H", SessColor)
+    f_draw(useSessions, asiaL, "AS-L", SessColor)
+    f_draw(useSessions, asiaO, "AS-O", SessColor)
+    f_draw(useSessions, lonH, "Lon-H", SessColor)
+    f_draw(useSessions, lonL, "Lon-L", SessColor)
+    f_draw(useSessions, lonO, "Lon-O", SessColor)
+    f_draw(useSessions, nyH, "NY-H", SessColor)
+    f_draw(useSessions, nyL, "NY-L", SessColor)
+    f_draw(useSessions, nyO, "NY-O", SessColor)
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 5, 4, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showDash and barstate.islast
+    int nT = 0
+    int wT = 0
+    float gw = 0.0
+    float gl = 0.0
+    int nTr = strategy.closedtrades
+    if nTr > 0
+        for i = 0 to nTr - 1
+            float p = strategy.closedtrades.profit(i)
+            nT += 1
+            wT += p > 0 ? 1 : 0
+            gw += p > 0 ? p : 0.0
+            gl += p < 0 ? -p : 0.0
+    float wr = nT > 0 ? wT / nT * 100.0 : na
+    float pf = gl > 0 ? gw / gl : na
+    table.cell(dash, 0, 0, "CONFLUENCE SNIPER", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "Trades", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 2, 0, "Win%", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 3, 0, "PF", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 4, 0, "Net $", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 0, 1, "UNTESTED", text_color=color.yellow, text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(nT), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 2, 1, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 3, 1, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 4, 1, str.tostring(gw - gl, "#.#"), text_color=gw - gl >= 0 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Gates", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, sessOk ? "sess OK" : "sess X", text_color=sessOk ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 2, 2, regimeOk ? "regime OK" : "too quiet", text_color=regimeOk ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 3, 2, freshOk and reArmOk ? "armed" : "cooling", text_color=freshOk and reArmOk ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 4, 2, str.tostring(array.size(lvls)) + " lvls", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 3, "RSI", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, str.tostring(rsiV, "#.#"), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 2, 3, rsiHot ? "HOT-turn" : rsiCold ? "COLD-turn" : "-", text_color=rsiHot ? color.red : rsiCold ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 3, 3, "Day", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 4, 3, str.tostring(dayTradeCount) + "/" + str.tostring(maxTradesPerDay) + (dayHalted ? " HALT" : ""), text_color=dayHalted ? color.orange : color.white, text_size=size.tiny)
+
+alertcondition(longRaw and not conflict,  "Sniper Buy",  "SNIPER BUY ({{ticker}} {{interval}})")
+alertcondition(shortRaw and not conflict, "Sniper Sell", "SNIPER SELL ({{ticker}} {{interval}})")
