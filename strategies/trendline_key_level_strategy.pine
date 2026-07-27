@@ -1,0 +1,439 @@
+// ============================================================
+// TRENDLINE BREAKOUT x SPACEMAN KEY LEVELS [Strategy]
+// Built 2026-07-27 per user directive: entries = the Trendline
+// Breakout [Non-Repainting][Fixed] engine (OLS trendline fit +
+// slope-optimized support/resistance, lookback 5 per the user's
+// live chart), exits = SpacemanBTC key levels (TP1 = next level,
+// TP2 = the level after). Visuals match the user's reference chart:
+// lime/red trendlines, aqua BUY / yellow SELL triangles, key level
+// lines.
+//
+// DIVISION OF LABOR (from live-test evidence):
+//   - key_to_key_strategy.pine (level-touch entries): PF 0.886,
+//     WR 26% -- levels alone are not an entry edge.
+//   - This engine: the trendline flip provides entry TIMING (it
+//     fires at the swing turn, not at an arbitrary level touch);
+//     the levels provide the EXIT MAP and an optional room filter.
+//
+// STATUS: SYNTHESIZED / UNTESTED. Per the standing rule, no
+// "proven" language without a real multi-month sample.
+//
+// KNOWN LIMITATIONS:
+//   1. Lookback 5 = very reactive; expect many signals. The room
+//      filter and cooldown are the throttles -- tune there, not by
+//      raising lookback (that changes the look you asked for).
+//   2. Stop-and-reverse is ON by default (matches the indicator's
+//      zone behavior); toggle off to require flat between trades.
+//   3. Session times UTC; XAUUSD CFD volume is tick-count.
+// ============================================================
+//@version=6
+strategy("Trendline Breakout x Key Levels [Strategy]",
+     overlay            = true,
+     max_lines_count    = 500,
+     max_labels_count   = 200,
+     initial_capital    = 10000,
+     currency           = currency.USD,
+     default_qty_type   = strategy.cash,
+     default_qty_value  = 1000,
+     commission_type    = strategy.commission.cash_per_contract,
+     commission_value   = 0.07,
+     slippage           = 5,
+     process_orders_on_close = true,
+     margin_long        = 5,
+     margin_short       = 5)
+
+// ── ① Trendline engine ───────────────────────────────────────
+int  lookback  = input.int(5, "Trendline Lookback (5 = user's live setting)", minval=2, maxval=500, group="① Trendline")
+bool showLines = input.bool(true, "Show Trendlines", group="① Trendline")
+bool showBg    = input.bool(true, "Highlight Signal Zone", group="① Trendline")
+
+// ── ② Key-level exits ────────────────────────────────────────
+bool useRoomFilter = input.bool(true, "Require Room To Next Level (>= Min R, the K2K chop filter)", group="② Key-Level Exits")
+float minRR1     = input.float(0.5, "Min R To Next Level", step=0.1, group="② Key-Level Exits")
+float tp1Pct     = input.float(50, "% Closed at TP1 (next level)", minval=10, maxval=90, group="② Key-Level Exits")
+float tpBufAtr   = input.float(0.1, "TP Set-Back Before Level (x ATR)", step=0.05, group="② Key-Level Exits")
+float stopBufAtr = input.float(0.3, "Stop Buffer Beyond Opposite Trendline (x ATR)", step=0.05, group="② Key-Level Exits")
+float minStopAtr = input.float(0.4, "Min Stop (x ATR)", step=0.05, group="② Key-Level Exits")
+float maxStopAtr = input.float(2.0, "Max Stop (x ATR) -- clamp, not reject", step=0.1, group="② Key-Level Exits")
+bool  reverseOnFlip = input.bool(true, "Stop-And-Reverse On Opposite Signal", group="② Key-Level Exits")
+
+// ── ③ Levels on/off ─────────────────────────────────────────
+bool useDaily   = input.bool(true, "Daily Open + Prev Day H/L/Mid", group="③ Levels")
+bool useWeekly  = input.bool(true, "Weekly Open + Prev Week H/L/Mid", group="③ Levels")
+bool useMonthly = input.bool(true, "Monthly Open + Prev Month H/L/Mid", group="③ Levels")
+bool useQY      = input.bool(true, "Quarterly + Yearly Open", group="③ Levels")
+bool useMonday  = input.bool(true, "Monday Range H/L/Mid", group="③ Levels")
+bool use4H      = input.bool(true, "Prev 4H H/L", group="③ Levels")
+bool useSessions = input.bool(true, "Asia / London / NY Session H/L", group="③ Levels")
+bool showLevels = input.bool(true, "Plot Key Levels", group="③ Levels")
+
+// ── ④ Filters / risk chassis ─────────────────────────────────
+string asiaSess   = input.session("0000-0900", "Asia Session", group="④ Filters")
+string londonSess = input.session("0800-1600", "London Session", group="④ Filters")
+string nySess     = input.session("1400-2100", "New York Session", group="④ Filters")
+string sessTz     = input.string("Etc/UTC", "Session Timezone", group="④ Filters")
+bool  tradeAllHours = input.bool(true, "Trade All Hours (matches the reference chart)", group="④ Filters")
+bool  avoidFriPM  = input.bool(true, "Avoid Friday After 16:00", group="④ Filters")
+bool  newsBlackout = input.bool(false, "Manual News Blackout", group="④ Filters")
+float riskPct     = input.float(1.0, "Risk Per Trade (% equity)", step=0.25, minval=0.25, maxval=2.0, group="④ Filters")
+float maxLeverage = input.float(20, "Max Leverage (notional cap)", minval=1, maxval=100, group="④ Filters")
+int   cooldown    = input.int(3, "Signal Cooldown (bars)", minval=0, group="④ Filters")
+float dailyLossLimitPct = input.float(2.0, "Daily Loss Limit (% equity)", step=0.5, group="④ Filters")
+int   maxTradesPerDay = input.int(8, "Max Trades Per Day", minval=1, group="④ Filters")
+bool  showDash = input.bool(true, "Show Dashboard", group="④ Filters")
+
+// ── Colours (matching the reference indicator) ───────────────
+color COL_SUPPORT  = color.new(color.lime,   20)
+color COL_RESIST   = color.new(color.red,    20)
+color COL_BUY      = color.new(color.aqua,    0)
+color COL_SELL     = color.new(color.yellow,  0)
+color COL_LONG_BG  = color.new(color.green, 92)
+color COL_SHORT_BG = color.new(color.red,   92)
+
+// ═════════════════════════════════════════════════════════════
+// BASICS
+// ═════════════════════════════════════════════════════════════
+float atr = ta.atr(14)
+
+bool inAsia   = not na(time(timeframe.period, asiaSess, sessTz))
+bool inLondon = not na(time(timeframe.period, londonSess, sessTz))
+bool inNY     = not na(time(timeframe.period, nySess, sessTz))
+bool inSession = tradeAllHours or inLondon or inNY
+bool isFriPM = avoidFriPM and dayofweek(time, sessTz) == dayofweek.friday and hour(time, sessTz) >= 16
+
+var int   dayTradeCount = 0
+var float dayStartEquity = na
+var bool  dayHalted = false
+bool newDay = na(dayStartEquity) or dayofmonth(time, sessTz) != dayofmonth(time[1], sessTz)
+if newDay
+    dayTradeCount := 0
+    dayStartEquity := strategy.equity
+    dayHalted := false
+if not na(dayStartEquity) and (strategy.equity - dayStartEquity) <= -dayStartEquity * dailyLossLimitPct / 100.0
+    dayHalted := true
+bool circuitOk = not dayHalted and dayTradeCount < maxTradesPerDay
+bool hardOk = inSession and not isFriPM and not newsBlackout and circuitOk
+
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+// ═════════════════════════════════════════════════════════════
+// TRENDLINE ENGINE (verbatim port of the user's fixed indicator:
+// OLS fit -> pivot furthest from line -> slope optimized so all
+// prices sit on the correct side -> projected to current bar.
+// close[1]/high[1]/low[1] window = non-repainting.)
+// ═════════════════════════════════════════════════════════════
+linreg_coefs(src, len) =>
+    float sumX  = 0.0
+    float sumY  = 0.0
+    float sumXY = 0.0
+    float sumX2 = 0.0
+    for j = 0 to len - 1
+        float x = j
+        float y = src[len - 1 - j]
+        sumX  += x
+        sumY  += y
+        sumXY += x * y
+        sumX2 += x * x
+    float n = len
+    float slope     = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+    float intercept = (sumY - slope * sumX) / n
+    [slope, intercept]
+
+find_pivot(src, len, slope, intercept, direction) =>
+    int   best_j   = 0
+    float best_val = -1e10
+    for j = 0 to len - 1
+        float x    = j
+        float y    = src[len - 1 - j]
+        float linev = slope * x + intercept
+        float diff = (y - linev) * direction
+        if diff > best_val
+            best_val := diff
+            best_j   := j
+    best_j
+
+project_line(src, len, pivot_j, slope) =>
+    float pivot_y   = src[len - 1 - pivot_j]
+    float intercept = pivot_y - slope * pivot_j
+    slope * len + intercept
+
+optimize_slope(src, len, pivot_j, init_slope, is_support) =>
+    float pivot_y = src[len - 1 - pivot_j]
+    float best    = init_slope
+    float step    = math.abs(init_slope) * 0.5 + 1e-6
+    for _i = 0 to 29
+        float s_up   = best + step
+        float s_dn   = best - step
+        bool  ok_up  = true
+        bool  ok_dn  = true
+        float err_up = 0.0
+        float err_dn = 0.0
+        for j = 0 to len - 1
+            float x = j
+            float y = src[len - 1 - j]
+            float int_up = pivot_y - s_up * pivot_j
+            float int_dn = pivot_y - s_dn * pivot_j
+            float lv_up  = s_up * x + int_up
+            float lv_dn  = s_dn * x + int_dn
+            float d_up   = lv_up - y
+            float d_dn   = lv_dn - y
+            if is_support
+                if d_up > 1e-5
+                    ok_up := false
+                if d_dn > 1e-5
+                    ok_dn := false
+            else
+                if d_up < -1e-5
+                    ok_up := false
+                if d_dn < -1e-5
+                    ok_dn := false
+            err_up += d_up * d_up
+            err_dn += d_dn * d_dn
+        if ok_up and ok_dn
+            best := err_up < err_dn ? s_up : s_dn
+        else if ok_up
+            best := s_up
+        else if ok_dn
+            best := s_dn
+        step *= 0.5
+    best
+
+var float s_val = na
+var float r_val = na
+var int   sig   = 0
+
+if bar_index >= lookback + 1
+    [ols_slope, ols_intercept] = linreg_coefs(close[1], lookback)
+    int upper_j = find_pivot(high[1], lookback,  ols_slope, ols_intercept,  1)
+    int lower_j = find_pivot(low[1],  lookback,  ols_slope, ols_intercept, -1)
+    float r_slope = optimize_slope(high[1], lookback, upper_j, ols_slope, false)
+    float s_slope = optimize_slope(low[1],  lookback, lower_j, ols_slope, true)
+    r_val := project_line(high[1], lookback, upper_j, r_slope)
+    s_val := project_line(low[1],  lookback, lower_j, s_slope)
+    if close > r_val
+        sig := 1
+    else if close < s_val
+        sig := -1
+
+bool buySignal  = sig ==  1 and sig[1] != 1
+bool sellSignal = sig == -1 and sig[1] != -1
+
+// ═════════════════════════════════════════════════════════════
+// SPACEMAN KEY LEVELS (computation layer, prior-period idiom)
+// ═════════════════════════════════════════════════════════════
+float dOpen = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+float pdh   = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+float pdl   = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+float pdm   = (pdh + pdl) / 2
+float wOpen = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+float pwh   = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+float pwl   = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+float pwm   = (pwh + pwl) / 2
+float mOpen = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+float pmh   = request.security(syminfo.tickerid, "M", high[1], lookahead=barmerge.lookahead_on)
+float pml   = request.security(syminfo.tickerid, "M", low[1],  lookahead=barmerge.lookahead_on)
+float pmm   = (pmh + pml) / 2
+float qOpen = request.security(syminfo.tickerid, "3M", open, lookahead=barmerge.lookahead_on)
+float yOpen = request.security(syminfo.tickerid, "12M", open, lookahead=barmerge.lookahead_on)
+float p4h = request.security(syminfo.tickerid, "240", high[1], lookahead=barmerge.lookahead_on)
+float p4l = request.security(syminfo.tickerid, "240", low[1],  lookahead=barmerge.lookahead_on)
+
+var float monHi = na
+var float monLo = na
+bool isMonday = dayofweek(time, sessTz) == dayofweek.monday
+if isMonday and not isMonday[1]
+    monHi := high
+    monLo := low
+else if isMonday
+    monHi := math.max(monHi, high)
+    monLo := math.min(monLo, low)
+bool monReady = useMonday and not isMonday and not na(monHi)
+float monMid = monReady ? (monHi + monLo) / 2 : na
+
+f_sessTrack(bool active, float hi0, float lo0) =>
+    var float curHi = na
+    var float curLo = na
+    var float finHi = na
+    var float finLo = na
+    if active and not active[1]
+        curHi := hi0
+        curLo := lo0
+    else if active
+        curHi := math.max(curHi, hi0)
+        curLo := math.min(curLo, lo0)
+    if not active and active[1]
+        finHi := curHi
+        finLo := curLo
+    [finHi, finLo]
+
+[asiaH, asiaL] = f_sessTrack(inAsia, high, low)
+[lonH, lonL]   = f_sessTrack(inLondon, high, low)
+[nyH, nyL]     = f_sessTrack(inNY, high, low)
+
+var float[] lvls = array.new_float()
+array.clear(lvls)
+f_push(bool en, float v) =>
+    if en and not na(v)
+        bool dupe = false
+        int sz = array.size(lvls)
+        if sz > 0
+            for i = 0 to sz - 1
+                if math.abs(array.get(lvls, i) - v) <= syminfo.mintick
+                    dupe := true
+        if not dupe
+            array.push(lvls, v)
+f_push(useDaily, dOpen)
+f_push(useDaily, pdh)
+f_push(useDaily, pdl)
+f_push(useDaily, pdm)
+f_push(useWeekly, wOpen)
+f_push(useWeekly, pwh)
+f_push(useWeekly, pwl)
+f_push(useWeekly, pwm)
+f_push(useMonthly, mOpen)
+f_push(useMonthly, pmh)
+f_push(useMonthly, pml)
+f_push(useMonthly, pmm)
+f_push(useQY, qOpen)
+f_push(useQY, yOpen)
+f_push(monReady, monHi)
+f_push(monReady, monLo)
+f_push(monReady, monMid)
+f_push(use4H, p4h)
+f_push(use4H, p4l)
+f_push(useSessions, asiaH)
+f_push(useSessions, asiaL)
+f_push(useSessions, lonH)
+f_push(useSessions, lonL)
+f_push(useSessions, nyH)
+f_push(useSessions, nyL)
+
+f_nextAbove(float px) =>
+    float best = na
+    int sz = array.size(lvls)
+    if sz > 0
+        for i = 0 to sz - 1
+            float v = array.get(lvls, i)
+            if v > px and (na(best) or v < best)
+                best := v
+    best
+f_nextBelow(float px) =>
+    float best = na
+    int sz = array.size(lvls)
+    if sz > 0
+        for i = 0 to sz - 1
+            float v = array.get(lvls, i)
+            if v < px and (na(best) or v > best)
+                best := v
+    best
+
+// ═════════════════════════════════════════════════════════════
+// EXECUTION — trendline flip enters, key levels exit.
+// Stop = beyond the OPPOSITE trendline (the structure that, if
+// broken, flips the signal anyway), buffered + clamped. TP1 = next
+// key level (front-run), TP2 = level after (fallback +1R past TP1).
+// Optional room filter: skip if next level < minRR1 x risk away.
+// ═════════════════════════════════════════════════════════════
+var int entryBar = na
+bool canTrade = cd and hardOk and (reverseOnFlip or strategy.position_size == 0)
+
+if buySignal and canTrade
+    float rawStop = s_val - atr * stopBufAtr
+    float riskDist = math.min(math.max(close - rawStop, atr * minStopAtr), atr * maxStopAtr)
+    float stopPx = close - riskDist
+    float nxt1 = f_nextAbove(close)
+    float nxt2 = na(nxt1) ? na : f_nextAbove(nxt1 + syminfo.mintick)
+    float tp1 = na(nxt1) ? close + riskDist * 1.5 : nxt1 - atr * tpBufAtr
+    float tp2 = na(nxt2) or (nxt2 - atr * tpBufAtr <= tp1) ? tp1 + riskDist : nxt2 - atr * tpBufAtr
+    bool roomOk = not useRoomFilter or na(nxt1) or (tp1 - close) >= riskDist * minRR1
+    if roomOk and tp1 > close
+        float qty = math.min(strategy.equity * riskPct / 100.0 / riskDist, strategy.equity * maxLeverage / close)
+        if qty > 0
+            strategy.entry("TL-L", strategy.long, qty=qty)
+            strategy.exit("TL-L-TP1", "TL-L", stop=stopPx, limit=tp1, qty_percent=tp1Pct)
+            strategy.exit("TL-L-TP2", "TL-L", stop=stopPx, limit=tp2)
+            lastSig := bar_index
+            entryBar := bar_index
+            dayTradeCount += 1
+
+if sellSignal and canTrade
+    float rawStop = r_val + atr * stopBufAtr
+    float riskDist = math.min(math.max(rawStop - close, atr * minStopAtr), atr * maxStopAtr)
+    float stopPx = close + riskDist
+    float nxt1 = f_nextBelow(close)
+    float nxt2 = na(nxt1) ? na : f_nextBelow(nxt1 - syminfo.mintick)
+    float tp1 = na(nxt1) ? close - riskDist * 1.5 : nxt1 + atr * tpBufAtr
+    float tp2 = na(nxt2) or (nxt2 + atr * tpBufAtr >= tp1) ? tp1 - riskDist : nxt2 + atr * tpBufAtr
+    bool roomOk = not useRoomFilter or na(nxt1) or (close - tp1) >= riskDist * minRR1
+    if roomOk and tp1 < close
+        float qty = math.min(strategy.equity * riskPct / 100.0 / riskDist, strategy.equity * maxLeverage / close)
+        if qty > 0
+            strategy.entry("TL-S", strategy.short, qty=qty)
+            strategy.exit("TL-S-TP1", "TL-S", stop=stopPx, limit=tp1, qty_percent=tp1Pct)
+            strategy.exit("TL-S-TP2", "TL-S", stop=stopPx, limit=tp2)
+            lastSig := bar_index
+            entryBar := bar_index
+            dayTradeCount += 1
+
+// ═════════════════════════════════════════════════════════════
+// VISUALS — matches the reference indicator exactly
+// ═════════════════════════════════════════════════════════════
+plot(showLines ? r_val : na, "Resistance", color=COL_RESIST,  linewidth=1)
+plot(showLines ? s_val : na, "Support",    color=COL_SUPPORT, linewidth=1)
+bgcolor(showBg and sig ==  1 ? COL_LONG_BG  : na, title="Long Zone")
+bgcolor(showBg and sig == -1 ? COL_SHORT_BG : na, title="Short Zone")
+plotshape(buySignal,  title="BUY",  style=shape.triangleup,   location=location.belowbar, color=COL_BUY,  size=size.small, text="BUY")
+plotshape(sellSignal, title="SELL", style=shape.triangledown, location=location.abovebar, color=COL_SELL, size=size.small, text="SELL")
+
+plot(showLevels and useDaily ? pdh : na, "PDH", color.new(color.red, 55), 1, plot.style_linebr)
+plot(showLevels and useDaily ? pdl : na, "PDL", color.new(color.lime, 55), 1, plot.style_linebr)
+plot(showLevels and useDaily ? dOpen : na, "DO", color.new(#08bcd4, 45), 1, plot.style_linebr)
+plot(showLevels and useWeekly ? wOpen : na, "WO", color.new(#fffcbc, 45), 1, plot.style_linebr)
+plot(showLevels and useWeekly ? pwh : na, "PWH", color.new(color.maroon, 60), 1, plot.style_linebr)
+plot(showLevels and useWeekly ? pwl : na, "PWL", color.new(color.teal, 60), 1, plot.style_linebr)
+plot(showLevels and monReady ? monHi : na, "Monday High", color.new(color.white, 60), 1, plot.style_linebr)
+plot(showLevels and monReady ? monLo : na, "Monday Low", color.new(color.white, 60), 1, plot.style_linebr)
+plot(showLevels and use4H ? p4h : na, "Prev 4H High", color.new(color.orange, 55), 1, plot.style_linebr)
+plot(showLevels and use4H ? p4l : na, "Prev 4H Low", color.new(color.orange, 55), 1, plot.style_linebr)
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.bottom_right, 5, 3, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if showDash and barstate.islast
+    int nT = 0
+    int wT = 0
+    float gw = 0.0
+    float gl = 0.0
+    int nTr = strategy.closedtrades
+    if nTr > 0
+        for i = 0 to nTr - 1
+            float p = strategy.closedtrades.profit(i)
+            nT += 1
+            wT += p > 0 ? 1 : 0
+            gw += p > 0 ? p : 0.0
+            gl += p < 0 ? -p : 0.0
+    float wr = nT > 0 ? wT / nT * 100.0 : na
+    float pf = gl > 0 ? gw / gl : na
+    table.cell(dash, 0, 0, "TL x KEY LEVELS", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "Trades", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 2, 0, "Win%", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 3, 0, "PF", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 4, 0, "Net $", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 0, 1, "UNTESTED", text_color=color.yellow, text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(nT), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 2, 1, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 3, 1, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 4, 1, str.tostring(gw - gl, "#.#"), text_color=gw - gl >= 0 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Gates", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, inSession ? "sess OK" : "sess X", text_color=inSession ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 2, 2, cd ? "cd OK" : "cd X", text_color=cd ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 3, 2, circuitOk ? "day OK" : "HALT", text_color=circuitOk ? color.lime : color.orange, text_size=size.tiny)
+    table.cell(dash, 4, 2, str.tostring(array.size(lvls)) + " lvls", text_color=color.white, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(buySignal,  "TLxKL Buy",  "TL Breakout BUY ({{ticker}} {{interval}})")
+alertcondition(sellSignal, "TLxKL Sell", "TL Breakout SELL ({{ticker}} {{interval}})")
