@@ -57,6 +57,17 @@ float minStopAtr = input.float(0.4, "Min Stop (x ATR)", step=0.05, group="② Ke
 float maxStopAtr = input.float(2.0, "Max Stop (x ATR) -- clamp, not reject", step=0.1, group="② Key-Level Exits")
 bool  reverseOnFlip = input.bool(true, "Stop-And-Reverse On Opposite Signal", group="② Key-Level Exits")
 
+// ── ②b Edge filter (iteration 2, from the voice register) ───
+// HTF trend bias: Hougaard #15's 89-period HTF MA rule, corroborated
+// by Valentini #2 (momentum-join), Roppel #5 (trend-following), and
+// the Dave/FX-Master/Steve counter-trend warnings. The prior run
+// (382 trades, PF 0.882) stop-and-reversed every flip -- half of all
+// trades were counter-trend by construction. Longs only above the
+// HTF MA, shorts only below.
+bool useTrendBias = input.bool(true, "HTF Trend Bias (longs above / shorts below the HTF MA)", group="②b Edge Filter")
+string biasTf     = input.string("60", "Bias Timeframe", options=["15", "30", "60", "240"], group="②b Edge Filter")
+int    biasLen    = input.int(89, "Bias MA Length (89 = Hougaard #15)", minval=10, group="②b Edge Filter")
+
 // ── ③ Levels on/off ─────────────────────────────────────────
 bool useDaily   = input.bool(true, "Daily Open + Prev Day H/L/Mid", group="③ Levels")
 bool useWeekly  = input.bool(true, "Weekly Open + Prev Week H/L/Mid", group="③ Levels")
@@ -94,6 +105,10 @@ color COL_SHORT_BG = color.new(color.red,   92)
 // BASICS
 // ═════════════════════════════════════════════════════════════
 float atr = ta.atr(14)
+// prior-bar HTF EMA (non-repainting idiom)
+float htfMa = request.security(syminfo.tickerid, biasTf, ta.ema(close, biasLen)[1], lookahead=barmerge.lookahead_on)
+bool biasOkL = not useTrendBias or close > htfMa
+bool biasOkS = not useTrendBias or close < htfMa
 
 bool inAsia   = not na(time(timeframe.period, asiaSess, sessTz))
 bool inLondon = not na(time(timeframe.period, londonSess, sessTz))
@@ -338,7 +353,7 @@ f_nextBelow(float px) =>
 var int entryBar = na
 bool canTrade = cd and hardOk and (reverseOnFlip or strategy.position_size == 0)
 
-if buySignal and canTrade
+if buySignal and canTrade and biasOkL
     float rawStop = s_val - atr * stopBufAtr
     float riskDist = math.min(math.max(close - rawStop, atr * minStopAtr), atr * maxStopAtr)
     float stopPx = close - riskDist
@@ -357,7 +372,7 @@ if buySignal and canTrade
             entryBar := bar_index
             dayTradeCount += 1
 
-if sellSignal and canTrade
+if sellSignal and canTrade and biasOkS
     float rawStop = r_val + atr * stopBufAtr
     float riskDist = math.min(math.max(rawStop - close, atr * minStopAtr), atr * maxStopAtr)
     float stopPx = close + riskDist
@@ -396,6 +411,35 @@ plot(showLevels and monReady ? monHi : na, "Monday High", color.new(color.white,
 plot(showLevels and monReady ? monLo : na, "Monday Low", color.new(color.white, 60), 1, plot.style_linebr)
 plot(showLevels and use4H ? p4h : na, "Prev 4H High", color.new(color.orange, 55), 1, plot.style_linebr)
 plot(showLevels and use4H ? p4l : na, "Prev 4H Low", color.new(color.orange, 55), 1, plot.style_linebr)
+plot(showLevels and useSessions ? asiaH : na, "AS-H", color.new(#4a72ff, 55), 1, plot.style_linebr)
+plot(showLevels and useSessions ? asiaL : na, "AS-L", color.new(#4a72ff, 55), 1, plot.style_linebr)
+plot(useTrendBias ? htfMa : na, "HTF Bias MA", color.new(color.fuchsia, 35), 2)
+
+// ── Spaceman-style right-edge level labels ───────────────────
+f_lvlLabel(bool en, float y, string txt, color c) =>
+    var label lb = na
+    if na(lb)
+        lb := label.new(bar_index, close, "", style=label.style_none, textcolor=c, size=size.small)
+    if barstate.islast
+        if en and not na(y)
+            label.set_xy(lb, bar_index + 8, y)
+            label.set_text(lb, txt)
+            label.set_textcolor(lb, c)
+        else
+            label.set_text(lb, "")
+f_lvlLabel(showLevels and useDaily, pdh, "PDH", color.new(color.red, 20))
+f_lvlLabel(showLevels and useDaily, pdl, "PDL", color.new(color.lime, 20))
+f_lvlLabel(showLevels and useDaily, dOpen, "Daily Open", #08bcd4)
+f_lvlLabel(showLevels and useWeekly, wOpen, "Weekly Open", #fffcbc)
+f_lvlLabel(showLevels and useWeekly, pwh, "PWH", color.new(color.maroon, 10))
+f_lvlLabel(showLevels and useWeekly, pwl, "PWL", color.new(color.teal, 10))
+f_lvlLabel(showLevels and monReady, monHi, "Monday High", color.white)
+f_lvlLabel(showLevels and monReady, monLo, "Monday Low", color.white)
+f_lvlLabel(showLevels and monReady, monMid, "Monday Mid", color.new(color.white, 30))
+f_lvlLabel(showLevels and use4H, p4h, "Prev 4H High", color.orange)
+f_lvlLabel(showLevels and use4H, p4l, "Prev 4H Low", color.orange)
+f_lvlLabel(showLevels and useSessions, asiaH, "AS-H", #4a72ff)
+f_lvlLabel(showLevels and useSessions, asiaL, "AS-L", #4a72ff)
 
 // ═════════════════════════════════════════════════════════════
 // DASHBOARD

@@ -629,6 +629,37 @@ count down materially, C quality up, cost drag down. Per-model
 dashboard numbers requested from the user to drive iteration 3
 kill/fix decisions with real per-model splits instead of tape reads.
 
+=== KEY-LEVEL STRATEGY LINE — ITERATION LOG (2026-07-27) ===
+User parked OMNIBUS iteration for a key-level-centric plan. Three
+tests, one pattern:
+- key_to_key_strategy.pine (level-touch entries): 245 trades, WR
+  26.1%, PF 0.886, -10.87%, DD 23.15%.
+- trendline_key_level_strategy.pine v1 (OLS trendline lookback-5
+  entries, key-level exits, stop-and-reverse, all hours): 382 trades,
+  WR 40.8%, PF 0.882, -11.72%, DD 20.68%.
+- (OMNIBUS four-model for reference: 298 trades, PF 0.843.)
+
+DIAGNOSIS (three minds + voice register): PF pinned at 0.84-0.89
+across three different entry architectures = the entry variant is not
+the problem. 250-380 trades/2mo in BOTH directions at ALL hours on 5m
+gold is noise trading; costs grind the coin flip down. The register's
+strongest un-applied confluence: HTF TREND GATE -- Hougaard #15's
+89-period HTF MA bias (HIGH credibility, audited), Valentini #2
+momentum-join (HIGH, verified), Roppel #5 trend-following, plus
+Dave/FX-Master/Steve counter-trend warnings. The v1 engine
+stop-and-reversed every flip: half of all trades were counter-trend
+by construction.
+
+ITERATION 2 (one logic change + display fix): added HTF trend bias
+gate (longs only above / shorts only below the 1H EMA-89, prior-bar
+non-repainting; TF and length are inputs) to
+trendline_key_level_strategy.pine. Expected: trade count roughly
+halves, counter-trend bleed removed. Display: added Spaceman-style
+right-edge level labels (PDH/PDL/DO/WO/PWH/PWL/Monday/4H/Asia) so the
+key levels render like the real SpacemanBTC indicator, per user
+request. Next levers if still <1.0: session filter (all-hours ->
+London+NY), cooldown up, minRR1 up. Re-test pending.
+
 === AMDM CONFLUENCE STRATEGY ADOPTED (2026-07-22) ===
 User uploaded a complete external synthesis package and adopted the
 **Auction-Momentum Dual Model (AMDM)** as the project's standing
