@@ -1036,3 +1036,34 @@ refinement, not a new independent claim).
 
 ## Retired Beliefs
 (none yet)
+
+---
+
+## H73. Multi-voice corroboration beats single-mechanic entries.
+Requiring N-of-M independent voice-votes (each a distinct trader's
+codeable hypothesis) produces better expectancy than any one entry
+mechanic chosen by hand.
+
+**Evidence FOR (2026-07-28, first real test):**
+multivoice_confluence_engine.pine, XAUUSD 15m, Feb 2 - Jul 28 2026:
+521 trades, WR 44.15%, PF 1.093, +15.25%, max DD 11.90%.
+Six single-mechanic engines on the same repo, same asset, tested over
+Jun-Jul: OMNIBUS four-model 0.843, key-to-key 0.886, trendline x key
+levels 0.882, trendline+HTF-bias 0.819, clean-signal and top/bottom
+variants 0.67-1.11 (only the topbottom engine's tuned 40-trade run
+ever exceeded 1.0, on a sample far too small to count).
+
+**Confound (stated, not hidden):** the multi-voice run also moved 5m
+-> 15m. Timeframe and logic changed together. A 15m single-mechanic
+control run, or a 5m multi-voice run, is required to attribute the
+gain. Until then this is SUPPORTED, not CONFIRMED.
+
+**Invalidation:** if raising minScore (more voices required to agree)
+does NOT improve PF, the votes are not carrying independent signal and
+this hypothesis fails regardless of the headline number.
+
+**Register impact:** this is the first empirical support for the
+premise the whole 21-voice register was built on. It also retroactively
+explains the PF 0.82-0.89 plateau: those engines each implemented ~5
+generic mechanics and cited the register in comments only (see the
+2026-07-27 register-usage audit).

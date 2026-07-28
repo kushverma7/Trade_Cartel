@@ -817,3 +817,41 @@ Live vote table on chart shows which voices agree in real time.
 Declared-not-faked: H14 SMT needs a correlated symbol; H45/H47 need
 true volume profile; H51-H62 Gann geometry needs non-mechanical anchor
 selection. STATUS: UNTESTED.
+
+=== *** FIRST PROFITABLE RESULT — MULTI-VOICE ENGINE (2026-07-28) *** ===
+strategies/multivoice_confluence_engine.pine, XAUUSD **15m** OANDA,
+Feb 2 - Jul 28 2026, 10K account, default minScore=6:
+  Trades 521 | Win rate 44.15% (230/521) | PF 1.093
+  Net +$1,525.21 (+15.25%) | Max DD $1,353.65 (11.90%)
+
+CONTEXT: this is the FIRST engine in this repo to finish profitable,
+and on the largest sample ever run here (~6 months / 521 trades vs the
+~2 month / 117-380 trade runs behind every prior number). Prior best
+was PF 0.886. The six preceding engines all landed PF 0.82-0.89.
+
+WHAT CHANGED (two variables, stated honestly):
+  1. Signal logic: 20 independent voice-votes requiring N-of-M
+     agreement, instead of one hand-picked entry mechanic.
+  2. Timeframe: 15m instead of 5m.
+Both moved together, so the win is not yet cleanly attributable. The
+15m move was itself one of the three structural options logged after
+the PF 0.82-0.89 plateau, so both changes were principled -- but a
+5m re-run of THIS engine is the clean way to separate them.
+
+MATH CHECK: with the 50%@1R / 50%@2R split, avg win ~1.5R, so
+breakeven WR = 1/(1+1.5) = 40%. Observed 44.15% sits above it, which
+is consistent with PF 1.093 -- the result is internally coherent, not
+a reporting artifact.
+
+STATUS: still NOT "proven". PF 1.093 is thin, one symbol, one window,
+in-sample. Per the standing rule it stays a CANDIDATE until it holds
+out-of-sample. But it is the first candidate with real evidence behind
+it, and the first data point supporting the register's core premise:
+corroboration across independent voices beats any single voice.
+
+NEXT ITERATION (the decisive test): raise minScore 6 -> 8 -> 10, one
+input, nothing else touched. If the voting logic carries real signal,
+PF should RISE as conviction rises (fewer, better trades). If PF is
+flat or falls as minScore climbs, the votes are noise that happens to
+average out, and the edge is coming from somewhere else. This single
+test validates or kills the multi-voice premise.
