@@ -913,3 +913,64 @@ multivoice_confluence_engine, raise `Min Conviction Score To Trade`
 (521 trades / WR 44.15% / PF 1.093 / +15.25% / DD 11.90%). Rising PF
 validates H73; flat or falling PF kills it and points the edge at the
 5m→15m timeframe change instead.
+
+---
+
+## ITERATION: KEY LEVELS BECOME LOAD-BEARING (2026-07-28)
+
+User: *"make sure you are using it as a confluence for the entry and exit
+from key level to key level and also use other confluences for accuracy.
+take time frame support also if that improves"*
+
+Until now the Spaceman module only DREW. This iteration moves it above the
+trade logic so `klPrices[]` is populated before any vote is cast, and wires
+it into four places on `multivoice_confluence_engine.pine`:
+
+| Where | Before | Now | Toggle (group ⑤) |
+|---|---|---|---|
+| V19 sweep+reclaim | 4 hand-picked levels (PDH/PDL/DO/WO) | full drawn level set (~20-36 levels) | `klFullSweep` ON |
+| New V21 | — | break-and-retest of a real key level (H37 role inversion) | `vOn21` ON |
+| TP1 / TP2 | fixed 1R / 2R | next key level >= minTP1R away, then the one beyond | `useKLTargets` ON |
+| Stop | adverse wick + ATR buffer | further of (adverse wick, beyond the defended key level) | `useKLStops` ON |
+
+Room handling follows BUG-009: if no key level sits in range, the fixed R
+targets take over rather than the trade being rejected. A hard
+"no level = no trade" variant exists as `klRoomGate`, default OFF.
+
+**Multi-timeframe shipped OFF on purpose.** Group ⑥ adds V22 (HTF trend
+vote) and `htfGate` (hard veto). Both default false. Reason stated in the
+code: this repo has now had TWO "logical" higher-timeframe/trend filters
+make results WORSE (the ADX veto, and the HTF bias MA that took the
+trendline engine from PF 0.882 to 0.819). The user asked for timeframe
+support "if that improves" — so it ships as a measurable A/B toggle, not
+as an assumed win. It is not claimed to help until a run says it does.
+
+**Confound warning, stated up front.** This iteration changes FOUR things
+at once (V19 scope, V21, TP logic, SL logic). That breaks the OMNIBUS
+one-change rule, deliberately, because the user asked for the whole
+level-to-level architecture rather than a single tweak. The consequence is
+real: if PF moves, we will not know which of the four moved it. Every one
+is individually toggleable specifically so the attribution can be
+recovered afterwards, one switch at a time.
+
+### Test order (do these in sequence, one switch per run)
+Baseline to beat: **521 trades / WR 44.15% / PF 1.093 / +15.25% / DD 11.90%**
+(XAUUSD 15m, Feb 2 - Jul 28 2026, minScore 6).
+
+1. **Everything as shipped** (group ⑤ all ON, group ⑥ OFF) vs baseline.
+   -> tells you whether level-to-level beats fixed-R overall.
+2. `useKLTargets` OFF only. -> isolates the exit change.
+3. `klFullSweep` OFF only. -> isolates the entry-scope change.
+4. `vOn21` OFF only. -> isolates the new voter.
+5. `useKLStops` OFF only. -> isolates the stop change.
+6. Then the conviction test that is still outstanding: minScore 6 -> 8 -> 10.
+7. Only then MTF: `vOn22` ON, then `htfGate` ON, each alone.
+
+If step 1 is worse than baseline, revert to baseline settings before
+tuning anything else -- that is the loop rule and it has already saved
+this repo once (the HTF bias reversion).
+
+STATUS: shipped, statically validated (no duplicate identifiers, no
+use-before-declare, no nested function declarations, no ta.* in a
+dynamically-conditional branch). NOT yet run by the user. No performance
+claim is made until it is.

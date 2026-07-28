@@ -33,6 +33,25 @@
 //   V18 --   Nison                 tier-A reversal candle
 //   V19 --   Spaceman              key-level proximity + sweep
 //   V20 H10  Valentini #2          session structure (NY/London)
+//   V21 H37  Alchemist #12         break-and-retest of a REAL key level
+//   V22 --   (A/B, default OFF)    higher-timeframe trend agreement
+//
+// KEY LEVELS ARE NOW LOAD-BEARING, NOT DECORATION (2026-07-28)
+//   The embedded SpacemanBTC module sits ABOVE the trade logic and
+//   exports klPrices[] every bar, so the engine votes, targets and
+//   defends using the exact prices the chart draws:
+//     ENTRY  V19 sweep+reclaim now scans the FULL level set, not four
+//            hand-picked levels. V21 adds break-and-retest on the same
+//            set. Both are still votes -- they raise conviction, they
+//            do not bypass it.
+//     EXIT   TP1 = next key level >= minTP1R away, TP2 = the next one
+//            beyond it. Level-to-level, not a fixed R multiple. If no
+//            level is in range the fixed R targets take over (clamp,
+//            don't reject -- BUG-009).
+//     STOP   sits BEYOND the key level being defended, and beyond the
+//            actual adverse wick, whichever is further (BUG-005).
+//   All four behaviours are individually toggleable in group ⑤ so the
+//   before/after is measurable rather than asserted.
 //
 // WEIGHTING: votes from HIGH-credibility voices (Valentini #2,
 // Hougaard #15, Wendell #10) count double, per the register's own
@@ -62,467 +81,6 @@ strategy("Multi-Voice Confluence Engine",
      process_orders_on_close = true,
      margin_long        = 5,
      margin_short       = 5)
-
-// ── ① Conviction gate ────────────────────────────────────────
-int   minScore   = input.int(6, "Min Conviction Score To Trade", minval=2, maxval=25, group="① Conviction")
-bool  weightHigh = input.bool(true, "Double-weight HIGH-credibility voices (#2 #10 #15)", group="① Conviction")
-bool  showVotes  = input.bool(true, "Show Vote Breakdown Table", group="① Conviction")
-
-// ── ② Voter toggles (A/B test any voice out) ────────────────
-bool vOn1  = input.bool(true, "V1  H48 Hougaard 4-Bar Fractal",        group="② Voters")
-bool vOn2  = input.bool(true, "V2  H22 Failed-visit count",            group="② Voters")
-bool vOn3  = input.bool(true, "V3  H71 Hima 2-bar test-failure",       group="② Voters")
-bool vOn4  = input.bool(true, "V4  H63 Gann Signal Day",               group="② Voters")
-bool vOn5  = input.bool(true, "V5  H37 Role inversion on retest",      group="② Voters")
-bool vOn6  = input.bool(true, "V6  H36 IDM-gated BOS",                 group="② Voters")
-bool vOn7  = input.bool(true, "V7  H44 Liquidity grab vs BOS",         group="② Voters")
-bool vOn8  = input.bool(true, "V8  H46 HVN / volume cluster",          group="② Voters")
-bool vOn9  = input.bool(true, "V9  H30 Fresh zone + departure",        group="② Voters")
-bool vOn10 = input.bool(true, "V10 H49 Mid-trend divergence",          group="② Voters")
-bool vOn11 = input.bool(true, "V11 H16 Volume tsunami",                group="② Voters")
-bool vOn12 = input.bool(true, "V12 H35 EMA stack bunching",            group="② Voters")
-bool vOn13 = input.bool(true, "V13 H23 ADR thirds",                    group="② Voters")
-bool vOn14 = input.bool(true, "V14 H5  Momentum-join",                 group="② Voters")
-bool vOn15 = input.bool(true, "V15 H17 Leg-size regime",               group="② Voters")
-bool vOn16 = input.bool(true, "V16 H70 Eighths retracement",           group="② Voters")
-bool vOn17 = input.bool(true, "V17 H8  Rejection-count weakening",     group="② Voters")
-bool vOn18 = input.bool(true, "V18 Nison tier-A candle",               group="② Voters")
-bool vOn19 = input.bool(true, "V19 Spaceman key-level sweep",          group="② Voters")
-bool vOn20 = input.bool(true, "V20 H10 Session structure",             group="② Voters")
-
-// ── ③ Voter parameters ──────────────────────────────────────
-int   pivLen     = input.int(10, "Structure Pivot Length", minval=3, group="③ Params")
-int   sigDayLen  = input.int(20, "Signal Day: N-bar extreme", minval=5, group="③ Params")
-float farThird   = input.float(0.33, "Far-third close threshold", step=0.01, group="③ Params")
-float volTsunami = input.float(1.5, "Volume tsunami (x 20-bar avg)", step=0.1, group="③ Params")
-float lvlTolAtr  = input.float(0.25, "Level proximity tolerance (x ATR)", step=0.05, group="③ Params")
-int   adrLen     = input.int(5, "ADR length (days)", minval=1, group="③ Params")
-float bunchAtr   = input.float(0.5, "EMA bunching width (x ATR)", step=0.1, group="③ Params")
-
-// ── ④ Risk / exits ──────────────────────────────────────────
-float stopBufAtr = input.float(0.4, "Stop Buffer (x ATR)", step=0.05, group="④ Risk")
-float minStopAtr = input.float(0.5, "Min Stop (x ATR)", step=0.05, group="④ Risk")
-float maxStopAtr = input.float(2.5, "Max Stop (x ATR)", step=0.1, group="④ Risk")
-float tp1R       = input.float(1.0, "TP1 (R)", step=0.1, group="④ Risk")
-float tp2R       = input.float(2.0, "TP2 (R)", step=0.1, group="④ Risk")
-float tp1Pct     = input.float(50, "% at TP1", minval=10, maxval=90, group="④ Risk")
-float riskPct    = input.float(1.0, "Risk per trade (%)", step=0.25, group="④ Risk")
-float maxLev     = input.float(20, "Max leverage", minval=1, group="④ Risk")
-int   cooldown   = input.int(12, "Cooldown bars", minval=0, group="④ Risk")
-int   timeStop   = input.int(48, "Time stop (bars)", minval=4, group="④ Risk")
-int   maxPerDay  = input.int(4, "Max trades/day", minval=1, group="④ Risk")
-float dayLossPct = input.float(2.0, "Daily loss limit (%)", step=0.5, group="④ Risk")
-string sessTz    = input.string("Etc/UTC", "Timezone", group="④ Risk")
-
-// ═════════════════════════════════════════════════════════════
-// SHARED SERIES (all ta.* unconditional at top level -- BUG-004)
-// ═════════════════════════════════════════════════════════════
-float atr     = ta.atr(14)
-float volAvg  = ta.sma(volume, 20)
-float rng     = high - low
-float bodySz  = math.abs(close - open)
-float ema13   = ta.ema(close, 13)
-float ema50   = ta.ema(close, 50)
-float ema200  = ta.ema(close, 200)
-float rsiV    = ta.rsi(close, 14)
-float ph      = ta.pivothigh(high, pivLen, pivLen)
-float pl      = ta.pivotlow(low, pivLen, pivLen)
-float hiN     = ta.highest(high, sigDayLen)
-float loN     = ta.lowest(low, sigDayLen)
-float adr     = request.security(syminfo.tickerid, "D", ta.sma(high - low, adrLen)[1], lookahead=barmerge.lookahead_on)
-float dOpen   = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
-float pdh     = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
-float pdl     = request.security(syminfo.tickerid, "D", low[1], lookahead=barmerge.lookahead_on)
-float pwh     = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
-float pwl     = request.security(syminfo.tickerid, "W", low[1], lookahead=barmerge.lookahead_on)
-float wOpen   = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
-
-bool inLondon = not na(time(timeframe.period, "0800-1600", sessTz))
-bool inNY     = not na(time(timeframe.period, "1400-2100", sessTz))
-
-// persistent structure state
-var float lastPH = na
-var float lastPL = na
-if not na(ph)
-    lastPH := ph
-if not na(pl)
-    lastPL := pl
-
-// ═════════════════════════════════════════════════════════════
-// THE VOTERS — each returns +1 bull, -1 bear, 0 abstain
-// ═════════════════════════════════════════════════════════════
-
-// V1 | H48 | Hougaard #15 (HIGH) — 4-Bar Fractal: close beats BOTH
-// the prior bar's and the bar-3-back's extreme.
-int v1 = 0
-if vOn1
-    bool f_up = close > high[1] and close > high[3]
-    bool f_dn = close < low[1] and close < low[3]
-    v1 := f_up ? 1 : f_dn ? -1 : 0
-
-// V2 | H22 — three failed visits to a level (wicks, no body break).
-// Counts touches of the nearest HTF level without a closing break.
-int v2 = 0
-var int touchHi = 0
-var int touchLo = 0
-if vOn2
-    bool nearPdh = not na(pdh) and math.abs(high - pdh) <= atr * lvlTolAtr
-    bool nearPdl = not na(pdl) and math.abs(low - pdl) <= atr * lvlTolAtr
-    if nearPdh and close < pdh
-        touchHi += 1
-    if not na(pdh) and close > pdh
-        touchHi := 0
-    if nearPdl and close > pdl
-        touchLo += 1
-    if not na(pdl) and close < pdl
-        touchLo := 0
-    v2 := touchLo >= 3 ? 1 : touchHi >= 3 ? -1 : 0
-
-// V3 | H71 | Hima Reddy #19 — 2-bar test-failure. NOTE: the source
-// says this is a trade-MANAGEMENT tell, not a standalone entry (see
-// hima_reddy playbook audit). Here it is only ONE VOTE among many,
-// which is a legitimate use of it.
-int v3 = 0
-if vOn3
-    bool tf_dn = not na(pdh) and high[1] > pdh and close[1] >= pdh and close < pdh
-    bool tf_up = not na(pdl) and low[1] < pdl and close[1] <= pdl and close > pdl
-    v3 := tf_up ? 1 : tf_dn ? -1 : 0
-
-// V4 | H63 | Gann #16 — Signal Day: single bar makes a new N-bar
-// extreme and closes in the FAR third against it.
-int v4 = 0
-if vOn4
-    bool sd_up = low <= loN[1] and rng > 0 and (close - low) / rng >= (1 - farThird)
-    bool sd_dn = high >= hiN[1] and rng > 0 and (high - close) / rng >= (1 - farThird)
-    v4 := sd_up ? 1 : sd_dn ? -1 : 0
-
-// V5 | H37 | Alchemist #12 — role inversion: a broken level retested
-// from the other side holds (SBR/RBS).
-int v5 = 0
-var float brokenUp = na
-var float brokenDn = na
-if vOn5
-    if not na(lastPH) and close > lastPH and close[1] <= lastPH
-        brokenUp := lastPH
-    if not na(lastPL) and close < lastPL and close[1] >= lastPL
-        brokenDn := lastPL
-    bool rbs = not na(brokenUp) and low <= brokenUp and close > brokenUp
-    bool sbr = not na(brokenDn) and high >= brokenDn and close < brokenDn
-    v5 := rbs ? 1 : sbr ? -1 : 0
-
-// V6 | H36 | Alchemist #12 — BOS is only trusted once the inducement
-// (the pullback extreme before it) has been swept first.
-int v6 = 0
-var float idmLow = na
-var float idmHigh = na
-if vOn6
-    if not na(pl)
-        idmLow := pl
-    if not na(ph)
-        idmHigh := ph
-    bool idmSweptLo = not na(idmLow) and low < idmLow
-    bool idmSweptHi = not na(idmHigh) and high > idmHigh
-    bool bosUp = not na(lastPH) and close > lastPH and idmSweptLo
-    bool bosDn = not na(lastPL) and close < lastPL and idmSweptHi
-    v6 := bosUp ? 1 : bosDn ? -1 : 0
-
-// V7 | H44 | Pure PA #13 — liquidity grab (wick-dominant single bar)
-// vs BOS (body close). Grab = reversal vote.
-int v7 = 0
-if vOn7
-    float upW = high - math.max(open, close)
-    float dnW = math.min(open, close) - low
-    bool grabLo = rng > 0 and dnW / rng > 0.6 and close > open
-    bool grabHi = rng > 0 and upW / rng > 0.6 and close < open
-    v7 := grabLo ? 1 : grabHi ? -1 : 0
-
-// V8 | H46 | Trader Dale #14 — HVN proxy: price returning to the
-// highest-volume price area of the recent window acts as S/R.
-int v8 = 0
-if vOn8
-    float hvnPx = ta.vwap(hlc3)
-    bool nearHvn = math.abs(close - hvnPx) <= atr * lvlTolAtr
-    v8 := nearHvn and close > hvnPx ? 1 : nearHvn and close < hvnPx ? -1 : 0
-
-// V9 | H30 | Wendell #10 (HIGH) — fresh zone + departure strength:
-// an untested pivot zone whose departure leg was strong.
-int v9 = 0
-var float freshDemand = na
-var float freshSupply = na
-if vOn9
-    if not na(pl) and math.abs(close[pivLen] - pl) > atr * 1.0
-        freshDemand := pl
-    if not na(ph) and math.abs(ph - close[pivLen]) > atr * 1.0
-        freshSupply := ph
-    bool tapDemand = not na(freshDemand) and low <= freshDemand and close > freshDemand
-    bool tapSupply = not na(freshSupply) and high >= freshSupply and close < freshSupply
-    if tapDemand
-        freshDemand := na
-    if tapSupply
-        freshSupply := na
-    v9 := tapDemand ? 1 : tapSupply ? -1 : 0
-
-// V10 | H49 | Hougaard #15 (HIGH) — MID-TREND divergence reads as
-// CONTINUATION, not reversal (his explicit, contrarian claim).
-int v10 = 0
-if vOn10
-    bool upTrend = close > ema50 and ema50 > ema200
-    bool dnTrend = close < ema50 and ema50 < ema200
-    bool divUp = close > close[5] and rsiV < rsiV[5]
-    bool divDn = close < close[5] and rsiV > rsiV[5]
-    v10 := upTrend and divUp ? 1 : dnTrend and divDn ? -1 : 0
-
-// V11 | H16 | Valentini #2 (HIGH) — volume tsunami confirms a real
-// move; hollow moves are not trusted.
-int v11 = 0
-if vOn11
-    bool tsunami = volume > volAvg * volTsunami
-    v11 := tsunami and close > open ? 1 : tsunami and close < open ? -1 : 0
-
-// V12 | H35 | Steve #8 — EMA stack bunching then expansion.
-int v12 = 0
-if vOn12
-    float spread = math.max(math.max(ema13, ema50), ema200) - math.min(math.min(ema13, ema50), ema200)
-    bool bunched = spread <= atr * bunchAtr
-    bool wasBunched = bunched[1] or bunched[2] or bunched[3]
-    v12 := wasBunched and close > ema13 and ema13 > ema50 ? 1 : wasBunched and close < ema13 and ema13 < ema50 ? -1 : 0
-
-// V13 | H23 | Steve #8 — ADR thirds: exhaustion when the day has
-// already delivered ~1 ADR in one direction.
-int v13 = 0
-if vOn13
-    float dayMove = close - dOpen
-    bool stretchedUp = not na(adr) and adr > 0 and dayMove >= adr * 0.9
-    bool stretchedDn = not na(adr) and adr > 0 and dayMove <= -adr * 0.9
-    v13 := stretchedDn ? 1 : stretchedUp ? -1 : 0
-
-// V14 | H5 | Valentini #2 (HIGH) — momentum-join: never catch the
-// knife; join after follow-through.
-int v14 = 0
-if vOn14
-    bool joinUp = close > ema13 and close[1] > open[1] and close > close[1]
-    bool joinDn = close < ema13 and close[1] < open[1] and close < close[1]
-    v14 := joinUp ? 1 : joinDn ? -1 : 0
-
-// V15 | H17 | Ario #6 — leg-size ratio as a continuous regime read.
-int v15 = 0
-if vOn15
-    float upLeg = ta.highest(high, 20) - ta.lowest(low, 20)
-    float netMove = close - close[20]
-    float ratio = upLeg > 0 ? netMove / upLeg : 0
-    v15 := ratio > 0.35 ? 1 : ratio < -0.35 ? -1 : 0
-
-// V16 | H70 | Hima Reddy #19 — eighths retracement: reaction at the
-// 50% / 62.5% eighth of the recent swing.
-int v16 = 0
-if vOn16
-    float swHi = ta.highest(high, 30)
-    float swLo = ta.lowest(low, 30)
-    float swRng = swHi - swLo
-    if swRng > 0
-        float lvl50  = swLo + swRng * 0.5
-        float lvl625 = swLo + swRng * 0.625
-        float lvl375 = swLo + swRng * 0.375
-        bool atUp = (math.abs(low - lvl50) <= atr * lvlTolAtr or math.abs(low - lvl375) <= atr * lvlTolAtr) and close > open
-        bool atDn = (math.abs(high - lvl50) <= atr * lvlTolAtr or math.abs(high - lvl625) <= atr * lvlTolAtr) and close < open
-        v16 := atUp ? 1 : atDn ? -1 : 0
-
-// V17 | H8 | PBD #1 + multi — setups weaken with each rejection;
-// this votes AGAINST a side that has already been rejected 3x.
-int v17 = 0
-if vOn17
-    v17 := touchHi >= 3 ? 1 : touchLo >= 3 ? -1 : 0
-
-// V18 | Nison tier-A reversal candle
-int v18 = 0
-if vOn18
-    float avgBody = ta.sma(bodySz, 14)
-    bool bullEng = close > open and close[1] < open[1] and bodySz >= avgBody and close >= math.max(close[1], open[1]) and open <= math.min(close[1], open[1])
-    bool bearEng = close < open and close[1] > open[1] and bodySz >= avgBody and open >= math.max(close[1], open[1]) and close <= math.min(close[1], open[1])
-    bool hammer = rng > 0 and (open - low) > bodySz * 2 and (high - math.max(open, close)) < bodySz * 0.5
-    bool shoot  = rng > 0 and (high - open) > bodySz * 2 and (math.min(open, close) - low) < bodySz * 0.5
-    v18 := (bullEng or hammer) ? 1 : (bearEng or shoot) ? -1 : 0
-
-// V19 | Spaceman key-level sweep + reclaim
-// (sweep helpers declared at TOP LEVEL -- Pine forbids nested
-// function declarations inside conditional blocks, BUG-002)
-f_sweepUp(float lv) => not na(lv) and low < lv and close > lv and close > open
-f_sweepDn(float lv) => not na(lv) and high > lv and close < lv and close < open
-bool sUp19 = f_sweepUp(pdl) or f_sweepUp(pwl) or f_sweepUp(dOpen) or f_sweepUp(wOpen)
-bool sDn19 = f_sweepDn(pdh) or f_sweepDn(pwh) or f_sweepDn(dOpen) or f_sweepDn(wOpen)
-int v19 = 0
-if vOn19
-    v19 := sUp19 ? 1 : sDn19 ? -1 : 0
-
-// V20 | H10 | Valentini #2 — session structure gate
-int v20 = 0
-if vOn20
-    v20 := (inLondon or inNY) ? (close > dOpen ? 1 : close < dOpen ? -1 : 0) : 0
-
-// ═════════════════════════════════════════════════════════════
-// TALLY — HIGH-credibility voices double-weighted (register tiers)
-// ═════════════════════════════════════════════════════════════
-int wHigh = weightHigh ? 2 : 1
-int score = v1 * wHigh          // Hougaard HIGH
-     + v2
-     + v3
-     + v4
-     + v5
-     + v6
-     + v7
-     + v8
-     + v9 * wHigh               // Wendell HIGH
-     + v10 * wHigh              // Hougaard HIGH
-     + v11 * wHigh              // Valentini HIGH
-     + v12
-     + v13
-     + v14 * wHigh              // Valentini HIGH
-     + v15
-     + v16
-     + v17
-     + v18
-     + v19
-     + v20
-
-// count how many voices actually voted (non-abstain), for context
-int voters = math.abs(v1) + math.abs(v2) + math.abs(v3) + math.abs(v4) + math.abs(v5) +
-     math.abs(v6) + math.abs(v7) + math.abs(v8) + math.abs(v9) + math.abs(v10) +
-     math.abs(v11) + math.abs(v12) + math.abs(v13) + math.abs(v14) + math.abs(v15) +
-     math.abs(v16) + math.abs(v17) + math.abs(v18) + math.abs(v19) + math.abs(v20)
-
-// ═════════════════════════════════════════════════════════════
-// EXECUTION
-// ═════════════════════════════════════════════════════════════
-var int lastSig = -9999
-bool cd = bar_index - lastSig > cooldown
-
-var int dayTrades = 0
-var float dayEq0 = na
-var bool halted = false
-bool newDay = na(dayEq0) or dayofmonth(time, sessTz) != dayofmonth(time[1], sessTz)
-if newDay
-    dayTrades := 0
-    dayEq0 := strategy.equity
-    halted := false
-if not na(dayEq0) and (strategy.equity - dayEq0) <= -dayEq0 * dayLossPct / 100.0
-    halted := true
-bool ok = cd and not halted and dayTrades < maxPerDay and strategy.position_size == 0 and (inLondon or inNY)
-
-bool goLong  = ok and score >= minScore
-bool goShort = ok and score <= -minScore
-
-var int entryBar = na
-if goLong
-    float rd = math.min(math.max(close - math.min(low, low[1]) + atr * stopBufAtr, atr * minStopAtr), atr * maxStopAtr)
-    float qty = math.min(strategy.equity * riskPct / 100.0 / rd, strategy.equity * maxLev / close)
-    if qty > 0
-        strategy.entry("MV-L", strategy.long, qty=qty)
-        strategy.exit("L1", "MV-L", stop=close - rd, limit=close + rd * tp1R, qty_percent=tp1Pct)
-        strategy.exit("L2", "MV-L", stop=close - rd, limit=close + rd * tp2R)
-        lastSig := bar_index
-        entryBar := bar_index
-        dayTrades += 1
-        label.new(bar_index, low, "BUY " + str.tostring(score), style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small,
-             tooltip="Conviction " + str.tostring(score) + " from " + str.tostring(voters) + " voting voices")
-
-if goShort
-    float rd = math.min(math.max(math.max(high, high[1]) - close + atr * stopBufAtr, atr * minStopAtr), atr * maxStopAtr)
-    float qty = math.min(strategy.equity * riskPct / 100.0 / rd, strategy.equity * maxLev / close)
-    if qty > 0
-        strategy.entry("MV-S", strategy.short, qty=qty)
-        strategy.exit("S1", "MV-S", stop=close + rd, limit=close - rd * tp1R, qty_percent=tp1Pct)
-        strategy.exit("S2", "MV-S", stop=close + rd, limit=close - rd * tp2R)
-        lastSig := bar_index
-        entryBar := bar_index
-        dayTrades += 1
-        label.new(bar_index, high, "SELL " + str.tostring(score), style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small,
-             tooltip="Conviction " + str.tostring(score) + " from " + str.tostring(voters) + " voting voices")
-
-if strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= timeStop
-    strategy.close_all(comment="Time stop")
-
-// ═════════════════════════════════════════════════════════════
-// VOTE TABLE — see exactly which voices agree, live
-// ═════════════════════════════════════════════════════════════
-f_vtxt(int v) => v > 0 ? "BULL" : v < 0 ? "BEAR" : "-"
-f_vcol(int v) => v > 0 ? color.lime : v < 0 ? color.red : color.gray
-
-var table vt = table.new(position.top_right, 3, 22, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 70))
-if showVotes and barstate.islast
-    table.cell(vt, 0, 0, "VOICE", text_color=color.orange, text_size=size.tiny)
-    table.cell(vt, 1, 0, "VOTE", text_color=color.orange, text_size=size.tiny)
-    table.cell(vt, 2, 0, "SCORE " + str.tostring(score), text_color=score >= minScore ? color.lime : score <= -minScore ? color.red : color.silver, text_size=size.tiny)
-    table.cell(vt, 0, 1, "V1 Hougaard 4-bar", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 1, f_vtxt(v1), text_color=f_vcol(v1), text_size=size.tiny)
-    table.cell(vt, 0, 2, "V2 3-visit fail", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 2, f_vtxt(v2), text_color=f_vcol(v2), text_size=size.tiny)
-    table.cell(vt, 0, 3, "V3 Hima test-fail", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 3, f_vtxt(v3), text_color=f_vcol(v3), text_size=size.tiny)
-    table.cell(vt, 0, 4, "V4 Signal Day", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 4, f_vtxt(v4), text_color=f_vcol(v4), text_size=size.tiny)
-    table.cell(vt, 0, 5, "V5 Role inversion", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 5, f_vtxt(v5), text_color=f_vcol(v5), text_size=size.tiny)
-    table.cell(vt, 0, 6, "V6 IDM-gated BOS", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 6, f_vtxt(v6), text_color=f_vcol(v6), text_size=size.tiny)
-    table.cell(vt, 0, 7, "V7 Liquidity grab", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 7, f_vtxt(v7), text_color=f_vcol(v7), text_size=size.tiny)
-    table.cell(vt, 0, 8, "V8 HVN cluster", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 8, f_vtxt(v8), text_color=f_vcol(v8), text_size=size.tiny)
-    table.cell(vt, 0, 9, "V9 Wendell zone", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 9, f_vtxt(v9), text_color=f_vcol(v9), text_size=size.tiny)
-    table.cell(vt, 0, 10, "V10 Mid-trend div", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 10, f_vtxt(v10), text_color=f_vcol(v10), text_size=size.tiny)
-    table.cell(vt, 0, 11, "V11 Vol tsunami", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 11, f_vtxt(v11), text_color=f_vcol(v11), text_size=size.tiny)
-    table.cell(vt, 0, 12, "V12 EMA bunching", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 12, f_vtxt(v12), text_color=f_vcol(v12), text_size=size.tiny)
-    table.cell(vt, 0, 13, "V13 ADR thirds", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 13, f_vtxt(v13), text_color=f_vcol(v13), text_size=size.tiny)
-    table.cell(vt, 0, 14, "V14 Momentum-join", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 14, f_vtxt(v14), text_color=f_vcol(v14), text_size=size.tiny)
-    table.cell(vt, 0, 15, "V15 Leg regime", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 15, f_vtxt(v15), text_color=f_vcol(v15), text_size=size.tiny)
-    table.cell(vt, 0, 16, "V16 Eighths", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 16, f_vtxt(v16), text_color=f_vcol(v16), text_size=size.tiny)
-    table.cell(vt, 0, 17, "V17 Rejection cnt", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 17, f_vtxt(v17), text_color=f_vcol(v17), text_size=size.tiny)
-    table.cell(vt, 0, 18, "V18 Tier-A candle", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 18, f_vtxt(v18), text_color=f_vcol(v18), text_size=size.tiny)
-    table.cell(vt, 0, 19, "V19 Key-lvl sweep", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 19, f_vtxt(v19), text_color=f_vcol(v19), text_size=size.tiny)
-    table.cell(vt, 0, 20, "V20 Session", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 20, f_vtxt(v20), text_color=f_vcol(v20), text_size=size.tiny)
-    table.cell(vt, 0, 21, "Voting voices", text_color=color.silver, text_size=size.tiny)
-    table.cell(vt, 1, 21, str.tostring(voters) + "/20", text_color=color.white, text_size=size.tiny)
-
-// results dashboard
-var table dash = table.new(position.bottom_right, 4, 2, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
-if barstate.islast
-    int nT = 0
-    int wT = 0
-    float gw = 0.0
-    float gl = 0.0
-    if strategy.closedtrades > 0
-        for i = 0 to strategy.closedtrades - 1
-            float p = strategy.closedtrades.profit(i)
-            nT += 1
-            wT += p > 0 ? 1 : 0
-            gw += p > 0 ? p : 0.0
-            gl += p < 0 ? -p : 0.0
-    float wr = nT > 0 ? wT / nT * 100.0 : na
-    float pf = gl > 0 ? gw / gl : na
-    table.cell(dash, 0, 0, "MULTI-VOICE", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 1, 0, "Trades", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 2, 0, "Win%", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 3, 0, "PF", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 0, 1, "UNTESTED", text_color=color.yellow, text_size=size.tiny)
-    table.cell(dash, 1, 1, str.tostring(nT), text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 2, 1, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 3, 1, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1 ? color.lime : color.red, text_size=size.tiny)
-
-alertcondition(goLong,  "MultiVoice Buy",  "MV BUY ({{ticker}} {{interval}})")
-alertcondition(goShort, "MultiVoice Sell", "MV SELL ({{ticker}} {{interval}})")
-
 
 // ════════════════════════════════════════════════════════════════════
 // EMBEDDED: SpacemanBTC IDWM Key Levels V13.1
@@ -1460,3 +1018,683 @@ if barstate.islast
         if timeframe.isweekly and dayofweek(monthly_time) != dayofweek.monday
             line.set_x1(monthlyLine, monthly_time - (weekly_time - weekly_time[1]))
 // ════════════════════ END KEY_LEVELS_MODULE ═════════════════════════
+
+
+// ── ① Conviction gate ────────────────────────────────────────
+int   minScore   = input.int(6, "Min Conviction Score To Trade", minval=2, maxval=30, group="① Conviction")
+bool  weightHigh = input.bool(true, "Double-weight HIGH-credibility voices (#2 #10 #15)", group="① Conviction")
+bool  showVotes  = input.bool(true, "Show Vote Breakdown Table", group="① Conviction")
+
+// ── ② Voter toggles (A/B test any voice out) ────────────────
+bool vOn1  = input.bool(true, "V1  H48 Hougaard 4-Bar Fractal",        group="② Voters")
+bool vOn2  = input.bool(true, "V2  H22 Failed-visit count",            group="② Voters")
+bool vOn3  = input.bool(true, "V3  H71 Hima 2-bar test-failure",       group="② Voters")
+bool vOn4  = input.bool(true, "V4  H63 Gann Signal Day",               group="② Voters")
+bool vOn5  = input.bool(true, "V5  H37 Role inversion on retest",      group="② Voters")
+bool vOn6  = input.bool(true, "V6  H36 IDM-gated BOS",                 group="② Voters")
+bool vOn7  = input.bool(true, "V7  H44 Liquidity grab vs BOS",         group="② Voters")
+bool vOn8  = input.bool(true, "V8  H46 HVN / volume cluster",          group="② Voters")
+bool vOn9  = input.bool(true, "V9  H30 Fresh zone + departure",        group="② Voters")
+bool vOn10 = input.bool(true, "V10 H49 Mid-trend divergence",          group="② Voters")
+bool vOn11 = input.bool(true, "V11 H16 Volume tsunami",                group="② Voters")
+bool vOn12 = input.bool(true, "V12 H35 EMA stack bunching",            group="② Voters")
+bool vOn13 = input.bool(true, "V13 H23 ADR thirds",                    group="② Voters")
+bool vOn14 = input.bool(true, "V14 H5  Momentum-join",                 group="② Voters")
+bool vOn15 = input.bool(true, "V15 H17 Leg-size regime",               group="② Voters")
+bool vOn16 = input.bool(true, "V16 H70 Eighths retracement",           group="② Voters")
+bool vOn17 = input.bool(true, "V17 H8  Rejection-count weakening",     group="② Voters")
+bool vOn18 = input.bool(true, "V18 Nison tier-A candle",               group="② Voters")
+bool vOn19 = input.bool(true, "V19 Spaceman key-level sweep",          group="② Voters")
+bool vOn21 = input.bool(true, "V21 Key-level break-and-retest",        group="② Voters")
+bool vOn22 = input.bool(false, "V22 Higher-timeframe trend (A/B, OFF)", group="② Voters")
+bool vOn20 = input.bool(true, "V20 H10 Session structure",             group="② Voters")
+
+// ── ③ Voter parameters ──────────────────────────────────────
+int   pivLen     = input.int(10, "Structure Pivot Length", minval=3, group="③ Params")
+int   sigDayLen  = input.int(20, "Signal Day: N-bar extreme", minval=5, group="③ Params")
+float farThird   = input.float(0.33, "Far-third close threshold", step=0.01, group="③ Params")
+float volTsunami = input.float(1.5, "Volume tsunami (x 20-bar avg)", step=0.1, group="③ Params")
+float lvlTolAtr  = input.float(0.25, "Level proximity tolerance (x ATR)", step=0.05, group="③ Params")
+int   adrLen     = input.int(5, "ADR length (days)", minval=1, group="③ Params")
+float bunchAtr   = input.float(0.5, "EMA bunching width (x ATR)", step=0.1, group="③ Params")
+
+// ── ④ Risk / exits ──────────────────────────────────────────
+float stopBufAtr = input.float(0.4, "Stop Buffer (x ATR)", step=0.05, group="④ Risk")
+float minStopAtr = input.float(0.5, "Min Stop (x ATR)", step=0.05, group="④ Risk")
+float maxStopAtr = input.float(2.5, "Max Stop (x ATR)", step=0.1, group="④ Risk")
+float tp1R       = input.float(1.0, "TP1 (R)", step=0.1, group="④ Risk")
+float tp2R       = input.float(2.0, "TP2 (R)", step=0.1, group="④ Risk")
+float tp1Pct     = input.float(50, "% at TP1", minval=10, maxval=90, group="④ Risk")
+float riskPct    = input.float(1.0, "Risk per trade (%)", step=0.25, group="④ Risk")
+float maxLev     = input.float(20, "Max leverage", minval=1, group="④ Risk")
+int   cooldown   = input.int(12, "Cooldown bars", minval=0, group="④ Risk")
+int   timeStop   = input.int(48, "Time stop (bars)", minval=4, group="④ Risk")
+int   maxPerDay  = input.int(4, "Max trades/day", minval=1, group="④ Risk")
+float dayLossPct = input.float(2.0, "Daily loss limit (%)", step=0.5, group="④ Risk")
+string sessTz    = input.string("Etc/UTC", "Timezone", group="④ Risk")
+
+// ── ⑤ Key-level navigation (level-to-level trading) ─────────
+// These consume klPrices[] exported by the embedded Spaceman module,
+// so the strategy targets, defends and votes on the EXACT levels the
+// chart is drawing. Nothing here invents its own levels.
+bool  klFullSweep = input.bool(true,  "V19 sweeps the FULL key-level set (not just PDH/PDL/DO/WO)", group="⑤ Key Levels")
+bool  useKLTargets= input.bool(true,  "Exit level-to-level: TP1/TP2 = next key levels", group="⑤ Key Levels")
+bool  useKLStops  = input.bool(true,  "Stop sits beyond the key level being defended", group="⑤ Key Levels")
+bool  klRoomGate  = input.bool(false, "REJECT trades with no key level in range (A/B, OFF)", group="⑤ Key Levels")
+float minTP1R     = input.float(1.0,  "TP1 must be >= this many R away", step=0.1, group="⑤ Key Levels")
+float maxTgtAtr   = input.float(8.0,  "Ignore key levels further than (x ATR)", step=0.5, group="⑤ Key Levels")
+int   retestLB    = input.int(12,     "Break-and-retest lookback (bars)", minval=3, group="⑤ Key Levels")
+bool  showKLTgt   = input.bool(true,  "Draw the level-to-level TP/SL of the live trade", group="⑤ Key Levels")
+
+// ── ⑥ Multi-timeframe ───────────────────────────────────────
+// HONEST NOTE: two previous "logical" higher-timeframe filters BOTH made
+// this repo's PF worse (ADX veto, and the HTF bias MA on the trendline
+// engine: PF 0.882 -> 0.819). So MTF ships DEFAULT OFF and labelled as an
+// A/B toggle, not as an assumed improvement. Turn it on, compare, keep it
+// only if the number goes up.
+string htfTF   = input.timeframe("60", "Higher timeframe", group="⑥ Multi-Timeframe")
+int    htfLen  = input.int(50, "HTF trend EMA length", minval=5, group="⑥ Multi-Timeframe")
+bool   htfGate = input.bool(false, "HARD GATE: block trades against the HTF trend (A/B, OFF)", group="⑥ Multi-Timeframe")
+
+// ═════════════════════════════════════════════════════════════
+// SHARED SERIES (all ta.* unconditional at top level -- BUG-004)
+// ═════════════════════════════════════════════════════════════
+float atr     = ta.atr(14)
+float volAvg  = ta.sma(volume, 20)
+float rng     = high - low
+float bodySz  = math.abs(close - open)
+float ema13   = ta.ema(close, 13)
+float ema50   = ta.ema(close, 50)
+float ema200  = ta.ema(close, 200)
+float rsiV    = ta.rsi(close, 14)
+float ph      = ta.pivothigh(high, pivLen, pivLen)
+float pl      = ta.pivotlow(low, pivLen, pivLen)
+float hiN     = ta.highest(high, sigDayLen)
+float loN     = ta.lowest(low, sigDayLen)
+float adr     = request.security(syminfo.tickerid, "D", ta.sma(high - low, adrLen)[1], lookahead=barmerge.lookahead_on)
+float dOpen   = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+float pdh     = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+float pdl     = request.security(syminfo.tickerid, "D", low[1], lookahead=barmerge.lookahead_on)
+float pwh     = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+float pwl     = request.security(syminfo.tickerid, "W", low[1], lookahead=barmerge.lookahead_on)
+float wOpen   = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+
+bool inLondon = not na(time(timeframe.period, "0800-1600", sessTz))
+bool inNY     = not na(time(timeframe.period, "1400-2100", sessTz))
+
+// non-repainting HTF refs ([1] offset makes lookahead_on safe -- BUG-004)
+float htfEma   = request.security(syminfo.tickerid, htfTF, ta.ema(close, htfLen)[1], lookahead=barmerge.lookahead_on)
+float htfClose = request.security(syminfo.tickerid, htfTF, close[1], lookahead=barmerge.lookahead_on)
+
+// rolling extremes for the break-and-retest test, computed unconditionally
+// at top level so ta.* is never called inside a loop or branch (BUG-004)
+float lowLB  = ta.lowest(low, retestLB)[1]
+float highLB = ta.highest(high, retestLB)[1]
+
+// ═════════════════════════════════════════════════════════════
+// KEY-LEVEL NAVIGATION
+// Every function here reads klPrices[] -- the array the embedded
+// Spaceman module fills each bar with the exact prices it draws. The
+// strategy therefore trades to and from the same lines you see, rather
+// than to an internal copy that can drift out of sync.
+// Empty-array safe: every loop is guarded by size > 0 (BUG-001).
+// ═════════════════════════════════════════════════════════════
+f_sweepUp(float lv) => not na(lv) and low < lv and close > lv and close > open
+f_sweepDn(float lv) => not na(lv) and high > lv and close < lv and close < open
+
+// nearest key level strictly above / below a price
+f_klAbove(float px) =>
+    float best = na
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            float lv = array.get(klPrices, i)
+            if not na(lv) and lv > px and (na(best) or lv < best)
+                best := lv
+    best
+
+f_klBelow(float px) =>
+    float best = na
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            float lv = array.get(klPrices, i)
+            if not na(lv) and lv < px and (na(best) or lv > best)
+                best := lv
+    best
+
+// walk upward/downward through the level stack until the target is at
+// least minDist away; give up past maxDist. This is the "level to level"
+// rule: the target is the NEXT structurally meaningful price, not a
+// fixed R multiple -- but a level that is too close to be worth the risk
+// is skipped rather than taken (clamp, don't reject -- BUG-009).
+f_klTargetUp(float px, float minDist, float maxDist) =>
+    float t = f_klAbove(px)
+    for k = 0 to 7
+        if not na(t) and (t - px) < minDist
+            t := f_klAbove(t)
+    na(t) ? na : (t - px) > maxDist ? na : t
+
+f_klTargetDn(float px, float minDist, float maxDist) =>
+    float t = f_klBelow(px)
+    for k = 0 to 7
+        if not na(t) and (px - t) < minDist
+            t := f_klBelow(t)
+    na(t) ? na : (px - t) > maxDist ? na : t
+
+// sweep + reclaim of ANY drawn key level
+f_klSweepUp() =>
+    bool r = false
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            if f_sweepUp(array.get(klPrices, i))
+                r := true
+    r
+
+f_klSweepDn() =>
+    bool r = false
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            if f_sweepDn(array.get(klPrices, i))
+                r := true
+    r
+
+// break-and-retest: price traded BELOW the level inside the lookback,
+// closes above it now, and this bar wicked back down to touch it
+f_klRetestUp() =>
+    bool r = false
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            float lv = array.get(klPrices, i)
+            if not na(lv) and not na(lowLB) and close > lv and lowLB < lv and low <= lv + atr * lvlTolAtr and close > open
+                r := true
+    r
+
+f_klRetestDn() =>
+    bool r = false
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            float lv = array.get(klPrices, i)
+            if not na(lv) and not na(highLB) and close < lv and highLB > lv and high >= lv - atr * lvlTolAtr and close < open
+                r := true
+    r
+
+// persistent structure state
+var float lastPH = na
+var float lastPL = na
+if not na(ph)
+    lastPH := ph
+if not na(pl)
+    lastPL := pl
+
+// ═════════════════════════════════════════════════════════════
+// THE VOTERS — each returns +1 bull, -1 bear, 0 abstain
+// ═════════════════════════════════════════════════════════════
+
+// V1 | H48 | Hougaard #15 (HIGH) — 4-Bar Fractal: close beats BOTH
+// the prior bar's and the bar-3-back's extreme.
+int v1 = 0
+if vOn1
+    bool f_up = close > high[1] and close > high[3]
+    bool f_dn = close < low[1] and close < low[3]
+    v1 := f_up ? 1 : f_dn ? -1 : 0
+
+// V2 | H22 — three failed visits to a level (wicks, no body break).
+// Counts touches of the nearest HTF level without a closing break.
+int v2 = 0
+var int touchHi = 0
+var int touchLo = 0
+if vOn2
+    bool nearPdh = not na(pdh) and math.abs(high - pdh) <= atr * lvlTolAtr
+    bool nearPdl = not na(pdl) and math.abs(low - pdl) <= atr * lvlTolAtr
+    if nearPdh and close < pdh
+        touchHi += 1
+    if not na(pdh) and close > pdh
+        touchHi := 0
+    if nearPdl and close > pdl
+        touchLo += 1
+    if not na(pdl) and close < pdl
+        touchLo := 0
+    v2 := touchLo >= 3 ? 1 : touchHi >= 3 ? -1 : 0
+
+// V3 | H71 | Hima Reddy #19 — 2-bar test-failure. NOTE: the source
+// says this is a trade-MANAGEMENT tell, not a standalone entry (see
+// hima_reddy playbook audit). Here it is only ONE VOTE among many,
+// which is a legitimate use of it.
+int v3 = 0
+if vOn3
+    bool tf_dn = not na(pdh) and high[1] > pdh and close[1] >= pdh and close < pdh
+    bool tf_up = not na(pdl) and low[1] < pdl and close[1] <= pdl and close > pdl
+    v3 := tf_up ? 1 : tf_dn ? -1 : 0
+
+// V4 | H63 | Gann #16 — Signal Day: single bar makes a new N-bar
+// extreme and closes in the FAR third against it.
+int v4 = 0
+if vOn4
+    bool sd_up = low <= loN[1] and rng > 0 and (close - low) / rng >= (1 - farThird)
+    bool sd_dn = high >= hiN[1] and rng > 0 and (high - close) / rng >= (1 - farThird)
+    v4 := sd_up ? 1 : sd_dn ? -1 : 0
+
+// V5 | H37 | Alchemist #12 — role inversion: a broken level retested
+// from the other side holds (SBR/RBS).
+int v5 = 0
+var float brokenUp = na
+var float brokenDn = na
+if vOn5
+    if not na(lastPH) and close > lastPH and close[1] <= lastPH
+        brokenUp := lastPH
+    if not na(lastPL) and close < lastPL and close[1] >= lastPL
+        brokenDn := lastPL
+    bool rbs = not na(brokenUp) and low <= brokenUp and close > brokenUp
+    bool sbr = not na(brokenDn) and high >= brokenDn and close < brokenDn
+    v5 := rbs ? 1 : sbr ? -1 : 0
+
+// V6 | H36 | Alchemist #12 — BOS is only trusted once the inducement
+// (the pullback extreme before it) has been swept first.
+int v6 = 0
+var float idmLow = na
+var float idmHigh = na
+if vOn6
+    if not na(pl)
+        idmLow := pl
+    if not na(ph)
+        idmHigh := ph
+    bool idmSweptLo = not na(idmLow) and low < idmLow
+    bool idmSweptHi = not na(idmHigh) and high > idmHigh
+    bool bosUp = not na(lastPH) and close > lastPH and idmSweptLo
+    bool bosDn = not na(lastPL) and close < lastPL and idmSweptHi
+    v6 := bosUp ? 1 : bosDn ? -1 : 0
+
+// V7 | H44 | Pure PA #13 — liquidity grab (wick-dominant single bar)
+// vs BOS (body close). Grab = reversal vote.
+int v7 = 0
+if vOn7
+    float upW = high - math.max(open, close)
+    float dnW = math.min(open, close) - low
+    bool grabLo = rng > 0 and dnW / rng > 0.6 and close > open
+    bool grabHi = rng > 0 and upW / rng > 0.6 and close < open
+    v7 := grabLo ? 1 : grabHi ? -1 : 0
+
+// V8 | H46 | Trader Dale #14 — HVN proxy: price returning to the
+// highest-volume price area of the recent window acts as S/R.
+int v8 = 0
+if vOn8
+    float hvnPx = ta.vwap(hlc3)
+    bool nearHvn = math.abs(close - hvnPx) <= atr * lvlTolAtr
+    v8 := nearHvn and close > hvnPx ? 1 : nearHvn and close < hvnPx ? -1 : 0
+
+// V9 | H30 | Wendell #10 (HIGH) — fresh zone + departure strength:
+// an untested pivot zone whose departure leg was strong.
+int v9 = 0
+var float freshDemand = na
+var float freshSupply = na
+if vOn9
+    if not na(pl) and math.abs(close[pivLen] - pl) > atr * 1.0
+        freshDemand := pl
+    if not na(ph) and math.abs(ph - close[pivLen]) > atr * 1.0
+        freshSupply := ph
+    bool tapDemand = not na(freshDemand) and low <= freshDemand and close > freshDemand
+    bool tapSupply = not na(freshSupply) and high >= freshSupply and close < freshSupply
+    if tapDemand
+        freshDemand := na
+    if tapSupply
+        freshSupply := na
+    v9 := tapDemand ? 1 : tapSupply ? -1 : 0
+
+// V10 | H49 | Hougaard #15 (HIGH) — MID-TREND divergence reads as
+// CONTINUATION, not reversal (his explicit, contrarian claim).
+int v10 = 0
+if vOn10
+    bool upTrend = close > ema50 and ema50 > ema200
+    bool dnTrend = close < ema50 and ema50 < ema200
+    bool divUp = close > close[5] and rsiV < rsiV[5]
+    bool divDn = close < close[5] and rsiV > rsiV[5]
+    v10 := upTrend and divUp ? 1 : dnTrend and divDn ? -1 : 0
+
+// V11 | H16 | Valentini #2 (HIGH) — volume tsunami confirms a real
+// move; hollow moves are not trusted.
+int v11 = 0
+if vOn11
+    bool tsunami = volume > volAvg * volTsunami
+    v11 := tsunami and close > open ? 1 : tsunami and close < open ? -1 : 0
+
+// V12 | H35 | Steve #8 — EMA stack bunching then expansion.
+int v12 = 0
+if vOn12
+    float spread = math.max(math.max(ema13, ema50), ema200) - math.min(math.min(ema13, ema50), ema200)
+    bool bunched = spread <= atr * bunchAtr
+    bool wasBunched = bunched[1] or bunched[2] or bunched[3]
+    v12 := wasBunched and close > ema13 and ema13 > ema50 ? 1 : wasBunched and close < ema13 and ema13 < ema50 ? -1 : 0
+
+// V13 | H23 | Steve #8 — ADR thirds: exhaustion when the day has
+// already delivered ~1 ADR in one direction.
+int v13 = 0
+if vOn13
+    float dayMove = close - dOpen
+    bool stretchedUp = not na(adr) and adr > 0 and dayMove >= adr * 0.9
+    bool stretchedDn = not na(adr) and adr > 0 and dayMove <= -adr * 0.9
+    v13 := stretchedDn ? 1 : stretchedUp ? -1 : 0
+
+// V14 | H5 | Valentini #2 (HIGH) — momentum-join: never catch the
+// knife; join after follow-through.
+int v14 = 0
+if vOn14
+    bool joinUp = close > ema13 and close[1] > open[1] and close > close[1]
+    bool joinDn = close < ema13 and close[1] < open[1] and close < close[1]
+    v14 := joinUp ? 1 : joinDn ? -1 : 0
+
+// V15 | H17 | Ario #6 — leg-size ratio as a continuous regime read.
+int v15 = 0
+if vOn15
+    float upLeg = ta.highest(high, 20) - ta.lowest(low, 20)
+    float netMove = close - close[20]
+    float ratio = upLeg > 0 ? netMove / upLeg : 0
+    v15 := ratio > 0.35 ? 1 : ratio < -0.35 ? -1 : 0
+
+// V16 | H70 | Hima Reddy #19 — eighths retracement: reaction at the
+// 50% / 62.5% eighth of the recent swing.
+int v16 = 0
+if vOn16
+    float swHi = ta.highest(high, 30)
+    float swLo = ta.lowest(low, 30)
+    float swRng = swHi - swLo
+    if swRng > 0
+        float lvl50  = swLo + swRng * 0.5
+        float lvl625 = swLo + swRng * 0.625
+        float lvl375 = swLo + swRng * 0.375
+        bool atUp = (math.abs(low - lvl50) <= atr * lvlTolAtr or math.abs(low - lvl375) <= atr * lvlTolAtr) and close > open
+        bool atDn = (math.abs(high - lvl50) <= atr * lvlTolAtr or math.abs(high - lvl625) <= atr * lvlTolAtr) and close < open
+        v16 := atUp ? 1 : atDn ? -1 : 0
+
+// V17 | H8 | PBD #1 + multi — setups weaken with each rejection;
+// this votes AGAINST a side that has already been rejected 3x.
+int v17 = 0
+if vOn17
+    v17 := touchHi >= 3 ? 1 : touchLo >= 3 ? -1 : 0
+
+// V18 | Nison tier-A reversal candle
+int v18 = 0
+if vOn18
+    float avgBody = ta.sma(bodySz, 14)
+    bool bullEng = close > open and close[1] < open[1] and bodySz >= avgBody and close >= math.max(close[1], open[1]) and open <= math.min(close[1], open[1])
+    bool bearEng = close < open and close[1] > open[1] and bodySz >= avgBody and open >= math.max(close[1], open[1]) and close <= math.min(close[1], open[1])
+    bool hammer = rng > 0 and (open - low) > bodySz * 2 and (high - math.max(open, close)) < bodySz * 0.5
+    bool shoot  = rng > 0 and (high - open) > bodySz * 2 and (math.min(open, close) - low) < bodySz * 0.5
+    v18 := (bullEng or hammer) ? 1 : (bearEng or shoot) ? -1 : 0
+
+// V19 | Spaceman key-level sweep + reclaim
+// (helpers live at TOP LEVEL in the key-level navigation block above --
+// Pine forbids nested function declarations inside conditionals, BUG-002)
+bool sUp19 = klFullSweep ? f_klSweepUp() : (f_sweepUp(pdl) or f_sweepUp(pwl) or f_sweepUp(dOpen) or f_sweepUp(wOpen))
+bool sDn19 = klFullSweep ? f_klSweepDn() : (f_sweepDn(pdh) or f_sweepDn(pwh) or f_sweepDn(dOpen) or f_sweepDn(wOpen))
+int v19 = 0
+if vOn19
+    v19 := sUp19 ? 1 : sDn19 ? -1 : 0
+
+// V21 | Key-level break-and-retest (H37 role inversion, applied to the
+// REAL Spaceman levels rather than to internal swing points). A level
+// that was above price within the lookback, is now below it, and is
+// being touched again from above = support-turned-resistance flipped
+// bullish. Mirror for shorts.
+int v21 = 0
+if vOn21
+    v21 := f_klRetestUp() ? 1 : f_klRetestDn() ? -1 : 0
+
+// V22 | Higher-timeframe trend (OFF by default -- see input group notes)
+int v22 = 0
+if vOn22
+    v22 := not na(htfClose) and not na(htfEma) ? (htfClose > htfEma ? 1 : htfClose < htfEma ? -1 : 0) : 0
+
+// V20 | H10 | Valentini #2 — session structure gate
+int v20 = 0
+if vOn20
+    v20 := (inLondon or inNY) ? (close > dOpen ? 1 : close < dOpen ? -1 : 0) : 0
+
+// ═════════════════════════════════════════════════════════════
+// TALLY — HIGH-credibility voices double-weighted (register tiers)
+// ═════════════════════════════════════════════════════════════
+int wHigh = weightHigh ? 2 : 1
+int score = v1 * wHigh          // Hougaard HIGH
+     + v2
+     + v3
+     + v4
+     + v5
+     + v6
+     + v7
+     + v8
+     + v9 * wHigh               // Wendell HIGH
+     + v10 * wHigh              // Hougaard HIGH
+     + v11 * wHigh              // Valentini HIGH
+     + v12
+     + v13
+     + v14 * wHigh              // Valentini HIGH
+     + v15
+     + v16
+     + v17
+     + v18
+     + v19
+     + v20
+     + v21
+     + v22
+
+// count how many voices actually voted (non-abstain), for context
+int voters = math.abs(v1) + math.abs(v2) + math.abs(v3) + math.abs(v4) + math.abs(v5) +
+     math.abs(v6) + math.abs(v7) + math.abs(v8) + math.abs(v9) + math.abs(v10) +
+     math.abs(v11) + math.abs(v12) + math.abs(v13) + math.abs(v14) + math.abs(v15) +
+     math.abs(v16) + math.abs(v17) + math.abs(v18) + math.abs(v19) + math.abs(v20) +
+     math.abs(v21) + math.abs(v22)
+
+// ═════════════════════════════════════════════════════════════
+// EXECUTION
+// ═════════════════════════════════════════════════════════════
+var int lastSig = -9999
+bool cd = bar_index - lastSig > cooldown
+
+var int dayTrades = 0
+var float dayEq0 = na
+var bool halted = false
+bool newDay = na(dayEq0) or dayofmonth(time, sessTz) != dayofmonth(time[1], sessTz)
+if newDay
+    dayTrades := 0
+    dayEq0 := strategy.equity
+    halted := false
+if not na(dayEq0) and (strategy.equity - dayEq0) <= -dayEq0 * dayLossPct / 100.0
+    halted := true
+bool ok = cd and not halted and dayTrades < maxPerDay and strategy.position_size == 0 and (inLondon or inNY)
+
+// HTF hard gate is separate from V22's vote: the vote nudges conviction,
+// the gate is a veto. Both default OFF for the reason stated in group ⑥.
+bool htfOkL = not htfGate or (not na(htfClose) and not na(htfEma) and htfClose >= htfEma)
+bool htfOkS = not htfGate or (not na(htfClose) and not na(htfEma) and htfClose <= htfEma)
+
+// Level-to-level room. When klRoomGate is ON a trade is only taken if a
+// real key level sits far enough ahead to be worth the risk. When OFF
+// (default) a missing level just falls back to fixed-R targets.
+float roomUp = f_klTargetUp(close, atr * minStopAtr * minTP1R, atr * maxTgtAtr)
+float roomDn = f_klTargetDn(close, atr * minStopAtr * minTP1R, atr * maxTgtAtr)
+
+bool goLong  = ok and score >= minScore  and htfOkL and (not klRoomGate or not na(roomUp))
+bool goShort = ok and score <= -minScore and htfOkS and (not klRoomGate or not na(roomDn))
+
+var int entryBar = na
+var float liveTp1 = na
+var float liveTp2 = na
+var float liveSl  = na
+
+if goLong
+    // 1. structural risk: the actual adverse extreme, never the level
+    //    itself (BUG-005)
+    float rdRaw = close - math.min(low, low[1]) + atr * stopBufAtr
+    // 2. if a key level sits just under us, the stop belongs BEYOND it --
+    //    a stop inside the defended level is the classic sweep donation
+    float defend = useKLStops ? f_klBelow(close) : na
+    if not na(defend)
+        rdRaw := math.max(rdRaw, close - defend + atr * stopBufAtr)
+    // 3. clamp into the allowed band rather than rejecting (BUG-009)
+    float rd = math.min(math.max(rdRaw, atr * minStopAtr), atr * maxStopAtr)
+
+    // 4. LEVEL-TO-LEVEL EXITS: TP1 is the next key level at least
+    //    minTP1R away, TP2 the next one beyond that. If the chart has no
+    //    level in range, fall back to the fixed R multiples.
+    float t1 = useKLTargets ? f_klTargetUp(close, rd * minTP1R, atr * maxTgtAtr) : na
+    float t2 = useKLTargets and not na(t1) ? f_klTargetUp(t1, rd * 0.5, atr * maxTgtAtr) : na
+    float lim1 = na(t1) ? close + rd * tp1R : t1
+    float lim2 = na(t2) ? math.max(close + rd * tp2R, lim1 + rd * 0.5) : t2
+
+    float qty = math.min(strategy.equity * riskPct / 100.0 / rd, strategy.equity * maxLev / close)
+    if qty > 0
+        strategy.entry("MV-L", strategy.long, qty=qty)
+        strategy.exit("L1", "MV-L", stop=close - rd, limit=lim1, qty_percent=tp1Pct)
+        strategy.exit("L2", "MV-L", stop=close - rd, limit=lim2)
+        lastSig := bar_index
+        entryBar := bar_index
+        liveTp1 := lim1
+        liveTp2 := lim2
+        liveSl  := close - rd
+        dayTrades += 1
+        label.new(bar_index, low, "BUY " + str.tostring(score), style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small,
+             tooltip="Conviction " + str.tostring(score) + " from " + str.tostring(voters) + " voting voices"
+                 + "\nTP1 " + (na(t1) ? "fixed " + str.tostring(tp1R, "#.#") + "R" : "key level " + str.tostring(t1, format.mintick))
+                 + "\nTP2 " + (na(t2) ? "fixed " + str.tostring(tp2R, "#.#") + "R" : "key level " + str.tostring(t2, format.mintick))
+                 + "\nSL  " + str.tostring(close - rd, format.mintick) + (na(defend) ? "" : " (beyond " + str.tostring(defend, format.mintick) + ")"))
+
+if goShort
+    float rdRaw = math.max(high, high[1]) - close + atr * stopBufAtr
+    float defend = useKLStops ? f_klAbove(close) : na
+    if not na(defend)
+        rdRaw := math.max(rdRaw, defend - close + atr * stopBufAtr)
+    float rd = math.min(math.max(rdRaw, atr * minStopAtr), atr * maxStopAtr)
+
+    float t1 = useKLTargets ? f_klTargetDn(close, rd * minTP1R, atr * maxTgtAtr) : na
+    float t2 = useKLTargets and not na(t1) ? f_klTargetDn(t1, rd * 0.5, atr * maxTgtAtr) : na
+    float lim1 = na(t1) ? close - rd * tp1R : t1
+    float lim2 = na(t2) ? math.min(close - rd * tp2R, lim1 - rd * 0.5) : t2
+
+    float qty = math.min(strategy.equity * riskPct / 100.0 / rd, strategy.equity * maxLev / close)
+    if qty > 0
+        strategy.entry("MV-S", strategy.short, qty=qty)
+        strategy.exit("S1", "MV-S", stop=close + rd, limit=lim1, qty_percent=tp1Pct)
+        strategy.exit("S2", "MV-S", stop=close + rd, limit=lim2)
+        lastSig := bar_index
+        entryBar := bar_index
+        liveTp1 := lim1
+        liveTp2 := lim2
+        liveSl  := close + rd
+        dayTrades += 1
+        label.new(bar_index, high, "SELL " + str.tostring(score), style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small,
+             tooltip="Conviction " + str.tostring(score) + " from " + str.tostring(voters) + " voting voices"
+                 + "\nTP1 " + (na(t1) ? "fixed " + str.tostring(tp1R, "#.#") + "R" : "key level " + str.tostring(t1, format.mintick))
+                 + "\nTP2 " + (na(t2) ? "fixed " + str.tostring(tp2R, "#.#") + "R" : "key level " + str.tostring(t2, format.mintick))
+                 + "\nSL  " + str.tostring(close + rd, format.mintick) + (na(defend) ? "" : " (beyond " + str.tostring(defend, format.mintick) + ")"))
+
+if strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= timeStop
+    strategy.close_all(comment="Time stop")
+
+// ═════════════════════════════════════════════════════════════
+// LIVE TRADE MAP — shows the level-to-level plan of the open trade.
+// Fresh drawings created inside barstate.islast, bar_index + extend.right
+// (the pattern that actually renders in a strategy -- BUG-013 notes).
+// ═════════════════════════════════════════════════════════════
+var line lnTp1 = na
+var line lnTp2 = na
+var line lnSl  = na
+if barstate.islast
+    if not na(lnTp1)
+        line.delete(lnTp1)
+    if not na(lnTp2)
+        line.delete(lnTp2)
+    if not na(lnSl)
+        line.delete(lnSl)
+    if showKLTgt and strategy.position_size != 0 and not na(entryBar)
+        if not na(liveTp1)
+            lnTp1 := line.new(entryBar, liveTp1, bar_index, liveTp1, color=color.new(color.lime, 0), width=1, style=line.style_dashed, extend=extend.right)
+        if not na(liveTp2)
+            lnTp2 := line.new(entryBar, liveTp2, bar_index, liveTp2, color=color.new(color.lime, 45), width=1, style=line.style_dotted, extend=extend.right)
+        if not na(liveSl)
+            lnSl := line.new(entryBar, liveSl, bar_index, liveSl, color=color.new(color.red, 0), width=1, style=line.style_dashed, extend=extend.right)
+
+// ═════════════════════════════════════════════════════════════
+// VOTE TABLE — see exactly which voices agree, live
+// ═════════════════════════════════════════════════════════════
+f_vtxt(int v) => v > 0 ? "BULL" : v < 0 ? "BEAR" : "-"
+f_vcol(int v) => v > 0 ? color.lime : v < 0 ? color.red : color.gray
+
+var table vt = table.new(position.top_right, 3, 24, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 70))
+if showVotes and barstate.islast
+    table.cell(vt, 0, 0, "VOICE", text_color=color.orange, text_size=size.tiny)
+    table.cell(vt, 1, 0, "VOTE", text_color=color.orange, text_size=size.tiny)
+    table.cell(vt, 2, 0, "SCORE " + str.tostring(score), text_color=score >= minScore ? color.lime : score <= -minScore ? color.red : color.silver, text_size=size.tiny)
+    table.cell(vt, 0, 1, "V1 Hougaard 4-bar", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 1, f_vtxt(v1), text_color=f_vcol(v1), text_size=size.tiny)
+    table.cell(vt, 0, 2, "V2 3-visit fail", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 2, f_vtxt(v2), text_color=f_vcol(v2), text_size=size.tiny)
+    table.cell(vt, 0, 3, "V3 Hima test-fail", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 3, f_vtxt(v3), text_color=f_vcol(v3), text_size=size.tiny)
+    table.cell(vt, 0, 4, "V4 Signal Day", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 4, f_vtxt(v4), text_color=f_vcol(v4), text_size=size.tiny)
+    table.cell(vt, 0, 5, "V5 Role inversion", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 5, f_vtxt(v5), text_color=f_vcol(v5), text_size=size.tiny)
+    table.cell(vt, 0, 6, "V6 IDM-gated BOS", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 6, f_vtxt(v6), text_color=f_vcol(v6), text_size=size.tiny)
+    table.cell(vt, 0, 7, "V7 Liquidity grab", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 7, f_vtxt(v7), text_color=f_vcol(v7), text_size=size.tiny)
+    table.cell(vt, 0, 8, "V8 HVN cluster", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 8, f_vtxt(v8), text_color=f_vcol(v8), text_size=size.tiny)
+    table.cell(vt, 0, 9, "V9 Wendell zone", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 9, f_vtxt(v9), text_color=f_vcol(v9), text_size=size.tiny)
+    table.cell(vt, 0, 10, "V10 Mid-trend div", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 10, f_vtxt(v10), text_color=f_vcol(v10), text_size=size.tiny)
+    table.cell(vt, 0, 11, "V11 Vol tsunami", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 11, f_vtxt(v11), text_color=f_vcol(v11), text_size=size.tiny)
+    table.cell(vt, 0, 12, "V12 EMA bunching", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 12, f_vtxt(v12), text_color=f_vcol(v12), text_size=size.tiny)
+    table.cell(vt, 0, 13, "V13 ADR thirds", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 13, f_vtxt(v13), text_color=f_vcol(v13), text_size=size.tiny)
+    table.cell(vt, 0, 14, "V14 Momentum-join", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 14, f_vtxt(v14), text_color=f_vcol(v14), text_size=size.tiny)
+    table.cell(vt, 0, 15, "V15 Leg regime", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 15, f_vtxt(v15), text_color=f_vcol(v15), text_size=size.tiny)
+    table.cell(vt, 0, 16, "V16 Eighths", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 16, f_vtxt(v16), text_color=f_vcol(v16), text_size=size.tiny)
+    table.cell(vt, 0, 17, "V17 Rejection cnt", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 17, f_vtxt(v17), text_color=f_vcol(v17), text_size=size.tiny)
+    table.cell(vt, 0, 18, "V18 Tier-A candle", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 18, f_vtxt(v18), text_color=f_vcol(v18), text_size=size.tiny)
+    table.cell(vt, 0, 19, "V19 Key-lvl sweep", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 19, f_vtxt(v19), text_color=f_vcol(v19), text_size=size.tiny)
+    table.cell(vt, 0, 20, "V20 Session", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 20, f_vtxt(v20), text_color=f_vcol(v20), text_size=size.tiny)
+    table.cell(vt, 0, 21, "V21 KL break-retest", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 21, f_vtxt(v21), text_color=f_vcol(v21), text_size=size.tiny)
+    table.cell(vt, 0, 22, "V22 HTF trend" + (vOn22 ? "" : " (off)"), text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 22, f_vtxt(v22), text_color=f_vcol(v22), text_size=size.tiny)
+    table.cell(vt, 0, 23, "Voting voices", text_color=color.silver, text_size=size.tiny)
+    table.cell(vt, 1, 23, str.tostring(voters) + "/22", text_color=color.white, text_size=size.tiny)
+    table.cell(vt, 2, 23, "next lvl " + (na(roomUp) ? "-" : str.tostring(roomUp, format.mintick)) + " / " + (na(roomDn) ? "-" : str.tostring(roomDn, format.mintick)), text_color=color.silver, text_size=size.tiny)
+
+// results dashboard
+var table dash = table.new(position.bottom_right, 4, 2, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    int nT = 0
+    int wT = 0
+    float gw = 0.0
+    float gl = 0.0
+    if strategy.closedtrades > 0
+        for i = 0 to strategy.closedtrades - 1
+            float p = strategy.closedtrades.profit(i)
+            nT += 1
+            wT += p > 0 ? 1 : 0
+            gw += p > 0 ? p : 0.0
+            gl += p < 0 ? -p : 0.0
+    float wr = nT > 0 ? wT / nT * 100.0 : na
+    float pf = gl > 0 ? gw / gl : na
+    table.cell(dash, 0, 0, "MULTI-VOICE", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, "Trades", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 2, 0, "Win%", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 3, 0, "PF", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 0, 1, "UNTESTED", text_color=color.yellow, text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(nT), text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 2, 1, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 3, 1, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+
+alertcondition(goLong,  "MultiVoice Buy",  "MV BUY ({{ticker}} {{interval}})")
+alertcondition(goShort, "MultiVoice Sell", "MV SELL ({{ticker}} {{interval}})")
+
