@@ -855,3 +855,61 @@ PF should RISE as conviction rises (fewer, better trades). If PF is
 flat or falls as minScore climbs, the votes are noise that happens to
 average out, and the edge is coming from somewhere else. This single
 test validates or kills the multi-voice premise.
+
+---
+
+## KEY LEVELS MADE MANDATORY — VERBATIM PORT (2026-07-28)
+
+User directive: *"please include the indicator i will give you. and add
+it into anything that you build and make sure it also displays the levels
+as it is in the indicator."*
+
+**What changed.** The SpacemanBTC IDWM Key Levels V13.1 source the user
+supplied is now ported verbatim to
+`trader_playbooks/skills/key_levels_module.pine` and embedded in all six
+strategies: multivoice_confluence_engine, confluence_sniper,
+trendline_key_level, key_to_key, omnibus_four_model, amdm_confluence.
+`trendline_key_level` and `confluence_sniper` had hand-rolled key-level
+blocks — those were deleted and replaced wholesale, not merged.
+
+**Why verbatim and not a rewrite.** Logged as BUG-013. Three separate
+reimplementations were rejected by the user in three consecutive
+messages. Each failed for a different reason (`plot()` series geometry;
+create-early/mutate-later not rendering in a strategy; a `timenow`
+projection that pushed labels off-screen). The supplied source had
+already solved all three. Three rejections on the same point meant the
+APPROACH was wrong, not the implementation.
+
+**Port deltas — the only five changes made to the source:**
+1. `//@version=5` → host's `//@version=6`.
+2. `indicator(...)` declaration dropped; host `strategy(...)` carries
+   `overlay=true`, `max_lines_count=500`, `max_labels_count=500`.
+3. Input group titles prefixed `KL ` so they never collide with a host's
+   own groups.
+4. Added `klPrices[]` / `klNames[]` export so trade logic can consume the
+   exact levels the chart draws. Drawing behaviour untouched.
+5. `London/US/Asia` made explicitly `bool` via `not na(time(...))` —
+   the source relied on v5's int→bool coercion. Provably identical.
+
+Defaults, colours, label text, merge behaviour, line geometry and the
+source's own quirks (US labels created with London text then corrected;
+`weeklyl_line` created at the wrong y then corrected; `monthlyh_line`
+x1 taken from `monthlyl_time`; yearly H/L using current-year values) are
+all preserved deliberately — the user's chart looks the way it does
+because of them.
+
+**Deliberately NOT changed: any trade logic.** The module is display +
+export only. That keeps the pending conviction test clean.
+
+**Verification done:** static duplicate-declaration and function-name
+collision scan across all six hosts — zero collisions. Dead inputs left
+behind by the removed blocks (`showLevels` in two files) were deleted.
+**Not yet verified:** the visual on the user's chart, and that all six
+compile in the TradingView editor. Those need the user.
+
+**NEXT ITERATION IS UNCHANGED.** Still the decisive test: on
+multivoice_confluence_engine, raise `Min Conviction Score To Trade`
+6 → 8 → 10, nothing else touched, and compare against the baseline
+(521 trades / WR 44.15% / PF 1.093 / +15.25% / DD 11.90%). Rising PF
+validates H73; flat or falling PF kills it and points the edge at the
+5m→15m timeframe change instead.

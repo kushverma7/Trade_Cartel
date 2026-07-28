@@ -18,6 +18,7 @@ same as every other claim in this repo.
 | Sweep-Stop Placement | (inline pattern, see swing_detection.pine §2) | Stop beyond the sweep bar's actual wick extreme + ATR buffer | Live-tested: fixing this took PF-analog 0 -> non-zero (BUG-005) | spaceman_daye, amdm, topbottom | BUG-005 |
 | Rolling Volume Profile | (lives in trader_dale_volume_profile_engine.pine + amdm engines) | VAH/VAL/POC from a rolling window, ~O(window) per bar | In live use in 3 engines; perf claim of "toxic" reviewed and rejected (see PLAYBOOK round-2 entry) | trader_dale, amdm | — |
 | TP1/TP2/SL Hit Tracker | (inline pattern, standard across engines) | Signal-anchored TP/SL lines + never-same-bar hit counters + PF-analog | In live use across 6+ engines; the project's standard results dashboard | most engines | — |
+| **Key Levels (SpacemanBTC V13.1)** | key_levels_module.pine | Verbatim port of the user's supplied key-level indicator: D/W/M/Q/Y opens + prev H/L/mid, Monday range, 4H, session ranges, label-merge. **MANDATORY in every strategy built in this repo.** Also exports `klPrices[]`/`klNames[]` for trade logic | Ported verbatim from user-supplied working source; static-checked for identifier collisions in all 6 host strategies; user chart verification pending | multivoice, sniper, trendline, key_to_key, omnibus_four_model, amdm | BUG-013 |
 
 ## How to add a skill
 Follow SKILL_EXPANSION_FRAMEWORK.md Part I steps 1-4. A skill enters

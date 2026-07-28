@@ -183,6 +183,50 @@ all REAL bugs that actually occurred here, not hypotheticals.
 
 ---
 
+## BUG-013 — Reimplementing a supplied indicator instead of porting it
+- **Symptom:** User supplied the SpacemanBTC Key Levels V13.1 source and
+  asked for a strategy that "looks like the screenshot". Three separate
+  attempts to redraw the levels were rejected by the user in three
+  consecutive messages ("it still didnt have spaceman indicator showing",
+  "even after telling you twice it still has no key levels", "it still
+  hasnt shown the key levels").
+- **Root cause:** Each attempt reimplemented the LOOK from memory rather
+  than running the SOURCE. The three failure modes were, in order:
+    v1 `plot()` series lines -- wrong geometry, no per-level labels.
+    v2 drawings created early and mutated later -- did not render at all
+       inside a strategy.
+    v3 `xloc.bar_time` + a `timenow + 150min` projection -- labels landed
+       past the visible range, so the levels existed but were off-screen.
+  The supplied source already solved all three (anchored x1 per level,
+  fresh creation inside `barstate.islast`, `timenow + (time-time[1])*30`,
+  plus a label-merge pass). Every rewrite discarded that and re-derived
+  it worse.
+- **Fix:** Stop rewriting. Port the source verbatim into
+  `trader_playbooks/skills/key_levels_module.pine`, change only what v6
+  and host-embedding strictly require (5 documented port deltas), and
+  paste that block into every strategy. Original quirks -- including the
+  source's own bugs -- are preserved deliberately, because the user's
+  chart looks the way it does because of them.
+- **Prevention:** New CODE_DELIVERY_PROTOCOL rule. **When the user
+  supplies working source, the deliverable is a PORT, not a rewrite.**
+  Phase 1 (spec freeze) must record "supplied source exists -> port it",
+  and any deviation from the supplied code must be listed explicitly as
+  a numbered port delta with a stated reason. A visual requirement
+  ("make it look like X") supplied together with X's source code is not
+  a design brief; it is a copy instruction.
+- **Which Mind Found It:** none. The user found it, three times, which is
+  the actual finding: three rejections in a row on the same point should
+  have triggered "my approach is wrong", not "my implementation needs
+  another pass".
+- **Affected Files:** trendline_key_level_strategy.pine,
+  confluence_sniper_strategy.pine (both had hand-rolled blocks; both
+  replaced wholesale), multivoice_confluence_engine.pine,
+  key_to_key_strategy.pine, omnibus_four_model_engine.pine,
+  amdm_confluence_strategy.pine (module added)
+- **Status:** Fixed -- all six strategies now carry the verbatim module
+
+---
+
 ## Cross-cutting lessons (read these even if skimming)
 1. **An entry gate that never fires is worse than a missing gate** —
    it looks like selectivity while being a dead switch. Truth-table
@@ -196,3 +240,6 @@ all REAL bugs that actually occurred here, not hypotheticals.
    across bars** (BUG-010).
 6. **"Labels but no trades" = execution rejection, not signal logic**
    — check margin/qty first, not the entry conditions (BUG-012).
+7. **If the user supplies source, port it -- do not reimplement it.**
+   Three consecutive rejections of the same visual meant the approach
+   was wrong, not the execution (BUG-013).

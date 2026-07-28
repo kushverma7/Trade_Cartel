@@ -1,436 +1,66 @@
-// ============================================================
-// OMNIBUS FOUR-MODEL ENGINE [Strategy / Backtestable]
-// Built 2026-07-22 to the OMNIBUS_PROTOCOL.md metrics-dashboard
-// architecture: four independent, individually-toggleable models
-// sharing one risk/session/circuit-breaker chassis, with REAL
-// per-model metrics computed from the Strategy Tester's own closed
-// trades (not a parallel approximation) so weak models can be killed
-// or fixed per the protocol ("negative expectancy -> KILL IT or FIX
-// IT").
-//
-//   MODEL A — STRUCTURE: real-time Donchian BOS + volume
-//             (Valentini #2 momentum-join, Hougaard #15 simplicity;
-//             uses the BUG-008-fixed responsive-break skill)
-//   MODEL B — SWEEP: stop-hunt sweep + reclaim of prev-day H/L and
-//             Asia range (this repo's most live-tested reversal
-//             mechanic -- topbottom-engine lineage, Wendell #10 /
-//             Alchemist #12 corroboration; stop beyond the sweep
-//             wick per BUG-005)
-//   MODEL C — FVG: 3-candle fair value gap, first-retest entry with
-//             EMA trend filter (SMC #12/#13; single freshest gap per
-//             side -- var floats, NO arrays, avoiding the BUG-001
-//             class entirely; first-test-only per Wendell freshness)
-//   MODEL D — SESSION: London opening-range breakout (Steve #8
-//             session timing; one trade per direction per day)
-//
-// STATUS: SYNTHESIZED / UNTESTED. No backtest exists. Per the
-// standing rule (PF 3.656 retraction), nothing here earns "proven"
-// language until a real multi-month sample says so.
-//
-// SPEC (Phase 0 freeze):
-//   Asset/TF: XAUUSD 5m primary (works on any symbol/TF; session
-//             times are inputs). Output: strategy entries/exits,
-//             labels, alerts, per-model dashboard.
-//   Entry:    each model's exact trigger below; one position at a
-//             time; if long AND short trigger the same bar -> NO
-//             TRADE (conflict, logged -- bug-hunt item "can long and
-//             short fire same bar").
-//   Exit:     50% at 1R, 50% at 2R (Roppel #5 scaled exit), shared
-//             stop, uniform time stop.
-//   NOT in scope: pyramiding, breakeven-stop-move after TP1 (same
-//   documented gap as the AMDM strategy -- needs fill-event
-//   tracking), live news feed (manual blackout toggle only).
-//
-// KNOWN LIMITATIONS (Phase 6, delivered with the code):
-//   1. Needs ~2 sessions of history before Model B/D levels exist
-//      (prev-day levels, Asia range, opening range) -- early chart
-//      bars produce no signals by design.
-//   2. Volume on TradingView XAUUSD CFD feeds is tick-count, not
-//      real traded volume -- Model A's volume gate inherits that
-//      limitation (documented repo-wide).
-//   3. Per-model dashboard reads the tester's closed trades; the
-//      currently-open trade (if any) is not in those numbers.
-//   4. Session defaults are UTC -- adjust to your chart/broker.
-// ============================================================
-//@version=6
-strategy("OMNIBUS Four-Model Engine [Strategy]",
-     overlay            = true,
-     max_labels_count   = 500,
-     max_lines_count    = 500,
-     initial_capital    = 10000,
-     currency           = currency.USD,
-     default_qty_type   = strategy.cash,
-     default_qty_value  = 1000,
-     commission_type    = strategy.commission.cash_per_contract,
-     commission_value   = 0.07,
-     slippage           = 5,
-     process_orders_on_close = true,
-     margin_long        = 5,
-     margin_short       = 5)
-// margin_long/short = 5 (20:1 leverage, typical gold CFD). FIX for
-// BUG-012: Pine v6 defaults margin to 100% (no leverage); risk-based
-// sizing on a tight gold stop demands multi-million-dollar notional,
-// so the tester SILENTLY skipped every order -- labels drew, zero
-// trades recorded. Sizing below is also hard-capped at this leverage.
-
-// ── ① Models on/off ──────────────────────────────────────────
-bool enA = input.bool(true, "MODEL A — Structure (Donchian BOS + volume)", group="① Models")
-bool enB = input.bool(true, "MODEL B — Sweep + Reclaim (prev day H/L, Asia range)", group="① Models")
-bool enC = input.bool(true, "MODEL C — FVG First Retest (trend-filtered)", group="① Models")
-bool enD = input.bool(true, "MODEL D — London Opening-Range Breakout", group="① Models")
-
-// ── ② Model A ────────────────────────────────────────────────
-int   aLen     = input.int(12, "A: Breakout Lookback (bars)", minval=3, group="② Model A — Structure")
-float aVolMult = input.float(1.3, "A: Min Breakout Volume (x 20-bar avg)", step=0.05, group="② Model A — Structure")
-
-// ── ③ Model B ────────────────────────────────────────────────
-float bMaxPokeAtr = input.float(1.0, "B: Max Sweep Depth (x ATR)", step=0.1, group="③ Model B — Sweep")
-string asiaSess   = input.session("0000-0700", "B: Asia Session (for range)", group="③ Model B — Sweep")
-float bStopBufAtr = input.float(0.3, "B: Stop Buffer Beyond Sweep Wick (x ATR)", step=0.05, group="③ Model B — Sweep")
-
-// ── ④ Model C ────────────────────────────────────────────────
-int   cEmaLen  = input.int(50, "C: Trend Filter EMA Length", minval=10, group="④ Model C — FVG")
-float cMinGapAtr = input.float(0.5, "C: Min Gap Height (x ATR) -- raised 0.2->0.5 in iteration 2: 0.2xATR on 5m gold is spread-sized noise; C was the churn driver (PF 0.843 run)", step=0.05, group="④ Model C — FVG")
-float cStopBufAtr = input.float(0.2, "C: Stop Buffer Beyond Gap (x ATR)", step=0.05, group="④ Model C — FVG")
-
-// ── ⑤ Model D ────────────────────────────────────────────────
-int   dOrBars = input.int(6, "D: Opening Range Length (bars, 6 = 30min on 5m)", minval=2, group="⑤ Model D — Session ORB")
-
-// ── ⑥ Shared filters / risk ─────────────────────────────────
-string londonSess = input.session("0800-1200", "London Session", group="⑥ Shared")
-string nySess     = input.session("1330-1700", "NY Session", group="⑥ Shared")
-string sessTz     = input.string("Etc/UTC", "Session Timezone", group="⑥ Shared")
-bool  avoidFriPM  = input.bool(true, "Avoid Friday After 16:00", group="⑥ Shared")
-bool  newsBlackout = input.bool(false, "Manual News Blackout (no live feed)", group="⑥ Shared")
-float riskPct     = input.float(1.0, "Risk Per Trade (% equity)", step=0.25, minval=0.25, maxval=2.0, group="⑥ Shared")
-float tp1R        = input.float(1.0, "TP1 (R) — 50% closes here", step=0.1, group="⑥ Shared")
-float tp2R        = input.float(2.0, "TP2 (R) — rest closes here", step=0.1, group="⑥ Shared")
-int   cooldown    = input.int(6, "Signal Cooldown (bars)", minval=0, group="⑥ Shared")
-int   timeStopBars = input.int(24, "Time Stop (bars, 24 = 2h on 5m)", minval=4, group="⑥ Shared")
-float dailyLossLimitPct = input.float(2.0, "Daily Loss Limit (% equity)", step=0.5, group="⑥ Shared")
-int   maxTradesPerDay = input.int(5, "Max Trades Per Day", minval=1, group="⑥ Shared")
-float minStopAtr  = input.float(0.4, "Min Stop Distance (x ATR)", step=0.05, group="⑥ Shared")
-float maxStopAtr  = input.float(2.0, "Max Stop Distance (x ATR) — clamp, not reject", step=0.1, group="⑥ Shared")
-float maxLeverage = input.float(20, "Max Leverage (x equity notional cap) — match your broker", minval=1, maxval=100, group="⑥ Shared")
-
-bool showLevels = input.bool(true, "Show Levels", group="⑦ Display")
-bool showDash   = input.bool(true, "Show Per-Model Dashboard", group="⑦ Display")
-
-// ═════════════════════════════════════════════════════════════
-// SHARED BASICS (all ta.* unconditional at top level — BUG-004)
-// ═════════════════════════════════════════════════════════════
-float atr = ta.atr(14)
-float volAvg20 = ta.sma(volume, 20)
-float ema50 = ta.ema(close, cEmaLen)
-
-bool inLondon = not na(time(timeframe.period, londonSess, sessTz))
-bool inNY     = not na(time(timeframe.period, nySess, sessTz))
-bool inSession = inLondon or inNY
-bool isFriPM = avoidFriPM and dayofweek(time, sessTz) == dayofweek.friday and hour(time, sessTz) >= 16
-
-// daily circuit breakers (same chassis as the AMDM strategy)
-var int   dayTradeCount = 0
-var float dayStartEquity = na
-var bool  dayHalted = false
-bool newDay = na(dayStartEquity) or dayofmonth(time, sessTz) != dayofmonth(time[1], sessTz)
-if newDay
-    dayTradeCount := 0
-    dayStartEquity := strategy.equity
-    dayHalted := false
-if not na(dayStartEquity) and (strategy.equity - dayStartEquity) <= -dayStartEquity * dailyLossLimitPct / 100.0
-    dayHalted := true
-bool circuitOk = not dayHalted and dayTradeCount < maxTradesPerDay
-
-bool hardOk = inSession and not isFriPM and not newsBlackout and circuitOk
-
-var int lastSig = -9999
-bool cd = bar_index - lastSig > cooldown
-
-// ═════════════════════════════════════════════════════════════
-// MODEL A — STRUCTURE: real-time Donchian BOS + volume
-// (responsive-break skill; fires the bar the breakout closes)
-// ═════════════════════════════════════════════════════════════
-float aHi = ta.highest(high, aLen)[1]
-float aLo = ta.lowest(low, aLen)[1]
-bool aBosUp = close > aHi and close[1] <= aHi
-bool aBosDn = close < aLo and close[1] >= aLo
-bool aVolOk = volume > volAvg20 * aVolMult
-
-bool aLong  = enA and aBosUp and aVolOk
-bool aShort = enA and aBosDn and aVolOk
-// A stop: opposite side of the broken range, clamped (BUG-009 lesson)
-float aStopDistL = math.min(math.max(close - aLo, atr * minStopAtr), atr * maxStopAtr)
-float aStopDistS = math.min(math.max(aHi - close, atr * minStopAtr), atr * maxStopAtr)
-
-// ═════════════════════════════════════════════════════════════
-// MODEL B — SWEEP + RECLAIM (topbottom-engine lineage)
-// ═════════════════════════════════════════════════════════════
-float prevDayHigh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
-float prevDayLow  = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
-
-bool inAsia = not na(time(timeframe.period, asiaSess, sessTz))
-var float asiaHi = na
-var float asiaLo = na
-if inAsia and not inAsia[1]
-    asiaHi := high
-    asiaLo := low
-else if inAsia
-    asiaHi := math.max(asiaHi, high)
-    asiaLo := math.min(asiaLo, low)
-bool asiaDone = not inAsia and not na(asiaHi)
-
-// validated sweep pattern (wick pierces, body closes back inside)
-sweepTop(float lvl) =>
-    not na(lvl) and high > lvl and close < lvl and close < open and (high - lvl) <= atr * bMaxPokeAtr
-sweepBot(float lvl) =>
-    not na(lvl) and low < lvl and close > lvl and close > open and (lvl - low) <= atr * bMaxPokeAtr
-
-bool bShort = enB and (sweepTop(prevDayHigh) or (asiaDone and sweepTop(asiaHi)))
-bool bLong  = enB and (sweepBot(prevDayLow)  or (asiaDone and sweepBot(asiaLo)))
-// B stop: beyond the sweep bar's actual wick extreme (BUG-005 lesson)
-float bStopDistL = math.min(math.max(close - low + atr * bStopBufAtr,  atr * minStopAtr), atr * maxStopAtr)
-float bStopDistS = math.min(math.max(high - close + atr * bStopBufAtr, atr * minStopAtr), atr * maxStopAtr)
-
-// ═════════════════════════════════════════════════════════════
-// MODEL C — FVG FIRST RETEST (single freshest gap per side,
-// var floats only — no arrays, so no BUG-001 exposure)
-// ═════════════════════════════════════════════════════════════
-var float fvgBullTop = na   // gap zone: [fvgBullBot .. fvgBullTop]
-var float fvgBullBot = na
-var bool  fvgBullFresh = false
-var float fvgBearTop = na
-var float fvgBearBot = na
-var bool  fvgBearFresh = false
-
-// bullish FVG: current low gaps above high[2] (3-candle gap)
-bool newBullFvg = bar_index > 2 and low > high[2] and (low - high[2]) >= atr * cMinGapAtr
-bool newBearFvg = bar_index > 2 and high < low[2] and (low[2] - high) >= atr * cMinGapAtr
-if newBullFvg
-    fvgBullTop := low
-    fvgBullBot := high[2]
-    fvgBullFresh := true
-if newBearFvg
-    fvgBearTop := low[2]
-    fvgBearBot := high
-    fvgBearFresh := true
-// invalidate a gap price closes fully through
-if fvgBullFresh and close < fvgBullBot
-    fvgBullFresh := false
-if fvgBearFresh and close > fvgBearTop
-    fvgBearFresh := false
-
-// entry: FIRST test of the fresh gap (Wendell freshness rule), close
-// holds beyond the far edge, trend filter agrees. Skip the formation
-// bar itself (bar_index check via formation flags being 1+ bars old
-// is enforced by requiring the retest LOW to dip in while the gap is
-// already stored -- newBullFvg bar sets it, retest happens later).
-bool cLong  = enC and fvgBullFresh and not newBullFvg and low <= fvgBullTop and close > fvgBullBot and close > ema50
-bool cShort = enC and fvgBearFresh and not newBearFvg and high >= fvgBearBot and close < fvgBearTop and close < ema50
-// consume freshness on first test regardless of entry (first test only)
-if enC and fvgBullFresh and not newBullFvg and low <= fvgBullTop
-    fvgBullFresh := false
-if enC and fvgBearFresh and not newBearFvg and high >= fvgBearBot
-    fvgBearFresh := false
-// C stop: beyond the far gap edge + buffer
-float cStopDistL = math.min(math.max(close - fvgBullBot + atr * cStopBufAtr, atr * minStopAtr), atr * maxStopAtr)
-float cStopDistS = math.min(math.max(fvgBearTop - close + atr * cStopBufAtr, atr * minStopAtr), atr * maxStopAtr)
-
-// ═════════════════════════════════════════════════════════════
-// MODEL D — LONDON OPENING-RANGE BREAKOUT
-// ═════════════════════════════════════════════════════════════
-var float orHi = na
-var float orLo = na
-var int   lonStart = na
-var bool  dLongTaken = false
-var bool  dShortTaken = false
-if inLondon and not inLondon[1]
-    lonStart := bar_index
-    orHi := high
-    orLo := low
-    dLongTaken := false
-    dShortTaken := false
-else if inLondon and not na(lonStart) and bar_index - lonStart < dOrBars
-    orHi := math.max(orHi, high)
-    orLo := math.min(orLo, low)
-bool orReady = inLondon and not na(lonStart) and bar_index - lonStart >= dOrBars
-
-bool dLong  = enD and orReady and not dLongTaken  and close > orHi and close[1] <= orHi
-bool dShort = enD and orReady and not dShortTaken and close < orLo and close[1] >= orLo
-// D stop: opposite side of the opening range, clamped
-float dStopDistL = math.min(math.max(close - orLo, atr * minStopAtr), atr * maxStopAtr)
-float dStopDistS = math.min(math.max(orHi - close, atr * minStopAtr), atr * maxStopAtr)
-
-// ═════════════════════════════════════════════════════════════
-// SIGNAL SELECTION — priority A > B > C > D; long+short same bar
-// = conflict = NO TRADE (bug-hunt item, decided at spec level)
-// ═════════════════════════════════════════════════════════════
-bool anyLong  = aLong or bLong or cLong or dLong
-bool anyShort = aShort or bShort or cShort or dShort
-bool conflict = anyLong and anyShort
-
-bool canEnter = cd and hardOk and not conflict and strategy.position_size == 0
-
-string mLong  = aLong ? "A" : bLong ? "B" : cLong ? "C" : dLong ? "D" : ""
-string mShort = aShort ? "A" : bShort ? "B" : cShort ? "C" : dShort ? "D" : ""
-
-bool goLong  = canEnter and anyLong
-bool goShort = canEnter and anyShort
-
-float stopDistL = mLong == "A" ? aStopDistL : mLong == "B" ? bStopDistL : mLong == "C" ? cStopDistL : dStopDistL
-float stopDistS = mShort == "A" ? aStopDistS : mShort == "B" ? bStopDistS : mShort == "C" ? cStopDistS : dStopDistS
-
-// ═════════════════════════════════════════════════════════════
-// EXECUTION — risk-% sizing, 50% @ 1R / 50% @ 2R, entry IDs carry
-// the model tag so the tester's own trade list is the per-model
-// ledger (no parallel approximation)
-// ═════════════════════════════════════════════════════════════
-var int entryBar = na
-if goLong and not na(stopDistL) and stopDistL > 0
-    // risk-based size, hard-capped at maxLeverage x equity notional
-    // (BUG-012: uncapped risk sizing exceeded buying power and the
-    // tester silently rejected every order)
-    float qty = math.min(strategy.equity * riskPct / 100.0 / stopDistL, strategy.equity * maxLeverage / close)
-    if qty > 0
-        string id = mLong + "-L"
-        strategy.entry(id, strategy.long, qty=qty)
-        strategy.exit(id + "-TP1", id, stop=close - stopDistL, limit=close + stopDistL * tp1R, qty_percent=50)
-        strategy.exit(id + "-TP2", id, stop=close - stopDistL, limit=close + stopDistL * tp2R)
-        lastSig := bar_index
-        entryBar := bar_index
-        dayTradeCount += 1
-        if mLong == "D"
-            dLongTaken := true
-        label.new(bar_index, low, mLong + " LONG", style=label.style_label_up, color=color.new(#00C853, 0), textcolor=color.white, size=size.small)
-
-if goShort and not na(stopDistS) and stopDistS > 0
-    float qty = math.min(strategy.equity * riskPct / 100.0 / stopDistS, strategy.equity * maxLeverage / close)
-    if qty > 0
-        string id = mShort + "-S"
-        strategy.entry(id, strategy.short, qty=qty)
-        strategy.exit(id + "-TP1", id, stop=close + stopDistS, limit=close - stopDistS * tp1R, qty_percent=50)
-        strategy.exit(id + "-TP2", id, stop=close + stopDistS, limit=close - stopDistS * tp2R)
-        lastSig := bar_index
-        entryBar := bar_index
-        dayTradeCount += 1
-        if mShort == "D"
-            dShortTaken := true
-        label.new(bar_index, high, mShort + " SHORT", style=label.style_label_down, color=color.new(#D50000, 0), textcolor=color.white, size=size.small)
-
-// uniform time stop
-if strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= timeStopBars
-    strategy.close_all(comment="Time stop")
-
-// ═════════════════════════════════════════════════════════════
-// LEVEL PLOTS
-// ═════════════════════════════════════════════════════════════
-plot(showLevels ? prevDayHigh : na, "PDH", color.new(color.red, 55), 1, plot.style_linebr)
-plot(showLevels ? prevDayLow  : na, "PDL", color.new(color.lime, 55), 1, plot.style_linebr)
-plot(showLevels and asiaDone ? asiaHi : na, "Asia High", color.new(color.orange, 60), 1, plot.style_linebr)
-plot(showLevels and asiaDone ? asiaLo : na, "Asia Low", color.new(color.orange, 60), 1, plot.style_linebr)
-plot(showLevels and orReady ? orHi : na, "OR High", color.new(color.aqua, 50), 1, plot.style_linebr)
-plot(showLevels and orReady ? orLo : na, "OR Low", color.new(color.aqua, 50), 1, plot.style_linebr)
-plot(showLevels ? ema50 : na, "Trend EMA", color.new(color.gray, 60), 1)
-
-// ═════════════════════════════════════════════════════════════
-// PER-MODEL DASHBOARD — computed from the tester's own closed
-// trades via entry-ID prefix; open trade (if any) not included
-// ═════════════════════════════════════════════════════════════
-var table dash = table.new(position.bottom_right, 6, 7, bgcolor=color.new(color.black, 30), border_width=1, border_color=color.new(color.gray, 70))
-
-// row renderer at TOP LEVEL (Pine forbids function declarations inside
-// conditional blocks -- BUG-002 lesson); safe division throughout
-f_row(int r, string nm, bool en, int n, int w, float gw, float gl) =>
-    float wr = n > 0 ? w / n * 100.0 : na
-    float pf = gl > 0 ? gw / gl : na
-    float net = gw - gl
-    table.cell(dash, 0, r, nm, text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 1, r, str.tostring(n), text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 2, r, na(wr) ? "-" : str.tostring(wr, "#.#"), text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 3, r, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1 ? color.lime : color.red, text_size=size.tiny)
-    table.cell(dash, 4, r, str.tostring(net, "#.#"), text_color=net >= 0 ? color.lime : color.red, text_size=size.tiny)
-    table.cell(dash, 5, r, not en ? "OFF" : n == 0 ? "quiet" : net < 0 ? "FIX/KILL" : "ok", text_color=not en ? color.gray : net < 0 ? color.orange : color.lime, text_size=size.tiny)
-
-if showDash and barstate.islast
-    // per-model accumulators, computed fresh on the last bar only
-    // (one declaration per line -- Pine has no comma declarations)
-    int nA = 0
-    int nB = 0
-    int nC = 0
-    int nD = 0
-    int wA = 0
-    int wB = 0
-    int wC = 0
-    int wD = 0
-    float gwA = 0.0
-    float gwB = 0.0
-    float gwC = 0.0
-    float gwD = 0.0
-    float glA = 0.0
-    float glB = 0.0
-    float glC = 0.0
-    float glD = 0.0
-    int nTr = strategy.closedtrades
-    if nTr > 0
-        for i = 0 to nTr - 1
-            string eid = strategy.closedtrades.entry_id(i)
-            float p = strategy.closedtrades.profit(i)
-            string mkey = str.substring(eid, 0, 1)
-            if mkey == "A"
-                nA += 1
-                wA += p > 0 ? 1 : 0
-                gwA += p > 0 ? p : 0.0
-                glA += p < 0 ? -p : 0.0
-            else if mkey == "B"
-                nB += 1
-                wB += p > 0 ? 1 : 0
-                gwB += p > 0 ? p : 0.0
-                glB += p < 0 ? -p : 0.0
-            else if mkey == "C"
-                nC += 1
-                wC += p > 0 ? 1 : 0
-                gwC += p > 0 ? p : 0.0
-                glC += p < 0 ? -p : 0.0
-            else if mkey == "D"
-                nD += 1
-                wD += p > 0 ? 1 : 0
-                gwD += p > 0 ? p : 0.0
-                glD += p < 0 ? -p : 0.0
-    // header
-    table.cell(dash, 0, 0, "OMNIBUS", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 1, 0, "Trades", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 2, 0, "Win%", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 3, 0, "PF", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 4, 0, "Net $", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 5, 0, "Status", text_color=color.silver, text_size=size.tiny)
-    f_row(1, "A Structure", enA, nA, wA, gwA, glA)
-    f_row(2, "B Sweep", enB, nB, wB, gwB, glB)
-    f_row(3, "C FVG", enC, nC, wC, gwC, glC)
-    f_row(4, "D Session", enD, nD, wD, gwD, glD)
-    f_row(5, "TOTAL", true, nA+nB+nC+nD, wA+wB+wC+wD, gwA+gwB+gwC+gwD, glA+glB+glC+glD)
-    // gate diagnostics row (why quiet?)
-    table.cell(dash, 0, 6, "Gates", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 6, inSession ? "sess OK" : "sess X", text_color=inSession ? color.lime : color.orange, text_size=size.tiny)
-    table.cell(dash, 2, 6, cd ? "cd OK" : "cd X", text_color=cd ? color.lime : color.orange, text_size=size.tiny)
-    table.cell(dash, 3, 6, circuitOk ? "day OK" : "HALT", text_color=circuitOk ? color.lime : color.orange, text_size=size.tiny)
-    table.cell(dash, 4, 6, orReady ? "OR set" : "OR -", text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 5, 6, asiaDone ? "Asia set" : "Asia -", text_color=color.white, text_size=size.tiny)
-
-// ═════════════════════════════════════════════════════════════
-// ALERTS
-// ═════════════════════════════════════════════════════════════
-alertcondition(goLong,  "OMNIBUS Long",  "OMNIBUS LONG ({{ticker}} {{interval}})")
-alertcondition(goShort, "OMNIBUS Short", "OMNIBUS SHORT ({{ticker}} {{interval}})")
-
-
 // ════════════════════════════════════════════════════════════════════
-// EMBEDDED: SpacemanBTC IDWM Key Levels V13.1  (verbatim port)
-// Standing user directive (2026-07-28): the key-level indicator is
-// embedded in EVERY strategy in this repo and must render EXACTLY as
-// the standalone indicator does. Canonical copy + port-delta list +
-// preserved-quirk list: trader_playbooks/skills/key_levels_module.pine
-// Do not "improve" it; three hand-rolled rewrites failed the eye test
-// (BUG-013). Display + klPrices[]/klNames[] export only -- no trade
-// logic is touched.
+// SKILL: KEY_LEVELS_MODULE  (SpacemanBTC IDWM Key Levels V13.1)
+// ════════════════════════════════════════════════════════════════════
+// STANDING RULE (user directive, 2026-07-28):
+//   "add it into anything that you build and make sure it also displays
+//    the levels as it is in the indicator"
+//   -> EVERY strategy/indicator built in this repo from now on MUST
+//      paste this block in. No exceptions, no re-implementations.
+//
+// SOURCE: user-supplied 'Key Levels SpacemanBTC IDWM' v13.1 (@sbtnc base).
+//   Archived verbatim at indicators/key_levels_spaceman.pine.
+//
+// WHY A VERBATIM PORT AND NOT A REWRITE:
+//   Three prior attempts to "reimplement the look" all failed the user's
+//   eye test (BUG-013 in bugs/BUG_REGISTRY.md). The drawing idiom the
+//   indicator uses -- xloc.bar_time + timenow projection + var-created
+//   drawings inside barstate.islast + the label-merge pass -- is what
+//   produces the exact visual. Reproducing the look means running THAT
+//   code, not code that is "equivalent in spirit".
+//
+// PORT DELTAS FROM THE v5 ORIGINAL (the only changes made):
+//   1. //@version=5 -> the host script's //@version=6 header.
+//   2. indicator(...) declaration dropped; host strategy(...) must carry
+//      overlay=true and max_lines_count >= 100 (500 recommended once the
+//      host draws its own lines too).
+//   3. Input group titles prefixed "KL " so they sit together in the
+//      settings panel and never collide with the host's groups.
+//   4. Levels additionally exported into klPrices[] / klNames[] so the
+//      host's trade logic can consume them. The ORIGINAL had no such
+//      export; drawing behaviour is untouched by it.
+//   Everything else -- defaults, colours, text, merge logic, line
+//   geometry, the original's own quirks -- is byte-for-byte the source.
+//
+// KNOWN ORIGINAL QUIRKS DELIBERATELY PRESERVED (do NOT "fix" these; the
+// user's chart looks the way it does BECAUSE of them):
+//   - ush_label / usl_label / uso_label are created with the LONDON text
+//     constants, then corrected by label.set_text on the same bar.
+//   - weeklyl_line is created at y=weekly_open, then corrected to
+//     weeklyl_open by line.set_y on the same bar.
+//   - monthlyh_line's x1 is set from monthlyl_time, not monthlyh_time.
+//   - yearly H/L use current-year high/low (no [1] offset) by design --
+//     the labels say "Current Year High/Low", not "Prev".
+//
+// HOST REQUIREMENTS
+//   - //@version=6
+//   - overlay=true
+//   - max_lines_count >= 100, max_labels_count >= 100
+//   - Must NOT already define: f_LevelMerge, get_limit_right, or any
+//     identifier below. Check before pasting.
+//
+// COLLISION-SAFE NAME LIST (everything this module declares):
+//   displayStyle mergebool distanceright radistance labelsize linesize
+//   linestyle GlobalTextType globalcoloring GlobalColor
+//   daily_time daily_open dailyh_time dailyh_open dailyl_time dailyl_open
+//   cdailyh_open cdailyl_open monday_time monday_high monday_low
+//   weekly_* weeklyh_* weeklyl_* monthly_* monthlyh_* monthlyl_*
+//   quarterly_* quarterlyh_* quarterlyl_* yearly_* yearlyh_* yearlyl_*
+//   intra_* intrah_* intral_* is_*_enabled is_*_mid *TextType *Color
+//   *text Londont USt Asiat London US Asia clondon* flondon* onelondonfalse
+//   cus* fus* oneusfalse casia* fasia* oneasiafalse londontime ustime
+//   asiatime linewidthint DEFAULT_* fontsize linestyles pricearray
+//   labelarray can_show_* f_LevelMerge get_limit_right untested_monday
+//   klPrices klNames f_klPush
 // ════════════════════════════════════════════════════════════════════
 
 // ── KL inputs ────────────────────────────────────────────────────────
