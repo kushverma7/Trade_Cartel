@@ -770,3 +770,50 @@ blindly agree):
    at no observed cost. No change made; logged so the claim isn't
    re-litigated later.
 Re-test pending after round 2.
+
+=== REGISTER-USAGE AUDIT + MULTI-VOICE ENGINE (2026-07-27) ===
+User asked, fairly: "how are you using all the data I fed you?"
+Ran the audit instead of answering from memory. Result was damning:
+- 72 hypotheses on file; only 8 (H1 H4 H7 H8 H10 H20 H22 H24) ever
+  referenced in ANY .pine; ZERO in the five engines built this session.
+- 12 voices "cited" in this session's engine headers -- all in COMMENTS
+  justifying design choices, none as coded mechanics.
+- 37 indicator engines exist encoding the voices' mechanics; essentially
+  none had been combined into a strategy.
+Conclusion: the register was being name-dropped, not mined. Every
+recent engine implemented ~5 generic mechanics that could have been
+written without the user's data at all.
+
+FIX: strategies/multivoice_confluence_engine.pine. Each voice with a
+mechanically codeable hypothesis casts an INDEPENDENT VOTE (+1/-1/0);
+a trade requires N-of-M agreement. This is the register's own
+corroboration-tally logic executed in code, and COGNITIVE_ARCHITECTURE's
+conviction score actually implemented. 20 voters wired:
+  V1 H48 Hougaard 4-bar fractal (HIGH, 2x weight)
+  V2 H22 three-failed-visit count
+  V3 H71 Hima 2-bar test-failure (as ONE vote, respecting the source's
+         "not a standalone entry" caveat found in the earlier audit)
+  V4 H63 Gann Signal Day
+  V5 H37 role inversion (SBR/RBS)
+  V6 H36 IDM-gated BOS
+  V7 H44 liquidity grab vs BOS geometry
+  V8 H46 HVN/volume cluster
+  V9 H30 Wendell fresh zone + departure (HIGH, 2x)
+  V10 H49 mid-trend divergence = continuation (HIGH, 2x)
+  V11 H16 volume tsunami (HIGH, 2x)
+  V12 H35 EMA stack bunching
+  V13 H23 ADR thirds
+  V14 H5 momentum-join (HIGH, 2x)
+  V15 H17 leg-size regime
+  V16 H70 eighths retracement
+  V17 H8 rejection-count weakening
+  V18 Nison tier-A candle
+  V19 Spaceman key-level sweep
+  V20 H10 session structure
+Every voter is individually toggleable, so a failing voice can be A/B'd
+out and the register updated with real evidence -- which is what the
+BELIEF_REGISTER contradiction tallies were always supposed to consume.
+Live vote table on chart shows which voices agree in real time.
+Declared-not-faked: H14 SMT needs a correlated symbol; H45/H47 need
+true volume profile; H51-H62 Gann geometry needs non-mechanical anchor
+selection. STATUS: UNTESTED.
