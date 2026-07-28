@@ -1067,3 +1067,35 @@ premise the whole 21-voice register was built on. It also retroactively
 explains the PF 0.82-0.89 plateau: those engines each implemented ~5
 generic mechanics and cited the register in comments only (see the
 2026-07-27 register-usage audit).
+
+---
+
+### H74 — Level-to-level exits require level spacing commensurate with the timeframe's ATR
+- **Status:** SUPPORTED (one run, one instrument, one timeframe)
+- **Claim:** Using drawn key levels to set stop distance and take-profit
+  targets only works when the typical gap between adjacent levels is on
+  the same order as the timeframe's ATR. Where levels are far apart
+  relative to the bar range, level-derived stops get clamped to the risk
+  ceiling and level-derived targets move out of reach within the holding
+  period, so win rate collapses even though entry quality is unchanged.
+- **Evidence:** XAUUSD 15m, Feb 2 – Jul 28 2026. Turning on key-level
+  stops + key-level targets together took the Multi-Voice engine from
+  PF 1.093 / WR 44.15% / +15.25% to PF 0.892 / WR 34.06% / −14.19%, with
+  trade count essentially unchanged (521 → 461). Entries held; exits
+  broke. The drawn set on 15m gold is dominated by D/W/M/Q/Y levels.
+- **Mechanism:** stop = max(adverse wick, distance to nearest level) gets
+  clamped at maxStopAtr; TP1 = minTP1R × that inflated stop; the pair
+  compounds into a round trip the 48-bar time stop cannot survive.
+- **Invalidation:** if `useKLStops` OFF with `useKLTargets` still ON
+  recovers PF toward 1.09, the claim narrows to stops only and targets
+  are exonerated. If neither recovers, the entry-side changes
+  (`klFullSweep`, `vOn21`) are implicated instead and H74 is wrong about
+  the mechanism.
+- **Consequence if it holds:** level-to-level belongs on a timeframe
+  whose ATR is comparable to level spacing (1H/4H for D/W/M levels), or
+  needs intraday levels (session H/L, 4H, prev-day) enabled and the
+  higher-degree ones excluded from the stop/target calculation.
+- **Relation to H73:** independent. H73 (multi-voice corroboration) is
+  still untested — its own decisive test (minScore 6→8→10) has still not
+  been run, and this result does not bear on it because entries barely
+  changed.

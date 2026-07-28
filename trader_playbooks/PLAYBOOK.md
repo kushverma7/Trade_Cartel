@@ -974,3 +974,70 @@ STATUS: shipped, statically validated (no duplicate identifiers, no
 use-before-declare, no nested function declarations, no ta.* in a
 dynamically-conditional branch). NOT yet run by the user. No performance
 claim is made until it is.
+
+### STEP 01 RESULT — LEVEL-TO-LEVEL AS SHIPPED: REJECTED (2026-07-28)
+
+XAUUSD 15m, Feb 2 – Jul 28 2026, minScore 6, group ⑤ all ON, group ⑥ OFF.
+
+| Metric | Baseline | Level-to-level | Delta |
+|---|---|---|---|
+| Trades | 521 | 461 | −60 (−11%) |
+| Win rate | 44.15% | **34.06%** | **−10.09 pts** |
+| Profit factor | 1.093 | **0.892** | −0.20 |
+| Net | +15.25% | **−14.19%** | −29.4 pts |
+| Max DD | 11.90% | **25.47%** | +13.6 pts |
+
+**Reverted. Baseline settings stand as the current best configuration.**
+
+#### Diagnosis (three minds)
+
+The signature is specific and it is NOT an entry problem. Trade count fell
+only 11%, so the voters are still firing on roughly the same bars. What
+collapsed is the win rate — 10 full points, from comfortably above the
+40% breakeven for a 50%@1R / 50%@2R split to well below it. When entries
+hold steady and win rate craters, the fault is in the EXIT geometry.
+
+**Prime suspect: `useKLStops`.** The stop was set to the further of the
+adverse wick or beyond the nearest key level. On 15m gold the drawn set is
+dominated by D/W/M/Q/Y levels, which are far apart relative to a 15m ATR.
+So `close − f_klBelow(close)` was routinely larger than `maxStopAtr`, and
+the clamp pinned the stop at its 2.5×ATR ceiling on a large share of
+trades — roughly double the baseline's typical wick-based stop.
+
+**Second-order consequence, and this is the real damage:** TP1 is defined
+as the next key level at least `minTP1R × rd` away. Doubling `rd` doubled
+the minimum target distance too. The trade now needs ~2.5×ATR to reach
+TP1 and ~5×ATR for the round trip, inside a 48-bar time stop. The 50%
+scale-out at TP1 that was carrying the baseline's win rate mostly stopped
+filling, while the wider stop kept getting hit. Wider stop AND further
+target is the worst pairing available, and the two changes amplified each
+other rather than being independent.
+
+**Not yet exonerated:** `klFullSweep` and `vOn21` widen entry criteria and
+could account for some of the 60 lost trades and some WR dilution. They
+are lower suspects because the trade count barely moved.
+
+#### What this does and does not prove
+
+It does NOT falsify "trade key level to key level". It falsifies THIS
+implementation of it, and names the mechanism: letting the level dictate
+stop distance on a timeframe where the levels are far apart relative to
+the bar range. A level-to-level exit only works if the level spacing is
+commensurate with the timeframe's ATR. That is a testable statement and
+it is the next thing worth checking.
+
+#### Revised next runs (diagnosis-driven, replaces the old 02-05 order)
+
+- **Run A — CONTROL, do this first.** All four group ⑤ toggles OFF, group
+  ⑥ OFF, minScore 6. Must reproduce ≈521 / 44.15% / 1.093. If it does not,
+  the refactor itself changed baseline behaviour and every other result in
+  this section is meaningless. This run validates the toggle framework,
+  not the strategy.
+- **Run B — the suspect, alone.** `useKLStops` OFF, everything else in ⑤
+  left ON. If PF recovers toward 1.09 this confirms the stop change as the
+  cause and clears the targets.
+- **Run C** — if B does not recover: `useKLTargets` OFF too, leaving only
+  the entry-side changes (`klFullSweep`, `vOn21`) on.
+
+Only after the culprit is isolated does the outstanding minScore 6→8→10
+conviction test get run, and MTF after that.
