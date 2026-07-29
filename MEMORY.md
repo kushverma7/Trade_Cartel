@@ -303,3 +303,48 @@ Cloned to `/home/user/Kronos`; wrapper at `kronos/kronos_signal_filter.py`.
    If directional accuracy is ~50%, that is the answer to why every entry
    architecture landed at the same PF, and the decision becomes "change
    timeframe," not "tune again."
+
+---
+
+## Recovered 2026-07-29 — facts that had been lost
+
+Full detail: `trader_playbooks/sources/session_archive/`.
+
+### Session-data reality (know this before trusting "I remember")
+- Raw transcripts on the container covered **only 2026-07-22 → 07-29**.
+  Everything before **2026-07-13** (first commit) is unrecoverable from my side.
+- **claude-mem has never held any data** — no database has ever existed on the
+  box. The CLAUDE.md instruction to search it at session start has always been
+  a no-op. Continuity has rested entirely on this file and the playbooks.
+- `/root/.claude/` does not survive session reclamation. **Only git persists.**
+  Anything that matters is committed in the session it happens.
+
+### The first PF>1 configuration (was missing from the repo entirely)
+`trade_cartel_topbottom_engine.pine`, PF-analog **1.11**:
+`useTestFail=false` · `closePosPct=0.2` · `rsiOb=72` · `rsiOs=31` ·
+`useTrendVeto=false` · `cooldown=20` · `minReArmAtr=1.5`
+User confirmation, verbatim: *"oversold is 31 rest is as told"*.
+
+### STANDING RULE — three strikes on trend filters
+Three independent results now say a higher-timeframe / trend veto makes
+things WORSE, not better:
+1. `useTrendVeto` on the topbottom engine — input label carries the warning
+2. ADX veto — reverted
+3. HTF bias MA on the trendline engine — PF 0.882 → 0.819, reverted
+Do not add a fourth without a specific reason why it differs from these
+three, and ship it default-OFF as an A/B toggle if it is added at all.
+
+### STANDING RULE — a screenshot is not a specification
+Two corrections from the user, same root failure:
+- *"i never told you to create supertrend or similar settings, i dont you to
+  make sure it only presents signals like the screenshot."* → a chart image is
+  a request to **restyle an existing engine's display**, not to build a new
+  algorithm.
+- *"i never restricted you to any settings. i told you to find me the best and
+  accurate signal printing."* → **a number visible in a screenshot is not a
+  constraint.** Do not copy it and then defend it.
+
+### OPEN THREAD — unanswered since before 22 July
+After the SuperTrend correction I asked **which engine the user wanted
+restyled** to the clean line + Buy/Sell-label look. That question was never
+answered; it fell off when the context compacted. Still open.
