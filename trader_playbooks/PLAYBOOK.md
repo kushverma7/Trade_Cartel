@@ -1041,3 +1041,57 @@ it is the next thing worth checking.
 
 Only after the culprit is isolated does the outstanding minScore 6→8→10
 conviction test get run, and MTF after that.
+
+
+---
+
+## KEY LEVELS STRATEGY (SPACEMAN EDITION) — v1.0 RESULT VOIDED (2026-07-29)
+
+User supplied a separate 30m engine reporting XAUUSD, Jan 2 2025 - Jul 29
+2026: **22 trades / WR 63.64% / PF 1.783 / +7.70% / max DD 7.01%**.
+
+**The 1.783 is not an edge. It is an order-rejection artifact.**
+
+v1.0 declared no `margin_long`/`margin_short`, so Pine v6 defaulted both to
+100%. Sizing was `qty = round(equity * risk% / slDist)` = `round(100/slDist)`.
+On 30m gold slDist runs ~$6-37, giving qty 3-17 contracts = $12,000-$68,000
+notional against $10,000 equity. Every one of those exceeds buying power and
+TradingView skips them silently. The chart plots roughly four signals per
+five days -- hundreds across the tested range -- yet only 22 filled. The 22
+that filled are the ones that happened to size smallest, i.e. the
+WIDEST-STOP trades. That is a biased subsample, and its profit factor
+describes the rejection filter, not the strategy.
+
+This is **BUG-012 for the second time**. The prevention written after the
+first occurrence ("labels but no trades = execution rejection") did not
+generalise, because this time there WERE trades -- just far too few. New
+prevention: every engine now shows Signals / Filled / Fill rate on the
+dashboard, so the gap is visible rather than inferred.
+
+Three further defects found in the same read:
+- **BUG-014** -- the TP1 tranche had `limit=` and no `stop=`, so 60% of
+  every position was unprotected until the time stop. This is why largest
+  loss ($639.14) is 3.3x largest profit ($194.84) on a 1.5R target.
+- **BUG-015** -- `ta.lowest(low, 12)` includes the current bar, so
+  "Break + Retest" never required a break.
+- **BUG-016** -- `dayTrades` counted signals, not fills, so the daily cap
+  was consumed by rejected orders.
+
+**Statistical note, independent of all four bugs.** WR 63.64% on n=22 has a
+95% confidence interval of roughly 41%-82%. Total PnL $769.65 against a
+largest single loss of $639.14 means one more max-size loser removes 83% of
+the gain. Even with perfect execution, 22 trades would not support a
+conclusion.
+
+### Shipped: v1.1
+All four fixed. Level set, entry conditions, session filter, TP/SL geometry
+and every default left untouched so the comparison isolates execution.
+The mandatory Spaceman key-level module is embedded (display only; the
+strategy trades its own `sigLevels[]` subset, deliberately renamed to avoid
+colliding with the module's `klPrices[]`).
+
+**Next run:** paste v1.1, change nothing, and read the dashboard's
+**Fill rate** row BEFORE looking at PF. Below 90% and shown red means orders
+are still being rejected and no performance number is meaningful yet. Once
+fill rate is ~100%, report trade count / WR / PF / net / max DD -- and the
+trade count is the number that decides whether v1.0's result was ever real.

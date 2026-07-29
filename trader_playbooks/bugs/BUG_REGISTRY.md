@@ -227,6 +227,69 @@ all REAL bugs that actually occurred here, not hypotheticals.
 
 ---
 
+## BUG-014 — Unstopped TP1 tranche (strategy.exit with limit but no stop)
+- **Symptom:** Key Levels Strategy v1.0 showed largest loss $639.14 against
+  largest profit $194.84 -- a 3.3x asymmetry the wrong way on a strategy
+  whose fixed TP1 is 1.5R and whose max stop is 2.5xATR.
+- **Root cause:** `strategy.exit("L1", "L", limit=tp1, qty=q1)` supplies a
+  limit and no stop. Pine does not inherit the sibling exit's stop. So the
+  TP1 tranche -- 60% of the position by default -- had NO stop loss and
+  rode until the 36-bar time stop. Only the 40% L2 tranche was protected.
+- **Fix:** every `strategy.exit` call that owns part of a position must
+  carry `stop=`. Both tranches now do.
+- **Prevention:** CODE_DELIVERY_PROTOCOL phase 3 gains a check: for each
+  strategy.exit, assert BOTH a stop and a limit are present, or state
+  explicitly why the tranche is intentionally unprotected. A quick grep
+  catches it: any `strategy.exit(` line containing `limit=` but not `stop=`.
+- **Which Mind Found It:** Profit Engine -- the win/loss size asymmetry did
+  not match the declared R geometry, which pointed at exits before entries.
+- **Affected Files:** key_levels_spaceman_edition.pine
+- **Status:** Fixed in v1.1
+
+---
+
+## BUG-015 — Rolling extreme includes the current bar, so "retest" needs no break
+- **Symptom:** "Break + Retest" mode fired on bars where no break had
+  occurred.
+- **Root cause:** `low12 = ta.lowest(low, 12)` includes the current bar.
+  The condition `low12 < lv` was therefore satisfied by the retest bar's
+  OWN wick dipping below the level, while `low > lv - tol` kept that wick
+  shallow. Net effect: any bar that touched the level from above and closed
+  above it qualified as a break-and-retest. The prior break was never
+  required.
+- **Fix:** `ta.lowest(low, n)[1]` / `ta.highest(high, n)[1]` so the lookback
+  genuinely excludes the bar being evaluated.
+- **Prevention:** this is BUG-008's family (WHEN does a variable update
+  relative to the event it describes). New standing check: any rolling
+  extreme used as "price was previously beyond X" evidence must carry a
+  `[1]` offset, because the current bar is the thing being tested.
+- **Which Mind Found It:** Microstructure Predator (static read of the
+  condition's truth table)
+- **Affected Files:** key_levels_spaceman_edition.pine
+- **Status:** Fixed in v1.1
+
+---
+
+## BUG-016 — Counters incremented on signals rather than fills
+- **Symptom:** daily trade cap and cooldown throttled trades that were
+  never actually filled.
+- **Root cause:** `dayTrades += 1` sat inside the `if goLong` block, which
+  fires when the ORDER IS PLACED, not when it fills. With BUG-012's silent
+  margin rejection also present, the cap was being consumed by phantom
+  trades and suppressing real ones.
+- **Fix:** counters gated on `strategy.opentrades + strategy.closedtrades`
+  actually increasing.
+- **Prevention:** any counter that represents "trades taken" must read from
+  strategy state, never from signal state. Corollary added to the dashboard
+  standard: every engine now displays Signals / Filled / Fill rate, so an
+  order-rejection gap is visible on the chart instead of being inferred
+  from a suspiciously low trade count.
+- **Which Mind Found It:** Profit Engine
+- **Affected Files:** key_levels_spaceman_edition.pine
+- **Status:** Fixed in v1.1
+
+---
+
 ## Cross-cutting lessons (read these even if skimming)
 1. **An entry gate that never fires is worse than a missing gate** —
    it looks like selectivity while being a dead switch. Truth-table
@@ -243,3 +306,9 @@ all REAL bugs that actually occurred here, not hypotheticals.
 7. **If the user supplies source, port it -- do not reimplement it.**
    Three consecutive rejections of the same visual meant the approach
    was wrong, not the execution (BUG-013).
+8. **A suspiciously LOW trade count is an execution symptom, not
+   selectivity.** BUG-012 struck twice now. Every engine displays
+   Signals / Filled / Fill rate so rejection can never masquerade as a
+   high-quality filter again (BUG-012, BUG-016).
+9. **Every strategy.exit that owns part of a position needs its own
+   stop** -- siblings do not share one (BUG-014).
