@@ -84,3 +84,55 @@ voters on, defaults elsewhere. Group ⑤/⑥ did not exist yet.
 3. **The plateau is the finding.** Rows 9–12 say XAUUSD 5m does not support
    these mechanisms after costs. Kronos was acquired to test that directly
    and is still blocked on HuggingFace being firewalled.
+
+---
+
+## Overfitting audit — 2026-07-29
+
+Ran the Deflated Sharpe Ratio (Bailey & Lopez de Prado; implementation ported
+from stefan-jansen/machine-learning-for-trading) over the ledger itself.
+Reproduce with `python3 -m backtest.audit_ledger`.
+
+Per-trade Sharpe reconstructed from (PF, WR, n) for every row that recorded
+all three. **The reconstruction assumes uniform win and loss sizes, which
+makes it optimistic — these are upper bounds, not measurements.**
+
+| Row | n | PF | SR/trade |
+|---|---|---|---|
+| #6 Top/Bottom run 4 | 112 | 1.110 | +0.0492 |
+| #9 OMNIBUS four-model | 298 | 0.843 | −0.0850 |
+| #10 Key-to-Key | 245 | 0.886 | −0.0547 |
+| #11 Trendline × Key Levels | 382 | 0.882 | −0.0623 |
+| **#13 Multi-Voice** | **521** | **1.093** | **+0.0439** |
+| #14 MV + level-to-level | 461 | 0.892 | −0.0551 |
+| #15 Key Levels v1.0 (void) | 22 | 1.783 | +0.2932 |
+
+### The result
+
+| trials assumed | E[max SR] from noise | adjusted SR | DSR |
+|---|---|---|---|
+| 7 (ledger rows only) | 0.0809 | −0.0370 | **0.20** |
+| 17 (every engine built) | 0.1066 | −0.0627 | **0.08** |
+| 40 (engines × parameter passes) | 0.1277 | −0.0838 | **0.03** |
+
+*(excluding the void 22-trade row, which inflates trial variance; including
+it every figure drops below 0.001. The verdict is the same either way.)*
+
+**DSR needs to reach ~0.95 to count as evidence of skill. The best result
+this repo has ever produced reaches 0.08 at a realistic trial count.**
+
+The expected maximum Sharpe from running 17 attempts on data with no edge is
+**0.107 per trade**. The Multi-Voice engine achieved **0.044**. It did not
+merely fail to beat the noise threshold — it came in at less than half of it.
+
+### What this actually settles
+
+PF 1.093 is not a small edge that needs more tuning. Once the number of
+attempts is accounted for, it is **below what pure chance would have handed
+us anyway**. Every "the plateau is close to 1.0, keep pushing" reading of the
+last four months was wrong, and the ledger now says so quantitatively.
+
+**The bar to clear:** at 17 trials and n=521, a result needs SR/trade ≥ 0.179,
+which at a 44% win rate is roughly **PF 1.45**. Not 1.10. Anything between
+1.0 and ~1.4 on this sample size is indistinguishable from search noise and
+should not be built on.
