@@ -20,6 +20,34 @@ not fitted to. This runs the search offline, with a locked train/test split.
 | `synth.py` | synthetic bars, for plumbing checks only |
 | `validate_bt.py` | **INCOMPLETE** — backtrader wiring only, see its header |
 
+## London Strategic Edge — blocked, and not by the key
+
+`backtest/lse_client.py` is written and ready. `--probe` walks the plausible
+endpoints; `--symbol XAUUSD --tf 15m --save data/x.csv` pulls and writes bars.
+
+It cannot run. DNS resolves (Cloudflare), but the policy-enforcing egress
+proxy refuses the connection outright — a `ProxyError`, not a 403 from the
+site. **Authentication is not the blocker; egress policy is.** The API key is
+irrelevant until `londonstrategicedge.com` is added to the environment's
+network allowlist, which is a setting on the environment, not something a
+credential can override. See
+https://code.claude.com/docs/en/claude-code-on-the-web
+
+Allowlist it and `python3 -m backtest.lse_client --probe` answers immediately.
+
+### Credential handling
+
+The key lives in `.env`, which is gitignored, mode 600, and read by
+`lse_client` at runtime. It is never passed on the command line (argv is
+visible in the process table), never logged, and never committed.
+
+**It will not survive this container.** `/root` and untracked files are lost
+when the session is reclaimed; only git persists, and a live credential must
+not go into git — history is permanent, visible to every collaborator, and
+cannot be cleaned without a rewrite. For persistence, set `LSE_API_KEY` in the
+environment's own variable settings. The client reads it from there
+automatically, with `.env` only as a local fallback.
+
 ## The one thing missing: your bars
 
 No market-data host is reachable from this container — Yahoo, Stooq,

@@ -20,3 +20,9 @@ __pycache__/
 dist/
 build/
 .pat
+
+# credentials — never commit
+.env
+*.key
+*_secret*
+lse_*.json
