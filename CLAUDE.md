@@ -2,7 +2,8 @@
 
 **IMPORTANT: At the start of EVERY session, read these files IN ORDER before doing anything else:**
 1. `trader_playbooks/COGNITIVE_ARCHITECTURE.md` — THE OPERATING SYSTEM. Three minds (Macro Architect, Microstructure Predator, Profit Engine w/ veto), 8-step thinking process, self-learning layers, rules of engagement. Every analysis follows it.
-2. `MEMORY.md` — persistent context, backtest results, decisions, standing rules
+2. `MEMORY.md` — persistent context, decisions, standing rules
+2b. `RESULTS_LEDGER.md` — EVERY backtest result in one table with its sample size, window and settings. Read it before proposing any new engine. Append a row in the same session a result is produced; a PF with no trade count and no date range is not a result. No row is marked VALID without an out-of-sample test.
 3. `trader_playbooks/USER_TRADING_PROFILE.md` — who the user is as a trader; act as their proxy
 4. `trader_playbooks/BELIEF_REGISTER.md` — active beliefs w/ evidence + invalidations; update when contradicted (3+ sources -> Belief Review)
 5. `trader_playbooks/PLAYBOOK.md` — living setups doc: what's working, what's retired, current regime, rules
