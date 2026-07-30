@@ -1,26 +1,20 @@
-"""Load a TradingView chart-data CSV export.
+"""Single entry point for loading exported bar files.
 
-TradingView: right-click chart -> Export chart data -> CSV.
-Accepts the usual column spellings and either a unix 'time' or a datetime.
+There used to be a second, weaker parser here. It did not understand
+semicolon delimiters, day-first dates, O/H/L/C aliases or unnamed timestamp
+columns, and it choked on a file the inspector had just normalised -- two
+loaders, two behaviours, one of them wrong. Everything now goes through the
+inspector's parser, which has tests behind it.
 """
-import pandas as pd
+from backtest.inspect_csv import load as _load, resample
 
 
-def load_csv(path):
-    df = pd.read_csv(path)
-    df.columns = [c.strip().lower() for c in df.columns]
-    tcol = next((c for c in ("time", "date", "datetime", "timestamp")
-                 if c in df.columns), None)
-    if tcol is None:
-        raise SystemExit(f"no time column; found {list(df.columns)}")
-    s = df[tcol]
-    df["dt"] = (pd.to_datetime(s, unit="s")
-                if pd.api.types.is_numeric_dtype(s) else pd.to_datetime(s))
+def load_csv(path, rule=None):
+    df, _sep, _hdr = _load(path)
     need = ["open", "high", "low", "close"]
-    miss = [c for c in need if c not in df.columns]
-    if miss:
-        raise SystemExit(f"missing columns {miss}; found {list(df.columns)}")
-    df = df.set_index("dt").sort_index()
-    if df.index.tz is not None:
-        df.index = df.index.tz_convert(None)
+    missing = [c for c in need if c not in df.columns]
+    if missing:
+        raise SystemExit(f"missing columns {missing}; found {list(df.columns)}")
+    if rule:
+        df = resample(df, rule)
     return df[need].dropna()
