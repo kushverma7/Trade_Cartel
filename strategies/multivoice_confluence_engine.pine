@@ -1485,6 +1485,75 @@ int voters = math.abs(v1) + math.abs(v2) + math.abs(v3) + math.abs(v4) + math.ab
 // ═════════════════════════════════════════════════════════════
 // EXECUTION
 // ═════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
+// PER-VOTER ATTRIBUTION
+// The combinatorics of "which voters should be on" are hopeless by
+// hand: 22 voters is 4,194,304 subsets. Instead of testing subsets,
+// this instruments the engine so a SINGLE backtest measures every
+// voter at once.
+//
+// For each trade, the agreement of each voter with the trade's
+// DIRECTION is recorded (+1 agreed, -1 opposed, 0 abstained). When the
+// trade closes, its P&L is attributed to every voter that agreed and,
+// separately, to every voter that opposed. The end result per voter:
+//
+//   PF(agreed)  -- profit factor of trades this voice voted FOR
+//   PF(opposed) -- profit factor of trades this voice voted AGAINST
+//   EDGE        -- the difference
+//
+// EDGE is the number that matters. A voter with a high PF(agreed) may
+// simply be voting on most trades; what makes a voice USEFUL is that
+// outcomes are better when it agrees than when it objects. EDGE > 0
+// means the voice carries directional information. EDGE <= 0 means it
+// is noise, and turning it off should not hurt -- which is itself a
+// one-run testable prediction.
+//
+// This does not touch entries, exits or sizing. It only observes.
+// ═════════════════════════════════════════════════════════════
+var int[]   agWin  = array.new_int(22, 0)      // agreed & won
+var int[]   agLoss = array.new_int(22, 0)      // agreed & lost
+var float[] agProf = array.new_float(22, 0.0)  // agreed, gross profit
+var float[] agLosd = array.new_float(22, 0.0)  // agreed, gross loss
+var int[]   opWin  = array.new_int(22, 0)      // opposed & won
+var int[]   opLoss = array.new_int(22, 0)
+var float[] opProf = array.new_float(22, 0.0)
+var float[] opLosd = array.new_float(22, 0.0)
+var int[]   curAgree = array.new_int(22, 0)    // this trade's agreement vector
+var int     lastClosed = 0
+
+// the 22 votes as an array so they can be iterated (Pine cannot loop
+// over separately-named variables). Allocated ONCE and overwritten each
+// bar rather than rebuilt with array.from, which would allocate a new
+// array on every one of ~20,000 bars.
+var int[] voteNow = array.new_int(22, 0)
+array.set(voteNow, 0,  v1)
+array.set(voteNow, 1,  v2)
+array.set(voteNow, 2,  v3)
+array.set(voteNow, 3,  v4)
+array.set(voteNow, 4,  v5)
+array.set(voteNow, 5,  v6)
+array.set(voteNow, 6,  v7)
+array.set(voteNow, 7,  v8)
+array.set(voteNow, 8,  v9)
+array.set(voteNow, 9,  v10)
+array.set(voteNow, 10, v11)
+array.set(voteNow, 11, v12)
+array.set(voteNow, 12, v13)
+array.set(voteNow, 13, v14)
+array.set(voteNow, 14, v15)
+array.set(voteNow, 15, v16)
+array.set(voteNow, 16, v17)
+array.set(voteNow, 17, v18)
+array.set(voteNow, 18, v19)
+array.set(voteNow, 19, v20)
+array.set(voteNow, 20, v21)
+array.set(voteNow, 21, v22)
+
+f_snapAgree(int dir) =>
+    for i = 0 to 21
+        int vv = array.get(voteNow, i)
+        array.set(curAgree, i, dir * vv > 0 ? 1 : dir * vv < 0 ? -1 : 0)
+
 var int lastSig = -9999
 bool cd = bar_index - lastSig > cooldown
 
@@ -1542,6 +1611,7 @@ if goLong
     float qty = math.min(strategy.equity * riskPct / 100.0 / rd, strategy.equity * maxLev / close)
     if qty > 0
         strategy.entry("MV-L", strategy.long, qty=qty)
+        f_snapAgree(1)
         strategy.exit("L1", "MV-L", stop=close - rd, limit=lim1, qty_percent=tp1Pct)
         strategy.exit("L2", "MV-L", stop=close - rd, limit=lim2)
         lastSig := bar_index
@@ -1571,6 +1641,7 @@ if goShort
     float qty = math.min(strategy.equity * riskPct / 100.0 / rd, strategy.equity * maxLev / close)
     if qty > 0
         strategy.entry("MV-S", strategy.short, qty=qty)
+        f_snapAgree(-1)
         strategy.exit("S1", "MV-S", stop=close + rd, limit=lim1, qty_percent=tp1Pct)
         strategy.exit("S2", "MV-S", stop=close + rd, limit=lim2)
         lastSig := bar_index
@@ -1587,6 +1658,28 @@ if goShort
 
 if strategy.position_size != 0 and not na(entryBar) and bar_index - entryBar >= timeStop
     strategy.close_all(comment="Time stop")
+
+// attribute every newly-closed trade to the voters that agreed / opposed
+if strategy.closedtrades > lastClosed
+    for k = lastClosed to strategy.closedtrades - 1
+        float pnl = strategy.closedtrades.profit(k)
+        for i = 0 to 21
+            int a = array.get(curAgree, i)
+            if a == 1
+                if pnl > 0
+                    array.set(agWin, i, array.get(agWin, i) + 1)
+                    array.set(agProf, i, array.get(agProf, i) + pnl)
+                else
+                    array.set(agLoss, i, array.get(agLoss, i) + 1)
+                    array.set(agLosd, i, array.get(agLosd, i) - pnl)
+            else if a == -1
+                if pnl > 0
+                    array.set(opWin, i, array.get(opWin, i) + 1)
+                    array.set(opProf, i, array.get(opProf, i) + pnl)
+                else
+                    array.set(opLoss, i, array.get(opLoss, i) + 1)
+                    array.set(opLosd, i, array.get(opLosd, i) - pnl)
+    lastClosed := strategy.closedtrades
 
 // ═════════════════════════════════════════════════════════════
 // LIVE TRADE MAP — shows the level-to-level plan of the open trade.
@@ -1694,6 +1787,56 @@ if barstate.islast
     table.cell(dash, 1, 1, str.tostring(nT), text_color=color.white, text_size=size.tiny)
     table.cell(dash, 2, 1, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
     table.cell(dash, 3, 1, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1 ? color.lime : color.red, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// VOTER SCORECARD — read this to pick the combo
+// One backtest fills this in for all 22 voices. Sort by EDGE in your
+// head: positive = the voice adds information, negative or zero = it
+// does not. Turn off everything with EDGE <= 0, re-run, and compare
+// the headline PF. That is a two-run answer to a 4-million-subset
+// question.
+// N is the number of closed trades the voice voted FOR. Anything under
+// ~30 is shown grey: too few to read, regardless of how good PF looks.
+// ═════════════════════════════════════════════════════════════
+bool showScore = input.bool(true, "Show Voter Scorecard", group="① Conviction")
+
+var string[] vName = array.from(
+     "V1  Hougaard 4-bar", "V2  3-visit fail", "V3  Hima test-fail",
+     "V4  Gann Signal Day", "V5  Role inversion", "V6  IDM-gated BOS",
+     "V7  Liquidity grab", "V8  HVN cluster", "V9  Wendell zone",
+     "V10 Mid-trend div", "V11 Vol tsunami", "V12 EMA bunching",
+     "V13 ADR thirds", "V14 Momentum-join", "V15 Leg regime",
+     "V16 Eighths", "V17 Rejection cnt", "V18 Tier-A candle",
+     "V19 KL sweep", "V20 Session", "V21 KL break-retest", "V22 HTF trend")
+
+var table sc = table.new(position.bottom_left, 5, 24, bgcolor=color.new(color.black, 15),
+     border_width=1, border_color=color.new(color.gray, 60))
+if showScore and barstate.islast
+    table.cell(sc, 0, 0, "VOICE", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 1, 0, "N", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 2, 0, "PF agree", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 3, 0, "PF oppose", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 4, 0, "EDGE", text_color=color.orange, text_size=size.tiny)
+    for i = 0 to 21
+        int nAg = array.get(agWin, i) + array.get(agLoss, i)
+        float gpA = array.get(agProf, i)
+        float glA = array.get(agLosd, i)
+        float gpO = array.get(opProf, i)
+        float glO = array.get(opLosd, i)
+        float pfA = glA > 0 ? gpA / glA : na
+        float pfO = glO > 0 ? gpO / glO : na
+        float edge = not na(pfA) and not na(pfO) ? pfA - pfO : na
+        bool thin = nAg < 30
+        color cRow = thin ? color.gray : color.silver
+        table.cell(sc, 0, i + 1, array.get(vName, i), text_color=cRow, text_size=size.tiny)
+        table.cell(sc, 1, i + 1, str.tostring(nAg), text_color=cRow, text_size=size.tiny)
+        table.cell(sc, 2, i + 1, na(pfA) ? "-" : str.tostring(pfA, "#.##"), text_color=cRow, text_size=size.tiny)
+        table.cell(sc, 3, i + 1, na(pfO) ? "-" : str.tostring(pfO, "#.##"), text_color=cRow, text_size=size.tiny)
+        table.cell(sc, 4, i + 1, na(edge) ? "-" : str.tostring(edge, "+#.##"),
+             text_color=thin ? color.gray : edge > 0.10 ? color.lime : edge < -0.10 ? color.red : color.silver,
+             text_size=size.tiny)
+    table.cell(sc, 0, 23, "EDGE>0 keep, <=0 cut", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 1, 23, "grey = n<30", text_color=color.gray, text_size=size.tiny)
 
 alertcondition(goLong,  "MultiVoice Buy",  "MV BUY ({{ticker}} {{interval}})")
 alertcondition(goShort, "MultiVoice Sell", "MV SELL ({{ticker}} {{interval}})")

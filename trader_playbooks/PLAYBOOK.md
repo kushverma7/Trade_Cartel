@@ -1095,3 +1095,59 @@ colliding with the module's `klPrices[]`).
 are still being rejected and no performance number is meaningful yet. Once
 fill rate is ~100%, report trade count / WR / PF / net / max DD -- and the
 trade count is the number that decides whether v1.0's result was ever real.
+
+---
+
+## VOTER SCORECARD — answering "which combo" without guessing (2026-07-29)
+
+User: *"based on everything you have i want you to work on a indicators
+settings and find out which combo works the best."*
+
+**The honest constraint first.** 22 voters is 4,194,304 subsets. That is not
+answerable by proposing combos, and every combo I proposed by taste would be
+another entry in RESULTS_LEDGER with no way to attribute the result. I also
+have no market-data access from this container (no TradingView MCP in the
+session; Yahoo, Binance and tradingview.com all fail outbound), so I cannot
+run the sweep myself.
+
+**So the engine was instrumented instead of guessed at.** At each entry the
+agreement of every voice with the trade direction is recorded (+1 for, -1
+against, 0 abstain). On close, the trade's P&L is attributed to both the
+agreeing and the opposing group. One backtest now yields, for all 22 voices:
+
+| Column | Meaning |
+|---|---|
+| N | closed trades the voice voted FOR (greyed below 30) |
+| PF agree | profit factor of trades it backed |
+| PF oppose | profit factor of trades it objected to |
+| **EDGE** | **agree − oppose** |
+
+**EDGE is the metric, not PF agree.** A voice that votes on nearly every
+trade will show a PF close to the engine's overall PF and look fine. What
+makes a voice useful is that outcomes are BETTER when it agrees than when it
+objects. EDGE <= 0 means the voice carries no directional information, and
+predicts that switching it off will not hurt -- a claim testable in one run.
+
+Pure instrumentation: no entry, exit or sizing logic changed. `voteNow` is a
+`var` array overwritten in place rather than rebuilt with `array.from` each
+bar, so ~20,000 bars do not each allocate.
+
+### Procedure (3 runs total)
+1. Run as shipped: minScore 6, all voters on, **group ⑤ toggles OFF** (that
+   configuration was reverted -- see the step-01 entry above). Read the
+   scorecard at bottom-left.
+2. Turn off every voice with EDGE <= 0. Re-run. If headline PF rises, the
+   combo is measured rather than assumed.
+3. Only THEN raise minScore. The outstanding 6 -> 8 -> 10 test is only
+   meaningful once the voter set is clean; with fewer voices the useful
+   threshold will not be 6.
+
+Append every one of these to RESULTS_LEDGER.md with N, window and settings.
+
+### Still outstanding, and better than all of the above
+An offline sweep on exported bars, with a train/test split. If the user
+exports XAUUSD 15m (right-click chart -> Export chart data -> CSV) I can run
+the full subset search in Python and return settings that survived
+out-of-sample. That is the only version of "best combo" that would earn a
+VALID row in the ledger. The scorecard is the in-TradingView route to the
+same place, and it is available now.
