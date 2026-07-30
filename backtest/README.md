@@ -20,33 +20,49 @@ not fitted to. This runs the search offline, with a locked train/test split.
 | `synth.py` | synthetic bars, for plumbing checks only |
 | `validate_bt.py` | **INCOMPLETE** — backtrader wiring only, see its header |
 
-## London Strategic Edge — blocked, and not by the key
+## London Strategic Edge — one setting away
 
-`backtest/lse_client.py` is written and ready. `--probe` walks the plausible
-endpoints; `--symbol XAUUSD --tf 15m --save data/x.csv` pulls and writes bars.
+Their official client is on PyPI, which is one of the few hosts this
+container CAN reach, so it is installed: `pip install lse-data` (v0.14.0).
+`backtest/lse_client.py` wraps it.
 
-It cannot run. DNS resolves (Cloudflare), but the policy-enforcing egress
-proxy refuses the connection outright — a `ProxyError`, not a 403 from the
-site. **Authentication is not the blocker; egress policy is.** The API key is
-irrelevant until `londonstrategicedge.com` is added to the environment's
-network allowlist, which is a setting on the environment, not something a
-credential can override. See
+```
+python3 -m backtest.lse_client --check
+python3 -m backtest.lse_client --symbol XAU/USD --tf 15m \
+    --start 2021-01-01 --save data/xau_15m.csv.gz
+```
+
+The API gives `candles()` (paged OHLCV, 1s to 1mo resolutions, FX back to
+2009) and `history()` (server-side bulk export that builds the file, polls
+the job and downloads with resume — the route for tick data or very long
+ranges).
+
+**This removes the file-size problem entirely.** Data lands directly in the
+container from the API; nothing has to be carried through chat. The size
+limit only ever existed because the file was being moved by hand.
+
+### The blocker is egress policy, not the key
+
+```
+LSEError [0] request failed before an HTTP response:
+Tunnel connection failed: 403 Forbidden
+```
+
+The session's egress proxy refuses the CONNECT tunnel to
+`api.londonstrategicedge.com`. The request never leaves the container, so the
+key never reaches their server — `authenticated` reads False for that reason
+and no credential can change it. Add `londonstrategicedge.com` and
+`api.londonstrategicedge.com` to the environment's network allowlist:
 https://code.claude.com/docs/en/claude-code-on-the-web
-
-Allowlist it and `python3 -m backtest.lse_client --probe` answers immediately.
 
 ### Credential handling
 
-The key lives in `.env`, which is gitignored, mode 600, and read by
-`lse_client` at runtime. It is never passed on the command line (argv is
-visible in the process table), never logged, and never committed.
+Read from `LSE_API_KEY`, falling back to a gitignored, mode-600 `.env`. Never
+passed on argv (visible in the process table), never logged, never committed —
+verified absent from the working tree and from every commit.
 
-**It will not survive this container.** `/root` and untracked files are lost
-when the session is reclaimed; only git persists, and a live credential must
-not go into git — history is permanent, visible to every collaborator, and
-cannot be cleaned without a rewrite. For persistence, set `LSE_API_KEY` in the
-environment's own variable settings. The client reads it from there
-automatically, with `.env` only as a local fallback.
+`.env` dies with this container. For persistence set `LSE_API_KEY` in the
+environment's own variable settings; the client prefers it over `.env`.
 
 ## The one thing missing: your bars
 

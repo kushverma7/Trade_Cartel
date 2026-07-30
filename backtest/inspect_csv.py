@@ -10,7 +10,7 @@ it found and whether there is enough of it to run a train/test split.
   python3 -m backtest.inspect_csv myfile.csv
   python3 -m backtest.inspect_csv myfile.csv --resample 15min --save bars.csv
 """
-import argparse, sys
+import argparse, glob as globmod, gzip, io, lzma, bz2, os, sys, zipfile
 import numpy as np, pandas as pd
 
 TIME_KEYS = ("time", "date", "datetime", "timestamp", "dt",
@@ -22,8 +22,30 @@ ALIASES = {
 }
 
 
+def _open(path):
+    """Transparently read .gz / .bz2 / .xz / .zip as well as plain text.
+
+    Compressing an OHLC export shrinks it about 9x, which is usually the
+    whole answer to 'the file is too large to send'.
+    """
+    e = path.lower()
+    if e.endswith(".gz"):
+        return io.TextIOWrapper(gzip.open(path, "rb"), errors="replace")
+    if e.endswith(".bz2"):
+        return io.TextIOWrapper(bz2.open(path, "rb"), errors="replace")
+    if e.endswith(".xz"):
+        return io.TextIOWrapper(lzma.open(path, "rb"), errors="replace")
+    if e.endswith(".zip"):
+        z = zipfile.ZipFile(path)
+        inner = [n for n in z.namelist() if not n.endswith("/")]
+        if not inner:
+            raise SystemExit(f"{path} is an empty archive")
+        return io.TextIOWrapper(z.open(inner[0]), errors="replace")
+    return open(path, "r", errors="replace")
+
+
 def sniff(path):
-    with open(path, "r", errors="replace") as fh:
+    with _open(path) as fh:
         head = [fh.readline() for _ in range(5)]
     text = "".join(head)
     sep = max([",", ";", "\t", "|"], key=text.count)
@@ -31,8 +53,23 @@ def sniff(path):
 
 
 def load(path):
+    """Accepts one file, or a glob / comma-list of chunked exports."""
+    parts = []
+    if isinstance(path, str) and ("*" in path or "," in path):
+        names = sorted(sum((globmod.glob(p) for p in path.split(",")), []))
+        if not names:
+            raise SystemExit(f"no files matched {path!r}")
+        if len(names) > 1:
+            print(f"  concatenating {len(names)} files")
+        for nm in names:
+            parts.append(load(nm)[0])
+        df = pd.concat(parts).sort_index()
+        df = df[~df.index.duplicated(keep="first")]
+        return df, ",", f"{len(names)} files"
+
     sep, header = sniff(path)
-    df = pd.read_csv(path, sep=sep, engine="python")
+    with _open(path) as fh:
+        df = pd.read_csv(fh, sep=sep, engine="python")
     df.columns = [str(c).strip().lower().lstrip("﻿") for c in df.columns]
     df = df.rename(columns={c: ALIASES.get(c, c) for c in df.columns})
 
