@@ -1151,3 +1151,49 @@ the full subset search in Python and return settings that survived
 out-of-sample. That is the only version of "best combo" that would earn a
 VALID row in the ledger. The scorecard is the in-TradingView route to the
 same place, and it is available now.
+
+---
+
+## KEY LEVELS v1.2 — LEVEL SCORECARD (2026-07-29)
+
+User re-pasted the Key Levels (Spaceman Edition) source, in the context of
+"find out which combo works best". Read as: run the settings search on THIS
+engine rather than the multi-voice one.
+
+**The pasted build was v1.0 — all four defects still present.** Optimising
+settings on it would have tuned the order-rejection filter (22 fills out of
+hundreds of signals, BUG-012) rather than the strategy. v1.2 therefore
+carries the v1.1 fixes plus the instrumentation.
+
+**Why instrumentation again rather than proposed combos.** The 15 level
+toggles alone are 32,768 combinations, before entry mode (3), tolerance,
+buffer, min/max SL, cooldown, vol filter, TP mode, TP1/TP2 R, TP1 %, min TP
+distance, session windows and the four risk inputs. No hand-picked shortlist
+through that space is evidence; it is preference wearing a number.
+
+So each trade is now tagged at entry with the level TYPE it was taken at
+(18 ids carried in a `sigIds` array parallel to `sigLevels`) and with which
+trigger fired it. On close the P&L is attributed back. One run produces a
+ranked table: N / WR / PF for all 18 level types, plus the same three for
+Sweep+Reclaim vs Break+Retest measured on the same sample -- which settles
+the Entry Mode dropdown with evidence instead of taste.
+
+N < 20 renders grey. Same guard as the multi-voice scorecard, same reason:
+a 22-trade PF of 1.783 already fooled this project once.
+
+### Procedure
+1. Turn ON every level, Entry Mode = Both, longest window the plan allows.
+   **Read Fill rate FIRST.** Not ~100% means orders are still being
+   rejected and no other number is meaningful.
+2. Switch off every level with PF < 1.0 at N >= 20; set Entry Mode to the
+   winning mode. Re-run.
+3. Only then touch tolerances, stops, targets -- one at a time, each result
+   appended to RESULTS_LEDGER.md with N and window.
+
+**Known limit, stated up front:** a run under ~100 trades cannot rank 18
+levels -- each gets a handful and the table is all grey. The rarer levels
+(4H, London, NY ranges) may never reach a readable N on a short window. That
+is a real constraint of the method, not a reason to read thin rows anyway.
+
+Pure instrumentation beyond the v1.1 fixes: entry conditions, level set,
+session filter, TP/SL geometry and all defaults unchanged.

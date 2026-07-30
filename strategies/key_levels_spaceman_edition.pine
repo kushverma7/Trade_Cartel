@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-// KEY LEVELS STRATEGY — SPACEMAN EDITION  (v1.1, bug-fixed)
+// KEY LEVELS STRATEGY — SPACEMAN EDITION  (v1.2, bug-fixed + scorecard)
 // ════════════════════════════════════════════════════════════════════
 // User-supplied v1.0 reported XAUUSD 30m, Jan 2 2025 - Jul 29 2026:
 //   22 trades / WR 63.64% / PF 1.783 / +7.70% / max DD 7.01%
@@ -54,7 +54,7 @@
 // rejection artifact described above and is simply void.
 // ════════════════════════════════════════════════════════════════════
 //@version=6
-strategy("Key Levels Strategy — Spaceman Edition v1.1",
+strategy("Key Levels Strategy — Spaceman Edition v1.2",
      overlay            = true,
      max_lines_count    = 500,
      max_labels_count   = 500,
@@ -208,31 +208,36 @@ if dayofweek == dayofweek.tuesday and gotMonday
 // collide. This array is the strategy's own tradeable subset.
 // ═════════════════════════════════════════════════════════════
 var sigLevels = array.new_float(0)
+// parallel array of level-TYPE ids, so a trade can be attributed back to
+// which kind of level it was taken at (see the LEVEL SCORECARD below)
+var sigIds = array.new_int(0)
 
-f_sigPush(bool on, float px) =>
+f_sigPush(bool on, float px, int id) =>
     if on and not na(px)
         array.push(sigLevels, px)
+        array.push(sigIds, id)
 
 if barstate.isnew
     array.clear(sigLevels)
-    f_sigPush(i_do,  dOpen)
-    f_sigPush(i_pdh, pdh)
-    f_sigPush(i_pdl, pdl)
-    f_sigPush(i_wo,  wOpen)
-    f_sigPush(i_pwh, pwh)
-    f_sigPush(i_pwl, pwl)
-    f_sigPush(i_mo,  mOpen)
-    f_sigPush(i_pmh, pmh)
-    f_sigPush(i_pml, pml)
-    f_sigPush(i_4ho, h4Open)
-    f_sigPush(i_4hh, p4hh)
-    f_sigPush(i_4hl, p4hl)
-    f_sigPush(i_mon and not na(monHigh), monHigh)
-    f_sigPush(i_mon and not na(monLow),  monLow)
-    f_sigPush(i_lon and not na(lonHigh), lonHigh)
-    f_sigPush(i_lon and not na(lonLow),  lonLow)
-    f_sigPush(i_nyl and not na(nyHigh),  nyHigh)
-    f_sigPush(i_nyl and not na(nyLow),   nyLow)
+    array.clear(sigIds)
+    f_sigPush(i_do,  dOpen, 0)
+    f_sigPush(i_pdh, pdh, 1)
+    f_sigPush(i_pdl, pdl, 2)
+    f_sigPush(i_wo,  wOpen, 3)
+    f_sigPush(i_pwh, pwh, 4)
+    f_sigPush(i_pwl, pwl, 5)
+    f_sigPush(i_mo,  mOpen, 6)
+    f_sigPush(i_pmh, pmh, 7)
+    f_sigPush(i_pml, pml, 8)
+    f_sigPush(i_4ho, h4Open, 9)
+    f_sigPush(i_4hh, p4hh, 10)
+    f_sigPush(i_4hl, p4hl, 11)
+    f_sigPush(i_mon and not na(monHigh), monHigh, 12)
+    f_sigPush(i_mon and not na(monLow),  monLow, 13)
+    f_sigPush(i_lon and not na(lonHigh), lonHigh, 14)
+    f_sigPush(i_lon and not na(lonLow),  lonLow, 15)
+    f_sigPush(i_nyl and not na(nyHigh),  nyHigh, 16)
+    f_sigPush(i_nyl and not na(nyLow),   nyLow, 17)
 
 // ═════════════════════════════════════════════════════════════
 // LEVEL NAVIGATION
@@ -331,6 +336,8 @@ bool ok = cd and not halted and dayTrades < i_maxDay and strategy.position_size 
 // the exact level being defended (closest to close)
 float defLong  = na
 float defShort = na
+int   defLongId  = -1
+int   defShortId = -1
 
 if sigLong and sz > 0
     for i = 0 to sz - 1
@@ -338,6 +345,7 @@ if sigLong and sz > 0
         if not na(lv) and low < lv and close > lv
             if na(defLong) or math.abs(close - lv) < math.abs(close - defLong)
                 defLong := lv
+                defLongId := array.get(sigIds, i)
 
 if sigShort and sz > 0
     for i = 0 to sz - 1
@@ -345,6 +353,7 @@ if sigShort and sz > 0
         if not na(lv) and high > lv and close < lv
             if na(defShort) or math.abs(close - lv) < math.abs(close - defShort)
                 defShort := lv
+                defShortId := array.get(sigIds, i)
 
 bool goLong  = ok and sigLong  and not na(defLong)
 bool goShort = ok and sigShort and not na(defShort)
@@ -352,6 +361,28 @@ bool goShort = ok and sigShort and not na(defShort)
 // FIX 1 / FIX 4 instrumentation: count what was ORDERED vs what actually
 // FILLED. If these diverge, orders are being rejected -- the exact
 // failure that produced v1.0's 22 trades.
+// ═════════════════════════════════════════════════════════════
+// ATTRIBUTION STATE — which LEVEL and which MODE earned the money
+// 15 level toggles alone is 32,768 combinations, before touching entry
+// mode, tolerances, stops or targets. That is not searchable by hand.
+// So instead of testing combos, each trade is tagged with the level
+// TYPE it was taken at and the trigger that fired it, and its P&L is
+// attributed back on close. One backtest ranks all 18 level types and
+// both entry modes at once.
+// ═════════════════════════════════════════════════════════════
+var int[]   lvWin  = array.new_int(18, 0)
+var int[]   lvLoss = array.new_int(18, 0)
+var float[] lvProf = array.new_float(18, 0.0)
+var float[] lvLosd = array.new_float(18, 0.0)
+var int[]   mdWin  = array.new_int(2, 0)      // 0 = sweep, 1 = retest
+var int[]   mdLoss = array.new_int(2, 0)
+var float[] mdProf = array.new_float(2, 0.0)
+var float[] mdLosd = array.new_float(2, 0.0)
+var int  curLvl    = -1
+var bool curSweep  = false
+var bool curRetest = false
+var int  lastClosed = 0
+
 var int sigCount = 0
 if goLong or goShort
     sigCount += 1
@@ -382,6 +413,9 @@ if goLong
     float q2 = math.max(1, qty - q1)
 
     strategy.entry("L", strategy.long, qty=qty)
+    curLvl := defLongId
+    curSweep := canSweep and sweepLong
+    curRetest := canRetest and retestLong
     // FIX 2: BOTH tranches carry the stop. v1.0's L1 had limit only,
     // leaving 60% of the position unprotected until the time stop.
     strategy.exit("L1", "L", stop=sl, limit=tp1, qty=q1)
@@ -410,6 +444,9 @@ if goShort
     float q2 = math.max(1, qty - q1)
 
     strategy.entry("S", strategy.short, qty=qty)
+    curLvl := defShortId
+    curSweep := canSweep and sweepShort
+    curRetest := canRetest and retestShort
     strategy.exit("S1", "S", stop=sl, limit=tp1, qty=q1)
     strategy.exit("S2", "S", stop=sl, limit=tp2, qty=q2)
     lastSig := bar_index
@@ -424,6 +461,33 @@ if strategy.opentrades + strategy.closedtrades > lastPosCount
 // Time stop
 if strategy.position_size != 0 and not na(lastSig) and bar_index - lastSig >= i_timeStop
     strategy.close_all(comment="Time")
+
+// attribute each newly-closed trade to its level type and trigger mode
+if strategy.closedtrades > lastClosed
+    for k = lastClosed to strategy.closedtrades - 1
+        float pnl = strategy.closedtrades.profit(k)
+        if curLvl >= 0 and curLvl <= 17
+            if pnl > 0
+                array.set(lvWin, curLvl, array.get(lvWin, curLvl) + 1)
+                array.set(lvProf, curLvl, array.get(lvProf, curLvl) + pnl)
+            else
+                array.set(lvLoss, curLvl, array.get(lvLoss, curLvl) + 1)
+                array.set(lvLosd, curLvl, array.get(lvLosd, curLvl) - pnl)
+        if curSweep
+            if pnl > 0
+                array.set(mdWin, 0, array.get(mdWin, 0) + 1)
+                array.set(mdProf, 0, array.get(mdProf, 0) + pnl)
+            else
+                array.set(mdLoss, 0, array.get(mdLoss, 0) + 1)
+                array.set(mdLosd, 0, array.get(mdLosd, 0) - pnl)
+        if curRetest
+            if pnl > 0
+                array.set(mdWin, 1, array.get(mdWin, 1) + 1)
+                array.set(mdProf, 1, array.get(mdProf, 1) + pnl)
+            else
+                array.set(mdLoss, 1, array.get(mdLoss, 1) + 1)
+                array.set(mdLosd, 1, array.get(mdLosd, 1) - pnl)
+    lastClosed := strategy.closedtrades
 
 // ═════════════════════════════════════════════════════════════
 // VISUALS
@@ -441,7 +505,7 @@ float nextDn = f_tpBelow(close, atr14 * i_minSL * i_minTpr, atr14 * 8)
 var table vt = table.new(position.top_right, 3, 15, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.gray)
 if i_debug and barstate.islast
     table.cell(vt, 0, 0, "KL STRATEGY", text_color=color.orange, text_size=size.small)
-    table.cell(vt, 1, 0, "v1.1", text_color=color.orange, text_size=size.small)
+    table.cell(vt, 1, 0, "v1.2", text_color=color.orange, text_size=size.small)
     table.cell(vt, 2, 0, i_mode, text_color=color.white, text_size=size.tiny)
 
     table.cell(vt, 0, 1, "Session", text_color=color.gray, text_size=size.tiny)
@@ -507,6 +571,60 @@ if i_debug and barstate.islast
     table.cell(vt, 2, 5, "PF", text_color=color.silver, text_size=size.tiny)
     table.cell(vt, 2, 6, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1.5 ? color.lime : pf >= 1.0 ? color.yellow : color.red, text_size=size.tiny)
     table.cell(vt, 2, 7, nT < 100 ? "n too small" : "", text_color=color.orange, text_size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// LEVEL SCORECARD — this is the answer to "which combo"
+// One run ranks every level type and both entry modes. Keep what has
+// PF > 1 on a readable sample; switch off the rest and re-run.
+// N < 20 renders grey: too thin to read, whatever the PF says. That is
+// the same trap that made a 22-trade PF of 1.783 look like an edge.
+// ═════════════════════════════════════════════════════════════
+bool i_score = input.bool(true, "Show Level Scorecard", group=grpDbg)
+
+var string[] lvName = array.from(
+     "Daily Open", "Prev Day High", "Prev Day Low",
+     "Weekly Open", "Prev Week High", "Prev Week Low",
+     "Monthly Open", "Prev Month High", "Prev Month Low",
+     "4H Open", "Prev 4H High", "Prev 4H Low",
+     "Monday High", "Monday Low",
+     "London High", "London Low", "NY High", "NY Low")
+var string[] mdName = array.from("Sweep+Reclaim", "Break+Retest")
+
+var table sc = table.new(position.bottom_left, 4, 23, bgcolor=color.new(color.black, 15),
+     border_width=1, border_color=color.new(color.gray, 60))
+if i_score and barstate.islast
+    table.cell(sc, 0, 0, "LEVEL", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 1, 0, "N", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 2, 0, "WR", text_color=color.orange, text_size=size.tiny)
+    table.cell(sc, 3, 0, "PF", text_color=color.orange, text_size=size.tiny)
+    for i = 0 to 17
+        int n = array.get(lvWin, i) + array.get(lvLoss, i)
+        float gp = array.get(lvProf, i)
+        float gl2 = array.get(lvLosd, i)
+        float pf = gl2 > 0 ? gp / gl2 : na
+        float wr = n > 0 ? array.get(lvWin, i) * 100.0 / n : na
+        bool thin = n < 20
+        color c = thin ? color.gray : color.silver
+        table.cell(sc, 0, i + 1, array.get(lvName, i), text_color=c, text_size=size.tiny)
+        table.cell(sc, 1, i + 1, str.tostring(n), text_color=c, text_size=size.tiny)
+        table.cell(sc, 2, i + 1, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=c, text_size=size.tiny)
+        table.cell(sc, 3, i + 1, na(pf) ? "-" : str.tostring(pf, "#.##"),
+             text_color=thin ? color.gray : pf >= 1.2 ? color.lime : pf >= 1.0 ? color.yellow : color.red,
+             text_size=size.tiny)
+    for m = 0 to 1
+        int n = array.get(mdWin, m) + array.get(mdLoss, m)
+        float gp = array.get(mdProf, m)
+        float gl2 = array.get(mdLosd, m)
+        float pf = gl2 > 0 ? gp / gl2 : na
+        float wr = n > 0 ? array.get(mdWin, m) * 100.0 / n : na
+        bool thin = n < 20
+        table.cell(sc, 0, 19 + m, "MODE: " + array.get(mdName, m), text_color=color.orange, text_size=size.tiny)
+        table.cell(sc, 1, 19 + m, str.tostring(n), text_color=thin ? color.gray : color.white, text_size=size.tiny)
+        table.cell(sc, 2, 19 + m, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=thin ? color.gray : color.white, text_size=size.tiny)
+        table.cell(sc, 3, 19 + m, na(pf) ? "-" : str.tostring(pf, "#.##"),
+             text_color=thin ? color.gray : pf >= 1.2 ? color.lime : pf >= 1.0 ? color.yellow : color.red,
+             text_size=size.tiny)
+    table.cell(sc, 0, 22, "grey = n<20, unreadable", text_color=color.gray, text_size=size.tiny)
 
 alertcondition(goLong,  "KL Buy",  "Key Levels BUY {{ticker}}")
 alertcondition(goShort, "KL Sell", "Key Levels SELL {{ticker}}")
