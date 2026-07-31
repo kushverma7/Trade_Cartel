@@ -123,12 +123,29 @@
 // there is no large move to catch, is free. That asymmetry is the whole
 // finding.
 //
+// ── JEAFX KEY LEVELS (the best improvement measured) ────────────────
+// Separate source: quarter-round levels .00/.25/.50/.75, used as reversal
+// areas. Scale translation is the whole point -- his EURUSD grid is 25
+// pips against a ~10-pip ATR, and gold's 10-unit handles quartered give
+// 2.50 points against a 2.58 ATR. Same ratio, faithful to the source.
+// Banking 50% of the COUNTER-TREND leg at that grid, full period:
+//    grid    PF      net       DD     return/DD
+//    none   1.186   +87.0%   23.2%      3.75
+//    2.50   1.261  +110.6%   19.0%      5.81   <- shipped
+//    5.00   1.256  +108.7%   19.7%      5.52
+//   25.00   1.211   +93.7%   22.4%      4.18
+// Better on train, test AND full period, on both return and drawdown, and
+// graded smoothly across scales rather than spiking at one.
+// Banking BOTH sides on the same grid drops net to +29-41%: the asymmetry
+// is the mechanism, not the grid.
+// Stacking with Daye's Q4 was inside noise (PF 1.265 vs 1.261), so the
+// simpler single rule ships and Q4 is left as an off-by-default option.
+//
 // SHIPPED CONFIG: both directions, trail 6 ATR, SMA 750, EMA 2000 gate,
-// Daye Q4 banking 50% of SHORTS only.
-//    train 2019-23   n=619   PF 1.090  +22.8%  DD 22.8%
-//    test  2023-26   n=411   PF 1.370  +52.8%  DD 11.5%
-//    Feb-Jul 2026    n=56    PF 1.534   +7.0%  DD  3.4%   (gold -15.8%)
-//    full 6.7 years  n=1041  PF 1.202  +90.8%  DD 22.8%
+// JEAFX 2.50 grid banking 50% of SHORTS only.
+//    train 2019-23   PF 1.160  +35.6%
+//    test  2023-26   PF 1.385  +50.9%
+//    full 6.7 years  PF 1.261 +110.6%  DD 19.0%  return/DD 5.81
 //
 // HONEST LIMITS
 //  - One instrument, one timeframe. Untested on anything else.
@@ -179,13 +196,24 @@ bool  useRegime = input.bool(true, "EMA gate: only long above it, short below", 
      tooltip="EMA 2000 (~3 weeks on 15m). Combined with the SMA750 filter it lifts full-period PF to 1.202 and cuts drawdown.")
 int   regimeLen = input.int(2000, "Regime EMA length", minval=20, group="② Risk")
 
-// ── ④ Quarterly Theory profit taking (Trader Daye, time-based) ──
-bool  useQ4     = input.bool(true, "Bank profit in Q4 (Daye's profit-taking quarter)", group="④ Quarterly Theory",
+// ── ④ JEAFX key-level profit taking (PRICE grid) ────────────────
+bool  useKL     = input.bool(true, "Bank profit at quarter-round key levels", group="④ Key-Level Profit Taking",
+     tooltip="JEAFX: plot only .00/.25/.50/.75 and treat them as reversal areas. Best single improvement measured: full-period net +87.0% -> +110.6%, drawdown 23.2% -> 19.0%.")
+float klGrid    = input.float(2.50, "Key-level grid (points)", minval=0.25, step=0.25, group="④ Key-Level Profit Taking",
+     tooltip="JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50. Median ATR(14) here is 2.58, so the grid sits at ~1x ATR - the same ratio as the source's EURUSD example. 2.50-10.00 all work; 25+ degrades.")
+float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Profit Taking",
+     tooltip="A level counts as reached within this distance, mirroring the source's own completion tolerance.")
+float klTake    = input.float(50, "% banked at the level", minval=10, maxval=100, step=5, group="④ Key-Level Profit Taking")
+bool  klShorts  = input.bool(true, "SHORTS ONLY — let longs run (this is what makes it work)", group="④ Key-Level Profit Taking",
+     tooltip="CRITICAL. Banking BOTH sides on this same grid drops full-period net from +87% to +29-41%. Banking only the counter-trend side lifts it to +110.6%. A take removes exactly the size that captures a large move, so only take it where there is no large move to catch.")
+
+// ── ⑤ Daye Q4 time-based take (alternative, OFF by default) ─────
+bool  useQ4     = input.bool(false, "Bank in Daye's Q4 instead (time-based)", group="⑤ Daye Q4 (alternative)",
      tooltip="Daye's daily quarters in ET: Q1 Asia 18-00 range build, Q2 London 00-06 expansion, Q3 NY AM 06-12 continuation, Q4 NY PM 12-18 REVERSAL / PROFIT-TAKING. Q4 is where the source says to bank.")
-float q4Take    = input.float(50, "% banked at the Q4 open", minval=10, maxval=100, step=5, group="④ Quarterly Theory")
-bool  q4Shorts  = input.bool(true, "SHORTS ONLY — let longs run (this is what makes it work)", group="④ Quarterly Theory",
+float q4Take    = input.float(50, "% banked at the Q4 open", minval=10, maxval=100, step=5, group="⑤ Daye Q4 (alternative)")
+bool  q4Shorts  = input.bool(true, "SHORTS ONLY", group="⑤ Daye Q4 (alternative)",
      tooltip="CRITICAL. Banking symmetrically DESTROYS the system: taking 50% off both sides drops full-period net from +61.5% to +21.4%. Banking only the counter-trend side improves every window tested. A take removes exactly the size that captures the big move -- so only take it where there is no big move to catch.")
-int   q4StartUtc= input.int(17, "Q4 start hour (UTC)", minval=0, maxval=23, group="④ Quarterly Theory",
+int   q4StartUtc= input.int(17, "Q4 start hour (UTC)", minval=0, maxval=23, group="⑤ Daye Q4 (alternative)",
      tooltip="12:00 ET = 17:00 UTC. Adjust for DST if you want to be exact.")
 
 // ── ③ Display ────────────────────────────────────────────────────
@@ -211,6 +239,18 @@ bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
 bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
 
 // optional exit on an SMA cross against the position (default OFF)
+// JEAFX key-level target for the open position, fixed at entry and
+// banked once. Shorts target the next grid level BELOW entry; longs the
+// next above (only relevant if klShorts is turned off).
+var float klTarget = na
+var bool  klDone   = false
+
+bool klHit = useKL and not na(klTarget) and not klDone and
+     strategy.position_size != 0 and
+     (not klShorts or strategy.position_size < 0) and
+     (strategy.position_size > 0 ? high >= klTarget - klTol
+                                 : low  <= klTarget + klTol)
+
 // Daye Q4 window and its opening bar
 int   etHour   = hour(time, "UTC")
 bool  inQ4     = etHour >= q4StartUtc and etHour < q4StartUtc + 6
@@ -249,13 +289,20 @@ float qty      = math.floor(math.min(qtyRaw, qtyCap))
 if longSig and strategy.position_size == 0 and qty >= 1
     strategy.entry("L", strategy.long, qty=qty)
     trailStop := close - stopDist
+    klTarget := (math.floor(close / klGrid) + 1) * klGrid
+    klDone := false
 
 if shortSig and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
+    klTarget := (math.ceil(close / klGrid) - 1) * klGrid
+    klDone := false
 
 // no take-profit and no time stop, deliberately: capping the winners is
 // exactly what broke every previous engine in this repo
+if klHit
+    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=klTake, comment="Key level")
+    klDone := true
 if q4Bank
     strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
 if smaCrossOut
@@ -273,6 +320,8 @@ plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop",
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
 plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
 bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profit-taking quarter)")
+plot(useKL and strategy.position_size != 0 and not klDone ? klTarget : na,
+     "Key-level target", color.new(color.yellow, 0), 2, plot.style_circles)
 
 plotshape(longSig and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
 plotshape(shortSig and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")
