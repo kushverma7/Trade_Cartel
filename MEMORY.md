@@ -493,3 +493,46 @@ user trades this manually as well as backtesting it.
 `backtest/trend.py` gained `sma2_len`, `sma2_mode`, `conf_min`,
 `conf_size`, `kl_entry_atr` — all off by default; baseline still PF 1.333
 / +152.5% / 921 trades and all five accounting tests pass.
+
+
+---
+
+# ►► SESSION 2026-07-31 (fourth pass) — LIVE CONTRADICTED THE RESEARCH
+
+The user ran the confluence build on TradingView, Feb 2 - Jul 31 2026:
+**PF 0.702, -2.99%, 65 records, largest win 92.94 vs largest loss 120.38.**
+Python on the identical window and settings: PF 1.385, +3.54%, largest win
+239.48 vs largest loss 95.00.
+
+**In a system with no profit target the largest winner MUST dwarf the
+largest loser.** TradingView reports the opposite. That is the tell, and it
+is worth more than either profit factor: it says winners are being cut.
+
+**What was found:** the Pine module exports 36 levels; levels.py had 18.
+Median distance to the next level ahead is 0.46 ATR on the real set against
+a 6 ATR stop. A 75% take there risks 6 to make 0.46. Logged as BUG-017 with
+a three-step pre-ship check (compute target/stop in ATR; if < 1.0 the
+structure loses before any trade).
+
+**What was NOT resolved, and must not be claimed as resolved:** re-running
+Python against the true 33-level set still returns PF 1.385 on that window.
+The density finding explains HOW a level exit destroys a trend system; it
+does not close the +3.54% vs -2.99% gap. Remaining suspects, in order:
+Pine's strategy.close(qty_percent=) interacting with a live strategy.exit
+on the same entry ID; current-period vs previous-period level values in the
+module's 4H/session levels; fractional-contract handling (Pine closes 1.5
+of a 2-lot, Python floors to 1).
+
+**RESOLVING THIS NEEDS TRADINGVIEW'S TRADE LIST**, which this container
+cannot read. Ask the user to export it, or run the MCP on their Mac.
+
+**Shipped defaults changed:** useKL now OFF in both builds; klMinAtr added
+(default 3.0 ATR) so a re-enabled level exit skips targets that are too
+close. The default configuration is now the one that cross-validated
+cleanly earlier (Python +6.94% vs TradingView +7.57% on this same window).
+
+**Also worth knowing:** SMA2000 confluence HURTS this particular window
+(+3.47% with it vs +6.06% without) even though it improves full-period
+drawdown. It is a train-period improvement the recent falling market does
+not like. Left ON because the full-period and both-halves evidence supports
+it, but flag it if the user reports more weak recent results.

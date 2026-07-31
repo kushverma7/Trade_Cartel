@@ -338,12 +338,14 @@ bool  useRegime = input.bool(true, "EMA gate: only long above it, short below", 
 int   regimeLen = input.int(2000, "Regime EMA length", minval=20, group="② Risk")
 
 // ── ④ Key-level exit / reversal ─────────────────────────────────
-bool  useKL     = input.bool(true, "Exit at the next key level", group="④ Key-Level Exit / Reversal",
-     tooltip="The trade is opened by the breakout and closed at the next key level ahead of it — level to level.")
+bool  useKL     = input.bool(false, "Exit at the next key level", group="④ Key-Level Exit / Reversal",
+     tooltip="DEFAULTED OFF ON 2026-07-31 AFTER A LIVE RESULT CONTRADICTED THE RESEARCH. On Feb 2 - Jul 31 2026 this build returned PF 0.702 and -2.99% on TradingView while the Python engine had the same window at PF 1.385 and +3.54%. The fingerprint is in the trade stats: largest profit 92.94 against largest loss 120.38. In a system with NO profit target the biggest winner must dwarf the biggest loser, and here it does not - something is cutting the winners. Python on the same window has largest profit 239.48 against largest loss 95.00, which is the correct shape. The level exit is the newest thing in the script and it is the only component whose job is to cut a winner short, so it is off until the two agree. Research says turning it off costs almost nothing anyway: +3.54% -> +3.47% on that window.")
 string klSource = input.string("Chart key levels", "Which levels", options=["Chart key levels", "Quarter grid"], group="④ Key-Level Exit / Reversal",
      tooltip="CHART KEY LEVELS reads klPrices[] — the exact prices the embedded SpacemanBTC module is drawing on this chart (PDH/PDL, PWH/PWL, PMH/PML, opens, session ranges, whichever you have enabled in the KL groups below). QUARTER GRID is the old synthetic .00/.25/.50/.75 grid. Measured back to back they are within noise of each other: train PF 1.289 (chart levels) vs 1.297 (grid), out of sample 1.610 vs 1.598. Chart levels are the default because they are the ones you can actually see and mark up.")
 float klGrid    = input.float(2.50, "Quarter-grid spacing (points)", minval=0.25, step=0.25, group="④ Key-Level Exit / Reversal",
      tooltip="Only used when 'Which levels' is set to Quarter grid. JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50.")
+float klMinAtr  = input.float(3.0, "Target must be at least (x ATR from entry)", minval=0.0, step=0.5, group="④ Key-Level Exit / Reversal",
+     tooltip="WITHOUT THIS THE TARGET IS NOT A TARGET. The module draws 36 levels, and on this chart the median one sits 0.46 ATR ahead of price while the stop sits 6 ATR behind it. Banking 75% there risks 6 to make 0.46 - a losing structure no matter how often it wins, which is exactly the 56.9% win rate and 0.702 profit factor the live run produced. This forces the script to skip past levels that are too close and take the first one that is a real distance away. Set it to 0 to reproduce the old behaviour.")
 float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Exit / Reversal",
      tooltip="A level counts as reached within this distance. Swept 0.05-0.50 ATR: PF moves 1.272-1.296 on train and 1.612-1.598 out of sample. Flat, so nothing here is knife-edge.")
 bool  useKLEntry= input.bool(false, "Also require a key level NEAR the entry", group="④ Key-Level Exit / Reversal",
@@ -1373,10 +1375,14 @@ f_klNext(float px, int dir) =>
                     best := na(best) or p > best ? p : best
     best
 
-f_klPick(float px, int dir) =>
-    klSource == "Chart key levels" ? f_klNext(px, dir)
-         : dir > 0 ? (math.floor(px / klGridE) + 1) * klGridE
-                   : (math.ceil(px / klGridE) - 1) * klGridE
+// The floor is why this takes an atr argument: levels closer than
+// klMinAtr are skipped, so the target is always a distance worth trading
+// toward rather than whichever line happens to sit nearest.
+f_klPick(float px, int dir, float a) =>
+    float floorD = a * klMinAtr
+    klSource == "Chart key levels" ? f_klNext(px + dir * floorD, dir)
+         : dir > 0 ? (math.floor((px + floorD) / klGridE) + 1) * klGridE
+                   : (math.ceil((px - floorD) / klGridE) - 1) * klGridE
 
 // optional exit on an SMA cross against the position (default OFF)
 var float klTarget = na
@@ -1438,13 +1444,13 @@ float qty      = math.floor(math.min(qtyRaw, qtyCap))
 if goLong and strategy.position_size == 0 and qty >= 1
     strategy.entry("L", strategy.long, qty=qty)
     trailStop := close - stopDist
-    klTarget := f_klPick(close, 1)
+    klTarget := f_klPick(close, 1, atr)
     klDone := false
 
 if goShort and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
-    klTarget := f_klPick(close, -1)
+    klTarget := f_klPick(close, -1, atr)
     klDone := false
 
 // the flip is spent whether or not it was taken

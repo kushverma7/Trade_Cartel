@@ -22,6 +22,23 @@ LEVEL_NAMES = [
     "NYH", "NYL",                  # 16,17   NY range
 ]
 
+# The Pine module exports 36 levels, not 18: every range also contributes
+# its MIDPOINT, and it carries quarterly and yearly periods too. Measuring
+# against the 18 understated how DENSE the drawn grid actually is -- the
+# nearest level ahead of an entry is roughly half as far away on the chart
+# as it was in the first test, which is why the first live run cut its
+# winners far earlier than the research said it would. build(dense=True)
+# reproduces the chart's real density.
+MID_PAIRS = [("PDM", "PDH", "PDL"), ("PWM", "PWH", "PWL"),
+             ("PMM", "PMH", "PML"), ("P4HM", "P4HH", "P4HL"),
+             ("MONM", "MONH", "MONL"), ("LONM", "LONH", "LONL"),
+             ("NYM", "NYH", "NYL"), ("PQM", "PQH", "PQL"),
+             ("CYM", "CYH", "CYL")]
+DENSE_NAMES = LEVEL_NAMES + [
+    "QO", "PQH", "PQL",            # quarterly
+    "YO", "CYH", "CYL",            # yearly
+] + [m[0] for m in MID_PAIRS]
+
 OHLC = {"open": "first", "high": "max", "low": "min", "close": "last"}
 
 
@@ -56,7 +73,7 @@ def _session_running(df, start, end, hi_col, lo_col):
     return out
 
 
-def build(df, london=("08:00", "12:00"), ny=("13:30", "16:30")):
+def build(df, london=("08:00", "12:00"), ny=("13:30", "16:30"), dense=False):
     """df: DatetimeIndex, columns open/high/low/close. Returns level frame."""
     df = df.sort_index()
     idx = df.index
@@ -84,4 +101,10 @@ def build(df, london=("08:00", "12:00"), ny=("13:30", "16:30")):
 
     lv = lv.join(_session_running(df, london[0], london[1], "LONH", "LONL"))
     lv = lv.join(_session_running(df, ny[0], ny[1], "NYH", "NYL"))
-    return lv[LEVEL_NAMES]
+    if not dense:
+        return lv[LEVEL_NAMES]
+    lv = lv.join(_period_levels(df, idx.to_period("Q"), "QO", "PQH", "PQL"))
+    lv = lv.join(_period_levels(df, idx.to_period("Y"), "YO", "CYH", "CYL"))
+    for name, hi, lo in MID_PAIRS:
+        lv[name] = (lv[hi] + lv[lo]) / 2
+    return lv[DENSE_NAMES]

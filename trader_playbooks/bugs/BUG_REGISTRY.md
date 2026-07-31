@@ -312,3 +312,39 @@ all REAL bugs that actually occurred here, not hypotheticals.
    high-quality filter again (BUG-012, BUG-016).
 9. **Every strategy.exit that owns part of a position needs its own
    stop** -- siblings do not share one (BUG-014).
+
+---
+
+## BUG-017 — A "next key level" target that is closer than the noise
+
+**Found:** 2026-07-31, by a live TradingView run contradicting research.
+**Severity:** destroys the system it is added to.
+
+**Symptom:** PF 0.702 and −2.99% live, against PF 1.385 and +3.54% from
+the research engine on the same window and settings. Win rate rose to
+56.92% while the profit factor fell below 1 — the signature of a target
+that is too close to a stop that is too far.
+
+**Root cause:** the key-level module draws 36 levels, including every
+range's midpoint. On XAUUSD 15m the median distance from price to the next
+level ahead is **0.46 ATR**. The trailing stop is **6 ATR** behind. Taking
+75% of the position off at the next level therefore risks 6 to make 0.46.
+No hit rate rescues that structure.
+
+The research engine missed it because `backtest/levels.py` modelled only
+18 of the 36 levels, so its median target sat 0.70 ATR out — still far too
+close, but in a different enough regime that the shorts-only restriction
+masked the damage.
+
+**Prevention — check before shipping any level- or grid-based target:**
+1. Compute the median distance from entry to target, IN ATR.
+2. Compare it to the stop distance in ATR. If target/stop < 1.0, the
+   structure is losing before a single trade is placed. State the ratio
+   in the ledger row.
+3. When a Pine module exports the levels, count them. Do not assume the
+   research port has the same set — `array.size(klPrices)` versus
+   `len(LEVEL_NAMES)` is a two-second check that would have caught this.
+
+**Related:** the same arithmetic is why every pre-2026-07 engine in this
+repo lost — fixed 1R/2R targets against wide stops. This is that mistake
+returning in a new costume.

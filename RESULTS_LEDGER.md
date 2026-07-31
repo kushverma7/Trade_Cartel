@@ -377,3 +377,80 @@ that trial count. What supports it beyond the point estimate is that the
 drawdown reduction shows up in both halves and in the full period, and
 that the mechanism — two horizons disagreeing marks the choppy middle —
 is not a free parameter.
+
+---
+
+## LIVE CONTRADICTS RESEARCH — the key-level exit (2026-07-31)
+
+The user ran the confluence build on TradingView, XAUUSD 15m,
+Feb 2 2026 → Jul 31 2026:
+
+| | records | WR | PF | net | max DD | largest win | largest loss |
+|---|---|---|---|---|---|---|---|
+| **TradingView** | 65 | 56.92% | **0.702** | **−2.99%** | 3.83% | +92.94 | −120.38 |
+| Python, same window/settings | 40 pos. | 45.0% | 1.385 | +3.54% | 2.46% | **+239.48** | −95.00 |
+
+The trade counts are reconcilable — TradingView records each partial close
+as its own row, Python counts one row per position. **The sign of the
+result is not reconcilable.**
+
+### The diagnostic
+
+In a system with **no profit target**, the largest winner must dwarf the
+largest loser; that asymmetry is the entire mechanism. TradingView reports
+the opposite: largest win 92.94 against largest loss 120.38. Python on the
+identical window reports +239.48 against −95.00, which is the right shape.
+Something in the Pine build is cutting winners that the research engine
+lets run.
+
+A 56.92% win rate with a 0.702 profit factor is the same statement in
+different units: many small wins, fewer larger losses.
+
+### The mechanism, and why the research missed it
+
+The Pine module exports **36 levels**; `backtest/levels.py` had **18**.
+The difference is every range's MIDPOINT plus the quarterly, yearly and
+session sets. Measured on the last 20,000 bars, the median distance to the
+next level ahead of price:
+
+| level set | median distance to next level |
+|---|---|
+| 18 (what was tested) | 0.70 ATR |
+| **33 (what the chart draws)** | **0.46 ATR** |
+
+**The trailing stop is 6 ATR behind. The "target" is 0.46 ATR ahead.**
+Banking 75% of the position there risks 6 to make 0.46. That is a losing
+structure regardless of hit rate, and it is exactly the shape of the live
+result.
+
+`levels.py` now has `build(dense=True)` reproducing the real 33-level set,
+and `trend.py` has `kl_min_atr` so a target can be required to be a real
+distance away.
+
+### What was done about it
+
+- **`useKL` now defaults OFF** in both Pine builds. It is the newest
+  component, it is the only one whose job is to cut a winner short, and
+  research says removing it costs nothing on this window (+3.54% → +3.47%).
+- **`klMinAtr` added, default 3.0 ATR.** If the level exit is turned back
+  on, levels closer than 3 ATR are skipped.
+
+### Honest statement of what is still unexplained
+
+Re-running the Python engine against the true 33-level set did NOT
+reproduce the live failure — it still returns PF 1.385 on that window.
+So the density finding explains the *mechanism* by which a level exit can
+destroy a trend system, but it does not by itself close the gap between
++3.54% and −2.99%. The remaining candidates, in order:
+
+1. Pine's `strategy.close(qty_percent=)` interacting with a live
+   `strategy.exit` stop on the same entry ID.
+2. Pine level values that are current-period rather than previous-period
+   (the module's 4H and session levels track the running extreme).
+3. Fractional-contract handling: Pine closes 1.5 of a 2-lot, Python floors
+   to 1.
+
+**Resolving this requires TradingView's actual trade list**, which cannot
+be read from this container. Until then the shipped default is the
+configuration that cross-validated cleanly in the earlier session
+(Python +6.94% vs TradingView +7.57% on this same window).

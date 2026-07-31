@@ -103,8 +103,8 @@ bool  useRegime = input.bool(true, "EMA gate: only long above it, short below", 
 int   regimeLen = input.int(2000, "Regime EMA length", minval=20, group="② Risk")
 
 // ── ④ JEAFX key-level profit taking (PRICE grid) ────────────────
-bool  useKL     = input.bool(true, "Bank profit at quarter-round key levels", group="④ Key-Level Profit Taking",
-     tooltip="JEAFX: plot only .00/.25/.50/.75 and treat them as reversal areas. Best single improvement measured: full-period net +87.0% -> +110.6%, drawdown 23.2% -> 19.0%.")
+bool  useKL     = input.bool(false, "Bank profit at quarter-round key levels", group="④ Key-Level Profit Taking",
+     tooltip="DEFAULTED OFF 2026-07-31: the equivalent exit in the full build produced PF 0.702 live against PF 1.385 in research, with the largest profit smaller than the largest loss - the signature of winners being cut. Off until the two agree. JEAFX: plot only .00/.25/.50/.75 and treat them as reversal areas. Best single improvement measured: full-period net +87.0% -> +110.6%, drawdown 23.2% -> 19.0%.")
 float klGrid    = input.float(2.50, "Key-level grid (points)", minval=0.25, step=0.25, group="④ Key-Level Profit Taking",
      tooltip="JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50. Median ATR(14) here is 2.58, so the grid sits at ~1x ATR - the same ratio as the source's EURUSD example. 2.50-10.00 all work; 25+ degrades.")
 float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Profit Taking",

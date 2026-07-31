@@ -34,7 +34,13 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         kl=None, kl_take=0.0, kl_flip=False, kl_tol_atr=0.10,
         kl_shorts_only=False,
         kl_entry_atr=0.0, sma2_len=0, sma2_mode="gate", conf_min=0,
-        conf_size=0.0):
+        conf_size=0.0, kl_min_atr=0.0):
+    # kl_min_atr: the target level must be at least this many ATR beyond
+    #   the entry. WITHOUT it the "next key level" is a joke of a target --
+    #   on the 33 levels the chart actually draws, the median one sits
+    #   0.46 ATR away while the stop is 6 ATR away. Banking 75% there
+    #   risks 6 to make 0.46. That is what produced a live PF of 0.702 on
+    #   a config the research had at 1.385.
     # CONFLUENCE (all off by default):
     #   kl_entry_atr  entry only when a drawn key level sits within this
     #                 many ATR of the entry price -- the breakout has to
@@ -325,7 +331,9 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         klt = np.nan
         if KL is not None:
             row = KL[i]
-            fwd = row[row > entry] if d > 0 else row[row < entry]
+            floor_ = atr[i] * kl_min_atr
+            fwd = (row[row > entry + floor_] if d > 0
+                   else row[row < entry - floor_])
             fwd = fwd[~np.isnan(fwd)]
             if fwd.size:
                 klt = fwd.min() if d > 0 else fwd.max()
