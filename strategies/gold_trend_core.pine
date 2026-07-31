@@ -50,6 +50,9 @@ strategy("Gold Trend — Trailing Stop",
      margin_long             = 5,
      margin_short            = 5,
      calc_on_every_tick      = false,
+     // REQUIRED for the add-to-winner block. With Pine's default of 0,
+     // strategy.entry issued while a position is open is silently ignored.
+     pyramiding              = 5,
      // EMA 2000 plus a 200-bar slope lookback means this script reaches
      // ~2,200 bars back. Pine's default historical buffer is 300, which
      // throws "requested historical offset beyond the buffer" or silently
@@ -125,6 +128,13 @@ bool  q4Shorts  = input.bool(true, "SHORTS ONLY", group="⑤ Daye Q4 (alternativ
 int   q4StartUtc= input.int(17, "Q4 start hour (UTC)", minval=0, maxval=23, group="⑤ Daye Q4 (alternative)",
      tooltip="12:00 ET = 17:00 UTC. Adjust for DST if you want to be exact.")
 
+// ── ⑥ Add to winners (pyramiding) ───────────────────────────────
+bool  usePyr    = input.bool(true, "Add to a winning position", group="⑥ Add to Winners",
+     tooltip="The biggest return lever measured in this project, and it multiplies BOTH sides. Walk-forward over five consecutive slices of the 30m history, net/drawdown without adds vs with 2 adds every 3 ATR: +38.4/9.2 -> +92.5/16.3; +19.6/6.7 -> +23.9/13.5; +8.8/10.4 -> +11.9/16.6; +15.1/10.2 -> +33.3/16.8; +28.4/7.8 -> +88.1/13.5. Every slice improves. But through RANDOM entries it takes the spread of outcomes from 6.8 to 29.5 - it amplifies whatever the entry does, in both directions. It is not an edge, it is betting more on trades that are already working.")
+float pyrAtr    = input.float(3.0, "Add every (x ATR of favourable move)", minval=0.5, step=0.5, group="⑥ Add to Winners")
+int   pyrMax    = input.int(2, "Maximum adds", minval=1, maxval=4, group="⑥ Add to Winners")
+float pyrRisk   = input.float(1.0, "Each add sized at (x the original risk)", minval=0.1, maxval=1.0, step=0.1, group="⑥ Add to Winners")
+
 // ── ③ Display ────────────────────────────────────────────────────
 bool  showStop  = input.bool(true, "Plot the trailing stop", group="③ Display")
 bool  showBand  = input.bool(true, "Plot the breakout level", group="③ Display")
@@ -198,6 +208,8 @@ bool smaCrossOut = useSma and smaExit and not na(trendSma) and
 // bar's extreme so the current bar can never move its own stop.
 // ═════════════════════════════════════════════════════════════
 var float trailStop = na
+var float lastAdd   = na
+var int   nAdds     = 0
 
 if strategy.position_size > 0
     float cand = high[1] - atr * trailMultE
@@ -207,11 +219,28 @@ else if strategy.position_size < 0
     trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
 else
     trailStop := na
+    lastAdd   := na
+    nAdds     := 0
 
 // ═════════════════════════════════════════════════════════════
 // EXECUTION
 // ═════════════════════════════════════════════════════════════
 // counter-trend side is sized smaller; direction is known before entry
+// ── add to a winning position ────────────────────────────────────
+if usePyr and strategy.position_size != 0 and nAdds < pyrMax and not na(lastAdd)
+    float step   = atr * pyrAtr
+    bool  isLong = strategy.position_size > 0
+    float nxt    = isLong ? lastAdd + step : lastAdd - step
+    if isLong ? high >= nxt : low <= nxt
+        float aRisk = (isLong ? riskPct : riskPct * shortRisk) * pyrRisk
+        float aStop = atr * trailMultE
+        float aQty  = math.floor(math.min(strategy.equity * aRisk / 100.0 / aStop,
+             strategy.equity * maxLev / close - math.abs(strategy.position_size)))
+        if aQty >= 1
+            strategy.entry(isLong ? "L" : "S", isLong ? strategy.long : strategy.short, qty=aQty)
+            nAdds   := nAdds + 1
+            lastAdd := nxt
+
 // A pending reversal overrides the breakout: the level IS the signal.
 // It still has to clear the regime filters — a flip into a side the
 // regime forbids is dropped, not queued.
@@ -232,12 +261,16 @@ if goLong and strategy.position_size == 0 and qty >= 1
     trailStop := close - stopDist
     klTarget := (math.floor(close / klGridE) + 1) * klGridE
     klDone := false
+    lastAdd := close
+    nAdds := 0
 
 if goShort and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
     klTarget := (math.ceil(close / klGridE) - 1) * klGridE
     klDone := false
+    lastAdd := close
+    nAdds := 0
 
 // no take-profit and no time stop, deliberately: capping the winners is
 // exactly what broke every previous engine in this repo

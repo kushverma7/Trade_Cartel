@@ -536,3 +536,36 @@ cleanly earlier (Python +6.94% vs TradingView +7.57% on this same window).
 drawdown. It is a train-period improvement the recent falling market does
 not like. Left ON because the full-period and both-halves evidence supports
 it, but flag it if the user reports more weak recent results.
+
+
+---
+
+# ►► SESSION 2026-07-31 (fifth pass) — return review
+
+User asked for a full-session review to increase returns.
+
+**Shipped, XAUUSD 30m, full 6.7 years, gap-aware fills:**
++660.2% at 17.68% drawdown, PF 1.626, against buy-and-hold +179.1% at
+29.08%. **First config in this project to beat buy-and-hold on raw return
+as well as on risk.**
+
+**What produced it:** pyramiding (H81) — add 2 units every 3 ATR of
+favourable move, shared trailing stop. Improved all five walk-forward
+slices. Also 30m over 15m (better PF, return AND drawdown in both halves).
+
+**Corrections made to earlier claims — do not repeat the old versions:**
+- "Wider trail is better" was PF-only. On RETURN it is FALSE: trail 20 ATR
+  gives PF 1.659 but +23.5% against trail 6's 1.243 and +85.4%. Risk-based
+  sizing shrinks the position as the stop widens.
+- Every number in the ledger before BUG-018 used exact-stop fills and is
+  optimistic. Use gap_fill=True from now on.
+
+**Honest limits on the headline number:** the pyramid parameters were
+chosen after seeing all five walk-forward slices, so those slices are not
+out-of-sample for that choice. What supports it is that all six variants
+improved all five slices. Pyramiding is a VARIANCE MULTIPLIER, not an
+edge — on random entries it triples the median and quadruples the spread.
+
+**Pine note:** `pyramiding=5` had to be added to the strategy() header.
+Pine's default of 0 SILENTLY IGNORES strategy.entry while a position is
+open — the adds would have placed no orders and raised no error.

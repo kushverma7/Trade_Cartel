@@ -504,3 +504,82 @@ Caveat the user should hold: buy-and-hold returned more over this window
 The claim for this system has always been return per unit of drawdown, not
 raw return, and that claim needs the buy-and-hold drawdown to be stated
 beside it — which this run does not give.
+
+---
+
+## Return review: every lever measured (2026-07-31)
+
+User: *"go through our entire session and find out a way to increase the
+returns and fix whatever we are missing."* All numbers below use
+`gap_fill=True` (BUG-018), so they are slightly worse and more honest than
+every row above.
+
+### Levers that turned out to be already correct
+
+| lever | finding |
+|---|---|
+| trail width | Wider raises PF but LOWERS return: trail 20 gives PF 1.659 / +23.5% train against trail 6's PF 1.243 / +85.4%. **The old "wider is better" claim was PF-only and is corrected here.** 6 ATR on 15m (4.24 on 30m) is return-optimal at tolerable drawdown. |
+| trail at 30m | Swept 3.0–10.0. The sqrt rule's 4.24 is best on train net (+113.5%) and near-best OOS. No gain available. |
+| sizing quantisation | `floor()` on contracts costs a 7.4% median size at $10k on 15m; >20% on 13.2% of bars. Real but small, and it grows less relevant as equity compounds. |
+
+### Lever that IS available: timeframe
+
+| TF | TRAIN PF / net / DD | OOS PF / net / DD |
+|---|---|---|
+| 15m | 1.259 / +94.5% / 11.95 | 1.515 / +27.7% / 8.51 |
+| **30m** | **1.326 / +112.4% / 11.58** | **1.594 / +28.4% / 7.79** |
+| 1h | 1.278 / +80.1% / 11.78 | 1.684 / +30.2% / 6.16 |
+| 4h | 1.234 / +40.5% / 8.34 | 2.110 / +30.3% / 3.36 |
+
+30m beats 15m on PF, return AND drawdown, in both halves. Higher
+timeframes keep raising PF and cutting drawdown while giving up return.
+
+### The big one: adding to winners (pyramiding)
+
+Never tested in this project before today. Add another unit every N ATR of
+favourable movement; the shared trailing stop covers the stack.
+
+Walk-forward, five consecutive slices of the 30m history, net/maxDD:
+
+| config | slice 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| no adds | +38.4/9.2 | +19.6/6.7 | +8.8/10.4 | +15.1/10.2 | +28.4/7.8 |
+| **adds 3 ATR × 2** | +92.5/16.3 | +23.9/13.5 | +11.9/16.6 | +33.3/16.8 | +88.1/13.5 |
+| adds 2 ATR × 4 | +163.4/22.2 | +16.5/19.1 | +11.2/26.4 | +31.7/25.7 | +168.2/13.9 |
+
+**Five slices out of five improve.** That is a plateau, not a fitted peak.
+
+**It is not an edge, and the tests say so plainly.** Through RANDOM entries
+on 20 seeds it lifts the median from 6.8% to 25.3% but takes the spread
+from 6.8 to 29.5 and the worst seed from −3.5% to −30.2%. It amplifies
+whatever the entry does, in both directions. On TRAIN, simply raising risk
+to 3% beats it at matched drawdown (+707.7%/31.76 against +425.0%/31.93);
+on OOS pyramiding wins decisively (+168.2%/13.91 against +133.5%/24.66).
+
+Shipped ON at the moderate setting (3 ATR × 2 adds), off-switch in group ⑥.
+
+### Shipped configuration, and the benchmark that was owed
+
+XAUUSD 30m, auto-scaled, gap-aware fills, SMA confluence on, key-level exit
+off, 2 adds every 3 ATR:
+
+| window | | net | max DD | ret/DD | PF |
+|---|---|---|---|---|---|
+| TRAIN | no adds | +116.5% | 9.83% | 11.85 | 1.380 |
+| | **with adds** | **+239.6%** | 17.68% | 13.55 | 1.370 |
+| | buy & hold | +111.3% | 21.92% | 5.08 | — |
+| OOS | no adds | +23.2% | 7.78% | 2.98 | 1.529 |
+| | **with adds** | **+66.2%** | 12.88% | 5.14 | 1.879 |
+| | buy & hold | +32.3% | 29.08% | 1.11 | — |
+| FULL 6.7y | no adds | +192.6% | 9.83% | 19.58 | 1.444 |
+| | **with adds** | **+660.2%** | 17.68% | 37.33 | 1.626 |
+| | buy & hold | +179.1% | 29.08% | 6.16 | — |
+
+**This is the first configuration in this project that beats buy-and-hold
+on raw return as well as on risk** — +660.2% against +179.1% over 6.7
+years, at 17.68% drawdown against 29.08%.
+
+**Caveat that must travel with these numbers:** the pyramiding parameters
+were chosen after seeing all five walk-forward slices. The slices are not
+out-of-sample for that choice. What supports it is that all six variants
+tested improved all five slices, not that 3 ATR × 2 was best.

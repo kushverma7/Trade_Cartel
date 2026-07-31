@@ -34,7 +34,14 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         kl=None, kl_take=0.0, kl_flip=False, kl_tol_atr=0.10,
         kl_shorts_only=False,
         kl_entry_atr=0.0, sma2_len=0, sma2_mode="gate", conf_min=0,
-        conf_size=0.0, kl_min_atr=0.0, gap_fill=False):
+        conf_size=0.0, kl_min_atr=0.0, gap_fill=False,
+        pyr_atr=0.0, pyr_max=0, pyr_risk=1.0):
+    # PYRAMIDING (off by default). A trend system's return comes from a
+    # handful of long moves, and a single fixed-size entry captures each
+    # one only once. pyr_atr: add another unit every N ATR of favourable
+    # movement; pyr_max: how many adds; pyr_risk: each add's size as a
+    # fraction of the original risk. Entry price becomes the VWAP of the
+    # stack and the shared trailing stop covers the whole thing.
     # kl_min_atr: the target level must be at least this many ATR beyond
     #   the entry. WITHOUT it the "next key level" is a joke of a target --
     #   on the 33 levels the chart actually draws, the median one sits
@@ -214,6 +221,24 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                     done = np.ceil((l[i - 1] - q_tol) / quarter) * quarter
                     if done < pos["entry"]:
                         pos["stop"] = min(pos["stop"], done + quarter)
+            # ---- add to a winner -------------------------------------
+            if pyr_atr > 0 and pyr_max > 0 and pos.get("adds", 0) < pyr_max:
+                step = atr[i] * pyr_atr
+                nxt = pos["last_add"] + d * step
+                if (h[i] >= nxt) if d > 0 else (l[i] <= nxt):
+                    add_stop = atr[i] * (trail_atr if d > 0 else (short_trail or trail_atr))
+                    add_risk = (risk_pct if d > 0 else risk_pct * short_risk) * pyr_risk
+                    add_qty = min(eq * add_risk / 100.0 / add_stop,
+                                  eq * max_lev / c[i] - pos["qty"])
+                    add_qty = float(np.floor(max(add_qty, 0)))
+                    if add_qty >= 1:
+                        px_add = nxt + d * slippage
+                        newq = pos["qty"] + add_qty
+                        pos["entry"] = (pos["entry"] * pos["qty"] + px_add * add_qty) / newq
+                        pos["qty"] = newq
+                        pos["banked"] = pos.get("banked", 0.0) - commission * add_qty
+                        pos["adds"] = pos.get("adds", 0) + 1
+                        pos["last_add"] = nxt
             tr_mult = trail_atr if d > 0 else (short_trail or trail_atr)
             if d > 0:
                 pos["stop"] = max(pos["stop"], h[i - 1] - atr[i] * tr_mult)
@@ -348,7 +373,8 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         pos = {"dir": d, "entry": entry, "stop": entry - d * stop_dist,
                "qty": qty, "bar": i, "q_target": qt, "q_done": False,
                "qt_done": False, "banked": 0.0,
-               "kl_target": klt, "kl_done": False}
+               "kl_target": klt, "kl_done": False,
+               "adds": 0, "last_add": entry}
     return trades
 
 

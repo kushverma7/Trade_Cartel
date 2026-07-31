@@ -1254,3 +1254,30 @@ they do not find good entries.
 - **Invalidation:** the drawdown reduction failing to appear on another
   instrument, or the two lengths needing re-tuning per market — that would
   make it fitting rather than a horizon-disagreement effect.
+
+## H81 — Pyramiding is the largest return lever here, and it is not an edge
+
+**Status: SUPPORTED as a return lever, EXPLICITLY NOT as an edge.**
+Tested 2026-07-31 on XAUUSD 30m, 6.7 years, five-slice walk-forward.
+
+Adding 2 units every 3 ATR of favourable movement, sharing the trailing
+stop, improved **all five consecutive walk-forward slices**. Full period
++192.6% → +660.2% with drawdown 9.83% → 17.68%; return per drawdown 19.58
+→ 37.33.
+
+**Why it is not an edge:** run through RANDOM entries on 20 seeds it lifts
+the median from 6.8% to 25.3% but takes the outcome spread from 6.8 to
+29.5 and the worst seed from −3.5% to −30.2%. It multiplies whatever the
+entry produces. On the TRAIN half, plain leverage at 3% risk beats it at
+matched drawdown; only on OOS does pyramiding win on both axes.
+
+- **Consistent with H73/H78/H80:** everything that works in this project
+  is position management. Nothing that works is prediction.
+- **Correction to an earlier belief:** "wider trail is better" was measured
+  on PROFIT FACTOR only. On RETURN it is false — trail 20 ATR gives PF
+  1.659 but only +23.5% against trail 6's 1.243 and +85.4%, because
+  risk-based sizing shrinks the position as the stop widens.
+- **Invalidation:** a walk-forward slice where adds make things worse, or
+  the effect disappearing once the parameters are chosen on a train half
+  and tested once. The current parameters were picked having seen all five
+  slices, so that test has not been run.

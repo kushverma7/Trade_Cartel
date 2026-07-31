@@ -284,6 +284,10 @@ strategy("Gold Trend — Trailing Stop",
      margin_long             = 5,
      margin_short            = 5,
      calc_on_every_tick      = false,
+     // REQUIRED for the add-to-winner block below. With the default of 0
+     // Pine silently IGNORES every strategy.entry issued while a position
+     // is open, so the adds would place no orders and leave no error.
+     pyramiding              = 5,
      // EMA 2000 plus a 200-bar slope lookback means this script reaches
      // ~2,200 bars back. Pine's default historical buffer is 300, which
      // throws "requested historical offset beyond the buffer" or silently
@@ -366,6 +370,15 @@ bool  q4Shorts  = input.bool(true, "SHORTS ONLY", group="⑤ Daye Q4 (alternativ
      tooltip="CRITICAL. Banking symmetrically DESTROYS the system: taking 50% off both sides drops full-period net from +61.5% to +21.4%. Banking only the counter-trend side improves every window tested. A take removes exactly the size that captures the big move -- so only take it where there is no big move to catch.")
 int   q4StartUtc= input.int(17, "Q4 start hour (UTC)", minval=0, maxval=23, group="⑤ Daye Q4 (alternative)",
      tooltip="12:00 ET = 17:00 UTC. Adjust for DST if you want to be exact.")
+
+// ── ⑥ Add to winners (pyramiding) ───────────────────────────────
+bool  usePyr    = input.bool(true, "Add to a winning position", group="⑥ Add to Winners",
+     tooltip="THE BIGGEST RETURN LEVER FOUND IN THIS PROJECT, and the honest description is that it multiplies BOTH sides. Walk-forward over five consecutive slices of the 30m history, net return and drawdown, without adds vs with 2 adds every 3 ATR:\n\n  +38.4%/9.2   ->   +92.5%/16.3\n  +19.6%/6.7   ->   +23.9%/13.5\n   +8.8%/10.4  ->   +11.9%/16.6\n  +15.1%/10.2  ->   +33.3%/16.8\n  +28.4%/7.8   ->   +88.1%/13.5\n\nEvery slice improves, which is why it ships on. But run through RANDOM entries it turns a 6.8% median into 25.3% while taking the spread of outcomes from 6.8 to 29.5 - it amplifies whatever the entry does, in both directions. It is not an edge. It is a way of betting more on the trades that are already working.")
+float pyrAtr    = input.float(3.0, "Add every (x ATR of favourable move)", minval=0.5, step=0.5, group="⑥ Add to Winners",
+     tooltip="3.0 with 2 adds is the moderate setting and is the default. 2.0 with 4 adds returns far more (+163% and +168% on the first and last slices) at drawdowns up to 26.4%. Choose by the drawdown you can actually sit through, not by the return.")
+int   pyrMax    = input.int(2, "Maximum adds", minval=1, maxval=4, group="⑥ Add to Winners",
+     tooltip="Capped at 4 because the strategy header declares pyramiding=5, which is this plus the original entry.")
+float pyrRisk   = input.float(1.0, "Each add sized at (x the original risk)", minval=0.1, maxval=1.0, step=0.1, group="⑥ Add to Winners")
 
 // ── ③ Display ────────────────────────────────────────────────────
 bool  showStop  = input.bool(true, "Plot the trailing stop", group="③ Display")
@@ -1412,6 +1425,8 @@ bool smaCrossOut = useSma and smaExit and not na(trendSma) and
 // bar's extreme so the current bar can never move its own stop.
 // ═════════════════════════════════════════════════════════════
 var float trailStop = na
+var float lastAdd   = na      // price of the last pyramid unit
+var int   nAdds     = 0
 
 if strategy.position_size > 0
     float cand = high[1] - atr * trailMultE
@@ -1421,10 +1436,34 @@ else if strategy.position_size < 0
     trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
 else
     trailStop := na
+    lastAdd   := na
+    nAdds     := 0
 
 // ═════════════════════════════════════════════════════════════
 // EXECUTION
 // ═════════════════════════════════════════════════════════════
+// ── add to a winning position ────────────────────────────────────
+// PORT DELTA vs the research engine: with process_orders_on_close the add
+// fills at THIS bar's close, and the enlarged position is only exposed to
+// the trailing stop from the NEXT bar. The Python engine adds at the
+// trigger price and exposes the enlarged size to the stop on the same
+// bar, so Python is the stricter of the two. Expect Pine to read very
+// slightly better than the research on trades that add and then reverse
+// within one bar.
+if usePyr and strategy.position_size != 0 and nAdds < pyrMax and not na(lastAdd)
+    float step   = atr * pyrAtr
+    bool  isLong = strategy.position_size > 0
+    float nxt    = isLong ? lastAdd + step : lastAdd - step
+    if isLong ? high >= nxt : low <= nxt
+        float aRisk = (isLong ? riskPct : riskPct * shortRisk) * pyrRisk
+        float aStop = atr * trailMultE
+        float aQty  = math.floor(math.min(strategy.equity * aRisk / 100.0 / aStop,
+             strategy.equity * maxLev / close - math.abs(strategy.position_size)))
+        if aQty >= 1
+            strategy.entry(isLong ? "L" : "S", isLong ? strategy.long : strategy.short, qty=aQty)
+            nAdds   := nAdds + 1
+            lastAdd := nxt
+
 // A pending reversal overrides the breakout: the level IS the signal.
 // It still has to clear the regime filters — a flip into a side the
 // regime forbids is dropped, not queued.
@@ -1446,12 +1485,16 @@ if goLong and strategy.position_size == 0 and qty >= 1
     trailStop := close - stopDist
     klTarget := f_klPick(close, 1, atr)
     klDone := false
+    lastAdd := close
+    nAdds := 0
 
 if goShort and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
     klTarget := f_klPick(close, -1, atr)
     klDone := false
+    lastAdd := close
+    nAdds := 0
 
 // the flip is spent whether or not it was taken
 if forceDir != 0
