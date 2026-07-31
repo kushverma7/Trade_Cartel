@@ -27,7 +27,8 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         random_p=0.0, random_seed=0,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, regime_ema=0, sma_len=0, exit_on_cross=False,
-        sma_reverse=False):
+        sma_reverse=False, quarter=0.0, q_tol=0.0, q_take=0.0,
+        q_trail=False):
     o, h, l, c = (df[k].to_numpy(float) for k in ("open", "high", "low", "close"))
     n = len(c)
     pc = np.roll(c, 1); pc[0] = c[0]
@@ -44,6 +45,19 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
     #   reverse -- the cross IS the signal; always in the market
     sma = (pd.Series(c).rolling(sma_len).mean().to_numpy() if sma_len else None)
 
+    # ---- Yotov quarter-point profit taking -------------------------------
+    # Yotov's structure on gold: major handles every 1000 (3000/4000/5000),
+    # LARGE QUARTER POINTS every 250, small quarters every 25. His core
+    # thesis is that a move runs from one large quarter point to the next,
+    # and his "successful completion" rule is explicit: reaching within one
+    # small quarter of the target counts as completed, whether short of it
+    # or overshooting.
+    #
+    # So the target is the next large quarter point in the trade's
+    # direction, and it is treated as hit once price comes within q_tol of
+    # it. q_take is scaled off there; the remainder keeps running on the
+    # trail, which is what lets a long move continue past a quarter.
+
     rng = np.random.default_rng(random_seed)
     eq = equity0
     trades = []
@@ -51,7 +65,39 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
     for i in range(max(entry_n, atr_n) + 1, n):
         if pos is not None:
             d = pos["dir"]
+            # partial take at the next large quarter point (once per trade)
+            if quarter > 0 and q_take > 0 and not pos.get("q_done", False):
+                tgt = pos["q_target"]
+                reached = (h[i] >= tgt - q_tol) if d > 0 else (l[i] <= tgt + q_tol)
+                if reached:
+                    qty_out = np.floor(pos["qty"] * q_take)
+                    if qty_out >= 1:
+                        px = (tgt - q_tol if d > 0 else tgt + q_tol) - d * slippage
+                        pnl = d * (px - pos["entry"]) * qty_out - 2 * commission * qty_out
+                        eq += pnl
+                        pos["banked"] = pos.get("banked", 0.0) + pnl
+                        pos["qty"] -= qty_out
+                    pos["q_done"] = True
+                    if pos["qty"] < 1:
+                        trades.append({"pnl": pos["banked"], "dir": d,
+                                       "bar": pos["bar"], "bars_held": i - pos["bar"]})
+                        pos = None
+                        continue
             # trail: ratchet the stop in the trade's favour, never against
+            # Quarter theory used as a STOP anchor rather than a target.
+            # Yotov's thesis is that a completed large quarter rarely gives
+            # back the whole quarter, so once one completes, the preceding
+            # quarter point becomes a structural floor. This keeps the
+            # let-it-run property that a take-profit destroys.
+            if q_trail and quarter > 0:
+                if d > 0:
+                    done = np.floor((h[i - 1] + q_tol) / quarter) * quarter
+                    if done > pos["entry"]:
+                        pos["stop"] = max(pos["stop"], done - quarter)
+                else:
+                    done = np.ceil((l[i - 1] - q_tol) / quarter) * quarter
+                    if done < pos["entry"]:
+                        pos["stop"] = min(pos["stop"], done + quarter)
             if d > 0:
                 pos["stop"] = max(pos["stop"], h[i - 1] - atr[i] * trail_atr)
                 hit = l[i] <= pos["stop"]
@@ -64,16 +110,16 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                     px = c[i] - d * slippage
                     pnl = d * (px - pos["entry"]) * pos["qty"] - 2 * commission * pos["qty"]
                     eq += pnl
-                    trades.append({"pnl": pnl, "dir": d, "bar": pos["bar"],
-                                   "bars_held": i - pos["bar"]})
+                    trades.append({"pnl": pnl + pos.get("banked", 0.0), "dir": d,
+                                   "bar": pos["bar"], "bars_held": i - pos["bar"]})
                     pos = None
                     continue
             if hit:
                 px = pos["stop"] - d * slippage
                 pnl = d * (px - pos["entry"]) * pos["qty"] - 2 * commission * pos["qty"]
                 eq += pnl
-                trades.append({"pnl": pnl, "dir": d, "bar": pos["bar"],
-                               "bars_held": i - pos["bar"]})
+                trades.append({"pnl": pnl + pos.get("banked", 0.0), "dir": d,
+                               "bar": pos["bar"], "bars_held": i - pos["bar"]})
                 pos = None
         if pos is not None or np.isnan(atr[i]) or atr[i] <= 0:
             continue
@@ -112,8 +158,13 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         qty = float(np.floor(max(qty, 0)))
         if qty < 1:
             continue
+        qt = 0.0
+        if quarter > 0:
+            qt = (np.floor(entry / quarter) + 1) * quarter if d > 0 \
+                 else (np.ceil(entry / quarter) - 1) * quarter
         pos = {"dir": d, "entry": entry, "stop": entry - d * stop_dist,
-               "qty": qty, "bar": i}
+               "qty": qty, "bar": i, "q_target": qt, "q_done": False,
+               "banked": 0.0}
     return trades
 
 

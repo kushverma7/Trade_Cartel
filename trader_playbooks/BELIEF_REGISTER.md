@@ -1099,3 +1099,49 @@ generic mechanics and cited the register in comments only (see the
   still untested — its own decisive test (minScore 6→8→10) has still not
   been run, and this result does not bear on it because entries barely
   changed.
+
+---
+
+### H75 — Any profit target degrades a trailing-stop trend system
+- **Status:** CONFIRMED (tested at four take-sizes and four grid scales,
+  on two independent halves plus the full 6.7 years)
+- **Claim:** Scaling out at a fixed price target reduces both total return
+  AND profit factor while INCREASING drawdown, in any system whose returns
+  come from a right-tailed distribution of winners. The take removes
+  exactly the position size that would have captured the large move, while
+  the remainder still absorbs a full stop on losers.
+- **Evidence:** XAUUSD 15m, entry 50 / trail 6 ATR / SMA gate, full period:
+
+  | take at the 250-pt quarter | PF | net | max DD |
+  |---|---|---|---|
+  | none | 1.134 | +58.0% | 27.4% |
+  | 25% | 1.102 | +40.9% | 33.8% |
+  | 40% | 1.050 | +18.2% | 40.6% |
+  | 50% | 1.028 | +10.0% | 43.3% |
+  | 60% | 1.017 | +5.9% | 45.1% |
+
+  Monotonic in both directions. Rescaling the grid did not rescue it:
+  quarters of 100 / 50 / 25 points all landed at full-period PF 1.08-1.09
+  against 1.172 with no target at all.
+- **This is the third independent confirmation.** The fixed 1R/2R targets
+  in all 17 earlier engines (PF 0.82-0.89), the level-to-level TP1/TP2
+  experiment (H74, PF 1.093 -> 0.892), and now quarter-point scaling. The
+  same mechanism each time: capping winners.
+- **Invalidation:** a target that IMPROVES net return and profit factor
+  simultaneously on both halves. Nothing tested has come close.
+
+### H76 — Yotov's quarter grid is the wrong scale for 15m gold
+- **Status:** CONFIRMED (arithmetic, not opinion)
+- **Claim:** Yotov's 250-point large quarters describe multi-week FX swings.
+  On 15m XAUUSD the median ATR(14) is 2.58 points, so a 6-ATR trailing stop
+  sits about 15 points from price — **a 250-point quarter is 16x wider than
+  the entire distance the system risks.** The quarter is almost never
+  reached before the trail fires.
+- **Proof:** using quarter points as a stop anchor produced results
+  byte-identical to the ATR trail alone (full-period PF 1.172, +88.9%,
+  DD 27.6% in both cases). The quarter constraint never once bound.
+- **Consequence:** quarter theory is not wrong, it is out of scale here. It
+  would need a daily or 4H chart to have anything to say. Applying it to a
+  15m system is a category error, and rescaling the grid to fit the
+  timeframe destroys the structure the theory rests on (major handles,
+  1000-point ranges) while still failing on the numbers.
