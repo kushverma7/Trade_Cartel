@@ -97,6 +97,39 @@
 // Exiting on the SMA cross was also tested and REJECTED - it cuts
 // winners early (train PF 1.030 vs 1.048). Off by default.
 //
+// ── QUARTERLY THEORY: WHAT WORKS AND WHAT DESTROYS IT ───────────────
+// Both quarter theories in this repo were implemented and tested.
+//
+// YOTOV (price-based, 250-pt large quarters): REJECTED. Median ATR(14)
+// on 15m gold is 2.58 points, so a 6-ATR trail sits ~15 points from
+// price -- a 250-point quarter is 16x wider than the distance the system
+// risks and is almost never reached. Used as a stop anchor it produced
+// byte-identical results to the ATR trail alone: the constraint never
+// bound once across 157,000 bars. Rescaling to 100/50/25-pt grids all
+// landed at PF 1.08-1.09 against 1.172 with no target.
+//
+// DAYE (time-based) is the one that works, but ONLY asymmetrically.
+// His daily quarters (ET): Q1 Asia 18-00 range build, Q2 London 00-06
+// expansion, Q3 NY AM 06-12 continuation, Q4 NY PM 12-18 reversal and
+// PROFIT-TAKING. Banking at the Q4 open, full period:
+//    symmetric  25%  PF 1.100  +42.6%   <- worse than no take
+//    symmetric  50%  PF 1.058  +21.4%   <- much worse
+//    symmetric  75%  PF 1.010   +3.3%
+//    symmetric full  PF 0.982   -7.3%
+//    SHORTS ONLY 50% PF 1.132  +62.9%   <- better than no take, on
+//                                          train AND test AND full
+// Taking profit on the with-trend side removes exactly the position size
+// that captures the large move. Taking it on the counter-trend side, where
+// there is no large move to catch, is free. That asymmetry is the whole
+// finding.
+//
+// SHIPPED CONFIG: both directions, trail 6 ATR, SMA 750, EMA 2000 gate,
+// Daye Q4 banking 50% of SHORTS only.
+//    train 2019-23   n=619   PF 1.090  +22.8%  DD 22.8%
+//    test  2023-26   n=411   PF 1.370  +52.8%  DD 11.5%
+//    Feb-Jul 2026    n=56    PF 1.534   +7.0%  DD  3.4%   (gold -15.8%)
+//    full 6.7 years  n=1041  PF 1.202  +90.8%  DD 22.8%
+//
 // HONEST LIMITS
 //  - One instrument, one timeframe. Untested on anything else.
 //  - The test window is a historic gold bull run. A long-biased trend
@@ -126,9 +159,9 @@ strategy("Gold Trend — Trailing Stop",
 // ── ① Core (these three are the whole system) ────────────────────
 int   entryLen  = input.int(50, "Breakout lookback (bars)", minval=5, group="① Core",
      tooltip="Long when close exceeds the highest high of the prior N bars. Validated at 50 and 100; both work. This is a timing trigger, not an edge.")
-float trailMult = input.float(8.0, "Trailing stop (x ATR)", minval=1.0, step=0.5, group="① Core",
+float trailMult = input.float(6.0, "Trailing stop (x ATR)", minval=1.0, step=0.5, group="① Core",
      tooltip="THE key parameter. Validated: 4.0 -> PF 1.40, 6.0 -> 1.60, 8.0 -> 1.59, 14.0 -> 1.75 out of sample. Below 4 the system loses. Wider = fewer trades, higher PF, but a less reliable estimate.")
-bool  longOnly  = input.bool(false, "Long only", group="① Core",
+bool  longOnly  = input.bool(false, "Long only (leave OFF — both directions is the shipped config)", group="① Core",
      tooltip="THIS IS A REGIME BET, NOT A SETTING. Long-only wins every rising year and loses in falling ones. Long+short is the reverse. See the year table in the header. Gold is down over the last six months, so shorts ON is currently the better side. Reassess if that changes.")
 int   atrLen    = input.int(14, "ATR length", minval=2, group="① Core")
 
@@ -142,9 +175,18 @@ int   smaLen    = input.int(750, "Trend SMA length (bars)", minval=50, group="�
      tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only. 2000 (~3 weeks) looks better on recent data but WORSE on the training half - that is a regime artifact, not a better setting.")
 bool  smaExit   = input.bool(false, "Also exit when price crosses back through the SMA", group="② Risk",
      tooltip="Tested and rejected: it cuts winners early. Train PF 1.030 vs 1.048 with the gate alone.")
-bool  useRegime = input.bool(false, "Extra regime EMA gate (A/B, OFF)", group="② Risk",
-     tooltip="Ships OFF. EMA gates at 100/200/400/800/1600 were all tested and none beat plain long+short.")
-int   regimeLen = input.int(200, "Regime EMA length", minval=20, group="② Risk")
+bool  useRegime = input.bool(true, "EMA gate: only long above it, short below", group="② Risk",
+     tooltip="EMA 2000 (~3 weeks on 15m). Combined with the SMA750 filter it lifts full-period PF to 1.202 and cuts drawdown.")
+int   regimeLen = input.int(2000, "Regime EMA length", minval=20, group="② Risk")
+
+// ── ④ Quarterly Theory profit taking (Trader Daye, time-based) ──
+bool  useQ4     = input.bool(true, "Bank profit in Q4 (Daye's profit-taking quarter)", group="④ Quarterly Theory",
+     tooltip="Daye's daily quarters in ET: Q1 Asia 18-00 range build, Q2 London 00-06 expansion, Q3 NY AM 06-12 continuation, Q4 NY PM 12-18 REVERSAL / PROFIT-TAKING. Q4 is where the source says to bank.")
+float q4Take    = input.float(50, "% banked at the Q4 open", minval=10, maxval=100, step=5, group="④ Quarterly Theory")
+bool  q4Shorts  = input.bool(true, "SHORTS ONLY — let longs run (this is what makes it work)", group="④ Quarterly Theory",
+     tooltip="CRITICAL. Banking symmetrically DESTROYS the system: taking 50% off both sides drops full-period net from +61.5% to +21.4%. Banking only the counter-trend side improves every window tested. A take removes exactly the size that captures the big move -- so only take it where there is no big move to catch.")
+int   q4StartUtc= input.int(17, "Q4 start hour (UTC)", minval=0, maxval=23, group="④ Quarterly Theory",
+     tooltip="12:00 ET = 17:00 UTC. Adjust for DST if you want to be exact.")
 
 // ── ③ Display ────────────────────────────────────────────────────
 bool  showStop  = input.bool(true, "Plot the trailing stop", group="③ Display")
@@ -169,6 +211,13 @@ bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
 bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
 
 // optional exit on an SMA cross against the position (default OFF)
+// Daye Q4 window and its opening bar
+int   etHour   = hour(time, "UTC")
+bool  inQ4     = etHour >= q4StartUtc and etHour < q4StartUtc + 6
+bool  q4Open   = inQ4 and not inQ4[1]
+bool  q4Bank   = useQ4 and q4Open and strategy.position_size != 0 and
+     (not q4Shorts or strategy.position_size < 0)
+
 bool smaCrossOut = useSma and smaExit and not na(trendSma) and
      ((strategy.position_size > 0 and close < trendSma) or
       (strategy.position_size < 0 and close > trendSma))
@@ -207,6 +256,8 @@ if shortSig and strategy.position_size == 0 and qty >= 1
 
 // no take-profit and no time stop, deliberately: capping the winners is
 // exactly what broke every previous engine in this repo
+if q4Bank
+    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
 if smaCrossOut
     strategy.close_all(comment="SMA cross")
 if strategy.position_size > 0 and not na(trailStop)
@@ -221,6 +272,7 @@ plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.
 plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
 plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
+bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profit-taking quarter)")
 
 plotshape(longSig and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
 plotshape(shortSig and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")

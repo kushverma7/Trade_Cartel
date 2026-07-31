@@ -28,7 +28,8 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, regime_ema=0, sma_len=0, exit_on_cross=False,
         sma_reverse=False, quarter=0.0, q_tol=0.0, q_take=0.0,
-        q_trail=False):
+        q_trail=False, qt_take=0.0, qt_exit=False, qt_weekly=False,
+        use_ema_gate=0, qt_shorts_only=False):
     o, h, l, c = (df[k].to_numpy(float) for k in ("open", "high", "low", "close"))
     n = len(c)
     pc = np.roll(c, 1); pc[0] = c[0]
@@ -44,6 +45,22 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
     #   exit    -- close when price crosses back through it
     #   reverse -- the cross IS the signal; always in the market
     sma = (pd.Series(c).rolling(sma_len).mean().to_numpy() if sma_len else None)
+    emag = (pd.Series(c).ewm(span=use_ema_gate, adjust=False).mean().to_numpy()
+            if use_ema_gate else None)
+
+    # ---- Daye Quarterly Theory: TIME quarters -----------------------------
+    # Daily quarters in ET: Q1 Asia 18-00, Q2 London 00-06, Q3 NY AM 06-12,
+    # Q4 NY PM 12-18. The source names the behaviour of each:
+    #   Q1 range/liquidity build, Q2 expansion, Q3 continuation/pullback,
+    #   Q4 REVERSAL / PROFIT-TAKING.
+    # Q4 is therefore where the theory says to bank, and that is what is
+    # implemented here. Data is UTC; ET is UTC-5, so Q4 12-18 ET is 17-23 UTC.
+    # Weekly quarters: Mon=Q1, Tue=Q2, Wed=Q3, Thu=Q4 (Friday excluded).
+    hod = df.index.hour.to_numpy()
+    dow = df.index.dayofweek.to_numpy()
+    in_q4 = ((hod >= 17) & (hod < 23)) if not qt_weekly else (dow == 3)
+    q4_start = np.zeros(len(c), bool)
+    q4_start[1:] = in_q4[1:] & ~in_q4[:-1]
 
     # ---- Yotov quarter-point profit taking -------------------------------
     # Yotov's structure on gold: major handles every 1000 (3000/4000/5000),
@@ -65,6 +82,27 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
     for i in range(max(entry_n, atr_n) + 1, n):
         if pos is not None:
             d = pos["dir"]
+            # Daye Q4: the theory's designated profit-taking window
+            # qt_shorts_only: bank the counter-trend side, let the with-trend
+            # side run. Every symmetric take tested so far removed exactly the
+            # size that captures the large move.
+            if (qt_take > 0 or qt_exit) and q4_start[i] and not pos.get("qt_done", False) \
+                    and not (qt_shorts_only and d > 0):
+                frac = 1.0 if qt_exit else qt_take
+                qty_out = np.floor(pos["qty"] * frac) if frac < 1.0 else pos["qty"]
+                if qty_out >= 1:
+                    px = c[i] - d * slippage
+                    pnl = d * (px - pos["entry"]) * qty_out - 2 * commission * qty_out
+                    eq += pnl
+                    pos["banked"] = pos.get("banked", 0.0) + pnl
+                    pos["qty"] -= qty_out
+                pos["qt_done"] = True
+                if pos["qty"] < 1:
+                    trades.append({"pnl": pos["banked"], "dir": d, "bar": pos["bar"],
+                                   "bars_held": i - pos["bar"]})
+                    pos = None
+                    continue
+
             # partial take at the next large quarter point (once per trade)
             if quarter > 0 and q_take > 0 and not pos.get("q_done", False):
                 tgt = pos["q_target"]
@@ -144,6 +182,11 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         if ema is not None and random_p == 0:
             long_sig = long_sig and c[i] > ema[i]
             short_sig = short_sig and c[i] < ema[i]
+        if emag is not None and random_p == 0:
+            if np.isnan(emag[i]):
+                continue
+            long_sig = long_sig and c[i] > emag[i]
+            short_sig = short_sig and c[i] < emag[i]
         if sma is not None and not sma_reverse and random_p == 0:
             if np.isnan(sma[i]):
                 continue
@@ -164,7 +207,7 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                  else (np.ceil(entry / quarter) - 1) * quarter
         pos = {"dir": d, "entry": entry, "stop": entry - d * stop_dist,
                "qty": qty, "bar": i, "q_target": qt, "q_done": False,
-               "banked": 0.0}
+               "qt_done": False, "banked": 0.0}
     return trades
 
 
