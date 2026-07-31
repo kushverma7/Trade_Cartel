@@ -34,14 +34,14 @@ import argparse, os, sys
 import pandas as pd
 
 
-def _key():
+def _key(required=True):
     if not os.environ.get("LSE_API_KEY") and os.path.exists(".env"):
         for line in open(".env"):
             if "=" in line and not line.startswith("#"):
                 k, v = line.strip().split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
     k = os.environ.get("LSE_API_KEY", "").strip()
-    if not k:
+    if not k and required:
         sys.exit("LSE_API_KEY not set (env or .env)")
     return k
 
@@ -51,21 +51,66 @@ def client():
     return lse.LSE(api_key=_key())
 
 
+def egress_ok(host="api.londonstrategicedge.com", timeout=15):
+    """Can we open a tunnel to the API host at all? Independent of any key."""
+    import socket, urllib.request, urllib.error
+    try:
+        urllib.request.urlopen(f"https://{host}/", timeout=timeout)
+        return True, "reachable"
+    except urllib.error.HTTPError as e:
+        return True, f"reachable (HTTP {e.code} at /, which is normal)"
+    except Exception as e:
+        msg = str(e)
+        if "tunnel" in msg.lower() or "403" in msg or "CONNECT" in msg:
+            return False, "blocked by the environment's egress proxy (CONNECT refused)"
+        return False, f"unreachable — {type(e).__name__}: {msg[:90]}"
+
+
 def check():
-    import lse
+    """Report EVERY gate in one run.
+
+    An earlier version exited at the missing-credential check, which hid the
+    network failure behind it and made it look like setting the key would be
+    enough. Both gates are independent and both must be reported, or the user
+    fixes one, re-runs, and discovers the second only then.
+    """
+    print("GATE 1 — credential")
+    k = _key(required=False)
+    src = ("environment variable" if os.environ.get("LSE_API_KEY") and
+           not os.path.exists(".env") else ".env or environment")
+    if k:
+        print(f"  PASS  key present ({len(k)} chars, from {src})")
+    else:
+        print("  FAIL  LSE_API_KEY not set in the environment and no .env file.")
+        print("        Set it in the environment's variable settings — .env does")
+        print("        not survive a new container.")
+
+    print("\nGATE 2 — network egress (independent of the key)")
+    ok, detail = egress_ok()
+    print(f"  {'PASS' if ok else 'FAIL'}  api.londonstrategicedge.com: {detail}")
+    if not ok:
+        print("        Allowlist londonstrategicedge.com and")
+        print("        api.londonstrategicedge.com in the environment's network")
+        print("        settings. No credential can bypass this.")
+
+    if not (k and ok):
+        print("\nBoth gates must pass before any data can be pulled.")
+        print("Neither one alone is sufficient. Route around both by exporting")
+        print("bars from the LSE builder and running:")
+        print("  python3 -m backtest.inspect_csv <file.csv.gz>")
+        return
+
+    print("\nGATE 3 — authenticated call")
     c = client()
-    print(f"authenticated : {c.authenticated}")
-    print(f"tier          : {c.tier or '(none)'}")
+    print(f"  authenticated : {c.authenticated}")
+    print(f"  tier          : {c.tier or '(none)'}")
     try:
         cat = c.catalog("commodities")
-        print(f"catalog       : {len(cat)} commodity symbols")
+        print(f"  catalog       : {len(cat)} commodity symbols")
         for row in cat[:12]:
-            print("   ", row)
+            print("     ", row)
     except Exception as e:
-        print(f"catalog       : FAILED — {type(e).__name__}: {str(e)[:160]}")
-        if "Tunnel connection failed" in str(e) or "403" in str(e):
-            print("\n  This is the environment's egress policy, not your key.")
-            print("  Allowlist londonstrategicedge.com and api.londonstrategicedge.com.")
+        print(f"  catalog       : FAILED — {type(e).__name__}: {str(e)[:160]}")
 
 
 def pull(symbol, tf, start, end, save, bulk=False):
