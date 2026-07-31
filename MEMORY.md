@@ -348,3 +348,80 @@ Two corrections from the user, same root failure:
 After the SuperTrend correction I asked **which engine the user wanted
 restyled** to the clean line + Buy/Sell-label look. That question was never
 answered; it fell off when the context compacted. Still open.
+
+---
+
+# ►► CURRENT STATE AND NEXT ACTION (2026-07-30)
+
+Read this before doing anything. It replaces having the previous
+conversation.
+
+## Where the project actually stands
+
+**Every result ever produced here is below the noise threshold.** Not close
+to working, not needing another tuning pass. See RESULTS_LEDGER.md: 17 runs,
+zero out-of-sample tests, and a Deflated Sharpe of 0.08 on the best of them
+against a 0.95 bar. The expected best Sharpe from 17 attempts on data with no
+edge is 0.107/trade; the best engine achieved 0.044 — less than half of it.
+
+**Do not build an 18th engine.** That instinct is what produced the ledger.
+
+## The bar, concretely
+
+At n=521 and a 44% win rate a result must reach **PF ~1.45** to clear DSR
+0.95. Anything between 1.0 and 1.4 at this sample size is search noise.
+
+## What is built and working (all committed)
+
+- `backtest/` — offline stack: non-lookahead level construction, fast engine
+  (0.14s per 14k bars), greedy optimiser with a LOCKED train/test split,
+  deflated Sharpe + PBO, tolerant CSV loader (gz/zip/chunked/any date format).
+- `backtest/test_engine.py` — 5 hand-computed accounting tests, all passing.
+  Run these first if anything is ever changed in the engine.
+- `backtest/lse_client.py` — wraps the official `lse-data` PyPI client.
+- Pine engines in `strategies/` with per-voter and per-level scorecards, so
+  one TradingView run ranks all contributors instead of guessing combos.
+
+## The single blocker: no market data
+
+The sandbox sits behind a policy-enforcing egress proxy. Only PyPI, npm,
+crates, Go proxy and Anthropic are reachable. Every market-data host —
+londonstrategicedge.com, huggingface.co, Yahoo, Stooq, Binance,
+tradingview.com — fails at the CONNECT tunnel. **This is environment network
+policy, not authentication.** `pip install` works, which is why the official
+LSE client and backtrader installed fine.
+
+Two ways forward:
+1. Allowlist `londonstrategicedge.com`, `api.londonstrategicedge.com` and
+   `huggingface.co` in the environment's network settings, then
+   `python3 -m backtest.lse_client --check`. This also revives Kronos.
+2. Export XAUUSD 15m from the LSE builder, gzip, drop in the repo, then
+   `python3 -m backtest.inspect_csv <file>`.
+
+## The order of work once data exists
+
+Do NOT start with the optimiser. Greedy search produced PF 1.73 and PF 2.49
+on synthetic random-walk data — search manufactures in-sample winners out of
+noise, reliably.
+
+1. Kronos `--mode validate` — does XAUUSD 15m have directional structure at
+   all? ~50% means stop tuning entries and change timeframe.
+2. Baselines — buy-and-hold, and random entries with identical stops and
+   targets. No engine here has ever been compared against either.
+3. Only then `python3 -m backtest.optimize --csv <file>`, and judge the
+   OUT-OF-SAMPLE number against PF 1.45.
+
+## Credentials
+
+The LSE API key lived in a gitignored `.env` which does NOT survive a new
+container. For persistence set `LSE_API_KEY` in the environment's own
+variable settings — `backtest/lse_client.py` prefers it over `.env`.
+
+## Standing discipline (earned the hard way)
+
+- A PF with no trade count and no date range is not a result.
+- A suspiciously LOW trade count is an execution symptom, not selectivity
+  (BUG-012 struck twice; every engine now shows Signals/Filled/Fill rate).
+- Trend and HTF filters have made results worse three separate times.
+- A screenshot is not a specification.
+- If the user supplies source, port it — do not reimplement it.

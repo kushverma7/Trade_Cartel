@@ -1,0 +1,10 @@
+# Offline backtest + optimisation stack (backtest/).
+# Pinned to what was installed and verified on 2026-07-30.
+# Only PyPI is reachable from the sandbox, which is why these install
+# cleanly while every market-data host does not.
+numpy==2.4.6
+pandas==3.0.5
+scipy==1.17.1          # deflated Sharpe / PBO in backtest/overfit.py
+requests==2.33.1
+backtrader==1.9.78.123 # execution cross-check (backtest/validate_bt.py)
+lse-data==0.14.0       # official London Strategic Edge client
