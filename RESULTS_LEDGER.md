@@ -583,3 +583,83 @@ years, at 17.68% drawdown against 29.08%.
 were chosen after seeing all five walk-forward slices. The slices are not
 out-of-sample for that choice. What supports it is that all six variants
 tested improved all five slices, not that 3 ATR × 2 was best.
+
+---
+
+## DE Hybrid V5/V6 (user-supplied indicator) — ported and measured (2026-07-31)
+
+Ported line for line to `backtest/de_hybrid.py` (Supertrend, AlphaTrend on
+MFI, BBSR EMA200, 9/21/50 stack, RSI, MACD, ATR+BB volatility gate, sweep
+detector, volume, cooldown, the 5-of-5 confluence counter, the alternating
+state machine and all five V6 X exits). XAUUSD 30m, 6.7 years,
+gap-aware fills, same costs and sizing as every other row.
+
+### As written
+
+| config | n | PF | net | max DD |
+|---|---|---|---|---|
+| **exactly as supplied (no stop)** | 720 | 0.952 | **−89.0%** | **97.56%** |
+| + a 6 ATR protective stop | 698 | 0.970 | −1.5% | 8.27% |
+
+**The script has no stop loss.** Nothing bounds a losing trade except one
+of five discretionary exits happening to fire. That is the −89%.
+
+### Why it cannot hold a trend: it exits in 3 bars
+
+Exit attribution over 698 trades with the stop added:
+
+| exit | share | net contribution |
+|---|---|---|
+| momentum loss | 40.0% | **−$3,061** |
+| profit giveback | 31.8% | +$3,494 |
+| opposite sweep | 25.9% | −$129 |
+| EMA21 break | 2.1% | −$348 |
+| the protective stop | 0.1% | −$105 |
+
+**Average hold 3 bars, against 44 for the shipped engine.** Five exits
+OR-ed together means the earliest one always wins, and the earliest of five
+is very early. `use_mom_exit` alone is the largest single loss source.
+
+Two more structural problems:
+- **0.8 ATR profit giveback against an unbounded loss** is BUG-017's
+  arithmetic again — a tiny gain trigger with no matching loss trigger.
+- **The alternating state machine** (states 2/−2) forbids re-entering the
+  same direction after an exit. In a trend that is fatal: you give back
+  0.8 ATR, exit, and then cannot re-enter long until you have taken a short.
+  Removing it takes the same entry from +30.7% to +68.2%.
+
+### Is the entry any good? No, but no worse than ours
+
+Their entry through THIS repo's ATR trailing exit, no alternation:
+
+| | n | PF | net | max DD |
+|---|---|---|---|---|
+| DE Hybrid entry, trail 6 ATR | 787 | 1.213 | +68.2% | 13.15% |
+| random entries, matched rate, same exit | — | median 1.154 | — | — |
+
+Their five-condition confluence beats the random median but sits inside
+its range (0.855–1.365, better than 10/15 seeds). **No entry edge** — the
+same verdict this project has reached for every entry rule it has tested,
+including its own.
+
+### Does it improve the shipped engine as a filter? No
+
+| gate on our 30m build | TRAIN | OOS | FULL |
+|---|---|---|---|
+| none (shipped) | PF 1.370 / +239.6% / 17.68 | 1.879 / +66.2% / 12.88 | **1.626 / +660.2% / 17.68** |
+| + DE trend gate | 1.279 / +119.1% / 23.27 | 1.906 / +63.6% / 7.59 | 1.570 / +374.1% / 23.27 |
+| + DE confluence ≥3 only | 1.378 / +240.6% / 18.26 | 1.850 / +64.3% / 12.94 | 1.625 / +652.1% / 18.26 |
+| + DE volatility expansion | 1.276 / +93.9% / 22.85 | 2.358 / +56.8% / 8.79 | 1.603 / +275.7% / 22.85 |
+
+Neutral at best, harmful in two of three. Nothing to take.
+
+### Best achievable repair of the supplied script
+
+6 ATR stop, momentum and sweep exits removed, alternation removed,
+giveback widened 0.8 → 4.0 ATR: **PF 1.134, +40.7%, DD 15.06%.** Every
+repair moves it toward "just use a trailing stop", and the pure trailing
+version (+68.2%) beats all of them — which is the finding.
+
+**Verdict: nothing measurable to adopt.** Keep it as a chart-reading layer
+if the visuals help; it is not an entry filter and its exits are the
+failure mode this project spent four months escaping.

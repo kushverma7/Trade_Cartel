@@ -35,7 +35,11 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         kl_shorts_only=False,
         kl_entry_atr=0.0, sma2_len=0, sma2_mode="gate", conf_min=0,
         conf_size=0.0, kl_min_atr=0.0, gap_fill=False,
-        pyr_atr=0.0, pyr_max=0, pyr_risk=1.0):
+        pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
+        ext_L=None, ext_S=None):
+    # ext_L / ext_S: an external per-bar boolean gate, e.g. another
+    # indicator's agreement. Used to test whether a supplied script adds
+    # anything on top of this engine rather than replacing it.
     # PYRAMIDING (off by default). A trend system's return comes from a
     # handful of long moves, and a single fixed-size entry captures each
     # one only once. pyr_atr: add another unit every N ATR of favourable
@@ -331,6 +335,8 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                 force_dir = 0
                 continue
             conf.append(c[i] > sma2[i] if d > 0 else c[i] < sma2[i])
+        if ext_L is not None and random_p == 0:
+            conf.append(bool(ext_L[i] if d > 0 else ext_S[i]))
         if kl_entry_atr > 0 and KL is not None and random_p == 0:
             krow = KL[i]
             krow = krow[~np.isnan(krow)]
