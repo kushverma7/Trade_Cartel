@@ -85,8 +85,11 @@ float maxLev    = input.float(20, "Max leverage (notional cap)", minval=1, group
      tooltip="BUG-012 guard. Without a notional cap, risk-based sizing silently requests more than buying power and TradingView skips the order with no error.")
 bool  useSma    = input.bool(true, "Trend filter: only long above the SMA, short below", group="② Risk",
      tooltip="Improves every window measured, but does NOT pass a significance test - see the header. Harmless to run, unwise to believe in.")
+bool  useSma2   = input.bool(true, "SECOND trend filter: the slow SMA must agree too", group="② Risk",
+     tooltip="The confluence layer. The fast SMA (750, ~8 days) and the slow one (2000, ~3 weeks) must BOTH be on the trade's side, on top of the EMA regime gate. Measured on 157,366 bars: full-period PF 1.379 -> 1.421, drawdown 12.30% -> 9.63%, return-per-drawdown 12.68 -> 16.36. Both halves agree. Requiring only ONE of the two is much worse (train PF 1.149) - the agreement is what does the work.")
+int   sma2Len   = input.int(2000, "Slow SMA length (bars)", minval=100, group="② Risk")
 int   smaLen    = input.int(750, "Trend SMA length (bars)", minval=50, group="② Risk",
-     tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only. 2000 (~3 weeks) looks better on recent data but WORSE on the training half - that is a regime artifact, not a better setting.")
+     tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only. Note that 2000 REPLACING this one is worse (train PF 1.181 vs 1.289); 2000 running alongside it as a second filter is better (1.335). The two lengths disagreeing is the useful signal, so keep both.")
 bool  smaExit   = input.bool(false, "Also exit when price crosses back through the SMA", group="② Risk",
      tooltip="Tested and rejected: it cuts winners early. Train PF 1.030 vs 1.048 with the gate alone.")
 bool  useSlope  = input.bool(true, "Shorts only when the EMA is FALLING (not merely below it)", group="② Risk",
@@ -138,6 +141,7 @@ int   entryLenE  = autoScale ? math.max(5,  int(12.0 * 60.0 / tfMin))       : en
 int   smaLenE    = autoScale ? math.max(50, int(8.0 * 24.0 * 60.0 / tfMin)) : smaLen
 int   regimeLenE = autoScale ? math.max(20, int(21.0 * 24.0 * 60.0 / tfMin)): regimeLen
 int   slopeLenE  = autoScale ? math.max(20, int(2.0 * 24.0 * 60.0 / tfMin)) : slopeLen
+int   sma2LenE   = autoScale ? math.max(100, int(21.0 * 24.0 * 60.0 / tfMin)): sma2Len
 float trailMultE = autoScale ? 6.0 * math.sqrt(15.0 / tfMin)               : trailMult
 float klGridE    = autoScale ? 2.50 * math.sqrt(tfMin / 15.0)              : klGrid
 float klTolE     = autoScale ? klGridE * 0.10                              : klTol
@@ -150,15 +154,18 @@ float donHi    = ta.highest(high, entryLenE)[1]
 float donLo    = ta.lowest(low, entryLenE)[1]
 float regimeMa = ta.ema(close, regimeLenE)
 float trendSma = ta.sma(close, smaLenE)
+float slowSma  = ta.sma(close, sma2LenE)
 
 bool emaFalling = regimeMa < regimeMa[slopeLenE]
 bool regimeOkL = not useRegime or close > regimeMa
 bool regimeOkS = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
 bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
 bool smaOkS    = not useSma or (not na(trendSma) and close < trendSma)
+bool sma2OkL   = not useSma2 or (not na(slowSma) and close > slowSma)
+bool sma2OkS   = not useSma2 or (not na(slowSma) and close < slowSma)
 
-bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
-bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
+bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL and sma2OkL
+bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS and sma2OkS
 
 // optional exit on an SMA cross against the position (default OFF)
 // JEAFX key-level target for the open position, fixed at entry and
@@ -208,8 +215,8 @@ else
 // A pending reversal overrides the breakout: the level IS the signal.
 // It still has to clear the regime filters — a flip into a side the
 // regime forbids is dropped, not queued.
-bool  flipL    = forceDir > 0 and regimeOkL and smaOkL
-bool  flipS    = forceDir < 0 and not longOnly and regimeOkS and smaOkS
+bool  flipL    = forceDir > 0 and regimeOkL and smaOkL and sma2OkL
+bool  flipS    = forceDir < 0 and not longOnly and regimeOkS and smaOkS and sma2OkS
 bool  goLong   = flipL or (forceDir == 0 and longSig)
 bool  goShort  = flipS or (forceDir == 0 and shortSig)
 
@@ -260,6 +267,7 @@ plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.
 plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
 plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
+plot(useSma2 ? slowSma : na, "Slow SMA (confluence)", color.new(#7E57C2, 15), 2)
 bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profit-taking quarter)")
 plot(useKL and strategy.position_size != 0 and not klDone ? klTarget : na,
      "Key-level target", color.new(color.yellow, 0), 2, plot.style_circles)

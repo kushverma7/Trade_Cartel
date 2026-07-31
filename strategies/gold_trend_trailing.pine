@@ -11,6 +11,31 @@
 //     buy & hold over the same window: +100.4%, max DD 29.2%
 //     return/drawdown: 11.07 vs 3.44  <- this is the actual edge
 //
+// ── THE CONFLUENCE STACK (added 2026-07-31) ─────────────────────────
+// Four things now have to line up before a trade is taken, and a fifth
+// decides where it is closed. Full period, 157,366 bars, each layer
+// added on top of the one above it:
+//
+//   layer                          n     PF     net      maxDD   ret/DD
+//   breakout + trail only        921   1.333  +152.5%   13.61%   11.21
+//   + key-level exit (shorts)    922   1.379  +155.9%   12.30%   12.68
+//   + slow SMA must agree        863   1.421  +157.7%    9.63%   16.36
+//
+// The last row is the shipped configuration. Note what the confluence
+// actually bought: return barely moved (+155.9% -> +157.7%) but the
+// drawdown fell by a fifth. It is a risk filter, not a return generator,
+// and that is the honest way to describe every filter in this script.
+//
+// Both halves agree. Train PF 1.289 -> 1.335 with drawdown 12.3% -> 9.6%;
+// out of sample 1.610 -> 1.624. Requiring only ONE of the two SMAs is
+// much worse (train PF 1.149) -- their AGREEMENT is the signal, not
+// either average by itself. Replacing SMA750 with SMA2000 rather than
+// running both is also worse (train 1.181).
+//
+// The one confluence that did NOT pay: requiring a key level near the
+// ENTRY. Full period net drops +157.7% -> +120.9%. It is a toggle in
+// group 4, defaulted off, and the reason is in its tooltip.
+//
 // ── READ THIS BEFORE YOU TRADE IT ───────────────────────────────────
 // THE ENTRY IS NOT AN EDGE. Random long entries pushed through this
 // exact trailing exit scored a median PF of 1.621 on the same data;
@@ -295,7 +320,11 @@ float maxLev    = input.float(20, "Max leverage (notional cap)", minval=1, group
 bool  useSma    = input.bool(true, "Trend filter: only long above the SMA, short below", group="② Risk",
      tooltip="Improves every window measured, but does NOT pass a significance test - see the header. Harmless to run, unwise to believe in.")
 int   smaLen    = input.int(750, "Trend SMA length (bars)", minval=50, group="② Risk",
-     tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only. 2000 (~3 weeks) looks better on recent data but WORSE on the training half - that is a regime artifact, not a better setting.")
+     tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only.")
+bool  useSma2   = input.bool(true, "SECOND trend filter: the slow SMA must agree too", group="② Risk",
+     tooltip="The confluence layer. The fast SMA (750, ~8 days) and the slow one (2000, ~3 weeks) must BOTH be on the trade's side, on top of the EMA regime gate. Measured on 157,366 bars: full-period PF 1.379 -> 1.421, net +155.9% -> +157.7%, and drawdown 12.30% -> 9.63%. Return-per-drawdown goes 12.68 -> 16.36, which is the number that actually matters. Both halves agree: train PF 1.289 -> 1.335 with drawdown 12.3% -> 9.6%, out of sample 1.610 -> 1.624. Requiring only ONE of the two is much worse (train PF 1.149) - it is the agreement that does the work, not either average on its own.")
+int   sma2Len   = input.int(2000, "Slow SMA length (bars)", minval=100, group="② Risk",
+     tooltip="2000 bars on 15m is about 3 weeks - the same horizon as the regime EMA, but an SMA rather than an EMA, so it turns later and disagrees at exactly the moments that matter.")
 bool  smaExit   = input.bool(false, "Also exit when price crosses back through the SMA", group="② Risk",
      tooltip="Tested and rejected: it cuts winners early. Train PF 1.030 vs 1.048 with the gate alone.")
 bool  useSlope  = input.bool(true, "Shorts only when the EMA is FALLING (not merely below it)", group="② Risk",
@@ -317,6 +346,9 @@ float klGrid    = input.float(2.50, "Quarter-grid spacing (points)", minval=0.25
      tooltip="Only used when 'Which levels' is set to Quarter grid. JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50.")
 float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Exit / Reversal",
      tooltip="A level counts as reached within this distance. Swept 0.05-0.50 ATR: PF moves 1.272-1.296 on train and 1.612-1.598 out of sample. Flat, so nothing here is knife-edge.")
+bool  useKLEntry= input.bool(false, "Also require a key level NEAR the entry", group="④ Key-Level Exit / Reversal",
+     tooltip="Adds the level as an ENTRY confluence too: the breakout only counts if a drawn level sits within the distance below. MEASURED, and it costs money: full period net +157.7% -> +120.9% and PF 1.421 -> 1.385, with the same effect at 0.5 and 2.0 ATR. Level touches carry no directional information (see the header), so this filter removes trades without improving their quality. Off by default; here because it is the natural thing to want to try.")
+float klEntryAtr= input.float(1.0, "Level must be within (x ATR of entry)", minval=0.1, step=0.1, group="④ Key-Level Exit / Reversal")
 float klTake    = input.float(75, "% closed at the level", minval=10, maxval=100, step=5, group="④ Key-Level Exit / Reversal",
      tooltip="75 measured best on both halves (train PF 1.289, OOS 1.610) but 60-90 are all within noise. The remainder keeps running on the trail — that is what preserves the big trend winners.")
 bool  klFlip    = input.bool(false, "REVERSE at the level (close and take the opposite side)", group="④ Key-Level Exit / Reversal",
@@ -349,6 +381,7 @@ int   entryLenE  = autoScale ? math.max(5,  int(12.0 * 60.0 / tfMin))       : en
 int   smaLenE    = autoScale ? math.max(50, int(8.0 * 24.0 * 60.0 / tfMin)) : smaLen
 int   regimeLenE = autoScale ? math.max(20, int(21.0 * 24.0 * 60.0 / tfMin)): regimeLen
 int   slopeLenE  = autoScale ? math.max(20, int(2.0 * 24.0 * 60.0 / tfMin)) : slopeLen
+int   sma2LenE   = autoScale ? math.max(100, int(21.0 * 24.0 * 60.0 / tfMin)): sma2Len
 float trailMultE = autoScale ? 6.0 * math.sqrt(15.0 / tfMin)               : trailMult
 float klGridE    = autoScale ? 2.50 * math.sqrt(tfMin / 15.0)              : klGrid
 float klTolE     = autoScale ? klGridE * 0.10                              : klTol
@@ -1293,15 +1326,31 @@ float donHi    = ta.highest(high, entryLenE)[1]
 float donLo    = ta.lowest(low, entryLenE)[1]
 float regimeMa = ta.ema(close, regimeLenE)
 float trendSma = ta.sma(close, smaLenE)
+float slowSma  = ta.sma(close, sma2LenE)
 
 bool emaFalling = regimeMa < regimeMa[slopeLenE]
 bool regimeOkL = not useRegime or close > regimeMa
 bool regimeOkS = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
 bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
 bool smaOkS    = not useSma or (not na(trendSma) and close < trendSma)
+bool sma2OkL   = not useSma2 or (not na(slowSma) and close > slowSma)
+bool sma2OkS   = not useSma2 or (not na(slowSma) and close < slowSma)
 
-bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
-bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
+// Entry confluence from the levels themselves: is one drawn within reach?
+// Off by default — measured, and it costs money. See the input tooltip.
+f_klNear(float px, float dist) =>
+    bool found = false
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            float p = array.get(klPrices, i)
+            if not na(p) and math.abs(p - px) <= dist
+                found := true
+    found
+
+bool klEntryOk = not useKLEntry or f_klNear(close, atr * klEntryAtr)
+
+bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL and sma2OkL and klEntryOk
+bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS and sma2OkS and klEntryOk
 
 // ── the level the open trade is running toward ───────────────────
 // Fixed at entry, acted on once. A long targets the nearest level ABOVE
@@ -1373,8 +1422,8 @@ else
 // A pending reversal overrides the breakout: the level IS the signal.
 // It still has to clear the regime filters — a flip into a side the
 // regime forbids is dropped, not queued.
-bool  flipL    = forceDir > 0 and regimeOkL and smaOkL
-bool  flipS    = forceDir < 0 and not longOnly and regimeOkS and smaOkS
+bool  flipL    = forceDir > 0 and regimeOkL and smaOkL and sma2OkL
+bool  flipS    = forceDir < 0 and not longOnly and regimeOkS and smaOkS and sma2OkS
 bool  goLong   = flipL or (forceDir == 0 and longSig)
 bool  goShort  = flipS or (forceDir == 0 and shortSig)
 
@@ -1428,6 +1477,7 @@ plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.
 plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
 plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
+plot(useSma2 ? slowSma : na, "Slow SMA (confluence)", color.new(#7E57C2, 15), 2)
 bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profit-taking quarter)")
 plot(useKL and strategy.position_size != 0 and not klDone ? klTarget : na,
      "Key-level target", color.new(color.yellow, 0), 2, plot.style_circles)
@@ -1451,7 +1501,7 @@ alertcondition(klHit, "Gold Trend — key level reached", "KEY LEVEL {{ticker}} 
 // ═════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═════════════════════════════════════════════════════════════
-var table dash = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 60))
+var table dash = table.new(position.top_right, 2, 12, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 60))
 if showDash and barstate.islast
     int nT = strategy.closedtrades
     int wT = 0
@@ -1481,14 +1531,31 @@ if showDash and barstate.islast
     table.cell(dash, 1, 5, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "flat", text_color=strategy.position_size != 0 ? color.lime : color.gray, text_size=size.tiny)
     table.cell(dash, 0, 6, "Stop", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 6, na(trailStop) ? "-" : str.tostring(trailStop, format.mintick), text_color=color.red, text_size=size.tiny)
-    table.cell(dash, 0, 7, "Validated OOS", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 7, "PF 1.59 / DD 5.5%", text_color=color.aqua, text_size=size.tiny)
-    table.cell(dash, 0, 8, "Edge is the EXIT", text_color=color.orange, text_size=size.tiny)
-    table.cell(dash, 1, 8, "entry adds ~0", text_color=color.orange, text_size=size.tiny)
-    table.cell(dash, 0, 9, autoScale ? "auto " + timeframe.period : "MANUAL settings",
+    // ── live confluence read-out: what agrees RIGHT NOW, and with what ──
+    // Written for manual trading: this is the checklist you would run by
+    // eye before taking the trade, evaluated on the last closed bar.
+    string cUp = (regimeOkL ? "EMA " : "") + (smaOkL ? "SMA" + str.tostring(smaLenE) + " " : "")
+         + (sma2OkL ? "SMA" + str.tostring(sma2LenE) : "")
+    string cDn = (regimeOkS ? "EMA " : "") + (smaOkS ? "SMA" + str.tostring(smaLenE) + " " : "")
+         + (sma2OkS ? "SMA" + str.tostring(sma2LenE) : "")
+    int nUp = (regimeOkL ? 1 : 0) + (smaOkL ? 1 : 0) + (sma2OkL ? 1 : 0)
+    int nDn = (regimeOkS ? 1 : 0) + (smaOkS ? 1 : 0) + (sma2OkS ? 1 : 0)
+    table.cell(dash, 0, 7, "Confluence", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, nUp == 3 ? "LONG 3/3" : nDn == 3 ? "SHORT 3/3"
+         : "none (" + str.tostring(math.max(nUp, nDn)) + "/3)",
+         text_color=nUp == 3 ? color.lime : nDn == 3 ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 8, "  agreeing", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 8, nUp >= nDn ? cUp : cDn, text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 0, 9, "Next level", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 9, na(klTarget) or strategy.position_size == 0 ? "-"
+         : str.tostring(klTarget, format.mintick) + (klDone ? " (done)" : ""),
+         text_color=klDone ? color.gray : color.yellow, text_size=size.tiny)
+    table.cell(dash, 0, 10, "Validated OOS", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 10, "PF 1.62 / DD 8.1%", text_color=color.aqua, text_size=size.tiny)
+    table.cell(dash, 0, 11, autoScale ? "auto " + timeframe.period : "MANUAL settings",
          text_color=autoScale ? color.aqua : color.orange, text_size=size.tiny)
-    table.cell(dash, 1, 9, autoScale ? "sma " + str.tostring(smaLenE) + " ema " + str.tostring(regimeLenE)
-         + " grid " + str.tostring(klGridE, "#.##") : (nT < 250 ? "n<250: unstable" : ""),
+    table.cell(dash, 1, 11, autoScale ? "sma " + str.tostring(smaLenE) + "/" + str.tostring(sma2LenE)
+         + " ema " + str.tostring(regimeLenE) : (nT < 250 ? "n<250: unstable" : ""),
          text_color=color.silver, text_size=size.tiny)
 
 

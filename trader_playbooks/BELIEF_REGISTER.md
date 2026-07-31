@@ -1225,3 +1225,32 @@ configuration measured: train PF 0.932, net −14.8%.
   vanishing once the ~30 configurations swept here are accounted for. The
   gain is +0.03 to +0.045 PF; that is inside the range a 30-trial search
   can manufacture, so this belief is held loosely.
+
+## H80 — Two trend horizons agreeing is a drawdown filter, not a return filter
+
+**Status: SUPPORTED.** Tested 2026-07-31, 157,366 bars, train/OOS split.
+
+Requiring BOTH a fast SMA (750, ~8 days) and a slow one (2000, ~3 weeks)
+to be on the trade's side, on top of the EMA2000 regime gate:
+
+- full period PF 1.379 → 1.421, net +155.9% → +157.7%, **drawdown 12.30%
+  → 9.63%**, return/drawdown 12.68 → **16.36**
+- train PF 1.289 → 1.335, drawdown 12.3% → 9.6%
+- OOS PF 1.610 → 1.624
+
+**Return barely moved. The drawdown fell by a fifth.** That is the correct
+way to describe every filter in this project — they remove bad exposure,
+they do not find good entries.
+
+- **The agreement is the signal, not the slower average.** SMA2000 used
+  INSTEAD of SMA750 is worse (train 1.181 vs 1.289). Requiring only one of
+  the two is much worse (1.149). The two horizons disagreeing is what
+  marks the choppy middle of a range, and that is what gets skipped.
+- **Consistent with H73/H78:** the entry still contributes nothing. This
+  filter works by not trading, not by predicting.
+- **Rejected variant:** requiring 1 of 2 and doubling size when both agree
+  lifts train net to +146.1% but takes drawdown to 21.8% and PF to 1.197.
+  That is leverage dressed as confluence.
+- **Invalidation:** the drawdown reduction failing to appear on another
+  instrument, or the two lengths needing re-tuning per market — that would
+  make it fitting rather than a horizon-disagreement effect.

@@ -32,7 +32,21 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         use_ema_gate=0, qt_shorts_only=False,
         short_trail=0.0, short_risk=1.0, slope_len=0,
         kl=None, kl_take=0.0, kl_flip=False, kl_tol_atr=0.10,
-        kl_shorts_only=False):
+        kl_shorts_only=False,
+        kl_entry_atr=0.0, sma2_len=0, sma2_mode="gate", conf_min=0,
+        conf_size=0.0):
+    # CONFLUENCE (all off by default):
+    #   kl_entry_atr  entry only when a drawn key level sits within this
+    #                 many ATR of the entry price -- the breakout has to
+    #                 happen AT a level, not in open space
+    #   sma2_len      a second, longer SMA (2000 = ~3 weeks on 15m) used
+    #                 as an additional directional gate
+    #   sma2_mode     "gate"  both filters must agree (AND)
+    #                 "score" neither is mandatory; see conf_min
+    #   conf_min      in score mode, how many of {SMA750, SMA2000, level}
+    #                 must agree before the trade is taken (0 = off)
+    #   conf_size     extra risk multiplier per agreeing condition beyond
+    #                 conf_min (0 = flat sizing)
     # kl: (n x k) array of SpacemanBTC key-level prices per bar, from
     # backtest.levels.build. Three uses, all default OFF so every result
     # already in the ledger reproduces unchanged:
@@ -56,6 +70,7 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
     #   exit    -- close when price crosses back through it
     #   reverse -- the cross IS the signal; always in the market
     sma = (pd.Series(c).rolling(sma_len).mean().to_numpy() if sma_len else None)
+    sma2 = (pd.Series(c).rolling(sma2_len).mean().to_numpy() if sma2_len else None)
     emag = (pd.Series(c).ewm(span=use_ema_gate, adjust=False).mean().to_numpy()
             if use_ema_gate else None)
     # Slope of the long EMA. Price below a flat EMA happens constantly in an
@@ -254,20 +269,46 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
             short_sig = short_sig and c[i] < emag[i]
             if slope_dn is not None:
                 short_sig = short_sig and bool(slope_dn[i])
-        if sma is not None and not sma_reverse and random_p == 0:
-            if np.isnan(sma[i]):
-                continue
-            long_sig = long_sig and c[i] > sma[i]
-            short_sig = short_sig and c[i] < sma[i]
         if not (long_sig or short_sig):
             force_dir = 0        # a blocked flip is dropped, not queued
             continue
-        force_dir = 0
         d = 1 if long_sig else -1
+
+        # ---- confluence layer ---------------------------------------
+        # Each optional filter votes for or against the direction the
+        # breakout already chose. In "gate" mode every one of them must
+        # agree, which is exactly the old AND-of-filters behaviour and is
+        # why every ledger row still reproduces. In "score" mode conf_min
+        # of them have to agree, and conf_size pays extra size for each
+        # one beyond that.
+        conf = []
+        if sma is not None and not sma_reverse and random_p == 0:
+            if np.isnan(sma[i]):
+                force_dir = 0
+                continue
+            conf.append(c[i] > sma[i] if d > 0 else c[i] < sma[i])
+        if sma2 is not None and random_p == 0:
+            if np.isnan(sma2[i]):
+                force_dir = 0
+                continue
+            conf.append(c[i] > sma2[i] if d > 0 else c[i] < sma2[i])
+        if kl_entry_atr > 0 and KL is not None and random_p == 0:
+            krow = KL[i]
+            krow = krow[~np.isnan(krow)]
+            conf.append(bool(krow.size and
+                             np.abs(krow - c[i]).min() <= atr[i] * kl_entry_atr))
+        n_agree = int(sum(conf))
+        need = conf_min if (sma2_mode == "score" and conf_min > 0) else len(conf)
+        if conf and n_agree < need:
+            force_dir = 0
+            continue
+        force_dir = 0
         # asymmetric management: the counter-trend side may run a tighter
         # trail and smaller size than the with-trend side
         eff_trail = trail_atr if d > 0 else (short_trail or trail_atr)
         eff_risk = risk_pct if d > 0 else risk_pct * short_risk
+        if conf_size > 0 and conf:
+            eff_risk *= 1.0 + conf_size * max(0, n_agree - need)
         stop_dist = atr[i] * eff_trail
         entry = c[i] + d * slippage
         qty = min(eq * eff_risk / 100.0 / stop_dist, eq * max_lev / c[i])

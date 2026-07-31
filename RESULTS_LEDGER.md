@@ -318,3 +318,62 @@ PF 1.272–1.296; take fraction 60–90% moves it 1.282–1.296.
 train, +0.030 OOS) is small relative to the ~30 configurations swept to
 find it. Treat it as "does not hurt, is what you asked for, and is
 directionally consistent across both halves" — not as a validated edge.
+
+---
+
+## Confluence: key levels + a second SMA, merged (2026-07-31)
+
+User request: *"i was keep key levels and SMA 2000 also a confluence. see
+what can u do and merge them together."*
+
+Same data and split as the row above. `backtest/trend.py` gained
+`sma2_len` (a second, longer SMA gate) and `kl_entry_atr` (entry only when
+a drawn level is within N ATR). Baseline verified unchanged first: still
+PF 1.333 / +152.5% / 921 trades, five accounting tests passing.
+
+### Which merge actually works
+
+Common settings: entry 50, trail 6.0 ATR, EMA2000 regime + 200-bar slope,
+short risk 0.75, key-level exit 75% counter-trend-only.
+
+| confluence | TRAIN PF / net / DD | OOS PF / net / DD |
+|---|---|---|
+| SMA750 only (previous ship) | 1.289 / +89.7% / 12.3% | 1.610 / +29.1% / 8.3% |
+| SMA2000 *instead of* 750 | 1.181 / +55.2% / 15.0% | 1.631 / +26.6% / 7.9% |
+| **SMA750 AND SMA2000** | **1.335 / +93.0% / 9.6%** | **1.624 / +25.0% / 8.1%** |
+| + level within 0.5 ATR of entry | 1.347 / +73.6% / 9.1% | 1.630 / +21.2% / 6.6% |
+| + level within 1.0 ATR of entry | 1.284 / +66.8% / 10.6% | 1.615 / +24.2% / 7.0% |
+| + level within 2.0 ATR of entry | 1.341 / +93.4% / 9.8% | 1.590 / +23.7% / 8.6% |
+
+Full period, the layers stacked:
+
+| build | n | WR | PF | net | maxDD | ret/DD |
+|---|---|---|---|---|---|---|
+| breakout + trail only | 921 | 36.3% | 1.333 | +152.52% | 13.61% | 11.21 |
+| + key-level exit, shorts only | 922 | 38.5% | 1.379 | +155.89% | 12.30% | 12.68 |
+| **+ slow SMA must agree** | **863** | **40.1%** | **1.421** | **+157.65%** | **9.63%** | **16.36** |
+| + level near entry (rejected) | 822 | 39.3% | 1.385 | +120.94% | 10.57% | 11.44 |
+
+### What this says
+
+1. **The confluence is a drawdown filter, not a return generator.** Return
+   moved +155.9% → +157.7%; drawdown fell 12.30% → 9.63%. Return per unit
+   of drawdown went 12.68 → 16.36. That is the whole effect.
+2. **It is the AGREEMENT that works, not the slower average.** SMA2000
+   replacing SMA750 is worse on train (1.181 vs 1.289). Requiring only one
+   of the two to agree is much worse (1.149). Requiring both is best.
+3. **Key levels do not work as an entry confluence** — same conclusion as
+   the row above reached from the entry-signal side, now reached again
+   from the filter side. Full-period net drops +157.7% → +120.9%, and the
+   effect is the same at 0.5, 1.0 and 2.0 ATR, so it is not a tuning
+   problem. Shipped as a toggle, defaulted OFF.
+4. **Sizing up on extra agreement was tested and rejected.** Requiring 1 of
+   2 and paying +100% size for the second lifts train net to +146.1% but
+   takes drawdown to 21.8% and PF down to 1.197 — leverage, not edge.
+
+**Caveat:** ~20 configurations were swept here on top of the ~30 in the
+row above. The confluence gain (+0.042 PF full period) is small against
+that trial count. What supports it beyond the point estimate is that the
+drawdown reduction shows up in both halves and in the full period, and
+that the mechanism — two horizons disagreeing marks the choppy middle —
+is not a free parameter.

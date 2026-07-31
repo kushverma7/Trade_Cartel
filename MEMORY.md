@@ -464,3 +464,32 @@ not the same as the user having the fix. The `trailMultEE` compile error
 reached the user because the artifact was never republished after the sed
 fix. Republish the artifact AND re-send the file every time the Pine
 changes.
+
+
+---
+
+# ►► SESSION 2026-07-31 (third pass) — confluence merged
+
+User: *"i was keep key levels and SMA 2000 also a confluence. see what can
+u do and merge them together."*
+
+**Shipped:** a second SMA (2000, ~3 weeks) must agree with the fast one
+(750) and with the EMA2000 regime gate before any entry. Key levels stay
+as the EXIT. Full period PF 1.379 → 1.421, drawdown 12.30% → 9.63%,
+return/drawdown 12.68 → 16.36. Both halves agree. Belief H80.
+
+**Rejected, with numbers in the tooltips so they are not re-tried blind:**
+- SMA2000 replacing SMA750 (train PF 1.181 vs 1.289)
+- requiring only 1 of the 2 SMAs (1.149)
+- key level near the ENTRY as a confluence (full-period net +157.7% →
+  +120.9%, same at 0.5/1.0/2.0 ATR — not a tuning problem)
+- sizing up when both agree (+146% train net but 21.8% drawdown; leverage,
+  not edge)
+
+**The dashboard now shows a live confluence read-out** (LONG 3/3 /
+SHORT 3/3 / none, which filters agree, and the next key level) because the
+user trades this manually as well as backtesting it.
+
+`backtest/trend.py` gained `sma2_len`, `sma2_mode`, `conf_min`,
+`conf_size`, `kl_entry_atr` — all off by default; baseline still PF 1.333
+/ +152.5% / 921 trades and all five accounting tests pass.
