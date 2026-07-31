@@ -796,3 +796,90 @@ actual behaviour is better than its name; the close cross is what ships.
 **Caveat:** 30 MA configurations were swept, then 4 re-run with the full
 stack. HMA 200's two-half PF advantage is small (+0.092 train, +0.129 OOS)
 and was selected after seeing both halves.
+
+---
+
+## Exit laboratory: six trailing algorithms, TP1/TP2 (2026-07-31)
+
+User: *"find even better profit taking and trailing logic and also you can
+make tp1 and tp2. also do not miss the found best results already."*
+
+New engine `backtest/exit_lab.py`. It reproduces both existing engines as
+special cases before anything new was trusted:
+
+| | reference | exit_lab |
+|---|---|---|
+| trend.py trail + 2 adds | PF 1.626 / +660.2% / 17.68 | PF 1.635 / +679.9% / 17.01 |
+| take_profit 4% / 4 ATR | PF 1.475 / +185.3% / 23.2 | **PF 1.475 / +185.3% / 23.2** |
+
+**Two bugs were found and fixed in the new engine before any result was
+read from it**, both of which would have produced false findings:
+
+1. **Intrabar lookahead.** The best excursion was updated with the current
+   bar's high BEFORE the stop was checked on that bar, so a bar could raise
+   its own stop and then trigger it. It reported PF 1.183 and 45.2%
+   drawdown against the true 1.635 and 17.01%.
+2. **Give-back trail never armed.** With zero excursion at entry the stop
+   snapped to the entry price on bar two; the mode scored a 1.0% win rate
+   over 2,307 trades. Fixed with an arming threshold.
+
+### Trailing algorithms, train half, Donchian entry + 2 adds
+
+| trail | n | PF | net | maxDD | ret/DD |
+|---|---|---|---|---|---|
+| **chandelier 4.24 (shipped)** | 640 | 1.392 | +253.1% | 17.01 | 14.88 |
+| **donchian 40-bar low** | 536 | 1.544 | +487.3% | 22.73 | 21.44 |
+| donchian 45 | 506 | 1.427 | +347.2% | 23.45 | 14.81 |
+| step 6.0→3.0 over 10 ATR | 667 | 1.380 | +252.8% | 20.25 | 12.49 |
+| EMA 100 trail | 748 | 1.383 | +242.3% | 33.66 | 7.20 |
+| give-back 20% (armed) | 1104 | 1.061 | +21.0% | 18.27 | 1.15 |
+
+**The training peak at donchian-40 is not real.** Out of sample the whole
+30–50 range performs and the ordering reverses — donchian 50 is best OOS
+(PF 1.967) and 40 is mid-pack. A parameter whose neighbours are 30–50%
+worse on train and indistinguishable out of sample is a fitted spike. 45
+was shipped as the middle of the OOS plateau, not the training maximum.
+
+### Final comparison, all three windows
+
+| exit | TRAIN | OOS | FULL | losing slices |
+|---|---|---|---|---|
+| **chandelier 4.24** | 1.392 / +253.1% / 17.0 | **1.930** / +83.4% / 12.8 | 1.635 / +679.9% / 17.0 | **0/5** |
+| **donchian 45** | 1.427 / +347.2% / 23.5 | 1.854 / +96.8% / 11.1 | 1.624 / **+935.9%** / 23.5 | 1/5 |
+| donchian 50 | 1.396 / +289.2% / 26.0 | 1.967 / +111.9% / 14.5 | 1.637 / +853.0% / 26.0 | 1/5 |
+| step 6→3 | 1.380 / +252.8% / 20.3 | 1.862 / +87.4% / 10.6 | 1.597 / +668.8% / 20.3 | 0/5 |
+
+**Donchian 45 returns 38% more (+935.9% vs +679.9%) but return per unit of
+drawdown is a dead heat: 39.9 against 40.0.** It is the same efficiency
+taken at larger size, and it has one losing walk-forward slice (−6.0%)
+where the chandelier has none. Shipped as a selectable mode, chandelier
+still the default.
+
+### TP1 / TP2: measured 20 ways, costs return every time
+
+| config | PF | net | maxDD |
+|---|---|---|---|
+| no targets | 1.392 | **+253.1%** | 17.01 |
+| TP1 8 ATR take 25% | 1.386 | +234.1% | 16.86 |
+| TP1 4 / TP2 12, 25% each | 1.385 | +216.7% | 16.04 |
+| TP1 4 ATR take 33% + breakeven | 1.286 | +134.2% | 18.43 |
+| best shorts-only variant | 1.421 | +242.6% | 16.76 |
+
+Every single one returns less. Out of sample the gap widens: PF 1.568 with
+TP1 against 1.930 without. Even the **asymmetry rule fails here** — applying
+targets only to the counter-trend side still costs return (+242.6% against
++253.1%), the first time that principle has not held in this project.
+
+**What TP1/TP2 does buy is a smoother curve:** full-period drawdown
+17.01% → 16.04%, and out-of-sample drawdown 12.79% → **8.38%**. That is a
+real trade for someone who cares more about the ride than the total.
+
+Shipped as functional controls in group ⑨, defaulted OFF, numbers in the
+tooltip.
+
+### Nothing already found was lost
+
+The shipped defaults still produce the session's best result: 30m,
+Donchian entry, EMA+SMA+slow-SMA confluence, chandelier 4.24, 2 adds every
+3 ATR, no targets — **full period PF 1.635, +679.9%, drawdown 17.01%**,
+against buy-and-hold's +179.1% at 29.08%.

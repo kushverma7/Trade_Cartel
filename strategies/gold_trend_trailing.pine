@@ -400,6 +400,22 @@ float tpStopAtr = input.float(4.0, "Stop for this mode (x ATR)", minval=0.5, ste
 // the full exit: best runner full-period PF 1.419 against 1.475. The control
 // is omitted rather than shipped doing something other than it says.
 
+// ── ⑧ Trailing algorithm ────────────────────────────────────────
+string trailMode= input.string("Chandelier (ATR)", "Trailing logic", options=["Chandelier (ATR)", "Donchian low"], group="⑧ Trailing Algorithm",
+     tooltip="Six trailing algorithms were built and measured on XAUUSD 30m over 6.7 years: chandelier, Donchian low, EMA, a stepping multiple that tightens with profit, a give-back-a-fraction-of-the-excursion trail, and none. Two are worth offering.\n\nCHANDELIER (default): full-period PF 1.635, +679.9%, drawdown 17.01%, and positive in ALL FIVE walk-forward slices.\nDONCHIAN LOW: PF 1.624, +935.9%, drawdown 23.45%, and NEGATIVE in one of the five slices (-6.0%).\n\nDonchian returns 38% more. Return per unit of drawdown is a dead heat (39.9 vs 40.0), so it is not free money - it is the same efficiency taken at larger size, with one losing period you would have had to sit through. Chandelier is the default for that reason.\n\nRejected: EMA trail (best PF 1.383 at 33.7% drawdown), give-back trail (best 1.061), stepping trail (1.597, strictly behind both).")
+int   donchN    = input.int(45, "Donchian trail lookback (bars)", minval=5, group="⑧ Trailing Algorithm",
+     tooltip="The stop rides the lowest low of the last N bars for longs, the highest high for shorts. Swept 10-80. Do NOT read the training peak at 40 as meaningful: out of sample the whole 30-50 range performs and the ordering reverses, which is what a fitted spike looks like when you test it. 45 was chosen as the middle of the out-of-sample plateau rather than the training maximum.")
+
+// ── ⑨ TP1 / TP2 (staged profit taking) ──────────────────────────
+bool  tp1On     = input.bool(false, "TP1 — bank part of the position", group="⑨ TP1 / TP2",
+     tooltip="MEASURED ACROSS 20 CONFIGURATIONS AND IT COSTS RETURN EVERY TIME. Best TP variant on the training half: +234.1% against +253.1% with no target. Adding TP2 as well: +216.7%. Out of sample the gap widens - PF 1.568 with TP1 against 1.930 without.\n\nWhat it DOES buy is a smoother equity curve: full-period drawdown 17.01% -> 16.04% with TP1+TP2, and out-of-sample drawdown 12.79% -> 8.38%. That is a real trade, just not a free one.\n\nAlso tested and also negative: applying the targets only to the counter-trend side (the asymmetry rule that works elsewhere in this script). Best shorts-only variant +242.6% against +253.1%. Turn these on if you want fewer large give-backs, not if you want more money.")
+float tp1Atr    = input.float(4.0, "TP1 distance (x ATR)", minval=0.5, step=0.5, group="⑨ TP1 / TP2")
+float tp1Pct    = input.float(25, "TP1 — % of position closed", minval=5, maxval=90, step=5, group="⑨ TP1 / TP2")
+bool  tp2On     = input.bool(false, "TP2 — bank another part", group="⑨ TP1 / TP2")
+float tp2Atr    = input.float(12.0, "TP2 distance (x ATR)", minval=1.0, step=0.5, group="⑨ TP1 / TP2")
+float tp2Pct    = input.float(25, "TP2 — % of position closed", minval=5, maxval=90, step=5, group="⑨ TP1 / TP2")
+bool  tpShorts  = input.bool(false, "Apply TP1/TP2 to shorts only", group="⑨ TP1 / TP2")
+
 // ── ③ Display ────────────────────────────────────────────────────
 bool  showStop  = input.bool(true, "Plot the trailing stop", group="③ Display")
 bool  showBand  = input.bool(true, "Plot the breakout level", group="③ Display")
@@ -1455,17 +1471,24 @@ bool smaCrossOut = useSma and smaExit and not na(trendSma) and
 // ═════════════════════════════════════════════════════════════
 bool  tpOn = tpMode != "Off"
 
+var float tp1Px     = na
+var float tp2Px     = na
+var bool  tp1Done   = false
+var bool  tp2Done   = false
 var float tpTarget  = na
 var float tpStop    = na
 var float trailStop = na
 var float lastAdd   = na      // price of the last pyramid unit
 var int   nAdds     = 0
 
+float donLoTrail = ta.lowest(low, donchN)[1]
+float donHiTrail = ta.highest(high, donchN)[1]
+
 if strategy.position_size > 0
-    float cand = high[1] - atr * trailMultE
+    float cand = trailMode == "Donchian low" ? donLoTrail : high[1] - atr * trailMultE
     trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
 else if strategy.position_size < 0
-    float cand = low[1] + atr * trailMultE
+    float cand = trailMode == "Donchian low" ? donHiTrail : low[1] + atr * trailMultE
     trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
 else
     trailStop := na
@@ -1522,6 +1545,10 @@ if goLong and strategy.position_size == 0 and qty >= 1
     klDone := false
     lastAdd := close
     nAdds := 0
+    tp1Px := close + atr * tp1Atr
+    tp2Px := close + atr * tp2Atr
+    tp1Done := false
+    tp2Done := false
 
 if goShort and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
@@ -1532,6 +1559,10 @@ if goShort and strategy.position_size == 0 and qty >= 1
     klDone := false
     lastAdd := close
     nAdds := 0
+    tp1Px := close - atr * tp1Atr
+    tp2Px := close - atr * tp2Atr
+    tp1Done := false
+    tp2Done := false
 
 // the flip is spent whether or not it was taken
 if forceDir != 0
@@ -1547,6 +1578,25 @@ if klHit
     else
         strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=klTake, comment="Key level")
     klDone := true
+// ── staged profit taking ─────────────────────────────────────────
+// PORT DELTA: these fill at the bar CLOSE via strategy.close, not at the
+// target price. A limit order would fill better, but two live limit orders
+// plus a trailing stop on one entry is where order conflicts come from, and
+// the same close-based pattern is already used by the key-level take above.
+// The research engine fills at the target, so expect Pine to read slightly
+// worse here -- the conservative direction.
+bool tpSideOk = not tpShorts or strategy.position_size < 0
+bool tp1Hit = tp1On and not tpOn and not tp1Done and tpSideOk and strategy.position_size != 0 and
+     (strategy.position_size > 0 ? high >= tp1Px : low <= tp1Px)
+bool tp2Hit = tp2On and not tpOn and not tp2Done and tpSideOk and strategy.position_size != 0 and
+     (strategy.position_size > 0 ? high >= tp2Px : low <= tp2Px)
+if tp1Hit
+    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=tp1Pct, comment="TP1")
+    tp1Done := true
+if tp2Hit
+    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=tp2Pct, comment="TP2")
+    tp2Done := true
+
 if q4Bank
     strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
 if smaCrossOut
@@ -1572,6 +1622,8 @@ plot(showBand and entryMode == "Donchian breakout" and not na(donHi) ? donHi : n
 plot(showBand and entryMode == "HMA cross" ? hmaVal : na, "HMA", color.new(color.fuchsia, 0), 2)
 plot(showStop and strategy.position_size != 0 ? (tpOn ? tpStop : trailStop) : na, "Stop", color.new(#D50000, 0), 2, plot.style_stepline)
 plot(tpOn and strategy.position_size != 0 ? tpTarget : na, "Profit target", color.new(#00E676, 0), 2, plot.style_stepline)
+plot(tp1On and not tpOn and strategy.position_size != 0 and not tp1Done ? tp1Px : na, "TP1", color.new(#00E676, 20), 1, plot.style_circles)
+plot(tp2On and not tpOn and strategy.position_size != 0 and not tp2Done ? tp2Px : na, "TP2", color.new(#00E676, 45), 1, plot.style_circles)
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
 plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
 plot(useSma2 ? slowSma : na, "Slow SMA (confluence)", color.new(#7E57C2, 15), 2)
