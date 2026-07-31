@@ -43,7 +43,9 @@ the comparison was never actually available.
 | 14 | 07-28 | Multi-Voice + level-to-level exits | XAUUSD 15m | Feb 2 – Jul 28 2026 | 461 | 34.06% | **0.892** | −14.19% | 25.47% | REVERTED — see H74 |
 | 15 | 07-29 | Key Levels (Spaceman Edition) v1.0 | XAUUSD 30m | Jan 2025 – Jul 2026 | 22 | 63.64% | **1.783** | +7.70% | 7.01% | **VOID** — order-rejection artifact (BUG-012) |
 | 16 | — | Key Levels (Spaceman Edition) v1.1 | XAUUSD 30m | — | — | — | — | — | — | superseded by v1.2, never run |
-| 17 | — | Key Levels (Spaceman Edition) v1.2 | XAUUSD 30m | — | — | — | — | — | — | fixes + level scorecard, NOT YET RUN |
+| 17 | — | Key Levels (Spaceman Edition) v1.2 | XAUUSD 30m | — | — | — | — | — | — | superseded by the offline search |
+| 18 | 07-31 | **Key Levels, optimised offline** — PMH/NYH/NYL | XAUUSD 15m | **train** 2019-12→2023-11 | 109 | 49.54% | 1.141 | +8.83% | 11.50% | in-sample, selected |
+| 19 | 07-31 | **same config, OUT OF SAMPLE** | XAUUSD 15m | **test** 2023-11→2026-07 | **60** | 45.00% | **1.495** | +16.96% | 6.57% | **REJECTED — failed all 3 gates** |
 
 ## What the ledger says when you read it as one table
 
@@ -136,3 +138,77 @@ last four months was wrong, and the ledger now says so quantitatively.
 which at a 44% win rate is roughly **PF 1.45**. Not 1.10. Anything between
 1.0 and ~1.4 on this sample size is indistinguishable from search noise and
 should not be built on.
+
+---
+
+## Row 19 — the first out-of-sample positive, and why it was rejected (2026-07-31)
+
+First real dataset: 157,366 bars of XAUUSD 15m, Dec 2019 – Jul 2026, split
+60/40 at 2023-11-28. The optimiser selected levels PMH/NYH/NYL on the
+training half and the held-out block returned **PF 1.495 on n=60, +16.96%**.
+
+Profit factor went UP out of sample. It looked like the breakthrough.
+It is not. `python3 -m backtest.stress_test` failed it on all three gates.
+
+### Gate 1 — random null at the MATCHED sample size: FAIL
+
+Coin-flip entries through identical filters, stops, targets, sizing and
+costs, rebuilt at n≈60 (367 trials):
+
+| pct | PF |
+|---|---|
+| 50th | 0.905 |
+| 75th | 1.122 |
+| 90th | 1.370 |
+| **95th** | **1.544** |
+| 99th | 2.039 |
+
+**Our 1.495 sits at the 93.5th percentile — below the 95th.** Random entry
+beats it roughly one run in fifteen.
+
+The width is the lesson. At n=60 the noise band runs from 0.905 to 2.039.
+An earlier null built from ~810-trade samples gave 0.782–1.052, and using
+THAT band here would have declared 1.495 a huge win. Profit-factor error
+scales with 1/sqrt(n); a null must be rebuilt at the sample size being
+judged. This is now enforced in stress_test.py.
+
+### Gate 2 — deflated Sharpe: FAIL
+
+SR/trade +0.1802 on n=60.
+
+| trials | E[max SR] from noise | DSR |
+|---|---|---|
+| 1 | 0.0000 | 0.925 |
+| 100 | 0.3750 | 0.060 |
+| 370 (what the search actually ran) | 0.4387 | **0.019** |
+
+Even granting the impossible fiction that only ONE configuration was ever
+tried, DSR is 0.925 — still short of 0.95. At the true trial count it is
+0.019.
+
+### Gate 3 — buy and hold: FAIL
+
+**+100.42% versus +16.96%** on the identical window. Gold doubled. The
+strategy captured a sixth of that while carrying execution risk, 60 round
+trips and a live-money failure mode that buy-and-hold does not have.
+
+### What this actually establishes
+
+**The config is rejected.** But the more useful finding is structural: a
+strategy trading 60 times in 2.67 years CANNOT be validated on this data.
+The noise band at that sample size is wider than any edge we could
+plausibly detect. Selectivity that produces a thin sample is not rigour —
+it is untestability.
+
+That reframes the next step. The requirement is not "a better entry
+rule", it is **a strategy that trades often enough to be measurable**.
+Multi-Voice produced 521 trades in six months, which over this window
+would be several thousand — enough that its noise band would be narrow
+enough to see through. It is the only engine that ever cleared PF 1.0 and
+it has never been tested out of sample.
+
+### Precedent
+
+This is the first time a promising number was killed BEFORE it entered the
+ledger as a win. PF 3.656 and PF 1.783 were both celebrated first and
+retracted later. The three gates are now mandatory and automated.
