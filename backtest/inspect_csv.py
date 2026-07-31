@@ -103,7 +103,18 @@ def load(path):
         # across months. Caught on a test file that read as Jan->Oct when it
         # was Jan->Feb. One consistent format, verified by monotonicity.
         cands = []
+        # Try ISO8601 first: it is unambiguous, vectorised, and avoids the
+        # per-element dateutil fallback entirely. LSE exports
+        # "2019-12-01 23:00:00+00" which lands here.
+        try:
+            iso = pd.to_datetime(s, errors="coerce", format="ISO8601", utc=True)
+            if iso.notna().mean() > 0.99 and iso.dropna().is_monotonic_increasing:
+                cands.append((0.0, False, False, iso))
+        except Exception:
+            pass
         for dayfirst in (False, True):
+            if cands:
+                break
             try:
                 p_ = pd.to_datetime(s, errors="coerce", dayfirst=dayfirst)
             except Exception:

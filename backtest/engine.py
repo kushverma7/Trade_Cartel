@@ -29,7 +29,13 @@ class Config:
                  tp_mode="levels", tp1_r=1.5, tp2_r=3.0, tp1_pct=60,
                  min_tp_r=1.0, brk_lb=12, risk_pct=1.0, max_lev=20,
                  max_day=6, time_stop=36, session=True,
-                 commission=0.07, slippage=0.05, equity0=10000.0):
+                 commission=0.07, slippage=0.05, equity0=10000.0,
+                 random_p=0.0, random_seed=0):
+        # random_p > 0 replaces the SIGNAL with a coin flip fired at that
+        # per-bar probability, leaving every other rule -- filters, stops,
+        # targets, sizing, costs -- untouched. That is the only honest
+        # reference for a strategy: not "did it make money", but "did it
+        # beat random entries wearing the same exit machinery".
         self.__dict__.update(locals()); del self.__dict__["self"]
 
 
@@ -58,6 +64,7 @@ def run(df, lv, cfg, in_session):
         lowLB[i] = l[i - cfg.brk_lb:i].min()
         highLB[i] = h[i - cfg.brk_lb:i].max()
 
+    rng = np.random.default_rng(cfg.random_seed)
     eq = cfg.equity0
     trades = []
     pos = None
@@ -130,6 +137,38 @@ def run(df, lv, cfg, in_session):
         if not np.isnan(lowLB[i]):
             rtL = ((c[i] > vals) & (l[i] <= vals + tol) & (l[i] > vals - tol) & (lowLB[i] < vals)).any()
             rtS = ((c[i] < vals) & (h[i] >= vals - tol) & (h[i] < vals + tol) & (highLB[i] > vals)).any()
+        if cfg.random_p > 0:
+            if rng.random() >= cfg.random_p:
+                continue
+            d0 = 1 if rng.random() < 0.5 else -1
+            cand0 = (vals < c[i]) if d0 > 0 else (vals > c[i])
+            if not cand0.any():
+                continue
+            sel0 = np.flatnonzero(ok)[cand0]
+            j = int(np.argmin(np.abs(c[i] - vals[cand0])))
+            defend = vals[cand0][j]
+            lvl_id = ids[sel0[j]]
+            d = d0
+            raw = (c[i] - defend if d > 0 else defend - c[i]) + A[i] * cfg.buf_atr
+            sl_dist = min(max(raw, A[i] * cfg.min_sl), A[i] * cfg.max_sl)
+            if sl_dist <= 0:
+                continue
+            entry = c[i] + d * cfg.slippage
+            sl = entry - d * sl_dist
+            tp1 = entry + d * sl_dist * cfg.tp1_r
+            tp2 = entry + d * sl_dist * cfg.tp2_r
+            qty = min(eq * cfg.risk_pct / 100.0 / sl_dist, eq * cfg.max_lev / c[i])
+            qty = float(np.floor(max(qty, 0)))
+            if qty < 1:
+                continue
+            q1 = min(max(float(np.floor(qty * cfg.tp1_pct / 100.0)), 0), qty)
+            pos = {"dir": d, "entry": entry, "sl": sl, "tp1": tp1, "tp2": tp2,
+                   "qty_open": qty, "q1": q1, "pnl": -qty * cfg.commission,
+                   "bar": i, "lvl": lvl_id, "qty0": qty, "q1_0": q1,
+                   "sweep": False, "retest": False}
+            last_sig = i; day_trades += 1
+            continue
+
         can_sw = cfg.mode in ("sweep", "both")
         can_rt = cfg.mode in ("retest", "both")
         sigL = (can_sw and swL) or (can_rt and rtL)
