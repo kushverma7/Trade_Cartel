@@ -1145,3 +1145,37 @@ generic mechanics and cited the register in comments only (see the
   15m system is a category error, and rescaling the grid to fit the
   timeframe destroys the structure the theory rests on (major handles,
   1000-point ranges) while still failing on the numbers.
+
+---
+
+### H77 — Quarter-round price levels work as counter-trend profit targets, at the right scale
+- **Status:** CONFIRMED (better on train, test, full period, and on both
+  return and drawdown; graded smoothly across grid scales)
+- **Source:** JEAFX Key Levels guide — plot only `.00/.25/.50/.75`, used as
+  reversal areas.
+- **Claim:** Banking the counter-trend leg at quarter-round levels improves a
+  trailing-stop trend system, provided the grid spacing is roughly 1-4x the
+  instrument's ATR on the traded timeframe.
+- **Evidence:** XAUUSD 15m, entry 50 / trail 6 ATR / SMA750 / EMA2000 gate,
+  banking 50% of SHORTS at the grid:
+
+  | grid | full PF | net | max DD | return/DD |
+  |---|---|---|---|---|
+  | none | 1.186 | +87.0% | 23.2% | 3.75 |
+  | **2.50** | **1.261** | **+110.6%** | **19.0%** | **5.81** |
+  | 5.00 | 1.256 | +108.7% | 19.7% | 5.52 |
+  | 25.00 | 1.211 | +93.7% | 22.4% | 4.18 |
+
+- **Why 2.50 on gold:** JEAFX's quarters of a round number applied to gold's
+  10-unit handles. Median ATR is 2.58, so the grid is ~1x ATR — the same
+  order as the source's EURUSD example (25 pips vs ~10-pip ATR).
+- **Relation to H75:** does NOT contradict it. Banking the WITH-trend side on
+  this same grid still destroys the system (+87% -> +29-41%). The asymmetry
+  is the mechanism.
+- **Relation to H76:** the direct counterpoint. Yotov's 250-point quarters
+  never bind on 15m gold; JEAFX's 2.50-point quarters work well. Same
+  concept, 100x apart in scale. **Scale, not the level theory, is what
+  determines usability on a timeframe.**
+- **Invalidation:** if the improvement vanishes on another instrument whose
+  grid is set by the same ATR-ratio rule, this is gold-specific fitting
+  rather than a level effect.

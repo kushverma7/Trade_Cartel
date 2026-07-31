@@ -104,7 +104,8 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                     continue
 
             # partial take at the next large quarter point (once per trade)
-            if quarter > 0 and q_take > 0 and not pos.get("q_done", False):
+            if quarter > 0 and q_take > 0 and not pos.get("q_done", False) \
+                    and not (qt_shorts_only and d > 0):
                 tgt = pos["q_target"]
                 reached = (h[i] >= tgt - q_tol) if d > 0 else (l[i] <= tgt + q_tol)
                 if reached:
