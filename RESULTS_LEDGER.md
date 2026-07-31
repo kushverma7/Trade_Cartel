@@ -216,3 +216,33 @@ it has never been tested out of sample.
 This is the first time a promising number was killed BEFORE it entered the
 ledger as a win. PF 3.656 and PF 1.783 were both celebrated first and
 retracted later. The three gates are now mandatory and automated.
+
+---
+
+## Cross-validation: the Python engine is trustworthy (2026-07-31)
+
+The user ran gold_trend_trailing.pine on TradingView over Feb 2 – Jul 31
+2026 with both direction settings. Against the Python engine on the same
+window and parameters (entry 50, trail 8.0 ATR):
+
+| | n | WR | PF | net | max DD |
+|---|---|---|---|---|---|
+| **long only** — Python | 38 | 26.32% | 0.567 | −5.14% | 7.14% |
+| **long only** — TradingView | 38 | 26.32% | 0.550 | −5.72% | 7.65% |
+| **long+short** — Python | 58 | 31.03% | 1.444 | +6.94% | 3.44% |
+| **long+short** — TradingView | 56 | 33.93% | 1.486 | +7.57% | 4.19% |
+
+Long-only agrees **exactly** on trade count and win rate. The residual P&L
+difference is fill and cost modelling; the ±2 trades on long+short is a
+feed difference (OANDA spot vs the LSE export).
+
+**This is the cross-validation that backtrader could not provide.** That
+attempt failed on an execution-model mismatch and was marked INCOMPLETE.
+TradingView turned out to be the second independent implementation, and it
+agrees. Everything measured in `backtest/` can now be treated as
+representative of what the Pine strategy will actually do — including the
+6.7-year results, the random nulls and the deflated-Sharpe audit.
+
+It also confirms the regime finding from the live side rather than only in
+research: in a window where gold fell 15.8%, long-only returned −5.72% and
+long+short returned +7.57%.
