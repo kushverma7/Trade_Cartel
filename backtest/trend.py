@@ -29,7 +29,8 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         max_lev=20, regime_ema=0, sma_len=0, exit_on_cross=False,
         sma_reverse=False, quarter=0.0, q_tol=0.0, q_take=0.0,
         q_trail=False, qt_take=0.0, qt_exit=False, qt_weekly=False,
-        use_ema_gate=0, qt_shorts_only=False):
+        use_ema_gate=0, qt_shorts_only=False,
+        short_trail=0.0, short_risk=1.0, slope_len=0):
     o, h, l, c = (df[k].to_numpy(float) for k in ("open", "high", "low", "close"))
     n = len(c)
     pc = np.roll(c, 1); pc[0] = c[0]
@@ -47,6 +48,16 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
     sma = (pd.Series(c).rolling(sma_len).mean().to_numpy() if sma_len else None)
     emag = (pd.Series(c).ewm(span=use_ema_gate, adjust=False).mean().to_numpy()
             if use_ema_gate else None)
+    # Slope of the long EMA. Price below a flat EMA happens constantly in an
+    # uptrend's pullbacks; the EMA actually FALLING is a much rarer state and
+    # is what a bear regime looks like. Gating shorts on slope rather than on
+    # position keeps them almost silent in bull markets - which is the whole
+    # point, since counter-trend shorts are what bleed away the long-only edge.
+    slope_dn = None
+    if slope_len and emag is not None:
+        sh_ = np.full(len(c), np.nan)
+        sh_[slope_len:] = emag[:-slope_len]
+        slope_dn = emag < sh_
 
     # ---- Daye Quarterly Theory: TIME quarters -----------------------------
     # Daily quarters in ET: Q1 Asia 18-00, Q2 London 00-06, Q3 NY AM 06-12,
@@ -137,11 +148,12 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                     done = np.ceil((l[i - 1] - q_tol) / quarter) * quarter
                     if done < pos["entry"]:
                         pos["stop"] = min(pos["stop"], done + quarter)
+            tr_mult = trail_atr if d > 0 else (short_trail or trail_atr)
             if d > 0:
-                pos["stop"] = max(pos["stop"], h[i - 1] - atr[i] * trail_atr)
+                pos["stop"] = max(pos["stop"], h[i - 1] - atr[i] * tr_mult)
                 hit = l[i] <= pos["stop"]
             else:
-                pos["stop"] = min(pos["stop"], l[i - 1] + atr[i] * trail_atr)
+                pos["stop"] = min(pos["stop"], l[i - 1] + atr[i] * tr_mult)
                 hit = h[i] >= pos["stop"]
             # exit on a close back through the SMA, before the trail check
             if not hit and exit_on_cross and sma is not None and not np.isnan(sma[i]):
@@ -188,6 +200,8 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                 continue
             long_sig = long_sig and c[i] > emag[i]
             short_sig = short_sig and c[i] < emag[i]
+            if slope_dn is not None:
+                short_sig = short_sig and bool(slope_dn[i])
         if sma is not None and not sma_reverse and random_p == 0:
             if np.isnan(sma[i]):
                 continue
@@ -196,9 +210,13 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         if not (long_sig or short_sig):
             continue
         d = 1 if long_sig else -1
-        stop_dist = atr[i] * trail_atr
+        # asymmetric management: the counter-trend side may run a tighter
+        # trail and smaller size than the with-trend side
+        eff_trail = trail_atr if d > 0 else (short_trail or trail_atr)
+        eff_risk = risk_pct if d > 0 else risk_pct * short_risk
+        stop_dist = atr[i] * eff_trail
         entry = c[i] + d * slippage
-        qty = min(eq * risk_pct / 100.0 / stop_dist, eq * max_lev / c[i])
+        qty = min(eq * eff_risk / 100.0 / stop_dist, eq * max_lev / c[i])
         qty = float(np.floor(max(qty, 0)))
         if qty < 1:
             continue

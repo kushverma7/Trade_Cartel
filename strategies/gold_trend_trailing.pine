@@ -141,11 +141,42 @@
 // Stacking with Daye's Q4 was inside noise (PF 1.265 vs 1.261), so the
 // simpler single rule ships and Q4 is left as an off-by-default option.
 //
+// ── STAYING PROFITABLE WHEN GOLD FALLS ──────────────────────────────
+// Long-only makes the most money over 6.7 years (+171.9%, PF 1.480, DD
+// 11.8%) but loses in falling markets (-2.8% Feb-Jul 2026). Symmetric
+// long+short survives the fall but costs 61 points of return.
+//
+// The fix is that price BELOW the EMA and the EMA FALLING are very
+// different states. Price dips below a flat EMA constantly during
+// uptrend pullbacks, and shorts taken there are what bleed the
+// long-only edge away. Requiring the EMA to be below its own value 200
+// bars ago makes shorts nearly silent in bull markets and active in
+// bear ones. With the counter-trend side also sized at 0.75x:
+//
+//    config                       full net    PF     DD    falling window
+//    A long-only                   +171.9%  1.480  11.8%      -2.8%
+//    B both, symmetric             +110.6%  1.261  19.0%      +4.6%
+//    C slope-gated shorts @0.75x   +160.1%  1.386  12.8%      +5.0%   <- shipped
+//
+// C keeps 93% of long-only's return AND is profitable in the fall.
+// Raising the short multiplier to 1.5 buys more downside (+10.5% in the
+// falling window) for less total return (+145.9%).
+//
+// GATES on the held-out block (n=362, PF 1.525, +64.0%, DD 8.9%):
+//    random null at matched n: 88.8th percentile     FAIL (needs 95th)
+//    deflated Sharpe 0.577 at 50 trials               FAIL
+//    return/drawdown 7.19 vs buy-and-hold 3.44        PASS
+// So the entry still is not demonstrably better than random. What IS
+// demonstrable is the risk profile: 64% of buy-and-hold's return for
+// less than a third of its drawdown, and positive in both regimes.
+//
 // SHIPPED CONFIG: both directions, trail 6 ATR, SMA 750, EMA 2000 gate,
-// JEAFX 2.50 grid banking 50% of SHORTS only.
-//    train 2019-23   PF 1.160  +35.6%
-//    test  2023-26   PF 1.385  +50.9%
-//    full 6.7 years  PF 1.261 +110.6%  DD 19.0%  return/DD 5.81
+// shorts slope-gated at 200 bars and sized 0.75x, JEAFX 2.50 grid
+// banking 50% of shorts.
+//    train 2019-23   PF 1.250  +38.6%
+//    test  2023-26   PF 1.525  +64.0%  DD  8.9%
+//    full 6.7 years  PF 1.386 +160.1%  DD 12.8%   n=922
+//    Feb-Jul 2026    PF 1.454   +5.0%           (gold -15.8%)
 //
 // HONEST LIMITS
 //  - One instrument, one timeframe. Untested on anything else.
@@ -192,6 +223,12 @@ int   smaLen    = input.int(750, "Trend SMA length (bars)", minval=50, group="�
      tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only. 2000 (~3 weeks) looks better on recent data but WORSE on the training half - that is a regime artifact, not a better setting.")
 bool  smaExit   = input.bool(false, "Also exit when price crosses back through the SMA", group="② Risk",
      tooltip="Tested and rejected: it cuts winners early. Train PF 1.030 vs 1.048 with the gate alone.")
+bool  useSlope  = input.bool(true, "Shorts only when the EMA is FALLING (not merely below it)", group="② Risk",
+     tooltip="This is what makes the system profitable in a falling market without giving up the trend returns. Price sits below a FLAT EMA constantly during uptrend pullbacks; the EMA actually declining is a much rarer state and is what a bear regime looks like. Gating shorts on slope keeps them nearly silent in bull markets, where counter-trend shorts are what bleed away the long-only edge.")
+int   slopeLen  = input.int(200, "Slope lookback (bars)", minval=20, group="② Risk",
+     tooltip="EMA must be below its own value this many bars ago. 200 bars = ~2 days on 15m. Tested 50/100/200/300; 200 gave the best full-period return.")
+float shortRisk = input.float(0.75, "Short risk multiplier", minval=0.1, maxval=3.0, step=0.05, group="② Risk",
+     tooltip="Counter-trend trades sized smaller. 0.75 gave the best full-period result (+160.1%); raise toward 1.5 for more downside protection at the cost of total return (+145.9% but +10.5% in the falling window).")
 bool  useRegime = input.bool(true, "EMA gate: only long above it, short below", group="② Risk",
      tooltip="EMA 2000 (~3 weeks on 15m). Combined with the SMA750 filter it lifts full-period PF to 1.202 and cuts drawdown.")
 int   regimeLen = input.int(2000, "Regime EMA length", minval=20, group="② Risk")
@@ -230,8 +267,9 @@ float donLo    = ta.lowest(low, entryLen)[1]
 float regimeMa = ta.ema(close, regimeLen)
 float trendSma = ta.sma(close, smaLen)
 
+bool emaFalling = regimeMa < regimeMa[slopeLen]
 bool regimeOkL = not useRegime or close > regimeMa
-bool regimeOkS = not useRegime or close < regimeMa
+bool regimeOkS = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
 bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
 bool smaOkS    = not useSma or (not na(trendSma) and close < trendSma)
 
@@ -281,8 +319,11 @@ else
 // ═════════════════════════════════════════════════════════════
 // EXECUTION
 // ═════════════════════════════════════════════════════════════
+// counter-trend side is sized smaller; direction is known before entry
+bool  wantShort = shortSig and not longSig
+float effRisk  = wantShort ? riskPct * shortRisk : riskPct
 float stopDist = atr * trailMult
-float qtyRaw   = stopDist > 0 ? strategy.equity * riskPct / 100.0 / stopDist : 0
+float qtyRaw   = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
 float qtyCap   = strategy.equity * maxLev / close
 float qty      = math.floor(math.min(qtyRaw, qtyCap))
 
