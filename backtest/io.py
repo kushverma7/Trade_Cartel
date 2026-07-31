@@ -12,9 +12,12 @@ from backtest.inspect_csv import load as _load, resample
 def load_csv(path, rule=None):
     df, _sep, _hdr = _load(path)
     need = ["open", "high", "low", "close"]
+    # keep volume when the export has it -- V11 (Valentini volume tsunami)
+    # silently compared against a constant when this dropped it
     missing = [c for c in need if c not in df.columns]
     if missing:
         raise SystemExit(f"missing columns {missing}; found {list(df.columns)}")
     if rule:
         df = resample(df, rule)
-    return df[need].dropna()
+    keep = need + (["volume"] if "volume" in df.columns else [])
+    return df[keep].dropna(subset=need)

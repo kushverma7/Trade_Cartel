@@ -50,7 +50,7 @@ def atr(h, l, c, n=14):
     return out
 
 
-def run(df, lv, cfg, in_session):
+def run(df, lv, cfg, in_session, sigL_ext=None, sigS_ext=None):
     """Returns (trades, stats). trades: list of dicts with pnl + attribution."""
     o, h, l, c = (df[k].to_numpy(float) for k in FIELDS)
     n = len(c)
@@ -169,15 +169,24 @@ def run(df, lv, cfg, in_session):
             last_sig = i; day_trades += 1
             continue
 
-        can_sw = cfg.mode in ("sweep", "both")
-        can_rt = cfg.mode in ("retest", "both")
-        sigL = (can_sw and swL) or (can_rt and rtL)
-        sigS = (can_sw and swS) or (can_rt and rtS)
+        if sigL_ext is not None:
+            # externally supplied signal (e.g. the 22-voice conviction score).
+            # Everything downstream -- defended level, stop, targets, sizing,
+            # costs -- is unchanged, so voice results are directly comparable
+            # to the key-level results and to the random null.
+            sigL, sigS = bool(sigL_ext[i]), bool(sigS_ext[i])
+        else:
+            can_sw = cfg.mode in ("sweep", "both")
+            can_rt = cfg.mode in ("retest", "both")
+            sigL = (can_sw and swL) or (can_rt and rtL)
+            sigS = (can_sw and swS) or (can_rt and rtS)
         if sigL == sigS:                                   # none, or ambiguous
             continue
 
         d = 1 if sigL else -1
         cand = (l[i] < vals) & (c[i] > vals) if d > 0 else (h[i] > vals) & (c[i] < vals)
+        if not cand.any() and sigL_ext is not None:
+            cand = (vals < c[i]) if d > 0 else (vals > c[i])   # nearest level to defend
         if not cand.any():
             continue
         idx_ok = np.flatnonzero(ok)[np.flatnonzero(cand[np.flatnonzero(cand)] | True)]
@@ -216,8 +225,8 @@ def run(df, lv, cfg, in_session):
         pos = {"dir": d, "entry": entry, "sl": sl, "tp1": tp1, "tp2": tp2,
                "qty_open": qty, "q1": q1, "pnl": -qty * cfg.commission,
                "bar": i, "lvl": lvl_id, "qty0": qty, "q1_0": q1,
-               "sweep": bool((can_sw and (swL if d > 0 else swS))),
-               "retest": bool((can_rt and (rtL if d > 0 else rtS)))}
+               "sweep": bool(swL if d > 0 else swS) if sigL_ext is None else False,
+               "retest": bool(rtL if d > 0 else rtS) if sigL_ext is None else False}
         last_sig = i; day_trades += 1
 
     return trades, stats(trades, cfg.equity0)
