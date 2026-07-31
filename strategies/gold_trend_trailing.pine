@@ -266,6 +266,19 @@ strategy("Gold Trend — Trailing Stop",
      // not matching the research.
      max_bars_back           = 5000)
 
+// ── ⓪ Auto-scale ────────────────────────────────────────────────
+// Every lookback below is in BARS, so changing timeframe silently doubles
+// or halves it in real time. That has now caused two failed reproductions,
+// so the script derives its own settings from the chart instead. The
+// formulas were checked against the two hand-tuned columns and land on
+// them almost exactly:
+//    15m -> entry 48, SMA 768, EMA 2016, slope 192, trail 6.00, grid 2.50
+//    30m -> entry 24, SMA 384, EMA 1008, slope  96, trail 4.24, grid 3.54
+//    (hand-tuned were 50/750/2000/200/6.0/2.50 and 25/375/1000/100/4.0/3.75)
+// Turn it off only to reproduce a specific historical run.
+bool  autoScale = input.bool(true, "Auto-scale all settings to the chart timeframe", group="⓪ Auto-scale",
+     tooltip="ON is strongly recommended. With it on, the inputs below are IGNORED and derived from the timeframe, so moving between 15m and 30m cannot silently change the strategy. The dashboard shows the values actually in use.")
+
 // ── ① Core (these three are the whole system) ────────────────────
 int   entryLen  = input.int(50, "Breakout lookback (bars)", minval=5, group="① Core",
      tooltip="Long when close exceeds the highest high of the prior N bars. Validated at 50 and 100; both work. This is a timing trigger, not an edge.")
@@ -321,15 +334,30 @@ bool  showBand  = input.bool(true, "Plot the breakout level", group="③ Display
 bool  showDash  = input.bool(true, "Show dashboard", group="③ Display")
 
 // ═════════════════════════════════════════════════════════════
+// EFFECTIVE SETTINGS — derived from the timeframe when auto-scale is on.
+// Targets: breakout ~12h, SMA ~8 days, EMA ~21 days, slope ~2 days.
+// Trail and grid scale with the square root of the timeframe because ATR
+// grows roughly as sqrt(time).
+// ═════════════════════════════════════════════════════════════
+float tfMin      = timeframe.in_seconds() / 60.0
+int   entryLenE  = autoScale ? math.max(5,  int(12.0 * 60.0 / tfMin))       : entryLen
+int   smaLenE    = autoScale ? math.max(50, int(8.0 * 24.0 * 60.0 / tfMin)) : smaLen
+int   regimeLenE = autoScale ? math.max(20, int(21.0 * 24.0 * 60.0 / tfMin)): regimeLen
+int   slopeLenE  = autoScale ? math.max(20, int(2.0 * 24.0 * 60.0 / tfMin)) : slopeLen
+float trailMultE = autoScale ? 6.0 * math.sqrt(15.0 / tfMin)               : trailMult
+float klGridE    = autoScale ? 2.50 * math.sqrt(tfMin / 15.0)              : klGrid
+float klTolE     = autoScale ? klGridE * 0.10                              : klTol
+
+// ═════════════════════════════════════════════════════════════
 // SIGNALS — all ta.* unconditional at top level (BUG-004)
 // ═════════════════════════════════════════════════════════════
 float atr      = ta.atr(atrLen)
-float donHi    = ta.highest(high, entryLen)[1]
-float donLo    = ta.lowest(low, entryLen)[1]
-float regimeMa = ta.ema(close, regimeLen)
-float trendSma = ta.sma(close, smaLen)
+float donHi    = ta.highest(high, entryLenE)[1]
+float donLo    = ta.lowest(low, entryLenE)[1]
+float regimeMa = ta.ema(close, regimeLenE)
+float trendSma = ta.sma(close, smaLenE)
 
-bool emaFalling = regimeMa < regimeMa[slopeLen]
+bool emaFalling = regimeMa < regimeMa[slopeLenE]
 bool regimeOkL = not useRegime or close > regimeMa
 bool regimeOkS = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
 bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
@@ -348,8 +376,8 @@ var bool  klDone   = false
 bool klHit = useKL and not na(klTarget) and not klDone and
      strategy.position_size != 0 and
      (not klShorts or strategy.position_size < 0) and
-     (strategy.position_size > 0 ? high >= klTarget - klTol
-                                 : low  <= klTarget + klTol)
+     (strategy.position_size > 0 ? high >= klTarget - klTolE
+                                 : low  <= klTarget + klTolE)
 
 // Daye Q4 window and its opening bar
 int   etHour   = hour(time, "UTC")
@@ -370,10 +398,10 @@ bool smaCrossOut = useSma and smaExit and not na(trendSma) and
 var float trailStop = na
 
 if strategy.position_size > 0
-    float cand = high[1] - atr * trailMult
+    float cand = high[1] - atr * trailMultEE
     trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
 else if strategy.position_size < 0
-    float cand = low[1] + atr * trailMult
+    float cand = low[1] + atr * trailMultEE
     trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
 else
     trailStop := na
@@ -384,7 +412,7 @@ else
 // counter-trend side is sized smaller; direction is known before entry
 bool  wantShort = shortSig and not longSig
 float effRisk  = wantShort ? riskPct * shortRisk : riskPct
-float stopDist = atr * trailMult
+float stopDist = atr * trailMultE
 float qtyRaw   = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
 float qtyCap   = strategy.equity * maxLev / close
 float qty      = math.floor(math.min(qtyRaw, qtyCap))
@@ -392,13 +420,13 @@ float qty      = math.floor(math.min(qtyRaw, qtyCap))
 if longSig and strategy.position_size == 0 and qty >= 1
     strategy.entry("L", strategy.long, qty=qty)
     trailStop := close - stopDist
-    klTarget := (math.floor(close / klGrid) + 1) * klGrid
+    klTarget := (math.floor(close / klGridE) + 1) * klGridE
     klDone := false
 
 if shortSig and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
-    klTarget := (math.ceil(close / klGrid) - 1) * klGrid
+    klTarget := (math.ceil(close / klGridE) - 1) * klGridE
     klDone := false
 
 // no take-profit and no time stop, deliberately: capping the winners is
@@ -460,7 +488,7 @@ if showDash and barstate.islast
     float netPct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
 
     table.cell(dash, 0, 0, "GOLD TREND", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 1, 0, str.tostring(entryLen) + " / " + str.tostring(trailMult, "#.#") + "x", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, str.tostring(entryLenE) + " / " + str.tostring(trailMultE, "#.#") + "x", text_color=color.orange, text_size=size.small)
     table.cell(dash, 0, 1, "Trades", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 1, str.tostring(nT), text_color=nT < 250 ? color.yellow : color.white, text_size=size.tiny)
     table.cell(dash, 0, 2, "Win rate", text_color=color.silver, text_size=size.tiny)
@@ -477,7 +505,11 @@ if showDash and barstate.islast
     table.cell(dash, 1, 7, "PF 1.59 / DD 5.5%", text_color=color.aqua, text_size=size.tiny)
     table.cell(dash, 0, 8, "Edge is the EXIT", text_color=color.orange, text_size=size.tiny)
     table.cell(dash, 1, 8, "entry adds ~0", text_color=color.orange, text_size=size.tiny)
-    table.cell(dash, 0, 9, nT < 250 ? "n<250: unstable" : "", text_color=color.yellow, text_size=size.tiny)
+    table.cell(dash, 0, 9, autoScale ? "auto " + timeframe.period : "MANUAL settings",
+         text_color=autoScale ? color.aqua : color.orange, text_size=size.tiny)
+    table.cell(dash, 1, 9, autoScale ? "sma " + str.tostring(smaLenE) + " ema " + str.tostring(regimeLenE)
+         + " grid " + str.tostring(klGridE, "#.##") : (nT < 250 ? "n<250: unstable" : ""),
+         text_color=color.silver, text_size=size.tiny)
 
 
 // ════════════════════════════════════════════════════════════════════
