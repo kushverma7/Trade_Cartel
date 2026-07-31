@@ -34,6 +34,40 @@
 // and drawdown FALLS as the stop widens, because wide stops stop
 // getting whipsawed.
 //
+// ── DIRECTION IS A REGIME BET, NOT A SETTING ────────────────────────
+// An earlier version of this file claimed "long-only beat long/short on
+// every setting tested". That was measured on the TRAINING half only,
+// which was almost entirely a bull market. It was an overgeneralisation
+// and the user found the counterexample immediately.
+//
+// Year by year (entry 50, trail 8 ATR):
+//    year   gold    long-only PF   long+short PF
+//    2020  +24.9%       2.212          1.752
+//    2021   -4.2%       0.710          0.883     <- shorts win
+//    2022   -0.4%       1.101          0.961
+//    2023  +12.9%       1.189          0.962
+//    2024  +27.0%       1.709          0.850
+//    2025  +64.7%       1.625          1.009
+//    2026   -5.8%       1.208          1.580     <- shorts win
+//
+// Long-only wins every RISING year. Long+short wins the FALLING ones.
+// Over the full 6.7 years long-only is far ahead (PF 1.422, +155.6%,
+// DD 14.2% vs PF 1.112, +51.6%, DD 23.8%) -- but that period was roughly
+// 80% bull market, so the aggregate favours it by construction.
+//
+// Feb-Jul 2026, gold -15.8%:
+//    long only    PF 0.567   -5.14%
+//    long+short   PF 1.444   +6.94%   <- the current regime
+//
+// A regime filter does NOT resolve this automatically. An EMA gate was
+// tested at 100/200/400/800/1600 and none recovered long-only's edge;
+// the best (EMA 400) returned PF 1.110 over the full period, no better
+// than plain long+short. So the switch stays MANUAL and explicit rather
+// than hidden behind a filter that does not work.
+//
+// SHIPPING DEFAULT IS NOW LONG+SHORT, because gold has fallen over the
+// last six months. If it resumes trending up, switch to long only.
+//
 // HONEST LIMITS
 //  - One instrument, one timeframe. Untested on anything else.
 //  - The test window is a historic gold bull run. A long-biased trend
@@ -65,8 +99,8 @@ int   entryLen  = input.int(50, "Breakout lookback (bars)", minval=5, group="①
      tooltip="Long when close exceeds the highest high of the prior N bars. Validated at 50 and 100; both work. This is a timing trigger, not an edge.")
 float trailMult = input.float(8.0, "Trailing stop (x ATR)", minval=1.0, step=0.5, group="① Core",
      tooltip="THE key parameter. Validated: 4.0 -> PF 1.40, 6.0 -> 1.60, 8.0 -> 1.59, 14.0 -> 1.75 out of sample. Below 4 the system loses. Wider = fewer trades, higher PF, but a less reliable estimate.")
-bool  longOnly  = input.bool(true, "Long only", group="① Core",
-     tooltip="Long-only beat long/short on every setting tested. Gold rose 179% over the sample; shorting it was the single largest source of loss in the old engines.")
+bool  longOnly  = input.bool(false, "Long only", group="① Core",
+     tooltip="THIS IS A REGIME BET, NOT A SETTING. Long-only wins every rising year and loses in falling ones. Long+short is the reverse. See the year table in the header. Gold is down over the last six months, so shorts ON is currently the better side. Reassess if that changes.")
 int   atrLen    = input.int(14, "ATR length", minval=2, group="① Core")
 
 // ── ② Risk ───────────────────────────────────────────────────────
