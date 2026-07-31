@@ -178,6 +178,35 @@
 //    full 6.7 years  PF 1.386 +160.1%  DD 12.8%   n=922
 //    Feb-Jul 2026    PF 1.454   +5.0%           (gold -15.8%)
 //
+// ── REPRODUCING THESE NUMBERS ON TRADINGVIEW ────────────────────────
+// The +160.1% figure comes from 157,366 bars of 15m data (6.7 years).
+// **NO TRADINGVIEW PLAN WILL LOAD THAT ON A 15m CHART** - the intraday
+// limit is roughly 5,000 bars (free/Pro) to 20,000 (Premium). So that
+// number is not reproducible here, and any attempt to match it will
+// fail for reasons that have nothing to do with this code.
+//
+// What you SHOULD see, by bar budget (most recent bars):
+//    bars      window from    n     WR      PF      net      DD
+//    5,000     2026-05-13    21   47.6%   1.521    +2.4%    2.8%
+//   10,000     2026-02-25    43   46.5%   1.365    +3.5%    3.0%
+//   20,000     2025-09-23    91   45.1%   1.768   +17.3%    4.0%
+//   40,000     2024-11-15   215   39.5%   1.603   +40.1%    8.6%
+//
+// The first ~2,200 bars of ANY window are warm-up (EMA 2000 + 200-bar
+// slope), so a 5,000-bar chart only really trades its last ~2,800 bars
+// and will show a handful of trades. Judge it on the largest window your
+// plan allows, and remember n=21 tells you nothing.
+//
+// TWO THINGS THAT WILL DESYNC IT FROM THE RESEARCH
+//  1. slippage is set in TICKS, not points. This assumes mintick 0.01,
+//     so slippage=5 means $0.05. If your feed quotes gold to 1 decimal
+//     (mintick 0.1) then 5 ticks is $0.50 - ten times the modelled cost,
+//     and results will look far worse. Check the symbol's mintick and
+//     scale this input to match.
+//  2. Feed. The research uses London Strategic Edge spot; TradingView
+//     here is OANDA. A matched-window check came back within 2 trades
+//     and 0.017 PF, so the feeds agree closely - but not to the cent.
+//
 // HONEST LIMITS
 //  - One instrument, one timeframe. Untested on anything else.
 //  - The test window is a historic gold bull run. A long-biased trend
@@ -202,7 +231,13 @@ strategy("Gold Trend — Trailing Stop",
      process_orders_on_close = true,
      margin_long             = 5,
      margin_short            = 5,
-     calc_on_every_tick      = false)
+     calc_on_every_tick      = false,
+     // EMA 2000 plus a 200-bar slope lookback means this script reaches
+     // ~2,200 bars back. Pine's default historical buffer is 300, which
+     // throws "requested historical offset beyond the buffer" or silently
+     // yields na. This is the single most likely cause of a Pine result
+     // not matching the research.
+     max_bars_back           = 5000)
 
 // ── ① Core (these three are the whole system) ────────────────────
 int   entryLen  = input.int(50, "Breakout lookback (bars)", minval=5, group="① Core",
