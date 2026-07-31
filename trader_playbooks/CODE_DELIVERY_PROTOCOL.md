@@ -300,3 +300,32 @@ If the user asks for code faster than you can complete the 7 phases, say:
 **Your job is not to write code fast. Your job is to write code that works.**
 
 The 7-phase protocol makes bugs expensive to miss and cheap to catch.
+
+---
+
+## Addendum 2026-07-31 — two checks that now run before any Pine ships
+
+Phase 3 (static analysis) previously meant hand-reading the code. Two real
+tools exist now and both are mandatory:
+
+1. **`python3 -m backtest.pine_lint <file>`** — continuation-indent rules,
+   block headers with no body, duplicate top-level declarations, delimiter
+   balance, and BUG-014 (a `strategy.exit` carrying a limit but no stop).
+   Written after two ad-hoc versions raised false alarms; both of those
+   bugs were found by running it against known-good files, which is how it
+   should always be validated.
+
+2. **TradingView's own static analyser**, shipped inside the tradingview-mcp
+   package and usable WITHOUT a chart or network:
+
+   ```
+   node ./node_modules/tradingview-mcp/src/server.js  <<< '<jsonrpc tools/call pine_analyze>'
+   ```
+
+   `gold_trend_trailing.pine` returns `issue_count: 0`. This is the first
+   independent verification any Pine in this repo has had.
+
+**Still not a compile.** `pine_check` would compile server-side against
+pine-facade.tradingview.com, which this container cannot reach. Only
+TradingView itself compiles Pine, so "statically clean" is the strongest
+claim available from here and must be stated that way.
