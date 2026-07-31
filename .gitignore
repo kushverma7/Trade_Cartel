@@ -26,3 +26,4 @@ build/
 *.key
 *_secret*
 lse_*.json
+node_modules/

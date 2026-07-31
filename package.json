@@ -1,0 +1,8 @@
+{
+  "name": "trade-cartel-tools",
+  "private": true,
+  "description": "Node dependencies for this repo's MCP servers. Not an npm package.",
+  "dependencies": {
+    "tradingview-mcp": "^1.0.1"
+  }
+}
