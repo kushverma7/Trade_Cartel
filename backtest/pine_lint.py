@@ -79,6 +79,68 @@ def lint(path):
             problems.append((v[1], f"duplicate top-level declaration of {k!r} "
                                    f"(also at line {v[0]})", ""))
 
+    # ---- undeclared identifiers -------------------------------------
+    # Catches the class of bug a search-and-replace introduces: an edit
+    # that renames `trailMult` to `trailMultE` can hit an already-renamed
+    # occurrence and produce `trailMultEE`, which is a clean-looking
+    # identifier that exists nowhere. Neither indent checking nor
+    # TradingView's own pine_analyze flagged that; only a compile would,
+    # and no compiler is reachable from here.
+    KEYWORDS = {
+        'if', 'else', 'for', 'to', 'by', 'while', 'and', 'or', 'not', 'var',
+        'varip', 'true', 'false', 'na', 'int', 'float', 'bool', 'string',
+        'color', 'line', 'label', 'table', 'box', 'array', 'matrix', 'map',
+        'switch', 'type', 'method', 'export', 'import', 'as', 'break',
+        'continue', 'series', 'simple', 'const', 'input', 'enum',
+        'open', 'high', 'low', 'close', 'volume', 'time', 'bar_index',
+        'hl2', 'hlc3', 'ohlc4', 'hlcc4', 'timenow', 'dayofweek',
+        'dayofmonth', 'year', 'month', 'weekofyear', 'hour', 'minute',
+        'second', 'na', 'nz', 'max_bars_back', 'strategy', 'indicator',
+        'library', 'plot', 'plotshape', 'plotchar', 'plotcandle', 'bgcolor',
+        'fill', 'hline', 'alertcondition', 'alert',
+    }
+    declared = set(KEYWORDS)
+    for i, l in enumerate(src, 1):
+        st = l.strip()
+        if not st or st.startswith('//'):
+            continue
+        m = re.match(r'^(?:var\s+|varip\s+)?(?:\w+(?:\[\])?\s+)?([A-Za-z_]\w*)\s*(?::=|=)(?!=)', st)
+        if m:
+            declared.add(m.group(1))
+        t = re.match(r'^\[([^\]]+)\]\s*=', st)
+        if t:
+            declared.update(n.strip() for n in t.group(1).split(','))
+        f = re.match(r'^([A-Za-z_]\w*)\((.*?)\)\s*=>', st)
+        if f:
+            declared.add(f.group(1))
+            for a in f.group(2).split(','):
+                a = a.strip().split()[-1] if a.strip() else ''
+                if a.isidentifier():
+                    declared.add(a)
+        fl = re.match(r'^for\s+([A-Za-z_]\w*)', st)
+        if fl:
+            declared.add(fl.group(1))
+
+    for i, l in enumerate(src, 1):
+        st = l.strip()
+        if not st or st.startswith('//'):
+            continue
+        code_only = l.split('//')[0]
+        code_only = re.sub(r'"(?:[^"\\]|\\.)*"', '', code_only)   # double-quoted
+        code_only = re.sub(r"'(?:[^'\\]|\\.)*'", '', code_only)   # single-quoted
+        code_only = re.sub(r'#[0-9a-fA-F]{6,8}', '', code_only)     # hex colours
+        # bare identifiers only: anything dotted is a namespaced built-in
+        for m in re.finditer(r'(?<![.\w])([A-Za-z_]\w*)(?!\s*\()(?![\w.])', code_only):
+            nm = m.group(1)
+            if nm in declared or nm.startswith('_'):
+                continue
+            # `name=` is a NAMED ARGUMENT (group=, minval=, step=), not a
+            # variable reference. `name==` is a comparison and does count.
+            tail = code_only[m.end():]
+            if re.match(r'\s*=(?!=)', tail):
+                continue
+            problems.append((i, f"identifier {nm!r} is used but never declared", st[:60]))
+
     for i, l in enumerate(src, 1):
         if 'strategy.exit(' in l and 'limit=' in l and 'stop=' not in l \
                 and not l.strip().startswith('//'):

@@ -398,10 +398,10 @@ bool smaCrossOut = useSma and smaExit and not na(trendSma) and
 var float trailStop = na
 
 if strategy.position_size > 0
-    float cand = high[1] - atr * trailMultEE
+    float cand = high[1] - atr * trailMultE
     trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
 else if strategy.position_size < 0
-    float cand = low[1] + atr * trailMultEE
+    float cand = low[1] + atr * trailMultE
     trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
 else
     trailStop := na
