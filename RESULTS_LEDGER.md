@@ -45,7 +45,11 @@ the comparison was never actually available.
 | 16 | — | Key Levels (Spaceman Edition) v1.1 | XAUUSD 30m | — | — | — | — | — | — | superseded by v1.2, never run |
 | 17 | — | Key Levels (Spaceman Edition) v1.2 | XAUUSD 30m | — | — | — | — | — | — | superseded by the offline search |
 | 18 | 07-31 | **Key Levels, optimised offline** — PMH/NYH/NYL | XAUUSD 15m | **train** 2019-12→2023-11 | 109 | 49.54% | 1.141 | +8.83% | 11.50% | in-sample, selected |
-| 19 | 07-31 | **same config, OUT OF SAMPLE** | XAUUSD 15m | **test** 2023-11→2026-07 | **60** | 45.00% | **1.495** | +16.96% | 6.57% | **REJECTED — failed all 3 gates** |
+| 19 | 07-31 | same config, OUT OF SAMPLE | XAUUSD 15m | test 2023-11→2026-07 | 60 | 45.00% | 1.495 | +16.96% | 6.57% | REJECTED — failed all 3 gates |
+| 20 | 07-31 | 22-voice register (Python port) | XAUUSD 15m | train 2019→2023 | 2308 | 36.05% | 0.859 | −88.13% | 89.63% | **H73 FALSIFIED** — PF falls as conviction rises |
+| 21 | 07-31 | 22-voice register, OUT OF SAMPLE | XAUUSD 15m | test 2023→2026 | 1460 | 38.49% | 0.960 | −23.46% | 40.02% | loses on both halves |
+| 22 | 07-31 | **Gold Trend — trailing stop**, entry 50 / trail 8 ATR | XAUUSD 15m | train 2019→2023 | 419 | 36.99% | 1.254 | +50.2% | 14.2% | selected on train only |
+| 23 | 07-31 | **same config, OUT OF SAMPLE** | XAUUSD 15m | **test 2023→2026** | **275** | 41.45% | **1.588** | **+60.9%** | **5.5%** | **SHIPPED — return/DD 11.07 vs buy-hold 3.44. No entry edge; exit is the system.** |
 
 ## What the ledger says when you read it as one table
 
