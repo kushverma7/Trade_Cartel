@@ -178,6 +178,33 @@
 //    full 6.7 years  PF 1.386 +160.1%  DD 12.8%   n=922
 //    Feb-Jul 2026    PF 1.454   +5.0%           (gold -15.8%)
 //
+// ── SETTINGS ARE TIMEFRAME-SPECIFIC. USE THE RIGHT COLUMN. ──────────
+// Every lookback here is in BARS, so moving timeframe silently doubles or
+// halves it in real time. SMA 750 is 7.8 days on 15m and 15.6 days on 30m.
+// Running the 15m numbers on a 30m chart is a different strategy.
+//
+//   input             15m        30m        what it is on both
+//   Breakout          50         25         ~12 hours
+//   Trail (x ATR)     6.0        4.0        ATR is larger on 30m
+//   Trend SMA         750        375        ~8 days
+//   Regime EMA        2000       1000       ~21 days
+//   Slope lookback    200        100        ~2 days
+//   Key-level grid    2.50       3.75       ~1x ATR
+//   Short risk        0.75       0.75
+//
+// Measured over the full 6.7 years with each column on its own timeframe:
+//   15m: PF 1.386  +160.1%  DD 12.8%  n=922
+//   30m: PF 1.404  +174.8%  DD  9.0%  n=888   <- better on every metric
+// The 30m column also stays positive in the falling window (+4.4%) and
+// returns +32.4% over Jan 2025 - Jul 2026.
+//
+// IF YOUR RESULTS DO NOT MATCH, CHECK THIS FIRST: TradingView KEEPS the
+// inputs you previously set when a script is updated. A chart that has
+// had settings changed will NOT pick up new defaults. Open settings and
+// hit "Defaults -> Reset settings", then set the column above. A trade
+// count noticeably HIGHER than expected means a filter is switched off -
+// usually the slope gate or the EMA gate.
+//
 // ── REPRODUCING THESE NUMBERS ON TRADINGVIEW ────────────────────────
 // The +160.1% figure comes from 157,366 bars of 15m data (6.7 years).
 // **NO TRADINGVIEW PLAN WILL LOAD THAT ON A 15m CHART** - the intraday
