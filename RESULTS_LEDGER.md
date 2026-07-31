@@ -743,3 +743,56 @@ not the exit architecture.
 on the train half and confirmed once on OOS; the ranking metric was the
 weaker of the two halves, which is stricter than picking on train alone but
 is not a substitute for a fresh sample.
+
+---
+
+## Body Pierce MA (user-supplied indicator) — SMA/EMA/HMA crosses (2026-07-31)
+
+`trend.py` gained `sig_L`/`sig_S`, which replace the Donchian breakout with
+any supplied entry signal, so a submitted indicator can now be measured
+through this engine's exit, sizing and costs in one line. XAUUSD 30m,
+6.7 years, gap-aware fills.
+
+### The crosses alone, through the 4.24 ATR trailing exit, no filters
+
+Reference — Donchian, no filters: TRAIN PF 1.081 / +41.0%, OOS 1.327 /
++26.0%, **FULL 1.121 / +76.4%**.
+
+| MA | 50 | 100 | 200 | 400 | 800 |
+|---|---|---|---|---|---|
+| SMA (full PF) | 1.046 | 0.983 | **0.920** | 0.941 | 0.910 |
+| EMA (full PF) | 1.044 | 0.887 | 0.861 | 0.844 | 0.802 |
+| HMA (full PF) | 1.030 | 1.068 | **1.152** | 1.070 | 0.926 |
+
+**The script's own default — SMA 200 — is the single worst setting in the
+grid**, PF 0.920 and −17.0% full period. Every EMA length loses. HMA is the
+only family that holds up, and 200 is its best by the weaker of the halves.
+
+### With the full confluence stack and 2 adds
+
+| entry | TRAIN PF / net | OOS PF / net | FULL PF / net / DD | ret/DD |
+|---|---|---|---|---|---|
+| Donchian (shipped) | 1.370 / +239.6% | 1.879 / +66.2% | 1.626 / +660.2% / 17.68 | **37.3** |
+| **HMA 200 cross** | **1.462** / +206.9% | **2.008** / +63.7% | **1.743** / +540.4% / 20.9 | 25.9 |
+| SMA 200 cross | 1.278 / +62.6% | 2.026 / +39.8% | 1.427 / +126.2% / 17.1 | 7.4 |
+
+**HMA 200 beats the Donchian on profit factor in BOTH halves** (1.462 vs
+1.370 train, 2.008 vs 1.879 OOS). It is more accurate per trade. It also
+returns 18% less and draws down 3pp more, so return per drawdown goes
+37.3 → 25.9.
+
+Neither is strictly better. Shipped as a selectable entry in group ①,
+Donchian still the default because return per unit of drawdown is what this
+system is built for.
+
+### "Body pierce" does not do what the name says, and the name is worse
+
+The supplied script crosses on CLOSE. The literal reading — the average
+sitting inside the candle body — was implemented and measured separately:
+full PF 1.647 against the close cross's 1.743 on HMA 200, and 1.365 against
+1.427 on SMA 200. **Worse in both halves for both averages.** The code's
+actual behaviour is better than its name; the close cross is what ships.
+
+**Caveat:** 30 MA configurations were swept, then 4 re-run with the full
+stack. HMA 200's two-half PF advantage is small (+0.092 train, +0.129 OOS)
+and was selected after seeing both halves.

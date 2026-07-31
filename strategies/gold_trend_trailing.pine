@@ -309,6 +309,10 @@ bool  autoScale = input.bool(true, "Auto-scale all settings to the chart timefra
      tooltip="ON is strongly recommended. With it on, the inputs below are IGNORED and derived from the timeframe, so moving between 15m and 30m cannot silently change the strategy. The dashboard shows the values actually in use.")
 
 // ── ① Core (these three are the whole system) ────────────────────
+string entryMode= input.string("Donchian breakout", "Entry trigger", options=["Donchian breakout", "HMA cross"], group="① Core",
+     tooltip="Both were measured on XAUUSD 30m over 6.7 years through the identical exit, filters and adds.\n\nDONCHIAN: full-period PF 1.626, +660.2%, drawdown 17.68%, return/drawdown 37.3.\nHMA CROSS: PF 1.743, +540.4%, drawdown 20.9%, return/drawdown 25.9.\n\nHMA has the HIGHER PROFIT FACTOR and it does so in BOTH halves (train 1.462 vs 1.370, out of sample 2.008 vs 1.879) - it is more accurate per trade. Donchian captures more of the market and does it at less drawdown. Neither is strictly better; pick by whether you value hit quality or total return. Donchian is the default because return per unit of drawdown is what this system is for.\n\nAlso measured and NOT offered: SMA and EMA crosses. The SMA 200 cross - the usual default - is far worse at PF 1.427 and +126.2%. Raw SMA/EMA crosses without the filters lose outright (SMA 200 alone: PF 0.920, -17.0%).")
+int   hmaLen    = input.int(200, "HMA length (bars, HMA mode only)", minval=10, group="① Core",
+     tooltip="Swept 50/100/200/400/800. 200 was best by the weaker of the two halves. Note this is a BAR count and is NOT auto-scaled, because it was measured at 200 on 30m specifically.")
 int   entryLen  = input.int(50, "Breakout lookback (bars)", minval=5, group="① Core",
      tooltip="Long when close exceeds the highest high of the prior N bars. Validated at 50 and 100; both work. This is a timing trigger, not an edge.")
 float trailMult = input.float(6.0, "Trailing stop (x ATR)", minval=1.0, step=0.5, group="① Core",
@@ -1354,6 +1358,15 @@ if barstate.islast
 // ═════════════════════════════════════════════════════════════
 float atr      = ta.atr(atrLen)
 float donHi    = ta.highest(high, entryLenE)[1]
+float hmaVal   = ta.hma(close, hmaLen)
+bool  hmaUp    = ta.crossover(close, hmaVal)
+bool  hmaDn    = ta.crossunder(close, hmaVal)
+// The supplied indicator was called "body pierce" but crossed on CLOSE.
+// The literal body-pierce reading (the average sitting inside the candle
+// body) was measured too and is worse in both halves -- full-period PF
+// 1.647 against 1.743 -- so the close cross is what is implemented.
+bool  trigUp   = entryMode == "HMA cross" ? hmaUp : (not na(donHi) and close > donHi)
+bool  trigDn   = entryMode == "HMA cross" ? hmaDn : (not na(donLo) and close < donLo)
 float donLo    = ta.lowest(low, entryLenE)[1]
 float regimeMa = ta.ema(close, regimeLenE)
 float trendSma = ta.sma(close, smaLenE)
@@ -1380,8 +1393,8 @@ f_klNear(float px, float dist) =>
 
 bool klEntryOk = not useKLEntry or f_klNear(close, atr * klEntryAtr)
 
-bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL and sma2OkL and klEntryOk
-bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS and sma2OkS and klEntryOk
+bool longSig  = trigUp and regimeOkL and smaOkL and sma2OkL and klEntryOk
+bool shortSig = not longOnly and trigDn and regimeOkS and smaOkS and sma2OkS and klEntryOk
 
 // ── the level the open trade is running toward ───────────────────
 // Fixed at entry, acted on once. A long targets the nearest level ABOVE
@@ -1555,7 +1568,8 @@ else
 // ═════════════════════════════════════════════════════════════
 // VISUALS
 // ═════════════════════════════════════════════════════════════
-plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.orange, 40), 1, plot.style_stepline)
+plot(showBand and entryMode == "Donchian breakout" and not na(donHi) ? donHi : na, "Breakout level", color.new(color.orange, 40), 1, plot.style_stepline)
+plot(showBand and entryMode == "HMA cross" ? hmaVal : na, "HMA", color.new(color.fuchsia, 0), 2)
 plot(showStop and strategy.position_size != 0 ? (tpOn ? tpStop : trailStop) : na, "Stop", color.new(#D50000, 0), 2, plot.style_stepline)
 plot(tpOn and strategy.position_size != 0 ? tpTarget : na, "Profit target", color.new(#00E676, 0), 2, plot.style_stepline)
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)

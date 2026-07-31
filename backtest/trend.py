@@ -36,7 +36,11 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         kl_entry_atr=0.0, sma2_len=0, sma2_mode="gate", conf_min=0,
         conf_size=0.0, kl_min_atr=0.0, gap_fill=False,
         pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
-        ext_L=None, ext_S=None):
+        ext_L=None, ext_S=None, sig_L=None, sig_S=None):
+    # sig_L / sig_S REPLACE the Donchian breakout with a supplied entry
+    # signal, so any indicator can be run through this engine's exit,
+    # sizing and costs and compared like for like. ext_L / ext_S instead
+    # ADD a condition on top of the existing entry.
     # ext_L / ext_S: an external per-bar boolean gate, e.g. another
     # indicator's agreement. Used to test whether a supplied script adds
     # anything on top of this engine rather than replacing it.
@@ -299,6 +303,9 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                 continue
             long_sig = c[i] > sma[i] and c[i - 1] <= sma[i - 1]
             short_sig = (not long_only) and c[i] < sma[i] and c[i - 1] >= sma[i - 1]
+        elif sig_L is not None:
+            long_sig = bool(sig_L[i])
+            short_sig = (not long_only) and bool(sig_S[i])
         else:
             long_sig = c[i] > hi[i]
             short_sig = (not long_only) and c[i] < lo[i]
