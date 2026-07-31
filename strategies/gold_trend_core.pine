@@ -106,7 +106,10 @@ float klGrid    = input.float(2.50, "Key-level grid (points)", minval=0.25, step
      tooltip="JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50. Median ATR(14) here is 2.58, so the grid sits at ~1x ATR - the same ratio as the source's EURUSD example. 2.50-10.00 all work; 25+ degrades.")
 float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Profit Taking",
      tooltip="A level counts as reached within this distance, mirroring the source's own completion tolerance.")
-float klTake    = input.float(50, "% banked at the level", minval=10, maxval=100, step=5, group="④ Key-Level Profit Taking")
+float klTake    = input.float(75, "% closed at the level", minval=10, maxval=100, step=5, group="④ Key-Level Profit Taking",
+     tooltip="75 measured best on both halves of the 6.7-year set (train PF 1.289, out of sample 1.610); 60-90 are all within noise. The remainder keeps running on the trail.")
+bool  klFlip    = input.bool(false, "REVERSE at the level (close and take the opposite side)", group="④ Key-Level Profit Taking",
+     tooltip="Turns the level into a stop-and-reverse: it closes the whole position and opens the other way on the next bar, still subject to the regime filters. MEASURED, and it does not pay. Reversing on BOTH sides is the worst config tested — train PF 0.932, net -14.8%, against 1.244/+85.6% for banking. Counter-trend side only is merely flat: 1.244 vs 1.289. Here because you asked for it, not because the data supports it. NOTE: this build has no key-level module, so the levels are the quarter grid, not the chart lines — use gold_trend_trailing.pine for the drawn levels.")
 bool  klShorts  = input.bool(true, "SHORTS ONLY — let longs run (this is what makes it work)", group="④ Key-Level Profit Taking",
      tooltip="CRITICAL. Banking BOTH sides on this same grid drops full-period net from +87% to +29-41%. Banking only the counter-trend side lifts it to +110.6%. A take removes exactly the size that captures a large move, so only take it where there is no large move to catch.")
 
@@ -163,6 +166,7 @@ bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS a
 // next above (only relevant if klShorts is turned off).
 var float klTarget = na
 var bool  klDone   = false
+var int   forceDir = 0        // set by a reversal, consumed on the next bar
 
 bool klHit = useKL and not na(klTarget) and not klDone and
      strategy.position_size != 0 and
@@ -201,20 +205,28 @@ else
 // EXECUTION
 // ═════════════════════════════════════════════════════════════
 // counter-trend side is sized smaller; direction is known before entry
-bool  wantShort = shortSig and not longSig
+// A pending reversal overrides the breakout: the level IS the signal.
+// It still has to clear the regime filters — a flip into a side the
+// regime forbids is dropped, not queued.
+bool  flipL    = forceDir > 0 and regimeOkL and smaOkL
+bool  flipS    = forceDir < 0 and not longOnly and regimeOkS and smaOkS
+bool  goLong   = flipL or (forceDir == 0 and longSig)
+bool  goShort  = flipS or (forceDir == 0 and shortSig)
+
+bool  wantShort = goShort and not goLong
 float effRisk  = wantShort ? riskPct * shortRisk : riskPct
 float stopDist = atr * trailMultE
 float qtyRaw   = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
 float qtyCap   = strategy.equity * maxLev / close
 float qty      = math.floor(math.min(qtyRaw, qtyCap))
 
-if longSig and strategy.position_size == 0 and qty >= 1
+if goLong and strategy.position_size == 0 and qty >= 1
     strategy.entry("L", strategy.long, qty=qty)
     trailStop := close - stopDist
     klTarget := (math.floor(close / klGridE) + 1) * klGridE
     klDone := false
 
-if shortSig and strategy.position_size == 0 and qty >= 1
+if goShort and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
     klTarget := (math.ceil(close / klGridE) - 1) * klGridE
@@ -222,8 +234,15 @@ if shortSig and strategy.position_size == 0 and qty >= 1
 
 // no take-profit and no time stop, deliberately: capping the winners is
 // exactly what broke every previous engine in this repo
+if forceDir != 0
+    forceDir := 0
+
 if klHit
-    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=klTake, comment="Key level")
+    if klFlip
+        forceDir := strategy.position_size > 0 ? -1 : 1
+        strategy.close_all(comment="Key level reverse")
+    else
+        strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=klTake, comment="Key level")
     klDone := true
 if q4Bank
     strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
@@ -245,8 +264,8 @@ bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profi
 plot(useKL and strategy.position_size != 0 and not klDone ? klTarget : na,
      "Key-level target", color.new(color.yellow, 0), 2, plot.style_circles)
 
-plotshape(longSig and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
-plotshape(shortSig and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")
+plotshape(goLong and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
+plotshape(goShort and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")
 
 bool exitedLong  = strategy.position_size[1] > 0 and strategy.position_size == 0
 bool exitedShort = strategy.position_size[1] < 0 and strategy.position_size == 0
@@ -255,8 +274,8 @@ plotshape(exitedLong or exitedShort, "Stop hit", shape.xcross, location.absolute
 // ═════════════════════════════════════════════════════════════
 // ALERTS
 // ═════════════════════════════════════════════════════════════
-alertcondition(longSig,  "Gold Trend — LONG entry",  "LONG {{ticker}} {{interval}} at {{close}}")
-alertcondition(shortSig, "Gold Trend — SHORT entry", "SHORT {{ticker}} {{interval}} at {{close}}")
+alertcondition(goLong,  "Gold Trend — LONG entry",  "LONG {{ticker}} {{interval}} at {{close}}")
+alertcondition(goShort, "Gold Trend — SHORT entry", "SHORT {{ticker}} {{interval}} at {{close}}")
 alertcondition(exitedLong or exitedShort, "Gold Trend — trailing stop hit", "STOP HIT {{ticker}} {{interval}} at {{close}}")
 
 // ═════════════════════════════════════════════════════════════

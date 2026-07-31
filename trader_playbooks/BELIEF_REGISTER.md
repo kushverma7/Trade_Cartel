@@ -1179,3 +1179,49 @@ generic mechanics and cited the register in comments only (see the
 - **Invalidation:** if the improvement vanishes on another instrument whose
   grid is set by the same ATR-ratio rule, this is gold-specific fitting
   rather than a level effect.
+
+---
+
+## H78 — A key-level touch carries no directional information (XAUUSD 15m)
+
+**Status: SUPPORTED, strongly.** Tested 2026-07-31 on 157,366 bars after
+the user asked to enter, exit and reverse on key levels.
+
+Fading a level and breaking a level were both tested as the entry, across
+three separation gaps, on the 18 levels the SpacemanBTC module draws.
+Every configuration loses. **With costs set to zero, every configuration
+still lands on PF 1.00** (reverse 0.984/0.951/1.000; break 1.017/0.987/
+1.003). That rules out cost drag as the explanation — the touch itself
+predicts nothing.
+
+- **Why this matters:** it is the same conclusion the random-entry null
+  produced for the breakout engine, arrived at from the opposite
+  direction. Entry rules on this instrument and timeframe do not carry
+  edge. Exits do.
+- **Consistent with:** H73 (the edge is the exit structure).
+- **Invalidation:** a level-touch entry that beats a matched random entry
+  through identical exits, on out-of-sample data, at any timeframe.
+
+## H79 — Levels are useful as an exit, and only on the counter-trend side
+
+**Status: SUPPORTED (small effect).** Same session, same data.
+
+Closing 75% of the position at the nearest drawn level ahead of it, on the
+SHORT side only, improved both halves: train PF 1.244 → 1.289, OOS 1.580 →
+1.610, full period 1.333 → 1.379 with drawdown 13.6% → 12.3%.
+
+Doing it on BOTH sides collapses the full period to PF 1.023 / +5.9%.
+Reversing at the level on both sides — the literal request — is the worst
+configuration measured: train PF 0.932, net −14.8%.
+
+- **This is the third independent confirmation of the asymmetry rule**
+  (Yotov grid, Daye Q4, now the drawn levels). Any profit-taking device
+  removes exactly the size that would have captured the large move, so it
+  can only be applied where there is no large move to capture — the
+  counter-trend side.
+- **Real levels ≈ synthetic grid:** 1.289 vs 1.297 train, 1.610 vs 1.598
+  OOS. The drawn levels are the default for legibility, not performance.
+- **Invalidation:** the effect not surviving on another instrument, or
+  vanishing once the ~30 configurations swept here are accounted for. The
+  gain is +0.03 to +0.045 PF; that is inside the range a 30-trial search
+  can manufacture, so this belief is held loosely.

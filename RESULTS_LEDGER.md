@@ -246,3 +246,75 @@ representative of what the Pine strategy will actually do — including the
 It also confirms the regime finding from the live side rather than only in
 research: in a window where gold fell 15.8%, long-only returned −5.72% and
 long+short returned +7.57%.
+
+---
+
+## Key levels as the entry/exit trigger (2026-07-31)
+
+User request: *"i want you to enter and exit the trade on key levels.
+reverse the signal as it touches the key level."*
+
+Levels are `backtest/levels.py` — the port of the same SpacemanBTC module
+the Pine host embeds, so every level tested here is a line drawn on the
+chart. Data: XAUUSD 15m, 157,366 bars, 2019-12-01 → 2026-07-30.
+Train = first 80% (125,892 bars), OOS = last 20% (31,474 bars).
+
+### 1. Level touch as the ENTRY — no edge, in either direction
+
+`backtest/kl_reverse.py`, always-in book, full period, all 18 levels.
+`reverse` = fade the level (the user's spec); `break` = trade with it.
+
+| config | n | WR | PF | net | max DD |
+|---|---|---|---|---|---|
+| reverse, gap 1 ATR | 11,726 | 56.8% | 0.835 | −88.4% | 88.5% |
+| reverse, gap 6 ATR | 3,049 | 36.2% | 0.934 | −43.6% | 50.1% |
+| break, gap 1 ATR | 13,690 | 38.7% | 0.895 | −81.3% | 82.6% |
+| break, gap 6 ATR | 2,768 | 34.9% | 0.952 | −33.9% | 54.1% |
+
+Costs are not the explanation. With commission and slippage set to **zero**
+every configuration still sits on PF 1.00: reverse 0.984 / 0.951 / 1.000,
+break 1.017 / 0.987 / 1.003 at gaps 1/3/6. A key-level touch carries no
+directional information at 15m on this instrument — in either direction.
+Adding the EMA2000 + slope gate lifts the best to PF 1.060, still far
+below the breakout engine's 1.333 on the same data and settings.
+
+**Conclusion: entry stays on the breakout.** Not shipped as a mode.
+
+### 2. Level touch as the EXIT — small, consistent, counter-trend only
+
+`backtest/trend.py` with `kl=` (new): baseline engine, entry unchanged,
+exit at the nearest drawn level ahead of the position. Settings entry 50,
+trail 6.0 ATR, SMA 750, EMA 2000, slope 200, short risk 0.75.
+
+| config | TRAIN PF / net | OOS PF / net |
+|---|---|---|
+| baseline, no key levels | 1.244 / +85.6% | 1.580 / +29.3% |
+| **close 75% at level, shorts only** | **1.289 / +89.7%** | **1.610 / +29.1%** |
+| close 100% at level, shorts only | 1.246 / +82.3% | 1.579 / +29.0% |
+| REVERSE at level, shorts only | 1.244 / +81.2% | 1.588 / +29.0% |
+| **REVERSE at level, both sides** | **0.932 / −14.8%** | 1.521 / +20.7% |
+| JEAFX quarter grid, shorts only | 1.297 / +92.3% | 1.598 / +28.5% |
+
+Full period, 921 trades: baseline PF 1.333 / +152.5% / DD 13.6% →
+75% level exit shorts-only PF **1.379 / +155.9% / DD 12.3%**.
+
+Three findings, all consistent train and OOS:
+
+1. **The reversal the user asked for is the worst config tested.** On both
+   sides it turns a +85.6% train result into −14.8%. It is shipped as a
+   toggle, defaulted OFF, with these numbers in its tooltip.
+2. **The asymmetry rule holds a third time.** Acting on the level on both
+   sides collapses the full period to PF 1.023 / +5.9%. Counter-trend side
+   only is the best config measured.
+3. **Real chart levels ≈ the synthetic quarter grid** (1.289 vs 1.297
+   train, 1.610 vs 1.598 OOS). The chart levels are now the default
+   because they are the ones the user can see, not because they measure
+   better.
+
+Sensitivity is flat, not knife-edge: tolerance 0.05–0.50 ATR moves train
+PF 1.272–1.296; take fraction 60–90% moves it 1.282–1.296.
+
+**Caveat that belongs on this row:** the gain over baseline (+0.045 PF on
+train, +0.030 OOS) is small relative to the ~30 configurations swept to
+find it. Treat it as "does not hurt, is what you asked for, and is
+directionally consistent across both halves" — not as a validated edge.

@@ -351,7 +351,7 @@ answered; it fell off when the context compacted. Still open.
 
 ---
 
-# ►► CURRENT STATE AND NEXT ACTION (2026-07-30)
+# ►► CURRENT STATE AND NEXT ACTION (2026-07-31)
 
 Read this before doing anything. It replaces having the previous
 conversation.
@@ -425,3 +425,42 @@ variable settings — `backtest/lse_client.py` prefers it over `.env`.
 - Trend and HTF filters have made results worse three separate times.
 - A screenshot is not a specification.
 - If the user supplies source, port it — do not reimplement it.
+
+
+---
+
+# ►► SESSION 2026-07-31 (later) — key levels wired into the trade logic
+
+The user asked, from a chart screenshot: *"i want you to enter and exit the
+trade on key levels. reverse the signal as it touches the key level."*
+
+**What was measured** (full detail in RESULTS_LEDGER.md, beliefs H78/H79):
+
+- Level touch as the ENTRY has no edge in either direction. Fade and break
+  both lose, and both sit on PF 1.00 **with costs zeroed**. Entry stays on
+  the breakout. `backtest/kl_reverse.py` is the engine that showed this;
+  keep it, do not re-derive it.
+- Level touch as the EXIT, counter-trend side only, closing 75%: train PF
+  1.244 → 1.289, OOS 1.580 → 1.610, full period 1.333 → 1.379 with a
+  smaller drawdown. Small but consistent across both halves.
+- **Reversing at the level on both sides is the worst config tested**
+  (train PF 0.932, net −14.8%). Shipped as a toggle, defaulted OFF, with
+  the numbers in its tooltip. If the user turns it on and reports a bad
+  result, that is the expected outcome, not a bug.
+
+**Structural change to `gold_trend_trailing.pine`:** the whole strategy
+block was moved BELOW the embedded key-levels module. The module fills
+`klPrices[]` as it draws; code above it reads the previous bar's array.
+Nothing about the module itself was touched. Do not move the strategy back
+above it.
+
+**`backtest/trend.py` gained `kl` / `kl_take` / `kl_flip` / `kl_tol_atr` /
+`kl_shorts_only`**, all defaulted off, so every ledger row still
+reproduces. Verified: baseline is still PF 1.333 / +152.5% / 921 trades,
+and all five accounting tests pass.
+
+**Delivery reminder learned this session:** the repo file being fixed is
+not the same as the user having the fix. The `trailMultEE` compile error
+reached the user because the artifact was never republished after the sed
+fix. Republish the artifact AND re-send the file every time the Pine
+changes.

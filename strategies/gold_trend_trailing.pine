@@ -308,16 +308,21 @@ bool  useRegime = input.bool(true, "EMA gate: only long above it, short below", 
      tooltip="EMA 2000 (~3 weeks on 15m). Combined with the SMA750 filter it lifts full-period PF to 1.202 and cuts drawdown.")
 int   regimeLen = input.int(2000, "Regime EMA length", minval=20, group="② Risk")
 
-// ── ④ JEAFX key-level profit taking (PRICE grid) ────────────────
-bool  useKL     = input.bool(true, "Bank profit at quarter-round key levels", group="④ Key-Level Profit Taking",
-     tooltip="JEAFX: plot only .00/.25/.50/.75 and treat them as reversal areas. Best single improvement measured: full-period net +87.0% -> +110.6%, drawdown 23.2% -> 19.0%.")
-float klGrid    = input.float(2.50, "Key-level grid (points)", minval=0.25, step=0.25, group="④ Key-Level Profit Taking",
-     tooltip="JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50. Median ATR(14) here is 2.58, so the grid sits at ~1x ATR - the same ratio as the source's EURUSD example. 2.50-10.00 all work; 25+ degrades.")
-float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Profit Taking",
-     tooltip="A level counts as reached within this distance, mirroring the source's own completion tolerance.")
-float klTake    = input.float(50, "% banked at the level", minval=10, maxval=100, step=5, group="④ Key-Level Profit Taking")
-bool  klShorts  = input.bool(true, "SHORTS ONLY — let longs run (this is what makes it work)", group="④ Key-Level Profit Taking",
-     tooltip="CRITICAL. Banking BOTH sides on this same grid drops full-period net from +87% to +29-41%. Banking only the counter-trend side lifts it to +110.6%. A take removes exactly the size that captures a large move, so only take it where there is no large move to catch.")
+// ── ④ Key-level exit / reversal ─────────────────────────────────
+bool  useKL     = input.bool(true, "Exit at the next key level", group="④ Key-Level Exit / Reversal",
+     tooltip="The trade is opened by the breakout and closed at the next key level ahead of it — level to level.")
+string klSource = input.string("Chart key levels", "Which levels", options=["Chart key levels", "Quarter grid"], group="④ Key-Level Exit / Reversal",
+     tooltip="CHART KEY LEVELS reads klPrices[] — the exact prices the embedded SpacemanBTC module is drawing on this chart (PDH/PDL, PWH/PWL, PMH/PML, opens, session ranges, whichever you have enabled in the KL groups below). QUARTER GRID is the old synthetic .00/.25/.50/.75 grid. Measured back to back they are within noise of each other: train PF 1.289 (chart levels) vs 1.297 (grid), out of sample 1.610 vs 1.598. Chart levels are the default because they are the ones you can actually see and mark up.")
+float klGrid    = input.float(2.50, "Quarter-grid spacing (points)", minval=0.25, step=0.25, group="④ Key-Level Exit / Reversal",
+     tooltip="Only used when 'Which levels' is set to Quarter grid. JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50.")
+float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Exit / Reversal",
+     tooltip="A level counts as reached within this distance. Swept 0.05-0.50 ATR: PF moves 1.272-1.296 on train and 1.612-1.598 out of sample. Flat, so nothing here is knife-edge.")
+float klTake    = input.float(75, "% closed at the level", minval=10, maxval=100, step=5, group="④ Key-Level Exit / Reversal",
+     tooltip="75 measured best on both halves (train PF 1.289, OOS 1.610) but 60-90 are all within noise. The remainder keeps running on the trail — that is what preserves the big trend winners.")
+bool  klFlip    = input.bool(false, "REVERSE at the level (close and take the opposite side)", group="④ Key-Level Exit / Reversal",
+     tooltip="Turns the level into a stop-and-reverse: the level closes the whole position and opens the other way on the next bar, still subject to the regime filters. MEASURED, and it does not pay. On both sides it is the worst config tested: train PF 0.932 and net -14.8% vs 1.244/+85.6% for banking. Restricted to the counter-trend side it is merely flat: train PF 1.244 vs 1.289 for a 75% bank, OOS 1.588 vs 1.610. The toggle is here because you asked for it and it is honest to let you see it, not because the data supports leaving it on.")
+bool  klShorts  = input.bool(true, "SHORTS ONLY — let longs run (this is what makes it work)", group="④ Key-Level Exit / Reversal",
+     tooltip="CRITICAL, and now confirmed a third time on the real chart levels. Exiting BOTH sides at key levels collapses the system: full-period PF 1.023 and net +5.9% against 1.333/+152.5% for doing nothing at all. Restricted to the counter-trend side it is the best config measured: PF 1.379, net +155.9%, drawdown 12.3% vs the baseline's 13.6%. A level exit removes exactly the size that would have captured a large move, so only take it where there is no large move to catch.")
 
 // ── ⑤ Daye Q4 time-based take (alternative, OFF by default) ─────
 bool  useQ4     = input.bool(false, "Bank in Daye's Q4 instead (time-based)", group="⑤ Daye Q4 (alternative)",
@@ -348,177 +353,16 @@ float trailMultE = autoScale ? 6.0 * math.sqrt(15.0 / tfMin)               : tra
 float klGridE    = autoScale ? 2.50 * math.sqrt(tfMin / 15.0)              : klGrid
 float klTolE     = autoScale ? klGridE * 0.10                              : klTol
 
-// ═════════════════════════════════════════════════════════════
-// SIGNALS — all ta.* unconditional at top level (BUG-004)
-// ═════════════════════════════════════════════════════════════
-float atr      = ta.atr(atrLen)
-float donHi    = ta.highest(high, entryLenE)[1]
-float donLo    = ta.lowest(low, entryLenE)[1]
-float regimeMa = ta.ema(close, regimeLenE)
-float trendSma = ta.sma(close, smaLenE)
-
-bool emaFalling = regimeMa < regimeMa[slopeLenE]
-bool regimeOkL = not useRegime or close > regimeMa
-bool regimeOkS = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
-bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
-bool smaOkS    = not useSma or (not na(trendSma) and close < trendSma)
-
-bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
-bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
-
-// optional exit on an SMA cross against the position (default OFF)
-// JEAFX key-level target for the open position, fixed at entry and
-// banked once. Shorts target the next grid level BELOW entry; longs the
-// next above (only relevant if klShorts is turned off).
-var float klTarget = na
-var bool  klDone   = false
-
-bool klHit = useKL and not na(klTarget) and not klDone and
-     strategy.position_size != 0 and
-     (not klShorts or strategy.position_size < 0) and
-     (strategy.position_size > 0 ? high >= klTarget - klTolE
-                                 : low  <= klTarget + klTolE)
-
-// Daye Q4 window and its opening bar
-int   etHour   = hour(time, "UTC")
-bool  inQ4     = etHour >= q4StartUtc and etHour < q4StartUtc + 6
-bool  q4Open   = inQ4 and not inQ4[1]
-bool  q4Bank   = useQ4 and q4Open and strategy.position_size != 0 and
-     (not q4Shorts or strategy.position_size < 0)
-
-bool smaCrossOut = useSma and smaExit and not na(trendSma) and
-     ((strategy.position_size > 0 and close < trendSma) or
-      (strategy.position_size < 0 and close > trendSma))
-
-// ═════════════════════════════════════════════════════════════
-// TRAILING STOP
-// Ratchets in the trade's favour only, and is anchored to the PREVIOUS
-// bar's extreme so the current bar can never move its own stop.
-// ═════════════════════════════════════════════════════════════
-var float trailStop = na
-
-if strategy.position_size > 0
-    float cand = high[1] - atr * trailMultE
-    trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
-else if strategy.position_size < 0
-    float cand = low[1] + atr * trailMultE
-    trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
-else
-    trailStop := na
-
-// ═════════════════════════════════════════════════════════════
-// EXECUTION
-// ═════════════════════════════════════════════════════════════
-// counter-trend side is sized smaller; direction is known before entry
-bool  wantShort = shortSig and not longSig
-float effRisk  = wantShort ? riskPct * shortRisk : riskPct
-float stopDist = atr * trailMultE
-float qtyRaw   = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
-float qtyCap   = strategy.equity * maxLev / close
-float qty      = math.floor(math.min(qtyRaw, qtyCap))
-
-if longSig and strategy.position_size == 0 and qty >= 1
-    strategy.entry("L", strategy.long, qty=qty)
-    trailStop := close - stopDist
-    klTarget := (math.floor(close / klGridE) + 1) * klGridE
-    klDone := false
-
-if shortSig and strategy.position_size == 0 and qty >= 1
-    strategy.entry("S", strategy.short, qty=qty)
-    trailStop := close + stopDist
-    klTarget := (math.ceil(close / klGridE) - 1) * klGridE
-    klDone := false
-
-// no take-profit and no time stop, deliberately: capping the winners is
-// exactly what broke every previous engine in this repo
-if klHit
-    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=klTake, comment="Key level")
-    klDone := true
-if q4Bank
-    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
-if smaCrossOut
-    strategy.close_all(comment="SMA cross")
-if strategy.position_size > 0 and not na(trailStop)
-    strategy.exit("L-exit", "L", stop=trailStop)
-if strategy.position_size < 0 and not na(trailStop)
-    strategy.exit("S-exit", "S", stop=trailStop)
-
-// ═════════════════════════════════════════════════════════════
-// VISUALS
-// ═════════════════════════════════════════════════════════════
-plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.orange, 40), 1, plot.style_stepline)
-plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
-plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
-plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
-bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profit-taking quarter)")
-plot(useKL and strategy.position_size != 0 and not klDone ? klTarget : na,
-     "Key-level target", color.new(color.yellow, 0), 2, plot.style_circles)
-
-plotshape(longSig and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
-plotshape(shortSig and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")
-
-bool exitedLong  = strategy.position_size[1] > 0 and strategy.position_size == 0
-bool exitedShort = strategy.position_size[1] < 0 and strategy.position_size == 0
-plotshape(exitedLong or exitedShort, "Stop hit", shape.xcross, location.absolute, color.new(color.gray, 0), size=size.tiny)
-
-// ═════════════════════════════════════════════════════════════
-// ALERTS
-// ═════════════════════════════════════════════════════════════
-alertcondition(longSig,  "Gold Trend — LONG entry",  "LONG {{ticker}} {{interval}} at {{close}}")
-alertcondition(shortSig, "Gold Trend — SHORT entry", "SHORT {{ticker}} {{interval}} at {{close}}")
-alertcondition(exitedLong or exitedShort, "Gold Trend — trailing stop hit", "STOP HIT {{ticker}} {{interval}} at {{close}}")
-
-// ═════════════════════════════════════════════════════════════
-// DASHBOARD
-// ═════════════════════════════════════════════════════════════
-var table dash = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 60))
-if showDash and barstate.islast
-    int nT = strategy.closedtrades
-    int wT = 0
-    float gw = 0.0
-    float gl = 0.0
-    if nT > 0
-        for i = 0 to nT - 1
-            float p = strategy.closedtrades.profit(i)
-            wT += p > 0 ? 1 : 0
-            gw += p > 0 ? p : 0.0
-            gl += p < 0 ? -p : 0.0
-    float wr = nT > 0 ? wT * 100.0 / nT : na
-    float pf = gl > 0 ? gw / gl : na
-    float netPct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
-
-    table.cell(dash, 0, 0, "GOLD TREND", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 1, 0, str.tostring(entryLenE) + " / " + str.tostring(trailMultE, "#.#") + "x", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 0, 1, "Trades", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 1, str.tostring(nT), text_color=nT < 250 ? color.yellow : color.white, text_size=size.tiny)
-    table.cell(dash, 0, 2, "Win rate", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 2, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 0, 3, "Profit factor", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 3, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1.3 ? color.lime : pf >= 1.0 ? color.yellow : color.red, text_size=size.tiny)
-    table.cell(dash, 0, 4, "Net", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 4, str.tostring(netPct, "#.#") + "%", text_color=netPct > 0 ? color.lime : color.red, text_size=size.tiny)
-    table.cell(dash, 0, 5, "In position", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 5, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "flat", text_color=strategy.position_size != 0 ? color.lime : color.gray, text_size=size.tiny)
-    table.cell(dash, 0, 6, "Stop", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 6, na(trailStop) ? "-" : str.tostring(trailStop, format.mintick), text_color=color.red, text_size=size.tiny)
-    table.cell(dash, 0, 7, "Validated OOS", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 7, "PF 1.59 / DD 5.5%", text_color=color.aqua, text_size=size.tiny)
-    table.cell(dash, 0, 8, "Edge is the EXIT", text_color=color.orange, text_size=size.tiny)
-    table.cell(dash, 1, 8, "entry adds ~0", text_color=color.orange, text_size=size.tiny)
-    table.cell(dash, 0, 9, autoScale ? "auto " + timeframe.period : "MANUAL settings",
-         text_color=autoScale ? color.aqua : color.orange, text_size=size.tiny)
-    table.cell(dash, 1, 9, autoScale ? "sma " + str.tostring(smaLenE) + " ema " + str.tostring(regimeLenE)
-         + " grid " + str.tostring(klGridE, "#.##") : (nT < 250 ? "n<250: unstable" : ""),
-         text_color=color.silver, text_size=size.tiny)
-
-
 // ════════════════════════════════════════════════════════════════════
 // EMBEDDED: SpacemanBTC IDWM Key Levels V13.1 (verbatim port)
 // Standing user directive: every strategy in this repo embeds the
 // key-level indicator and renders it exactly as the standalone does.
 // Canonical copy + port deltas: trader_playbooks/skills/key_levels_module.pine
-// Display only -- this system's entries and exits do not consult the
-// levels. They are here so the chart reads the same as every other tool.
+// NO LONGER DISPLAY ONLY. The module exports every level it draws into
+// klPrices[], and the trade logic below closes (or reverses) at the
+// nearest one ahead of the position. The number the strategy acts on is
+// literally the line you can see. That is why the whole strategy block
+// now sits BELOW this module instead of above it.
 // ════════════════════════════════════════════════════════════════════
 
 // ── KL inputs ────────────────────────────────────────────────────────
@@ -1440,3 +1284,211 @@ if barstate.islast
         if timeframe.isweekly and dayofweek(monthly_time) != dayofweek.monday
             line.set_x1(monthlyLine, monthly_time - (weekly_time - weekly_time[1]))
 // ════════════════════ END KEY_LEVELS_MODULE ═════════════════════════
+
+// ═════════════════════════════════════════════════════════════
+// SIGNALS — all ta.* unconditional at top level (BUG-004)
+// ═════════════════════════════════════════════════════════════
+float atr      = ta.atr(atrLen)
+float donHi    = ta.highest(high, entryLenE)[1]
+float donLo    = ta.lowest(low, entryLenE)[1]
+float regimeMa = ta.ema(close, regimeLenE)
+float trendSma = ta.sma(close, smaLenE)
+
+bool emaFalling = regimeMa < regimeMa[slopeLenE]
+bool regimeOkL = not useRegime or close > regimeMa
+bool regimeOkS = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
+bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
+bool smaOkS    = not useSma or (not na(trendSma) and close < trendSma)
+
+bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
+bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
+
+// ── the level the open trade is running toward ───────────────────
+// Fixed at entry, acted on once. A long targets the nearest level ABOVE
+// its entry, a short the nearest BELOW: "key level to key level".
+//
+// f_klNext reads klPrices[] — the array the embedded module fills with
+// every level it draws. PORT DELTA: this block sits after the module, so
+// the array holds the levels as of THIS bar. That ordering is why the
+// strategy logic was moved below the module rather than left above it,
+// where it would have read the previous bar's array.
+f_klNext(float px, int dir) =>
+    float best = na
+    if array.size(klPrices) > 0
+        for i = 0 to array.size(klPrices) - 1
+            float p = array.get(klPrices, i)
+            if not na(p)
+                if dir > 0 and p > px
+                    best := na(best) or p < best ? p : best
+                else if dir < 0 and p < px
+                    best := na(best) or p > best ? p : best
+    best
+
+f_klPick(float px, int dir) =>
+    klSource == "Chart key levels" ? f_klNext(px, dir)
+         : dir > 0 ? (math.floor(px / klGridE) + 1) * klGridE
+                   : (math.ceil(px / klGridE) - 1) * klGridE
+
+// optional exit on an SMA cross against the position (default OFF)
+var float klTarget = na
+var bool  klDone   = false
+var int   forceDir = 0        // set by a reversal, consumed on the next bar
+
+bool klHit = useKL and not na(klTarget) and not klDone and
+     strategy.position_size != 0 and
+     (not klShorts or strategy.position_size < 0) and
+     (strategy.position_size > 0 ? high >= klTarget - klTolE
+                                 : low  <= klTarget + klTolE)
+
+// Daye Q4 window and its opening bar
+int   etHour   = hour(time, "UTC")
+bool  inQ4     = etHour >= q4StartUtc and etHour < q4StartUtc + 6
+bool  q4Open   = inQ4 and not inQ4[1]
+bool  q4Bank   = useQ4 and q4Open and strategy.position_size != 0 and
+     (not q4Shorts or strategy.position_size < 0)
+
+bool smaCrossOut = useSma and smaExit and not na(trendSma) and
+     ((strategy.position_size > 0 and close < trendSma) or
+      (strategy.position_size < 0 and close > trendSma))
+
+// ═════════════════════════════════════════════════════════════
+// TRAILING STOP
+// Ratchets in the trade's favour only, and is anchored to the PREVIOUS
+// bar's extreme so the current bar can never move its own stop.
+// ═════════════════════════════════════════════════════════════
+var float trailStop = na
+
+if strategy.position_size > 0
+    float cand = high[1] - atr * trailMultE
+    trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
+else if strategy.position_size < 0
+    float cand = low[1] + atr * trailMultE
+    trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
+else
+    trailStop := na
+
+// ═════════════════════════════════════════════════════════════
+// EXECUTION
+// ═════════════════════════════════════════════════════════════
+// A pending reversal overrides the breakout: the level IS the signal.
+// It still has to clear the regime filters — a flip into a side the
+// regime forbids is dropped, not queued.
+bool  flipL    = forceDir > 0 and regimeOkL and smaOkL
+bool  flipS    = forceDir < 0 and not longOnly and regimeOkS and smaOkS
+bool  goLong   = flipL or (forceDir == 0 and longSig)
+bool  goShort  = flipS or (forceDir == 0 and shortSig)
+
+// counter-trend side is sized smaller; direction is known before entry
+bool  wantShort = goShort and not goLong
+float effRisk  = wantShort ? riskPct * shortRisk : riskPct
+float stopDist = atr * trailMultE
+float qtyRaw   = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
+float qtyCap   = strategy.equity * maxLev / close
+float qty      = math.floor(math.min(qtyRaw, qtyCap))
+
+if goLong and strategy.position_size == 0 and qty >= 1
+    strategy.entry("L", strategy.long, qty=qty)
+    trailStop := close - stopDist
+    klTarget := f_klPick(close, 1)
+    klDone := false
+
+if goShort and strategy.position_size == 0 and qty >= 1
+    strategy.entry("S", strategy.short, qty=qty)
+    trailStop := close + stopDist
+    klTarget := f_klPick(close, -1)
+    klDone := false
+
+// the flip is spent whether or not it was taken
+if forceDir != 0
+    forceDir := 0
+
+// no take-profit and no time stop, deliberately: capping the winners is
+// exactly what broke every previous engine in this repo.
+// klFlip turns the level exit into a full stop-and-reverse instead.
+if klHit
+    if klFlip
+        forceDir := strategy.position_size > 0 ? -1 : 1
+        strategy.close_all(comment="Key level reverse")
+    else
+        strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=klTake, comment="Key level")
+    klDone := true
+if q4Bank
+    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
+if smaCrossOut
+    strategy.close_all(comment="SMA cross")
+if strategy.position_size > 0 and not na(trailStop)
+    strategy.exit("L-exit", "L", stop=trailStop)
+if strategy.position_size < 0 and not na(trailStop)
+    strategy.exit("S-exit", "S", stop=trailStop)
+
+// ═════════════════════════════════════════════════════════════
+// VISUALS
+// ═════════════════════════════════════════════════════════════
+plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.orange, 40), 1, plot.style_stepline)
+plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
+plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
+plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
+bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profit-taking quarter)")
+plot(useKL and strategy.position_size != 0 and not klDone ? klTarget : na,
+     "Key-level target", color.new(color.yellow, 0), 2, plot.style_circles)
+
+plotshape(goLong and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
+plotshape(goShort and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")
+plotshape(klHit ? klTarget : na, "Key-level exit", shape.diamond, location.absolute, color.new(color.yellow, 0), size=size.tiny)
+
+bool exitedLong  = strategy.position_size[1] > 0 and strategy.position_size == 0
+bool exitedShort = strategy.position_size[1] < 0 and strategy.position_size == 0
+plotshape(exitedLong or exitedShort, "Stop hit", shape.xcross, location.absolute, color.new(color.gray, 0), size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(goLong,  "Gold Trend — LONG entry",  "LONG {{ticker}} {{interval}} at {{close}}")
+alertcondition(goShort, "Gold Trend — SHORT entry", "SHORT {{ticker}} {{interval}} at {{close}}")
+alertcondition(exitedLong or exitedShort, "Gold Trend — trailing stop hit", "STOP HIT {{ticker}} {{interval}} at {{close}}")
+alertcondition(klHit, "Gold Trend — key level reached", "KEY LEVEL {{ticker}} {{interval}} at {{close}}")
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 60))
+if showDash and barstate.islast
+    int nT = strategy.closedtrades
+    int wT = 0
+    float gw = 0.0
+    float gl = 0.0
+    if nT > 0
+        for i = 0 to nT - 1
+            float p = strategy.closedtrades.profit(i)
+            wT += p > 0 ? 1 : 0
+            gw += p > 0 ? p : 0.0
+            gl += p < 0 ? -p : 0.0
+    float wr = nT > 0 ? wT * 100.0 / nT : na
+    float pf = gl > 0 ? gw / gl : na
+    float netPct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
+
+    table.cell(dash, 0, 0, "GOLD TREND", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, str.tostring(entryLenE) + " / " + str.tostring(trailMultE, "#.#") + "x", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 0, 1, "Trades", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(nT), text_color=nT < 250 ? color.yellow : color.white, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Win rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Profit factor", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1.3 ? color.lime : pf >= 1.0 ? color.yellow : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 4, "Net", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, str.tostring(netPct, "#.#") + "%", text_color=netPct > 0 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 5, "In position", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "flat", text_color=strategy.position_size != 0 ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 6, "Stop", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, na(trailStop) ? "-" : str.tostring(trailStop, format.mintick), text_color=color.red, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Validated OOS", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, "PF 1.59 / DD 5.5%", text_color=color.aqua, text_size=size.tiny)
+    table.cell(dash, 0, 8, "Edge is the EXIT", text_color=color.orange, text_size=size.tiny)
+    table.cell(dash, 1, 8, "entry adds ~0", text_color=color.orange, text_size=size.tiny)
+    table.cell(dash, 0, 9, autoScale ? "auto " + timeframe.period : "MANUAL settings",
+         text_color=autoScale ? color.aqua : color.orange, text_size=size.tiny)
+    table.cell(dash, 1, 9, autoScale ? "sma " + str.tostring(smaLenE) + " ema " + str.tostring(regimeLenE)
+         + " grid " + str.tostring(klGridE, "#.##") : (nT < 250 ? "n<250: unstable" : ""),
+         text_color=color.silver, text_size=size.tiny)
+
+
