@@ -34,7 +34,7 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         kl=None, kl_take=0.0, kl_flip=False, kl_tol_atr=0.10,
         kl_shorts_only=False,
         kl_entry_atr=0.0, sma2_len=0, sma2_mode="gate", conf_min=0,
-        conf_size=0.0, kl_min_atr=0.0):
+        conf_size=0.0, kl_min_atr=0.0, gap_fill=False):
     # kl_min_atr: the target level must be at least this many ATR beyond
     #   the entry. WITHOUT it the "next key level" is a joke of a target --
     #   on the 33 levels the chart actually draws, the median one sits
@@ -232,7 +232,15 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
                     pos = None
                     continue
             if hit:
-                px = pos["stop"] - d * slippage
+                # gap_fill: a bar can OPEN through the stop, and then the
+                # fill is the open, not the stop. TradingView models this;
+                # this engine did not, which is why its worst loss on the
+                # 30m cross-check was 124.16 against TradingView's 240.77.
+                # Off by default so every ledger row still reproduces.
+                px = pos["stop"]
+                if gap_fill:
+                    px = min(px, o[i]) if d > 0 else max(px, o[i])
+                px -= d * slippage
                 pnl = d * (px - pos["entry"]) * pos["qty"] - 2 * commission * pos["qty"]
                 eq += pnl
                 trades.append({"pnl": pnl + pos.get("banked", 0.0), "dir": d,

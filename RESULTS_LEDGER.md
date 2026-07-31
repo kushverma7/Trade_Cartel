@@ -454,3 +454,53 @@ destroy a trend system, but it does not by itself close the gap between
 be read from this container. Until then the shipped default is the
 configuration that cross-validated cleanly in the earlier session
 (Python +6.94% vs TradingView +7.57% on this same window).
+
+---
+
+## Cross-validation restored, 30m (2026-07-31)
+
+User re-ran the shipped build with the key-level exit OFF. XAUUSD **30m**,
+Jan 2 2025 → Jul 31 2026. Auto-scale derives entry 24, SMA 384, EMA 1008,
+slope 96, SMA2 1008, trail 4.243. The chart shows "SMA cross" exit labels,
+so `smaExit` was ON; Python matched to that.
+
+| | n | WR | PF | net | max DD | largest win | largest loss | avg bars |
+|---|---|---|---|---|---|---|---|---|
+| **TradingView** | 161 | 34.16% | **1.556** | +26.98% | 5.68% | +463.95 | −240.77 | 41 |
+| Python, exact-stop fills | 189 | 32.80% | 1.558 | +30.92% | 5.42% | +463.68 | −124.16 | 39 |
+| Python, gap-aware fills | 189 | 32.80% | 1.499 | +28.76% | 5.82% | +463.68 | **−241.22** | 39 |
+
+**Profit factor agrees to 0.002. Largest win agrees to 0.27 on 464.**
+That is the closest this project has come to an independent match.
+
+### The largest-loss gap, found and fixed
+
+Python filled every stop exactly at the stop price. A bar can OPEN through
+the stop, and then the fill is the open. TradingView models that; this
+engine did not — which is the entire 124.16 vs 240.77 difference. With
+`gap_fill=True` the worst loss becomes −241.22 against TradingView's
+−240.77, a 0.45 match.
+
+`gap_fill` is OFF by default so every existing ledger row still reproduces,
+**but the exact-stop model is optimistic and every future row should set
+it.** Cost on this window: PF 1.558 → 1.499, net +30.92% → +28.76%.
+
+### What is still unexplained
+
+Trade count: 189 in Python against 161 on TradingView, 17% more. Not a
+sign or magnitude problem, but not noise either. Most likely the remaining
+toggle states differ from what was assumed here. Resolving it needs the
+TradingView trade list.
+
+### Shape check — this is now a trend system again
+
+WR 34.16% with PF 1.556 and a largest win nearly double the largest loss.
+That is the correct signature, and it is the direct contrast with the
+previous run's 56.92% WR / 0.702 PF / largest win BELOW largest loss.
+**Win rate falling while profit factor rises is the system working.**
+
+Caveat the user should hold: buy-and-hold returned more over this window
+(TradingView's benchmark panel, +44.49% against the strategy's +26.86%).
+The claim for this system has always been return per unit of drawdown, not
+raw return, and that claim needs the buy-and-hold drawdown to be stated
+beside it — which this run does not give.

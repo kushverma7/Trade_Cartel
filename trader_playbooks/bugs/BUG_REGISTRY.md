@@ -348,3 +348,28 @@ masked the damage.
 **Related:** the same arithmetic is why every pre-2026-07 engine in this
 repo lost — fixed 1R/2R targets against wide stops. This is that mistake
 returning in a new costume.
+
+---
+
+## BUG-018 — Backtest filled every stop exactly at the stop price
+
+**Found:** 2026-07-31, while cross-checking a 30m TradingView run.
+**Severity:** understates the worst loss by ~2x; flatters PF.
+
+**Symptom:** Python's largest loss on the window was 124.16 where
+TradingView reported 240.77, while profit factor, largest win and average
+hold all agreed closely.
+
+**Root cause:** `trend.py` computed the stop fill as `stop - dir*slippage`
+unconditionally. A bar that OPENS beyond the stop fills at the open, not
+at the stop. Gold gaps over weekends and around data releases, so this is
+not an edge case.
+
+**Fix:** `gap_fill=True` takes `min(stop, open)` for longs and
+`max(stop, open)` for shorts. Worst loss becomes 241.22 against
+TradingView's 240.77.
+
+**Prevention:** when an engine and a platform agree on profit factor but
+disagree on the WORST trade, suspect the fill model, not the logic. Compare
+the tails, not just the aggregates — an average can agree while the model
+of a bad day is completely wrong.
