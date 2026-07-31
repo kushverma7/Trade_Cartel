@@ -380,6 +380,22 @@ int   pyrMax    = input.int(2, "Maximum adds", minval=1, maxval=4, group="⑥ Ad
      tooltip="Capped at 4 because the strategy header declares pyramiding=5, which is this plus the original entry.")
 float pyrRisk   = input.float(1.0, "Each add sized at (x the original risk)", minval=0.1, maxval=1.0, step=0.1, group="⑥ Add to Winners")
 
+// ── ⑦ Profit target (alternative exit architecture) ─────────────
+string tpMode   = input.string("Off", "Take profit at a fixed target", options=["Off", "Percent of price", "Fixed points"], group="⑦ Profit Target",
+     tooltip="TURNS THIS INTO A PROFIT-TAKING STRATEGY instead of a trend-following one. The trailing stop, the key-level exit and the add-to-winner block are all bypassed: entry, a fixed stop, a fixed target, done.\n\nMeasured on XAUUSD 30m over 6.7 years with a 4 ATR stop: a 4% target gives train PF 1.402 / +98.5%, out of sample PF 1.420 / +23.2%, full period PF 1.475 / +185.3% at 23.2% drawdown. Train and out of sample agree to 0.018 of profit factor, which is the most stable result in this repo.\n\nHOW IT COMPARES: the trailing build returns +192.6% at 9.83% drawdown, and with adds +660.2% at 17.68%. So profit taking wins on profit factor (1.475 vs 1.444) and loses badly on drawdown. Use it if you want frequent closed wins; use the trail if you want the return.")
+float tpPct     = input.float(4.0, "Target — percent of price", minval=0.25, step=0.25, group="⑦ Profit Target",
+     tooltip="Swept 1.5/2/3/4%. Bigger is monotonically better on profit factor, and 4% is where drawdown stops improving. 4% of gold at 4050 is about 162 points. USE PERCENT, NOT POINTS: a fixed 40-point target was 2.7% of price when gold was 1500 and 1.0% at 4100, so the point version silently changes meaning as price moves. Both were tested; the point version scored full-period PF 1.160 against percent's 1.475.")
+float tpPoints  = input.float(160, "Target — fixed points", minval=1, step=5, group="⑦ Profit Target")
+float tpStopAtr = input.float(4.0, "Stop for this mode (x ATR)", minval=0.5, step=0.5, group="⑦ Profit Target",
+     tooltip="A STATIC stop set at entry, not the ratchet. Swept 2/3/4/6/8 ATR; 4 was best and 2 was catastrophic (43% drawdown) because the target then needs an unreachable hit rate.")
+// NOTE: there is deliberately no "% closed at the target" input here.
+// strategy.exit applies qty_percent to the STOP as well as the limit, so a
+// partial-target control would also turn the stop into a partial stop --
+// not what the label would promise. Partials were measured anyway (25/50/75%
+// banked against trails of 4.24/6/8 ATR) and every combination scored below
+// the full exit: best runner full-period PF 1.419 against 1.475. The control
+// is omitted rather than shipped doing something other than it says.
+
 // ── ③ Display ────────────────────────────────────────────────────
 bool  showStop  = input.bool(true, "Plot the trailing stop", group="③ Display")
 bool  showBand  = input.bool(true, "Plot the breakout level", group="③ Display")
@@ -1424,6 +1440,10 @@ bool smaCrossOut = useSma and smaExit and not na(trendSma) and
 // Ratchets in the trade's favour only, and is anchored to the PREVIOUS
 // bar's extreme so the current bar can never move its own stop.
 // ═════════════════════════════════════════════════════════════
+bool  tpOn = tpMode != "Off"
+
+var float tpTarget  = na
+var float tpStop    = na
 var float trailStop = na
 var float lastAdd   = na      // price of the last pyramid unit
 var int   nAdds     = 0
@@ -1450,7 +1470,7 @@ else
 // bar, so Python is the stricter of the two. Expect Pine to read very
 // slightly better than the research on trades that add and then reverse
 // within one bar.
-if usePyr and strategy.position_size != 0 and nAdds < pyrMax and not na(lastAdd)
+if usePyr and not tpOn and strategy.position_size != 0 and nAdds < pyrMax and not na(lastAdd)
     float step   = atr * pyrAtr
     bool  isLong = strategy.position_size > 0
     float nxt    = isLong ? lastAdd + step : lastAdd - step
@@ -1483,6 +1503,8 @@ float qty      = math.floor(math.min(qtyRaw, qtyCap))
 if goLong and strategy.position_size == 0 and qty >= 1
     strategy.entry("L", strategy.long, qty=qty)
     trailStop := close - stopDist
+    tpStop := close - atr * tpStopAtr
+    tpTarget := tpMode == "Fixed points" ? close + tpPoints : close * (1.0 + tpPct / 100.0)
     klTarget := f_klPick(close, 1, atr)
     klDone := false
     lastAdd := close
@@ -1491,6 +1513,8 @@ if goLong and strategy.position_size == 0 and qty >= 1
 if goShort and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
+    tpStop := close + atr * tpStopAtr
+    tpTarget := tpMode == "Fixed points" ? close - tpPoints : close * (1.0 - tpPct / 100.0)
     klTarget := f_klPick(close, -1, atr)
     klDone := false
     lastAdd := close
@@ -1514,16 +1538,26 @@ if q4Bank
     strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
 if smaCrossOut
     strategy.close_all(comment="SMA cross")
-if strategy.position_size > 0 and not na(trailStop)
-    strategy.exit("L-exit", "L", stop=trailStop)
-if strategy.position_size < 0 and not na(trailStop)
-    strategy.exit("S-exit", "S", stop=trailStop)
+// Profit-target mode replaces the ratchet entirely: static stop, fixed
+// limit, no trail and no adds. Anything else would be a third architecture
+// that was never measured.
+if tpOn
+    if strategy.position_size > 0 and not na(tpStop)
+        strategy.exit("L-exit", "L", stop=tpStop, limit=tpTarget)
+    if strategy.position_size < 0 and not na(tpStop)
+        strategy.exit("S-exit", "S", stop=tpStop, limit=tpTarget)
+else
+    if strategy.position_size > 0 and not na(trailStop)
+        strategy.exit("L-exit", "L", stop=trailStop)
+    if strategy.position_size < 0 and not na(trailStop)
+        strategy.exit("S-exit", "S", stop=trailStop)
 
 // ═════════════════════════════════════════════════════════════
 // VISUALS
 // ═════════════════════════════════════════════════════════════
 plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.orange, 40), 1, plot.style_stepline)
-plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
+plot(showStop and strategy.position_size != 0 ? (tpOn ? tpStop : trailStop) : na, "Stop", color.new(#D50000, 0), 2, plot.style_stepline)
+plot(tpOn and strategy.position_size != 0 ? tpTarget : na, "Profit target", color.new(#00E676, 0), 2, plot.style_stepline)
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
 plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
 plot(useSma2 ? slowSma : na, "Slow SMA (confluence)", color.new(#7E57C2, 15), 2)

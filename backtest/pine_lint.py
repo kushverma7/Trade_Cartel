@@ -145,6 +145,13 @@ def lint(path):
         if 'strategy.exit(' in l and 'limit=' in l and 'stop=' not in l \
                 and not l.strip().startswith('//'):
             problems.append((i, "strategy.exit with a limit but NO stop (BUG-014)", l.strip()[:60]))
+        # trailing comma before a closing bracket. Pine rejects it, and it is
+        # exactly what a careless edit to a multi-line input() leaves behind
+        # -- found 2026-07-31 when a tooltip was stripped from a call and the
+        # comma that preceded it was not.
+        st = l.split('//')[0].rstrip()
+        if re.search(r',\s*[\)\]]', st):
+            problems.append((i, "trailing comma before a closing bracket", st.strip()[:60]))
 
     if depth != 0:
         problems.append((len(src), f"file ends with unbalanced delimiters ({depth})", ""))

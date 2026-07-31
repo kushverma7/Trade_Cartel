@@ -663,3 +663,83 @@ version (+68.2%) beats all of them — which is the finding.
 **Verdict: nothing measurable to adopt.** Keep it as a chart-reading layer
 if the visuals help; it is not an entry filter and its exits are the
 failure mode this project spent four months escaping.
+
+---
+
+## Profit taking: does it work, and which kind? (2026-07-31)
+
+User: *"turn it into a profitable profit taking strategy... see if key
+levels, quarters or point based profit taking works."* New engine
+`backtest/take_profit.py`: entry signal + fixed stop + fixed target, four
+target modes, optional partial-and-trail runner. XAUUSD 30m, 6.7 years,
+gap-aware stop fills, stop assumed first on any bar touching both.
+
+### Answer: point/percent works. Levels and quarters do not.
+
+Train half, DE Hybrid entry, 4 ATR stop:
+
+| target type | n | WR | PF | net |
+|---|---|---|---|---|
+| next key level (33 drawn) | 2,015 | 76.2% | **0.824** | −37.3% |
+| next JEAFX 2.50 quarter | 2,903 | 83.9% | **0.794** | −38.5% |
+| next Yotov 25 quarter | 1,117 | 62.8% | 1.034 | +14.5% |
+| next Yotov 250 quarter | 108 | 25.9% | 1.580 | +53.9% |
+| **40 fixed points** | 462 | 37.7% | **1.255** | +126.2% |
+| 80 fixed points | 243 | 23.9% | 1.398 | +98.0% |
+
+**Why levels and quarters fail:** their target distance is set by where the
+line happens to sit, not by what the trade needs. The target/stop ratio is
+therefore random per trade — sometimes 0.2, sometimes 5. A percent or point
+target fixes that ratio. Note the 76–84% win rates on the failing rows:
+they win constantly and still lose money, which is BUG-017's arithmetic in
+its purest form. The Yotov 250 row scores well only because at 563 bars'
+average hold it is not really a target at all.
+
+### Fixed points vs percent — and why percent is shipped
+
+Gold ran 1450 → 4100 over the sample, so a fixed 40-point target was 2.7%
+of price at the start and 1.0% at the end. Testing the scale-invariant
+version separates "a target of about this size works" from "this number
+fitted this price path". Both work; percent is more stable and is what
+ships. Full period, our Donchian entry: points PF 1.160, percent PF 1.475.
+
+### The shipped profit-taking build
+
+Donchian entry + confluence, static 4 ATR stop, 4% target, full exit,
+ranked out of 48 combinations by the WEAKER of its two halves so a
+train-only winner cannot top the list:
+
+| | n | WR | PF | net | max DD |
+|---|---|---|---|---|---|
+| TRAIN | — | — | 1.402 | +98.5% | — |
+| **OOS** | — | — | **1.420** | **+23.2%** | — |
+| FULL | — | — | **1.475** | +185.3% | 23.2% |
+
+**Train and out of sample agree to 0.018 of profit factor.** That is the
+most stable result this project has produced.
+
+### How it compares with the trailing build
+
+| architecture | PF | net | max DD |
+|---|---|---|---|
+| profit target, 4% / 4 ATR | **1.475** | +185.3% | 23.2% |
+| trailing stop, no target | 1.444 | +192.6% | **9.83%** |
+| trailing stop + 2 adds | **1.626** | **+660.2%** | 17.68% |
+
+Profit taking beats the plain trail on profit factor and loses to it badly
+on drawdown. It loses to the pyramided trail on everything.
+
+**So it is shipped as a MODE, not as the default** — group ⑦, "Off" by
+default. It is the right choice for someone who wants frequent closed wins
+and can accept 23% drawdown; it is the wrong choice for maximum return.
+
+### Same structures on the DE Hybrid entry
+
+Weaker but real: 40pt/4 ATR gives full PF 1.165 (+125.8%), the 50%-runner
+1.251 (+125.6%), 3% target 1.229 (+121.3%). The entry is the limitation,
+not the exit architecture.
+
+**Caveat:** ~90 configurations were swept. The 4%/4 ATR winner was chosen
+on the train half and confirmed once on OOS; the ranking metric was the
+weaker of the two halves, which is stricter than picking on train alone but
+is not a substitute for a fresh sample.
