@@ -68,6 +68,35 @@
 // SHIPPING DEFAULT IS NOW LONG+SHORT, because gold has fallen over the
 // last six months. If it resumes trending up, switch to long only.
 //
+// ── THE SMA TREND FILTER: WHAT IT DOES AND DOES NOT DO ──────────────
+// Requested as SMA 2000. Swept 250-6000 on both halves. 2000 is NOT a
+// good setting: it improves the TEST half and makes the TRAIN half
+// worse, which is the signature of a regime artifact rather than a
+// filter. Longer is monotonically better on the test half only, because
+// that block is a sustained bull run.
+//
+// SMA 750 (~8 days) was selected on the TRAINING half alone and improves
+// every window measured:
+//    window            gold     no SMA        SMA 750
+//    train 2019-23    +39.2%   PF 1.116     PF 1.202
+//    test  2023-26   +100.4%   PF 1.025     PF 1.193
+//    Feb-Jul 2026     -15.8%   PF 1.444     PF 1.911
+//    full 6.7 years  +179.1%   PF 1.112     PF 1.206
+//
+// BUT IT FAILS ALL THREE SIGNIFICANCE GATES on the held-out block:
+//    random entries with the SAME filter and exit: median PF 1.130,
+//      95th pct 1.490. Ours 1.193 sits at the 60.7th percentile.  FAIL
+//    deflated Sharpe 0.020 at a realistic trial count.               FAIL
+//    return/drawdown 2.26 vs buy-and-hold 3.44.                      FAIL
+//
+// So: it lifts the headline numbers, it is not harmful, and it is NOT an
+// edge. Ships ON because it improves every measured window, and is
+// labelled honestly because believing it is an edge is how this project
+// spent four months.
+//
+// Exiting on the SMA cross was also tested and REJECTED - it cuts
+// winners early (train PF 1.030 vs 1.048). Off by default.
+//
 // HONEST LIMITS
 //  - One instrument, one timeframe. Untested on anything else.
 //  - The test window is a historic gold bull run. A long-biased trend
@@ -107,8 +136,14 @@ int   atrLen    = input.int(14, "ATR length", minval=2, group="① Core")
 float riskPct   = input.float(1.0, "Risk per trade (%)", step=0.25, group="② Risk")
 float maxLev    = input.float(20, "Max leverage (notional cap)", minval=1, group="② Risk",
      tooltip="BUG-012 guard. Without a notional cap, risk-based sizing silently requests more than buying power and TradingView skips the order with no error.")
-bool  useRegime = input.bool(false, "Only trade above the regime EMA (A/B, OFF)", group="② Risk",
-     tooltip="Ships OFF. Trend/HTF filters have made results WORSE four separate times in this project. Turn it on, compare, keep it only if the number improves.")
+bool  useSma    = input.bool(true, "Trend filter: only long above the SMA, short below", group="② Risk",
+     tooltip="Improves every window measured, but does NOT pass a significance test - see the header. Harmless to run, unwise to believe in.")
+int   smaLen    = input.int(750, "Trend SMA length (bars)", minval=50, group="② Risk",
+     tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only. 2000 (~3 weeks) looks better on recent data but WORSE on the training half - that is a regime artifact, not a better setting.")
+bool  smaExit   = input.bool(false, "Also exit when price crosses back through the SMA", group="② Risk",
+     tooltip="Tested and rejected: it cuts winners early. Train PF 1.030 vs 1.048 with the gate alone.")
+bool  useRegime = input.bool(false, "Extra regime EMA gate (A/B, OFF)", group="② Risk",
+     tooltip="Ships OFF. EMA gates at 100/200/400/800/1600 were all tested and none beat plain long+short.")
 int   regimeLen = input.int(200, "Regime EMA length", minval=20, group="② Risk")
 
 // ── ③ Display ────────────────────────────────────────────────────
@@ -123,12 +158,20 @@ float atr      = ta.atr(atrLen)
 float donHi    = ta.highest(high, entryLen)[1]
 float donLo    = ta.lowest(low, entryLen)[1]
 float regimeMa = ta.ema(close, regimeLen)
+float trendSma = ta.sma(close, smaLen)
 
 bool regimeOkL = not useRegime or close > regimeMa
 bool regimeOkS = not useRegime or close < regimeMa
+bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
+bool smaOkS    = not useSma or (not na(trendSma) and close < trendSma)
 
-bool longSig  = not na(donHi) and close > donHi and regimeOkL
-bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS
+bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
+bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
+
+// optional exit on an SMA cross against the position (default OFF)
+bool smaCrossOut = useSma and smaExit and not na(trendSma) and
+     ((strategy.position_size > 0 and close < trendSma) or
+      (strategy.position_size < 0 and close > trendSma))
 
 // ═════════════════════════════════════════════════════════════
 // TRAILING STOP
@@ -164,6 +207,8 @@ if shortSig and strategy.position_size == 0 and qty >= 1
 
 // no take-profit and no time stop, deliberately: capping the winners is
 // exactly what broke every previous engine in this repo
+if smaCrossOut
+    strategy.close_all(comment="SMA cross")
 if strategy.position_size > 0 and not na(trailStop)
     strategy.exit("L-exit", "L", stop=trailStop)
 if strategy.position_size < 0 and not na(trailStop)
@@ -175,6 +220,7 @@ if strategy.position_size < 0 and not na(trailStop)
 plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.orange, 40), 1, plot.style_stepline)
 plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
 plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
+plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
 
 plotshape(longSig and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
 plotshape(shortSig and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")

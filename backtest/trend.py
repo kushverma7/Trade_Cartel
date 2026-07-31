@@ -26,7 +26,8 @@ import pandas as pd
 def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
         random_p=0.0, random_seed=0,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
-        max_lev=20, regime_ema=0):
+        max_lev=20, regime_ema=0, sma_len=0, exit_on_cross=False,
+        sma_reverse=False):
     o, h, l, c = (df[k].to_numpy(float) for k in ("open", "high", "low", "close"))
     n = len(c)
     pc = np.roll(c, 1); pc[0] = c[0]
@@ -36,6 +37,12 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
     lo = pd.Series(l).rolling(entry_n).min().shift(1).to_numpy()
     ema = (pd.Series(c).ewm(span=regime_ema, adjust=False).mean().to_numpy()
            if regime_ema else None)
+    # long-horizon SMA. On 15m bars a 2000 period is ~3 weeks of price, so
+    # it defines the prevailing trend rather than a swing. Used three ways:
+    #   gate    -- only take longs above it, shorts below
+    #   exit    -- close when price crosses back through it
+    #   reverse -- the cross IS the signal; always in the market
+    sma = (pd.Series(c).rolling(sma_len).mean().to_numpy() if sma_len else None)
 
     rng = np.random.default_rng(random_seed)
     eq = equity0
@@ -51,6 +58,16 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
             else:
                 pos["stop"] = min(pos["stop"], l[i - 1] + atr[i] * trail_atr)
                 hit = h[i] >= pos["stop"]
+            # exit on a close back through the SMA, before the trail check
+            if not hit and exit_on_cross and sma is not None and not np.isnan(sma[i]):
+                if (d > 0 and c[i] < sma[i]) or (d < 0 and c[i] > sma[i]):
+                    px = c[i] - d * slippage
+                    pnl = d * (px - pos["entry"]) * pos["qty"] - 2 * commission * pos["qty"]
+                    eq += pnl
+                    trades.append({"pnl": pnl, "dir": d, "bar": pos["bar"],
+                                   "bars_held": i - pos["bar"]})
+                    pos = None
+                    continue
             if hit:
                 px = pos["stop"] - d * slippage
                 pnl = d * (px - pos["entry"]) * pos["qty"] - 2 * commission * pos["qty"]
@@ -70,12 +87,22 @@ def run(df, entry_n=100, trail_atr=3.0, atr_n=14, long_only=False,
             short_sig = False if long_only else (rng.random() < 0.5)
             if short_sig:
                 long_sig = False
+        elif sma_reverse and sma is not None:
+            if np.isnan(sma[i]) or np.isnan(sma[i - 1]):
+                continue
+            long_sig = c[i] > sma[i] and c[i - 1] <= sma[i - 1]
+            short_sig = (not long_only) and c[i] < sma[i] and c[i - 1] >= sma[i - 1]
         else:
             long_sig = c[i] > hi[i]
             short_sig = (not long_only) and c[i] < lo[i]
         if ema is not None and random_p == 0:
             long_sig = long_sig and c[i] > ema[i]
             short_sig = short_sig and c[i] < ema[i]
+        if sma is not None and not sma_reverse and random_p == 0:
+            if np.isnan(sma[i]):
+                continue
+            long_sig = long_sig and c[i] > sma[i]
+            short_sig = short_sig and c[i] < sma[i]
         if not (long_sig or short_sig):
             continue
         d = 1 if long_sig else -1
