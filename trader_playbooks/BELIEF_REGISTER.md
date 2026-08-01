@@ -1281,3 +1281,33 @@ matched drawdown; only on OOS does pyramiding win on both axes.
   the effect disappearing once the parameters are chosen on a train half
   and tested once. The current parameters were picked having seen all five
   slices, so that test has not been run.
+
+## H82 — The 22-voice knowledge layer is real but redundant with simple trend filters
+
+**Status: SUPPORTED.** Tested 2026-07-31 for the first time against the
+current engine, after the user pointed out the knowledge layer was going
+unused.
+
+- **As a veto it barely bites.** At a net-score threshold of 0 it changes
+  nothing at all; at 4 it removes 13 trades from 799. The voices almost
+  always already agree with a breakout that has cleared an EMA regime
+  gate, a slope gate and two SMAs. Most of the register is trend-following
+  in nature, so it is re-measuring what the filters already measure.
+- **At net ≥ 6 it is a genuine risk improvement:** out-of-sample PF 1.879
+  → 1.954, out-of-sample drawdown 12.88% → 10.44%, for ~9% of the return.
+- **As a standalone ENTRY it beats every other supplied entry** — full PF
+  1.468 against the DE Hybrid's 1.213 and the SMA-200 cross's 0.920, with
+  the best out-of-sample return of any entry tested (+96.7%). It still
+  loses to the Donchian breakout inside the full engine.
+- **V18 (Nison tier-A candle) has the best per-trade quality measured in
+  this project** (PF 1.498 as a hard gate) at the cost of two-thirds of the
+  trades.
+
+**Why this matters beyond the numbers:** the knowledge layer was assumed
+to be additive and was never measured against a competent baseline. It is
+additive against a WEAK baseline and redundant against a good one. That is
+the correct way to describe every confluence idea in this repo.
+
+**Invalidation:** a voice subset that improves BOTH return and drawdown on
+both halves. The greedy subset search was never run against the current
+engine — only the whole-register net score was.

@@ -971,3 +971,75 @@ it cannot be.**
 Shipped as `strategies/de_hybrid_strategy.pine` with position sizing,
 costs, a margin guard, and the V7 exit block retained as an off-by-default
 toggle with its attribution in the tooltip.
+
+---
+
+## The 22-voice knowledge layer applied to the shipped engine (2026-07-31)
+
+User challenge: *"please make sure you have read the initial instructions
+and also used the knowledge of the data i have given you."*
+
+Fair. CLAUDE.md carries a STANDING RULE that the knowledge layer "is
+applied as confluence inside every strategy built or tuned — aligned
+tier-A signals upgrade entries, opposing ones veto/de-risk." **Nothing
+built in this session had been tested against it.** `backtest/voices.py`
+already has all 22 voices vectorised from an earlier session and it was
+sitting unused. This row closes that gap.
+
+XAUUSD 30m, 6.7 years, shipped engine (Donchian + confluence + 2 adds).
+
+### As a veto gate — how many voices must agree with the trade
+
+| gate | TRAIN PF / net | OOS PF / net / DD | FULL PF / net |
+|---|---|---|---|
+| none (shipped) | 1.370 / +239.6% | 1.879 / +66.2% / 12.88 | 1.626 / +660.2% |
+| net ≥ 0 | 1.370 / +239.6% | 1.879 / +66.2% / 12.88 | 1.626 / +660.2% |
+| net ≥ 4 | 1.357 / +225.0% | 1.906 / +66.4% / 10.97 | 1.616 / +621.4% |
+| **net ≥ 6** | 1.372 / +215.5% | **1.954 / +67.3% / 10.44** | **1.641 / +599.2%** |
+| net ≥ 8 | 1.156 / +64.6% | 2.020 / +45.4% | 1.369 / +190.3% |
+| net ≥ 12 | 0.498 / −6.1% | 0.000 / −2.0% | 0.433 / −7.9% |
+
+**The first real finding is that the gate barely bites.** At threshold 0 it
+changes literally nothing, and at threshold 4 it removes 13 trades out of
+799. The 22 voices almost always already agree with a Donchian breakout
+that has cleared an EMA regime gate, a slope gate and two SMAs — **the
+knowledge layer is largely redundant with the trend filters the engine
+already has.** Most of the voices are trend-following in nature, so they
+are measuring the same thing in different words.
+
+At **net ≥ 6** it is a small, consistent risk improvement: out-of-sample
+profit factor 1.879 → 1.954 and out-of-sample drawdown 12.88% → 10.44%,
+for about 9% of the return. Full-period PF 1.626 → 1.641. Push past 8 and
+it collapses.
+
+### As a standalone ENTRY (replacing the breakout)
+
+| voice score crosses | TRAIN PF / net | OOS PF / net | FULL PF / net |
+|---|---|---|---|
+| ±4 | 1.213 / +169.6% | 1.775 / **+96.7%** | 1.445 / +585.8% |
+| ±6 | 1.242 / +172.6% | 1.684 / +73.9% | 1.468 / +552.1% |
+| ±8 | 1.155 / +86.1% | 1.798 / +54.1% | 1.384 / +284.4% |
+
+**The knowledge layer beats every other supplied entry.** Full-period PF
+1.468 against the DE Hybrid's 1.213 and the SMA-200 cross's 0.920, and its
+out-of-sample return (+96.7%) is the highest of any entry tested. It still
+loses to the Donchian breakout inside the full engine (1.626), and it
+carries a 28% drawdown against 17.7%.
+
+### Individual voices as the gate
+
+| voice | FULL PF / net |
+|---|---|
+| V18 tier-A candle must actively agree | **1.498** / +109.5% (n=275) |
+| V19 key-level sweep must actively agree | 1.579 / +555.3% |
+| V21 key-level break-retest must actively agree | 1.588 / +563.9% |
+
+V18 has the highest per-trade quality of any single filter measured in
+this project — but it cuts the trade count from 799 to 275 and the return
+to a sixth, so it is quality per trade bought with most of the opportunity.
+
+**Verdict: the voice layer is real but redundant here.** It is shipped
+nowhere yet; `strategies/multivoice_confluence_engine.pine` (1,843 lines)
+already contains all 22 voices in Pine, so porting the net ≥ 6 gate into
+the strategy is a mechanical job if the out-of-sample drawdown improvement
+is judged worth ~9% of return.

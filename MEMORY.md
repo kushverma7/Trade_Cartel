@@ -569,3 +569,32 @@ edge — on random entries it triples the median and quadruples the spread.
 **Pine note:** `pyramiding=5` had to be added to the strategy() header.
 Pine's default of 0 SILENTLY IGNORES strategy.entry while a position is
 open — the adds would have placed no orders and raised no error.
+
+
+---
+
+# ►► SESSION 2026-07-31 (sixth pass) — knowledge layer finally measured
+
+The user asked whether the instructions and the supplied knowledge had
+actually been used. **They had not been, in this session.** Everything
+built was quantitative; `backtest/voices.py` held all 22 register voices
+vectorised and untouched. Corrected, measured, logged as H82.
+
+Finding: the voice layer is REDUNDANT with the engine's trend filters. A
+net-score veto at threshold 0 changes nothing; at 4 it removes 13 of 799
+trades. At net >= 6 it is a real but small risk gain (OOS PF 1.879 ->
+1.954, OOS drawdown 12.88% -> 10.44%) costing ~9% of return. As a
+STANDALONE ENTRY the voice score beats every other supplied entry (full PF
+1.468 vs DE Hybrid 1.213 vs SMA-200 cross 0.920).
+
+**Standing correction for future sessions:** apply the knowledge layer at
+BUILD time, not when challenged. The rule is in CLAUDE.md and it was
+skipped for six passes.
+
+**USER NOW HAS TRADINGVIEW PREMIUM (2026-07-31).** That unlocks DEEP
+BACKTESTING in the Strategy Tester, which is the missing piece for
+cross-validation: until now every live run covered only the bars the chart
+had loaded (Feb-Jul 2026, or Jan 2025-Jul 2026), never the 6.7 years the
+research uses. Ask for a deep backtest over the full range before trusting
+or doubting any Pine-vs-Python gap. Premium also raises intraday history to
+20k bars and allows 400 alerts.
