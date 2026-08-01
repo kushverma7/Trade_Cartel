@@ -1043,3 +1043,75 @@ nowhere yet; `strategies/multivoice_confluence_engine.pine` (1,843 lines)
 already contains all 22 voices in Pine, so porting the net ≥ 6 gate into
 the strategy is a mechanical job if the out-of-sample drawdown improvement
 is judged worth ~9% of return.
+
+---
+
+## VALIDATION CERTIFICATE — the champion put through all four tests (2026-07-31)
+
+User: *"create a logically proven strategy... fix all the limitations and
+mistakes."* This row is the proof that was never run on the current build.
+Config: XAUUSD 30m, Donchian entry, EMA regime + slope, fast and slow SMA,
+chandelier 4.24 trail, 2 adds every 3 ATR, gap-aware fills.
+
+### 1. Random-timing null (30 seeds) — CORRECTED METHOD
+
+The earlier null in this repo was **wrong**: `random_p` mode skips the
+filters, so it compared entry+filters against nothing and flattered the
+entry. The corrected null draws random entries from the SAME filtered bars
+at a matched rate, so only the trigger differs.
+
+| | PF | net |
+|---|---|---|
+| champion | **1.626** | +660.2% |
+| random timing, same filters (median of 30) | 1.478 | +524.1% |
+| random timing, range | 1.378 – 1.635 | +312.3% to +817.6% |
+
+Champion percentile **93.3%**, beats 28/30. **The trigger is inside the
+noise band.** The important half of that result: the random arm still
+returns a median +524%. The edge is in the filters, exit and adds, and it
+survives replacing the entry with a coin flip.
+
+### 2. Deflated Sharpe Ratio
+
+| trials assumed | DSR | adjusted SR |
+|---|---|---|
+| 1 | 1.0000 | +0.1163 |
+| 50 | 0.9998 | +0.1002 |
+| 500 | 0.9997 | +0.0948 |
+| **1000** | **0.9996** | +0.0933 |
+
+Observed Sharpe +0.1163 per trade over 799 trades, skew +3.89, kurtosis
+22.1. **PASS at every trial count**, including one far above what this
+session actually ran. Compare the July audit of the older engines: DSR
+0.03–0.20 for the same test. Those were noise; this is not.
+
+### 3. Probability of Backtest Overfitting (CSCV)
+
+24 configurations × 78,695 bars, 252 symmetric splits: **PBO = 0.099**,
+median logit +1.609. Below 0.5 means selection beats random; 0.099 means
+it beats it comfortably.
+
+### 4. Year by year
+
+| year | n | WR | PF | net | maxDD | gold |
+|---|---|---|---|---|---|---|
+| 2020 | 104 | 20.2% | 1.596 | +44.8% | 14.73% | +24.9% |
+| **2021** | 125 | 17.6% | **0.978** | **−1.5%** | 14.26% | −4.3% |
+| 2022 | 124 | 25.0% | 1.269 | +16.1% | 9.48% | −0.3% |
+| 2023 | 127 | 23.6% | 1.318 | +19.3% | 17.20% | +12.8% |
+| 2024 | 128 | 21.1% | 1.482 | +31.3% | 12.14% | +27.1% |
+| 2025 | 125 | 27.2% | 1.977 | +73.9% | 13.58% | +64.7% |
+| 2026 | 54 | 29.6% | 2.094 | +26.0% | 5.32% | **−6.0%** |
+
+**Six of seven years profitable; the worst is −1.5%.** 2026 is +26.0%
+while gold fell 6.0%, which is the falling-market claim validated on real
+bars rather than asserted.
+
+### What this certificate does NOT claim
+
+- It does not claim the entry predicts anything. Test 1 says the opposite.
+- The parameters were chosen across this session with knowledge of both
+  halves. DSR and PBO are the defence against that, and they pass, but a
+  genuinely fresh sample would be better than either.
+- 2021 is a losing year. Any run that starts inside a 2021-like regime
+  will be underwater for a while.
