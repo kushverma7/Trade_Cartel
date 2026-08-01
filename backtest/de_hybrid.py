@@ -133,7 +133,8 @@ def signals(df, st_len=97, st_mult=4.0, at_period=14, at_coeff=1.0,
     macd_bull, macd_bear = ml > sl2, ml < sl2
 
     agv = _rma(_true_range(h, l, c), ag_len)
-    axp = agv > pd.Series(agv).rolling(50).mean().to_numpy() * ag_mult
+    aga = pd.Series(agv).rolling(50).mean().to_numpy()
+    axp = agv > aga * ag_mult
     bbs = pd.Series(c).rolling(bb_len).mean().to_numpy()
     vgb = np.ones(n, bool) if not use_vg else (axp & (c > bbs))
     vgs = np.ones(n, bool) if not use_vg else (axp & (c < bbs))
@@ -162,7 +163,13 @@ def signals(df, st_len=97, st_mult=4.0, at_period=14, at_coeff=1.0,
            + below.astype(int) + np.nan_to_num(rsi_bear_z).astype(int)
            + macd_bear.astype(int))
 
+    ema9_x_dn = (ef < em) & (sh(ef, 1) >= sh(em, 1))
+    ema9_x_up = (ef > em) & (sh(ef, 1) <= sh(em, 1))
     return dict(
+        st_bull=st_bull, st_bear=st_bear, bbsr=bbsr, ef=ef, es=es,
+        agv=agv, aga=aga, vma=vma, vol=v,
+        ema9_x_dn=np.nan_to_num(ema9_x_dn).astype(bool),
+        ema9_x_up=np.nan_to_num(ema9_x_up).astype(bool),
         tgb=tgb, tgs=tgs, tbs=tbs, tss=tss, vgb=vgb, vgs=vgs, vok=vok,
         rsb=rsb, rss=rss, swb=swb, sws=sws,
         at_flip_bull=np.nan_to_num(at_flip_bull).astype(bool),
@@ -178,6 +185,9 @@ def signals(df, st_len=97, st_mult=4.0, at_period=14, at_coeff=1.0,
 def run(df, sig=None, stop_atr=0.0, exit_atr_len=14, giveback_atr=0.8,
         use_giveback=True, use_ema21=True, use_mom=True, use_at=True,
         use_sweep=True, min_bars_exit=1, alternate=True, trail_exit=0.0,
+        v7=False, use_st=True, use_dyn=True, dyn_thresh=2.0, dyn_tight=0.5,
+        use_emax=True, use_spike=True, spike_mult=1.5, use_rsidiv=True,
+        use_bbsrfail=True, use_voldry=False, voldry_mult=0.7,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, gap_fill=True, **kw):
     """Trade the ported signals.
@@ -247,11 +257,37 @@ def run(df, sig=None, stop_atr=0.0, exit_atr_len=14, giveback_atr=0.8,
                 af = (use_at and (S["at_flip_bear"][i] if d > 0 else S["at_flip_bull"][i]))
                 ow = (use_sweep and ((S["sws"][i] and rsi[i] > 55 and rsi[i] < rsi1[i]) if d > 0
                                      else (S["swb"][i] and rsi[i] < 45 and rsi[i] > rsi1[i])))
-                if gb or eb or mo or af or ow:
+                # ---- V7 additions (port of the seven new exits) ------
+                st_fl = dv = ex = sp = rd = bf = vd = False
+                if v7:
+                    st_fl = (use_st and (S["st_bear"][i] and S["st_bull"][i-1]) if d > 0
+                             else use_st and (S["st_bull"][i] and S["st_bear"][i-1]))
+                    pia = ((c[i] - pos["entry"]) if d > 0 else (pos["entry"] - c[i])) / max(atr[i], 1e-9)
+                    dyn = dyn_tight if pia >= dyn_thresh else giveback_atr
+                    dv = (use_dyn and prof and
+                          ((c[i] < pos["best"] - atr[i] * dyn) if d > 0
+                           else (c[i] > pos["best"] + atr[i] * dyn)))
+                    ex = use_emax and (S["ema9_x_dn"][i] if d > 0 else S["ema9_x_up"][i])
+                    sp = (use_spike and S["agv"][i] > S["aga"][i] * spike_mult and
+                          ((c[i] < o[i]) if d > 0 else (c[i] > o[i])))
+                    rd = (use_rsidiv and
+                          ((h[i] >= pos["best"] and rsi[i] < rsi1[i]) if d > 0
+                           else (l[i] <= pos["best"] and rsi[i] > rsi1[i])))
+                    bf = (use_bbsrfail and
+                          ((c[i] < S["bbsr"][i] and c1[i] < S["bbsr"][i-1]) if d > 0
+                           else (c[i] > S["bbsr"][i] and c1[i] > S["bbsr"][i-1])))
+                    vd = (use_voldry and S["vol"][i] < S["vma"][i] * voldry_mult and
+                          ((h[i] >= pos["best"] * 0.998) if d > 0
+                           else (l[i] <= pos["best"] * 1.002)))
+                if gb or eb or mo or af or ow or st_fl or dv or ex or sp or rd or bf or vd:
                     px = c[i] - d * slippage
                     hit = True
                     pos["why"] = ("giveback" if gb else "ema21" if eb else
-                                  "momentum" if mo else "at_flip" if af else "sweep")
+                                  "momentum" if mo else "at_flip" if af else
+                                  "sweep" if ow else "st_flip" if st_fl else
+                                  "dyn_trail" if dv else "ema_cross" if ex else
+                                  "atr_spike" if sp else "rsi_div" if rd else
+                                  "bbsr_fail" if bf else "vol_dry")
             if hit:
                 pnl = d * (px - pos["entry"]) * pos["qty"] - 2 * commission * pos["qty"]
                 eq += pnl

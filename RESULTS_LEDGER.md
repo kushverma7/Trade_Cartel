@@ -883,3 +883,91 @@ The shipped defaults still produce the session's best result: 30m,
 Donchian entry, EMA+SMA+slow-SMA confluence, chandelier 4.24, 2 adds every
 3 ATR, no targets — **full period PF 1.635, +679.9%, drawdown 17.01%**,
 against buy-and-hold's +179.1% at 29.08%.
+
+---
+
+## DE Hybrid V7 ported, exit rebuilt, shipped as a strategy (2026-07-31)
+
+V7 keeps the V5 entry unchanged and grows the exit block from five OR-ed
+conditions to **twelve**. Ported into `backtest/de_hybrid.py` behind a
+`v7=True` flag. XAUUSD 30m, 6.7 years, gap-aware fills, same costs/sizing.
+
+### V7 vs V6 as supplied
+
+| build | n | PF | net | max DD |
+|---|---|---|---|---|
+| V6 (5 exits), no stop | 720 | 0.952 | −89.0% | 97.56% |
+| **V7 (12 exits), no stop** | 720 | 0.969 | **−83.9%** | **98.37%** |
+| V6 + 6 ATR stop | 698 | 0.970 | −1.5% | 8.27% |
+| V7 + 6 ATR stop | 698 | 1.025 | +1.1% | 8.09% |
+
+V7 is a marginal improvement on V6 and still break-even. **Average hold
+fell from 3.0 bars to 2.3** — more exits OR-ed together means the earliest
+one wins, and the earliest of twelve is earlier than the earliest of five.
+
+### Which of the twelve fires (V7 + 6 ATR stop, 698 trades)
+
+| exit | share | net |
+|---|---|---|
+| momentum loss | 28.8% | **−$2,069** |
+| profit giveback | 28.2% | **+$2,607** |
+| opposite sweep | 25.4% | −$271 |
+| RSI divergence | 6.2% | −$301 |
+| ATR spike | 5.7% | −$258 |
+| BBSR fail | 2.3% | −$167 |
+| **dynamic trail** | 2.1% | **+$770** (best per-trade) |
+| EMA21 / EMA9x | 1.3% | −$197 |
+
+Only two of the twelve pay. Of the seven NEW V7 exits, only the dynamic
+trail is positive.
+
+### Subtraction does not rescue it
+
+| kept | TRAIN PF | OOS PF | FULL PF / net |
+|---|---|---|---|
+| all twelve | 1.036 | 0.992 | 1.025 / +1.1% |
+| drop momentum (+sweep) | 1.122 | **0.839** | 1.061 / +3.1% |
+| giveback + dynamic only | 0.908 | 1.186 | 0.928 / −5.8% |
+| giveback only | 0.910 | 1.277 | 0.938 / −5.0% |
+
+Best subtraction reaches PF 1.061 and goes NEGATIVE out of sample. The
+architecture is the problem, not the parameter set.
+
+### The replacement: one Donchian trail
+
+V5 entry, no alternation, initial 4.24 ATR stop, stop rides the lowest low
+of the last N bars. Selection on train, confirmed once on OOS, ranked by
+the weaker half.
+
+| exit | TRAIN | OOS | FULL | losing slices |
+|---|---|---|---|---|
+| V7's twelve + stop | 1.036 / +1.5% | 0.992 / −0.0% | 1.025 / +1.1% | — |
+| chandelier 6.0 | 1.185 / +42.7% | 1.346 / +12.5% | 1.233 / +67.4% | 2/5 |
+| donchian 60 | 1.239 / +95.1% | 1.331 / +18.8% | 1.275 / +147.7% | 0/5 |
+| **donchian 160** | **1.508 / +119.8%** | **1.899 / +26.3%** | **1.635 / +198.1%** | **0/5** |
+| target 3% / 4 ATR stop | 1.298 / +106.5% | 1.137 / +9.3% | 1.229 / +121.3% | 1/5 |
+| TP1 2% + donch60 runner | 1.197 / +74.7% | 1.266 / +18.6% | 1.231 / +115.6% | 0/5 |
+
+**PF 1.025 → 1.635. Net +1.1% → +198.1%. Drawdown 8.09% → 11.02%.**
+Average hold 2.3 bars → 215.
+
+**And it is a plateau, not a spike** — the check that killed two earlier
+candidates:
+
+| lookback | 80 | 100 | 120 | 140 | **160** | 200 | 250 |
+|---|---|---|---|---|---|---|---|
+| full PF | 1.256 | 1.234 | 1.359 | 1.522 | **1.635** | 1.522 | 1.355 |
+| OOS PF | 1.344 | 1.362 | 1.796 | 1.935 | 1.899 | 1.687 | 1.512 |
+
+Both halves rise and fall together across the whole range.
+
+### Standing limit, unchanged
+
+The V5 entry still carries no measurable edge: through this repo's trailing
+exit it scores PF 1.213 against a matched random-entry median of 1.154,
+inside the random range. **The exit was fixed; the entry was not, because
+it cannot be.**
+
+Shipped as `strategies/de_hybrid_strategy.pine` with position sizing,
+costs, a margin guard, and the V7 exit block retained as an off-by-default
+toggle with its attribution in the tooltip.

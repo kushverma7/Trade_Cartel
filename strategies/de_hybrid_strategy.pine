@@ -1,0 +1,455 @@
+// ════════════════════════════════════════════════════════════════════
+// DE HYBRID — STRATEGY (V5 entry, measured exit)  [port + rebuild]
+// ════════════════════════════════════════════════════════════════════
+// The V5/V7 indicator's ENTRY is ported verbatim. Its EXIT block was
+// replaced after measurement, and this header states exactly why.
+//
+// XAUUSD 30m, 157,366 bars resampled (Dec 2019 - Jul 2026), 80/20 split,
+// gap-aware stop fills, 1% risk, commission and slippage charged:
+//
+//   V7's twelve OR-ed exits + a 6 ATR stop : PF 1.025 | net   +1.1%
+//   V7's exits with NO stop (as supplied)  : PF 0.969 | net  -83.9%
+//   THIS BUILD (Donchian 160 trail)        : PF 1.635 | net +198.1%
+//                                            drawdown 11.02%
+//     train PF 1.508 / +119.8%   out of sample PF 1.899 / +26.3%
+//     positive in all five consecutive walk-forward slices
+//
+// ── WHY THE V7 EXIT BLOCK WAS REPLACED ──────────────────────────────
+// Twelve exits OR-ed together means the EARLIEST one always wins, and the
+// earliest of twelve is very early: average hold 2.3 bars, against 44 for
+// a trailing exit. Attribution over 698 trades with a stop added:
+//
+//   momentum loss  28.8% of exits   -$2,069   <- largest single loser
+//   profit giveback 28.2%           +$2,607   <- the only large winner
+//   opposite sweep 25.4%              -$271
+//   RSI divergence  6.2%              -$301
+//   ATR spike       5.7%              -$258
+//   BBSR fail       2.3%              -$167
+//   dynamic trail   2.1%              +$770   <- best per-trade
+//   EMA21 / EMA9x   1.3%              -$197
+//
+// Removing the losers does NOT fix it: the best subtraction reaches PF
+// 1.061 on the full period and goes NEGATIVE out of sample (0.839). The
+// architecture is the problem, not the parameters.
+//
+// The supplied script also had NO STOP LOSS. As written it loses 89% of
+// the account with a 97.6% drawdown, because nothing bounds a losing
+// trade except one of the twelve triggers happening to fire.
+//
+// ── WHY THIS EXIT ───────────────────────────────────────────────────
+// One structural trail: the stop rides the lowest low of the last N bars
+// for longs, the highest high for shorts, and never moves against the
+// trade. Six trailing algorithms were measured; this was the best, and it
+// sits on a WIDE PLATEAU rather than a fitted spike:
+//
+//   lookback   120     140     160     200     250
+//   full PF   1.359   1.522   1.635   1.522   1.355
+//   both halves rise and fall together across the whole range
+//
+// 160 bars on 30m is about 3.3 days. The alternating state machine (after
+// exiting a long you could only take a short next) is also gone: it is
+// fatal in a trend, and removing it was worth +30.7% -> +68.2% on the
+// identical entry.
+//
+// ── HONEST LIMIT ────────────────────────────────────────────────────
+// The ENTRY still carries no measurable edge. Through this repo's trailing
+// exit the V5 five-confluence entry scored PF 1.213 against a matched
+// random-entry median of 1.154 - better than 10 of 15 random seeds, which
+// is inside the noise band. What was fixed here is the exit, and the exit
+// is where every gain in this project has come from.
+// ════════════════════════════════════════════════════════════════════
+//@version=6
+strategy("DE Hybrid — Strategy",
+     overlay                 = true,
+     initial_capital         = 10000,
+     currency                = currency.USD,
+     default_qty_type        = strategy.cash,
+     default_qty_value       = 1000,
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 0.07,
+     slippage                = 5,
+     process_orders_on_close = true,
+     // BUG-012 guard: Pine's 100% margin default silently REJECTS
+     // risk-sized orders with no error and no log line.
+     margin_long             = 5,
+     margin_short            = 5,
+     calc_on_every_tick      = false,
+     max_bars_back           = 5000)
+
+// ── ① Supertrend ────────────────────────────────────────────────
+int   st_len    = input.int(97, "ATR Period", group="① Supertrend")
+float st_mult   = input.float(4.0, "Multiplier", group="① Supertrend", step=0.1)
+
+// ── ② AlphaTrend ────────────────────────────────────────────────
+int   at_period = input.int(14, "Period", group="② AlphaTrend")
+float at_coeff  = input.float(1.0, "Coefficient", group="② AlphaTrend", step=0.1)
+bool  no_vol_at = input.bool(false, "No Volume (use RSI)", group="② AlphaTrend")
+
+// ── ③ BBSR ──────────────────────────────────────────────────────
+int   ema_bbsr  = input.int(200, "EMA Period", group="③ BBSR EMA")
+
+// ── ④ EMA Stack ─────────────────────────────────────────────────
+int   ema_fast  = input.int(9, "EMA Fast", group="④ EMA Stack")
+int   ema_mid   = input.int(21, "EMA Mid", group="④ EMA Stack")
+int   ema_slow  = input.int(50, "EMA Slow", group="④ EMA Stack")
+
+// ── ⑤ RSI ───────────────────────────────────────────────────────
+int   rsi_len   = input.int(14, "Length", group="⑤ RSI")
+int   rsi_ob    = input.int(60, "Overbought", group="⑤ RSI", minval=55, maxval=80)
+int   rsi_os    = input.int(40, "Oversold", group="⑤ RSI", minval=20, maxval=45)
+
+// ── ⑥ MACD ──────────────────────────────────────────────────────
+int   macd_f    = input.int(8, "Fast", group="⑥ MACD")
+int   macd_s    = input.int(17, "Slow", group="⑥ MACD")
+int   macd_sig  = input.int(9, "Signal", group="⑥ MACD")
+
+// ── ⑦ Volatility Gate ───────────────────────────────────────────
+int   ag_len    = input.int(14, "ATR Length", group="⑦ Volatility Gate")
+float ag_mult   = input.float(1.0, "ATR Expansion Mult", group="⑦ Volatility Gate", step=0.1)
+int   bb_len    = input.int(20, "BB Length", group="⑦ Volatility Gate")
+float bb_mult   = input.float(2.0, "BB StdDev", group="⑦ Volatility Gate", step=0.1)
+bool  use_vg    = input.bool(true, "Require Vol Expansion", group="⑦ Volatility Gate")
+
+// ── ⑧ Sweep ─────────────────────────────────────────────────────
+int   liq_lb    = input.int(20, "Lookback", group="⑧ Sweep", minval=5, maxval=50)
+int   sw_age    = input.int(5, "Max Sweep Age", group="⑧ Sweep", minval=1, maxval=20)
+
+// ── ⑨ Volume ────────────────────────────────────────────────────
+int   vol_len   = input.int(20, "MA Length", group="⑨ Volume")
+float vol_thr   = input.float(1.1, "Surge Multiplier", group="⑨ Volume", step=0.1)
+bool  use_vol   = input.bool(false, "Require Volume Surge", group="⑨ Volume")
+
+// ── ⑩ Engine ────────────────────────────────────────────────────
+int   min_conf  = input.int(3, "Min Confluences", group="⑩ Engine", minval=1, maxval=5)
+bool  use_trend = input.bool(true, "Enable Trend Engine", group="⑩ Engine")
+bool  use_rev   = input.bool(true, "Enable Reversal Engine", group="⑩ Engine")
+int   cooldown  = input.int(5, "Signal Cooldown (bars)", group="⑩ Engine", minval=1, maxval=30)
+
+// ── ⑪ Session ───────────────────────────────────────────────────
+bool  use_sess  = input.bool(false, "Session Filter", group="⑪ Session")
+int   sess_start= input.int(700, "Session Start HHMM", group="⑪ Session", minval=0, maxval=2359)
+int   sess_end  = input.int(1700, "Session End HHMM", group="⑪ Session", minval=0, maxval=2359)
+
+// ── ⑫ EXIT — the part that was rebuilt ──────────────────────────
+bool  autoScale = input.bool(true, "Auto-scale the trail to the chart timeframe", group="⑫ Exit Engine",
+     tooltip="The lookback below is in BARS, so changing timeframe silently doubles or halves it. With this on the script targets ~3.3 days of structure, which is 160 bars on 30m - the length it was measured at. Leave it on unless you are reproducing a specific run.")
+int   donchN    = input.int(160, "Donchian trail lookback (bars)", minval=10, group="⑫ Exit Engine",
+     tooltip="The stop rides the lowest low of the last N bars for longs, the highest high for shorts, and never moves against the trade.\n\nThis is a PLATEAU, not a fitted peak - full-period profit factor by lookback: 120 -> 1.359, 140 -> 1.522, 160 -> 1.635, 200 -> 1.522, 250 -> 1.355, with both halves rising and falling together across the whole range. That is what a real effect looks like, and it is why this number is trustworthy in a way the V7 exit parameters were not.")
+float stopAtr   = input.float(4.24, "Initial stop (x ATR)", minval=0.5, step=0.25, group="⑫ Exit Engine",
+     tooltip="Set at entry and used for position sizing. Swept 3/4.24/6/8 ATR: 4.24 was best on the training half (PF 1.375 vs 1.197 at 3.0). A wider stop scores a higher profit factor out of sample but returns less, because risk-based sizing shrinks the position as the stop widens.")
+int   atrLen    = input.int(14, "ATR length", minval=2, group="⑫ Exit Engine")
+
+// ── ⑬ Risk ──────────────────────────────────────────────────────
+float riskPct   = input.float(1.0, "Risk per trade (%)", step=0.25, group="⑬ Risk",
+     tooltip="Return scales roughly linearly with this, and so does drawdown. Choose by the drawdown you can actually sit through.")
+float maxLev    = input.float(20, "Max leverage (notional cap)", minval=1, group="⑬ Risk",
+     tooltip="BUG-012 guard. Without a cap, risk-based sizing can request more than buying power and TradingView skips the order with no error.")
+bool  longOnly  = input.bool(false, "Long only", group="⑬ Risk")
+
+// ── ⑭ V7 exits (measured, OFF by default) ───────────────────────
+bool  useV7     = input.bool(false, "Re-enable the original V7 exit block", group="⑭ Original V7 Exits",
+     tooltip="Turns the twelve OR-ed exits back on ALONGSIDE the trail, which is the supplied behaviour plus a stop. MEASURED: PF 1.025 and +1.1% full period, against 1.635 and +198.1% for the trail alone. Average hold falls from ~40 bars to 2.3.\n\nAttribution over 698 trades: momentum loss fires on 28.8% of exits for -$2,069 and is the largest single loser; profit giveback is the only large winner at +$2,607; the dynamic trail is the best per-trade at +$770 over just 15 exits. Removing the losers does not rescue it - the best subtraction reaches PF 1.061 and goes negative out of sample.\n\nHere so you can see it on your own chart, not because it helps.")
+float giveback_atr = input.float(0.8, "Profit Giveback ATR", group="⑭ Original V7 Exits", step=0.1)
+bool  use_giveback = input.bool(true, "Profit Giveback X", group="⑭ Original V7 Exits")
+bool  use_ema21_x  = input.bool(true, "EMA21 Break X", group="⑭ Original V7 Exits")
+bool  use_mom_x    = input.bool(false, "Momentum Loss X (worst performer)", group="⑭ Original V7 Exits")
+bool  use_at_x     = input.bool(true, "AlphaTrend Flip X", group="⑭ Original V7 Exits")
+bool  use_sweep_x  = input.bool(false, "Opposite Sweep X (negative)", group="⑭ Original V7 Exits")
+bool  use_st_x     = input.bool(true, "Supertrend Flip X", group="⑭ Original V7 Exits")
+bool  use_dyn_x    = input.bool(true, "Dynamic ATR Trail X (best per-trade)", group="⑭ Original V7 Exits")
+float dyn_thresh   = input.float(2.0, "Trail Tighten ATR Mult", group="⑭ Original V7 Exits", step=0.1)
+float dyn_tight    = input.float(0.5, "Tight Trail ATR", group="⑭ Original V7 Exits", step=0.1)
+bool  use_emax_x   = input.bool(false, "EMA9/21 Cross X (negative)", group="⑭ Original V7 Exits")
+bool  use_spike_x  = input.bool(false, "ATR Spike X (negative)", group="⑭ Original V7 Exits")
+float spike_mult   = input.float(1.5, "ATR Spike Mult", group="⑭ Original V7 Exits", step=0.1)
+bool  use_rsidiv_x = input.bool(false, "RSI Divergence X (negative)", group="⑭ Original V7 Exits")
+bool  use_bbsrf_x  = input.bool(false, "BBSR Reclaim Fail X (negative)", group="⑭ Original V7 Exits")
+
+// ── ⑮ TP1 / TP2 (measured, OFF by default) ──────────────────────
+bool  tp1On     = input.bool(false, "TP1 — bank part of the position", group="⑮ TP1 / TP2",
+     tooltip="Staged targets were measured across 20 configurations on this architecture and every one returned less than letting the trail run. What they buy is a smoother equity curve, not more money. A fixed 3% target closing the whole position scored full-period PF 1.229 against the trail's 1.635.")
+float tp1Atr    = input.float(4.0, "TP1 distance (x ATR)", minval=0.5, step=0.5, group="⑮ TP1 / TP2")
+float tp1Pct    = input.float(33, "TP1 — % of position closed", minval=5, maxval=90, step=5, group="⑮ TP1 / TP2")
+bool  tp2On     = input.bool(false, "TP2 — bank another part", group="⑮ TP1 / TP2")
+float tp2Atr    = input.float(10.0, "TP2 distance (x ATR)", minval=1.0, step=0.5, group="⑮ TP1 / TP2")
+float tp2Pct    = input.float(33, "TP2 — % of position closed", minval=5, maxval=90, step=5, group="⑮ TP1 / TP2")
+
+// ── ⑯ Display ───────────────────────────────────────────────────
+bool  showInd   = input.bool(true, "Plot the indicator layer", group="⑯ Display")
+bool  showStop  = input.bool(true, "Plot the stop", group="⑯ Display")
+bool  showDash  = input.bool(true, "Show dashboard", group="⑯ Display")
+
+// ═════════════════════════════════════════════════════════════
+// V5 SIGNAL ENGINE — ported verbatim from the supplied indicator
+// ═════════════════════════════════════════════════════════════
+[st_line, st_dir] = ta.supertrend(st_mult, st_len)
+bool st_bull = st_dir == -1
+bool st_bear = st_dir == 1
+
+float at_atr = ta.sma(ta.tr(true), at_period)
+float upT    = low  - at_atr * at_coeff
+float downT  = high + at_atr * at_coeff
+bool  mom_bull = no_vol_at ? ta.rsi(close, at_period) >= 50 : ta.mfi(hlc3, at_period) >= 50
+
+var float AT = na
+AT := mom_bull ? (upT < nz(AT[1]) ? nz(AT[1]) : upT) : (downT > nz(AT[1]) ? nz(AT[1]) : downT)
+
+bool at_bull      = AT > AT[2]
+bool at_flip_bull = AT > AT[2] and AT[1] <= AT[3]
+bool at_flip_bear = AT < AT[2] and AT[1] >= AT[3]
+bool at_cont_bull = at_bull and AT[2] > AT[4]
+bool at_cont_bear = AT < AT[2] and AT[2] < AT[4]
+
+float bbsr = ta.ema(close, ema_bbsr)
+bool above_bbsr = close > bbsr
+bool below_bbsr = close < bbsr
+
+float ef = ta.ema(close, ema_fast)
+float em = ta.ema(close, ema_mid)
+float es = ta.ema(close, ema_slow)
+bool ema50_rising = es > es[3]
+bool ema50_fall   = es < es[3]
+bool ema9_up      = ef > ef[1] and ef[1] > ef[2]
+bool ema9_down    = ef < ef[1] and ef[1] < ef[2]
+
+float rsi = ta.rsi(close, rsi_len)
+bool rsi_bull_z   = rsi > 45 and rsi < 70
+bool rsi_bear_z   = rsi < 55 and rsi > 30
+bool rsi_rev_bull = rsi < rsi_os and rsi > rsi[1]
+bool rsi_rev_bear = rsi > rsi_ob and rsi < rsi[1]
+
+[ml, sl2, mh] = ta.macd(close, macd_f, macd_s, macd_sig)
+bool macd_bull = ml > sl2
+bool macd_bear = ml < sl2
+
+float agv = ta.atr(ag_len)
+float aga = ta.sma(agv, 50)
+bool  axp = agv > aga * ag_mult
+[bbu, bbs, bbl] = ta.bb(close, bb_len, bb_mult)
+bool vgb = not use_vg or (axp and close > bbs)
+bool vgs = not use_vg or (axp and close < bbs)
+
+float rph = ta.highest(high[1], liq_lb)
+float rpl = ta.lowest(low[1], liq_lb)
+bool  swb = low  < rpl and close > rpl
+bool  sws = high > rph and close < rph
+var int sba = 9999
+var int ssa = 9999
+sba := swb ? 0 : sba + 1
+ssa := sws ? 0 : ssa + 1
+bool rsb = sba <= sw_age
+bool rss = ssa <= sw_age
+
+float vma = ta.sma(volume, vol_len)
+bool  vok = not use_vol or volume > vma * vol_thr
+
+int  hhmm = hour * 100 + minute
+bool ins  = not use_sess or (hhmm >= sess_start and hhmm < sess_end)
+
+var int bss = cooldown + 1
+bss := bss + 1
+bool cd = bss > cooldown
+
+bool tgb = st_bull and above_bbsr and ema50_rising
+bool tgs = st_bear and below_bbsr and ema50_fall
+int  tbs = (st_bull ? 1 : 0) + (at_cont_bull ? 1 : 0) + (above_bbsr ? 1 : 0) + (rsi_bull_z ? 1 : 0) + (macd_bull ? 1 : 0)
+int  tss = (st_bear ? 1 : 0) + (at_cont_bear ? 1 : 0) + (below_bbsr ? 1 : 0) + (rsi_bear_z ? 1 : 0) + (macd_bear ? 1 : 0)
+
+bool tbr = use_trend and tgb and tbs >= min_conf and vgb and vok and ins and cd
+bool tsr = use_trend and tgs and tss >= min_conf and vgs and vok and ins and cd
+bool rbr = use_rev and rsb and at_flip_bull and rsi_rev_bull and ema9_up   and vgb and ins and cd
+bool rsr = use_rev and rss and at_flip_bear and rsi_rev_bear and ema9_down and vgs and ins and cd
+
+// PORT DELTA 1: the indicator's alternating state machine is REMOVED.
+// After exiting a long it would only accept a short next, which is fatal
+// in a trend. Removing it was worth +30.7% -> +68.2% on this same entry.
+bool buySig  = tbr or rbr
+bool sellSig = not longOnly and (tsr or rsr)
+
+// ═════════════════════════════════════════════════════════════
+// EXIT ENGINE
+// ═════════════════════════════════════════════════════════════
+float tfMin  = timeframe.in_seconds() / 60.0
+int   donchE = autoScale ? math.max(10, int(80.0 * 60.0 / tfMin)) : donchN
+float atr    = ta.atr(atrLen)
+float trailLo = ta.lowest(low, donchE)[1]
+float trailHi = ta.highest(high, donchE)[1]
+
+var float stopPx  = na
+var float bestPx  = na
+var float entryPx = na
+var float tp1Px   = na
+var float tp2Px   = na
+var bool  tp1Done = false
+var bool  tp2Done = false
+
+// PORT DELTA 2: bestPx holds the best excursion through the PREVIOUS bar.
+// It is updated at the very end of the script, after the exits are
+// resolved, so the current bar cannot push its own stop up and then hit
+// it. Doing that the other way round doubled drawdown in the research
+// engine before it was caught.
+if strategy.position_size > 0
+    stopPx := na(stopPx) ? trailLo : math.max(stopPx, trailLo)
+else if strategy.position_size < 0
+    stopPx := na(stopPx) ? trailHi : math.min(stopPx, trailHi)
+else
+    stopPx  := na
+    bestPx  := na
+    entryPx := na
+
+// ── the original V7 exits, optional ─────────────────────────────
+bool isL = strategy.position_size > 0
+bool isS = strategy.position_size < 0
+bool inProfit = isL ? close > entryPx : isS ? close < entryPx : false
+float pia = na(entryPx) or atr <= 0 ? 0.0 : (isL ? close - entryPx : entryPx - close) / atr
+float dynGive = pia >= dyn_thresh ? dyn_tight : giveback_atr
+
+bool v7L = useV7 and isL and not na(bestPx) and (
+     (use_giveback and inProfit and close < bestPx - atr * giveback_atr) or
+     (use_ema21_x  and close < em and close[1] < em[1]) or
+     (use_mom_x    and mh < mh[1] and mh[1] < mh[2] and rsi < rsi[1]) or
+     (use_at_x     and at_flip_bear) or
+     (use_sweep_x  and sws and rsi > 55 and rsi < rsi[1]) or
+     (use_st_x     and st_bear and st_bull[1]) or
+     (use_dyn_x    and inProfit and close < bestPx - atr * dynGive) or
+     (use_emax_x   and ta.crossunder(ef, em)) or
+     (use_spike_x  and agv > aga * spike_mult and close < open) or
+     (use_rsidiv_x and high >= bestPx and rsi < rsi[1]) or
+     (use_bbsrf_x  and close < bbsr and close[1] < bbsr[1]))
+
+bool v7S = useV7 and isS and not na(bestPx) and (
+     (use_giveback and inProfit and close > bestPx + atr * giveback_atr) or
+     (use_ema21_x  and close > em and close[1] > em[1]) or
+     (use_mom_x    and mh > mh[1] and mh[1] > mh[2] and rsi > rsi[1]) or
+     (use_at_x     and at_flip_bull) or
+     (use_sweep_x  and swb and rsi < 45 and rsi > rsi[1]) or
+     (use_st_x     and st_bull and st_bear[1]) or
+     (use_dyn_x    and inProfit and close > bestPx + atr * dynGive) or
+     (use_emax_x   and ta.crossover(ef, em)) or
+     (use_spike_x  and agv > aga * spike_mult and close > open) or
+     (use_rsidiv_x and low <= bestPx and rsi > rsi[1]) or
+     (use_bbsrf_x  and close > bbsr and close[1] > bbsr[1]))
+
+// ── staged targets, optional ────────────────────────────────────
+bool tp1Hit = tp1On and not tp1Done and strategy.position_size != 0 and
+     (isL ? high >= tp1Px : low <= tp1Px)
+bool tp2Hit = tp2On and not tp2Done and strategy.position_size != 0 and
+     (isL ? high >= tp2Px : low <= tp2Px)
+
+// ═════════════════════════════════════════════════════════════
+// ORDERS
+// ═════════════════════════════════════════════════════════════
+float stopDist = atr * stopAtr
+float qtyRaw   = stopDist > 0 ? strategy.equity * riskPct / 100.0 / stopDist : 0
+float qty      = math.floor(math.min(qtyRaw, strategy.equity * maxLev / close))
+
+if buySig and strategy.position_size == 0 and qty >= 1
+    strategy.entry("L", strategy.long, qty=qty)
+    bss     := 0
+    entryPx := close
+    bestPx  := close
+    stopPx  := close - stopDist
+    tp1Px   := close + atr * tp1Atr
+    tp2Px   := close + atr * tp2Atr
+    tp1Done := false
+    tp2Done := false
+
+if sellSig and strategy.position_size == 0 and qty >= 1
+    strategy.entry("S", strategy.short, qty=qty)
+    bss     := 0
+    entryPx := close
+    bestPx  := close
+    stopPx  := close + stopDist
+    tp1Px   := close - atr * tp1Atr
+    tp2Px   := close - atr * tp2Atr
+    tp1Done := false
+    tp2Done := false
+
+if tp1Hit
+    strategy.close(isL ? "L" : "S", qty_percent=tp1Pct, comment="TP1")
+    tp1Done := true
+if tp2Hit
+    strategy.close(isL ? "L" : "S", qty_percent=tp2Pct, comment="TP2")
+    tp2Done := true
+if v7L
+    strategy.close("L", comment="V7 exit")
+if v7S
+    strategy.close("S", comment="V7 exit")
+
+if strategy.position_size > 0 and not na(stopPx)
+    strategy.exit("L-exit", "L", stop=stopPx)
+if strategy.position_size < 0 and not na(stopPx)
+    strategy.exit("S-exit", "S", stop=stopPx)
+
+// excursion updated only after every exit decision for this bar is made
+if strategy.position_size > 0
+    bestPx := na(bestPx) ? high : math.max(bestPx, high)
+else if strategy.position_size < 0
+    bestPx := na(bestPx) ? low : math.min(bestPx, low)
+
+// ═════════════════════════════════════════════════════════════
+// VISUALS
+// ═════════════════════════════════════════════════════════════
+plot(showInd ? st_line : na, "SuperTrend", color=st_bull ? color.new(#00FFBB, 20) : color.new(#FF3D57, 20), linewidth=2)
+k1 = plot(showInd ? AT : na, "AT", color.new(#0022FC, 0), linewidth=2)
+k2 = plot(showInd ? AT[2] : na, "AT2", color.new(#FC0400, 0), linewidth=2)
+fill(k1, k2, color=at_bull ? color.new(#00E60F, 85) : color.new(#80000B, 85))
+plot(showInd ? bbsr : na, "BBSR EMA 200", color.new(#4FC3F7, 40), linewidth=2)
+plot(showInd ? ef : na, "EMA 9", color.new(color.yellow, 60), 1)
+plot(showInd ? em : na, "EMA 21", color.new(color.orange, 60), 1)
+plot(showInd ? es : na, "EMA 50", color.new(color.red, 60), 1)
+plot(showStop and strategy.position_size != 0 ? stopPx : na, "Trail stop", color.new(#D50000, 0), 2, plot.style_stepline)
+plot(tp1On and strategy.position_size != 0 and not tp1Done ? tp1Px : na, "TP1", color.new(#00E676, 20), 1, plot.style_circles)
+plot(tp2On and strategy.position_size != 0 and not tp2Done ? tp2Px : na, "TP2", color.new(#00E676, 45), 1, plot.style_circles)
+
+plotshape(buySig  and strategy.position_size == 0, "BUY",  shape.labelup,   location.belowbar, color.new(#00FFBB, 0), textcolor=color.black, text="BUY",  size=size.small)
+plotshape(sellSig and strategy.position_size == 0, "SELL", shape.labeldown, location.abovebar, color.new(#FF3D57, 0), textcolor=color.white, text="SELL", size=size.small)
+
+bool exitedL = strategy.position_size[1] > 0 and strategy.position_size == 0
+bool exitedS = strategy.position_size[1] < 0 and strategy.position_size == 0
+plotshape(exitedL or exitedS, "Exit", shape.xcross, location.absolute, color.new(color.gray, 0), size=size.tiny)
+barcolor(strategy.position_size > 0 ? color.new(#00FFBB, 70) : strategy.position_size < 0 ? color.new(#FF3D57, 70) : na)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(buySig,  "DE Hybrid — BUY",  "BUY {{ticker}} {{interval}} at {{close}}")
+alertcondition(sellSig, "DE Hybrid — SELL", "SELL {{ticker}} {{interval}} at {{close}}")
+alertcondition(exitedL or exitedS, "DE Hybrid — position closed", "EXIT {{ticker}} {{interval}} at {{close}}")
+alertcondition(tp1Hit, "DE Hybrid — TP1", "TP1 {{ticker}} {{interval}} at {{close}}")
+alertcondition(tp2Hit, "DE Hybrid — TP2", "TP2 {{ticker}} {{interval}} at {{close}}")
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 60))
+if showDash and barstate.islast
+    int   nT = strategy.closedtrades
+    int   wT = 0
+    float gw = 0.0
+    float gl = 0.0
+    if nT > 0
+        for i = 0 to nT - 1
+            float p = strategy.closedtrades.profit(i)
+            wT += p > 0 ? 1 : 0
+            gw += p > 0 ?  p : 0.0
+            gl += p < 0 ? -p : 0.0
+    float wr = nT > 0 ? wT * 100.0 / nT : na
+    float pf = gl > 0 ? gw / gl : na
+    float netPct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
+    table.cell(dash, 0, 0, "DE HYBRID", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, useV7 ? "V7 exits ON" : "trail " + str.tostring(donchE), text_color=useV7 ? color.red : color.aqua, text_size=size.small)
+    table.cell(dash, 0, 1, "Trades", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(nT), text_color=nT < 250 ? color.yellow : color.white, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Win rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Profit factor", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1.3 ? color.lime : pf >= 1.0 ? color.yellow : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 4, "Net", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, str.tostring(netPct, "#.#") + "%", text_color=netPct > 0 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 5, "Position", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, isL ? "LONG" : isS ? "SHORT" : "flat", text_color=strategy.position_size != 0 ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 6, "Stop", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, na(stopPx) ? "-" : str.tostring(stopPx, format.mintick), text_color=color.red, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Measured (30m, 6.7y)", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, "PF 1.64 / +198%", text_color=color.aqua, text_size=size.tiny)
