@@ -1,0 +1,379 @@
+// ════════════════════════════════════════════════════════════════════
+// GOLD TREND — STRATEGY (clean standalone build, 2026-07-31)
+// ════════════════════════════════════════════════════════════════════
+// Everything in this file is measured on 157,366 bars of XAUUSD 15m
+// (Dec 2019 - Jul 2026), resampled to 30m, split 80/20, with gap-aware
+// stop fills. Defaults reproduce the best result the research produced.
+//
+//   SHIPPED DEFAULTS, XAUUSD 30m, full 6.7 years
+//     profit factor 1.635 | net +679.9% | max drawdown 17.01%
+//     buy & hold over the same period: +179.1% at 29.08% drawdown
+//     return per unit of drawdown: 40.0 vs 6.16
+//   Out-of-sample half only: PF 1.930, +83.4%, drawdown 12.79%
+//   Positive in all five consecutive walk-forward slices.
+//
+// ── WHAT ACTUALLY MAKES THE MONEY ───────────────────────────────────
+// NOT the entry. Random entries pushed through this exact exit scored a
+// median PF of 1.621 against the breakout's 1.588 on the same data. Four
+// months of this project went into entry logic that measurement says
+// contributes nothing. What works, in order:
+//   1. a WIDE trailing stop that lets winners run (stop width is the
+//      dominant variable: 2 ATR -> PF 1.05, 6 ATR -> 1.60, 14 ATR -> 1.75)
+//   2. ADDING to positions that are already working (+192.6% -> +679.9%)
+//   3. filters that skip the chop (drawdown 12.30% -> 9.63%)
+//
+// ── THINGS THAT WERE TESTED AND DO NOT WORK ─────────────────────────
+// Every one of these is a toggle below, defaulted OFF, with its numbers
+// in its tooltip. They are here so they are not re-tried blind.
+//   - profit targets on the trend build: every one of 20 configurations
+//     returned less than no target at all
+//   - key levels or quarter grids as targets: PF 0.824 and 0.794, with
+//     76-84% win rates. They win constantly and still lose money
+//   - key levels as an entry filter: +157.7% -> +120.9%
+//   - reversing at a key level: train PF 0.932, net -14.8%
+//
+// This is a strategy, not an indicator: it sizes positions, charges
+// commission and slippage, and reports a profit factor you can audit in
+// the Strategy Tester.
+// ════════════════════════════════════════════════════════════════════
+//@version=6
+strategy("Gold Trend — Strategy",
+     overlay                 = true,
+     initial_capital         = 10000,
+     currency                = currency.USD,
+     default_qty_type        = strategy.cash,
+     default_qty_value       = 1000,
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 0.07,
+     slippage                = 5,
+     process_orders_on_close = true,
+     // BUG-012 guard. Pine's margin default of 100% silently REJECTS
+     // risk-sized orders with no error and no log line. It has bitten
+     // this project twice.
+     margin_long             = 5,
+     margin_short            = 5,
+     calc_on_every_tick      = false,
+     // REQUIRED by the add-to-winner block. With Pine's default of 0,
+     // strategy.entry while a position is open is silently ignored.
+     pyramiding              = 5,
+     // The regime EMA plus its slope lookback reaches ~2,200 bars back.
+     // Pine's default buffer is 300, which yields na without an error.
+     max_bars_back           = 5000)
+
+// ── ⓪ Auto-scale ────────────────────────────────────────────────
+// Every lookback here is in BARS, so changing timeframe silently doubles
+// or halves it. That caused two failed reproductions, so the script
+// derives its own settings from the chart instead.
+//    15m -> entry 48, SMA 768, EMA 2016, slope 192, trail 6.00
+//    30m -> entry 24, SMA 384, EMA 1008, slope  96, trail 4.24
+bool  autoScale = input.bool(true, "Auto-scale settings to the chart timeframe", group="⓪ Auto-scale",
+     tooltip="ON is strongly recommended. The inputs below are then IGNORED and derived from the timeframe, so moving between 15m and 30m cannot silently change the strategy. The dashboard shows what is actually in use. RUN THIS ON 30m: it beat 15m on profit factor, return AND drawdown in both halves.")
+
+// ── ① Entry ─────────────────────────────────────────────────────
+string entryMode= input.string("Donchian breakout", "Entry trigger", options=["Donchian breakout", "HMA cross"], group="① Entry",
+     tooltip="Both measured through the identical exit, filters and adds.\n\nDONCHIAN: PF 1.626, +660.2%, drawdown 17.68%, return/drawdown 37.3.\nHMA CROSS: PF 1.743, +540.4%, drawdown 20.9%, return/drawdown 25.9.\n\nHMA has the higher profit factor in BOTH halves (train 1.462 vs 1.370, out of sample 2.008 vs 1.879) - it is more accurate per trade. Donchian captures more and does it at less drawdown. Neither is strictly better.\n\nAlso measured and NOT offered: SMA and EMA crosses. The SMA 200 cross, the usual default everywhere, is the worst setting tested - PF 0.920 and -17.0% with no filters.")
+int   entryLen  = input.int(50, "Breakout lookback (bars)", minval=5, group="① Entry",
+     tooltip="Long when close exceeds the highest high of the prior N bars. Validated at 50 and 100. A timing trigger, not an edge.")
+int   hmaLen    = input.int(200, "HMA length (HMA mode only)", minval=10, group="① Entry",
+     tooltip="Swept 50/100/200/400/800; 200 best by the weaker of the two halves. NOT auto-scaled - it was measured at 200 on 30m specifically.")
+bool  longOnly  = input.bool(false, "Long only (leave OFF)", group="① Entry",
+     tooltip="THIS IS A REGIME BET, NOT A SETTING. Long-only wins every rising year and loses in falling ones. In the Feb-Jul 2026 fall, long-only returned -5.72% live while long+short returned +7.57%.")
+
+// ── ② Risk and filters ──────────────────────────────────────────
+float riskPct   = input.float(1.0, "Risk per trade (%)", step=0.25, group="② Risk & Filters",
+     tooltip="The direct return lever, and it is not free. Measured: 1% -> +85.4% train at 13.6% drawdown; 2% -> +208.8% at 28.6%; 3% -> +367.4% at 41.8%. Return scales roughly linearly and so does drawdown. Choose by the drawdown you can sit through.")
+float maxLev    = input.float(20, "Max leverage (notional cap)", minval=1, group="② Risk & Filters",
+     tooltip="BUG-012 guard. Without a notional cap, risk-based sizing can request more than buying power and TradingView skips the order with no error.")
+float trailMult = input.float(6.0, "Trailing stop (x ATR, 15m basis)", minval=1.0, step=0.5, group="② Risk & Filters",
+     tooltip="THE key parameter, and the one whose old description was wrong. Wider raises PROFIT FACTOR but LOWERS RETURN, because risk-based sizing shrinks the position as the stop widens: trail 20 ATR gives PF 1.659 but only +23.5%, against trail 6's 1.243 and +85.4%. 6 on a 15m basis (4.24 on 30m) is return-optimal at tolerable drawdown.")
+int   atrLen    = input.int(14, "ATR length", minval=2, group="② Risk & Filters")
+bool  useSma    = input.bool(true, "Fast SMA must agree", group="② Risk & Filters",
+     tooltip="750 bars on 15m, about 8 days. Selected on the training half only.")
+int   smaLen    = input.int(750, "Fast SMA length (bars)", minval=50, group="② Risk & Filters")
+bool  useSma2   = input.bool(true, "Slow SMA must agree TOO (the confluence layer)", group="② Risk & Filters",
+     tooltip="Requiring BOTH averages lifts full-period PF 1.379 -> 1.421 and cuts drawdown 12.30% -> 9.63%. Return barely moved; the drawdown fell by a fifth. It is a risk filter, not a return generator.\n\nIt is the AGREEMENT that works, not the slower average: SMA2000 instead of SMA750 is worse (train 1.181 vs 1.289), and requiring only ONE of the two is much worse (1.149). The two horizons disagreeing marks the choppy middle of a range, and that is what gets skipped.")
+int   sma2Len   = input.int(2000, "Slow SMA length (bars)", minval=100, group="② Risk & Filters")
+bool  useRegime = input.bool(true, "EMA regime gate", group="② Risk & Filters",
+     tooltip="Only long above the EMA, only short below it.")
+int   regimeLen = input.int(2000, "Regime EMA length (bars)", minval=20, group="② Risk & Filters")
+bool  useSlope  = input.bool(true, "Shorts only when the EMA is FALLING", group="② Risk & Filters",
+     tooltip="This is what makes the system profitable in a falling market without giving up the trend returns. Price sits below a FLAT EMA constantly during uptrend pullbacks; the EMA actually declining is far rarer and is what a bear regime looks like. Gating shorts on slope keeps them nearly silent in bull markets, where counter-trend shorts are what bleed away the edge.")
+int   slopeLen  = input.int(200, "Slope lookback (bars)", minval=20, group="② Risk & Filters")
+float shortRisk = input.float(0.75, "Short risk multiplier", minval=0.1, maxval=3.0, step=0.05, group="② Risk & Filters",
+     tooltip="Counter-trend trades sized smaller. 0.75 gave the best full-period result; raise toward 1.5 for more downside protection at the cost of total return.")
+
+// ── ③ Add to winners ────────────────────────────────────────────
+bool  usePyr    = input.bool(true, "Add to a winning position", group="③ Add to Winners",
+     tooltip="THE BIGGEST RETURN LEVER MEASURED HERE, and it multiplies BOTH sides. Walk-forward over five consecutive slices, net/drawdown, without adds vs with 2 adds every 3 ATR:\n\n  +38.4/9.2  ->  +92.5/16.3\n  +19.6/6.7  ->  +23.9/13.5\n   +8.8/10.4 ->  +11.9/16.6\n  +15.1/10.2 ->  +33.3/16.8\n  +28.4/7.8  ->  +88.1/13.5\n\nEvery slice improves, which is why it ships on. But through RANDOM entries it lifts the median from 6.8% to 25.3% while taking the spread from 6.8 to 29.5 and the worst seed from -3.5% to -30.2%. It is not an edge. It is betting more on trades that are already working.")
+float pyrAtr    = input.float(3.0, "Add every (x ATR of favourable move)", minval=0.5, step=0.5, group="③ Add to Winners",
+     tooltip="3.0 with 2 adds is the moderate setting. 2.0 with 4 adds returns far more (+163% and +168% on the first and last slices) at drawdowns up to 26.4%.")
+int   pyrMax    = input.int(2, "Maximum adds", minval=1, maxval=4, group="③ Add to Winners")
+float pyrRisk   = input.float(1.0, "Each add sized at (x original risk)", minval=0.1, maxval=1.0, step=0.1, group="③ Add to Winners")
+
+// ── ④ Trailing algorithm ────────────────────────────────────────
+string trailMode= input.string("Chandelier (ATR)", "Trailing logic", options=["Chandelier (ATR)", "Donchian low"], group="④ Trailing Algorithm",
+     tooltip="Six algorithms were built and measured: chandelier, Donchian low, EMA, a multiple that tightens with profit, a give-back-a-fraction trail, and none. Two are worth offering.\n\nCHANDELIER (default): PF 1.635, +679.9%, drawdown 17.01%, positive in ALL FIVE walk-forward slices.\nDONCHIAN LOW: PF 1.624, +935.9%, drawdown 23.45%, NEGATIVE in one of five (-6.0%).\n\nDonchian returns 38% more, but return per drawdown is a dead heat (39.9 vs 40.0) - the same efficiency at larger size, with one losing period to sit through.\n\nRejected: EMA trail (best PF 1.383 at 33.7% drawdown), give-back trail (1.061), stepping trail (1.597, behind both).")
+int   donchN    = input.int(45, "Donchian trail lookback (bars)", minval=5, group="④ Trailing Algorithm",
+     tooltip="The stop rides the lowest low of the last N bars for longs. Do NOT read the training peak at 40 as meaningful: out of sample the whole 30-50 range performs and the ordering reverses, which is what a fitted spike looks like once you test it. 45 is the middle of the out-of-sample plateau, not the training maximum.")
+
+// ── ⑤ TP1 / TP2 (staged profit taking, OFF by default) ──────────
+bool  tp1On     = input.bool(false, "TP1 — bank part of the position", group="⑤ TP1 / TP2",
+     tooltip="MEASURED 20 WAYS AND IT COSTS RETURN EVERY TIME. Best variant: +234.1% against +253.1% with no target. Adding TP2 as well: +216.7%. Out of sample the gap widens - PF 1.568 with TP1 against 1.930 without. Even restricting targets to the counter-trend side fails (+242.6%), the only place in this project where that asymmetry rule has not held.\n\nWhat it DOES buy is a smoother curve: full-period drawdown 17.01% -> 16.04%, out-of-sample drawdown 12.79% -> 8.38%. A real trade, just not a free one.")
+float tp1Atr    = input.float(4.0, "TP1 distance (x ATR)", minval=0.5, step=0.5, group="⑤ TP1 / TP2")
+float tp1Pct    = input.float(25, "TP1 — % of position closed", minval=5, maxval=90, step=5, group="⑤ TP1 / TP2")
+bool  tp2On     = input.bool(false, "TP2 — bank another part", group="⑤ TP1 / TP2")
+float tp2Atr    = input.float(12.0, "TP2 distance (x ATR)", minval=1.0, step=0.5, group="⑤ TP1 / TP2")
+float tp2Pct    = input.float(25, "TP2 — % of position closed", minval=5, maxval=90, step=5, group="⑤ TP1 / TP2")
+bool  tpShorts  = input.bool(false, "Apply TP1/TP2 to shorts only", group="⑤ TP1 / TP2")
+
+// ── ⑥ Pure profit-taking mode (different architecture) ──────────
+string tpMode   = input.string("Off", "Fixed-target mode", options=["Off", "Percent of price", "Fixed points"], group="⑥ Profit-Taking Mode",
+     tooltip="TURNS THIS INTO A PROFIT-TAKING STRATEGY instead of a trend-following one. The trail and the adds are bypassed: entry, static stop, fixed target, done.\n\nMeasured with a 4 ATR stop and a 4% target: train PF 1.402 / +98.5%, out of sample PF 1.420 / +23.2%, full period PF 1.475 / +185.3% at 23.2% drawdown. Train and out of sample agree to 0.018 of profit factor - the most stable result in this project.\n\nIt beats the trailing build on profit factor (1.475 vs 1.444 without adds) and loses badly on drawdown and return. Use it if you want frequent closed wins; leave it Off if you want the return.\n\nUSE PERCENT, NOT POINTS: gold ran 1450 -> 4100 over the sample, so a fixed 40-point target was 2.7% of price at the start and 1.0% at the end. Percent scored PF 1.475 against points' 1.160.")
+float tpPct     = input.float(4.0, "Target — percent of price", minval=0.25, step=0.25, group="⑥ Profit-Taking Mode",
+     tooltip="Swept 1.5/2/3/4%. Bigger is monotonically better on profit factor; 4% is where drawdown stops improving.")
+float tpPoints  = input.float(160, "Target — fixed points", minval=1, step=5, group="⑥ Profit-Taking Mode")
+float tpStopAtr = input.float(4.0, "Static stop for this mode (x ATR)", minval=0.5, step=0.5, group="⑥ Profit-Taking Mode",
+     tooltip="Swept 2/3/4/6/8 ATR. 4 was best; 2 was catastrophic (43% drawdown) because the target then needs an unreachable hit rate.")
+
+// ── ⑦ Display ───────────────────────────────────────────────────
+bool  showStop  = input.bool(true, "Plot the stop", group="⑦ Display")
+bool  showBand  = input.bool(true, "Plot the entry trigger", group="⑦ Display")
+bool  showDash  = input.bool(true, "Show dashboard", group="⑦ Display")
+
+// ═════════════════════════════════════════════════════════════
+// EFFECTIVE SETTINGS
+// Targets: breakout ~12h, fast SMA ~8 days, EMA ~21 days, slope ~2 days.
+// The trail scales with the SQUARE ROOT of the timeframe because ATR
+// grows roughly as sqrt(time); that rule was validated by sweeping the
+// 30m trail directly (4.24 was best on train net, +113.5%).
+// ═════════════════════════════════════════════════════════════
+float tfMin      = timeframe.in_seconds() / 60.0
+int   entryLenE  = autoScale ? math.max(5,   int(12.0 * 60.0 / tfMin))        : entryLen
+int   smaLenE    = autoScale ? math.max(50,  int(8.0 * 24.0 * 60.0 / tfMin))  : smaLen
+int   regimeLenE = autoScale ? math.max(20,  int(21.0 * 24.0 * 60.0 / tfMin)) : regimeLen
+int   sma2LenE   = autoScale ? math.max(100, int(21.0 * 24.0 * 60.0 / tfMin)) : sma2Len
+int   slopeLenE  = autoScale ? math.max(20,  int(2.0 * 24.0 * 60.0 / tfMin))  : slopeLen
+float trailMultE = autoScale ? 6.0 * math.sqrt(15.0 / tfMin)                  : trailMult
+
+// ═════════════════════════════════════════════════════════════
+// SIGNALS — every ta.* call unconditional at top level (BUG-004)
+// ═════════════════════════════════════════════════════════════
+float atr        = ta.atr(atrLen)
+float donHi      = ta.highest(high, entryLenE)[1]
+float donLo      = ta.lowest(low, entryLenE)[1]
+float donLoTrail = ta.lowest(low, donchN)[1]
+float donHiTrail = ta.highest(high, donchN)[1]
+float regimeMa   = ta.ema(close, regimeLenE)
+float trendSma   = ta.sma(close, smaLenE)
+float slowSma    = ta.sma(close, sma2LenE)
+float hmaVal     = ta.hma(close, hmaLen)
+bool  hmaUp      = ta.crossover(close, hmaVal)
+bool  hmaDn      = ta.crossunder(close, hmaVal)
+
+bool emaFalling = regimeMa < regimeMa[slopeLenE]
+bool regimeOkL  = not useRegime or close > regimeMa
+bool regimeOkS  = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
+bool smaOkL     = not useSma  or (not na(trendSma) and close > trendSma)
+bool smaOkS     = not useSma  or (not na(trendSma) and close < trendSma)
+bool sma2OkL    = not useSma2 or (not na(slowSma)  and close > slowSma)
+bool sma2OkS    = not useSma2 or (not na(slowSma)  and close < slowSma)
+
+bool trigUp = entryMode == "HMA cross" ? hmaUp : (not na(donHi) and close > donHi)
+bool trigDn = entryMode == "HMA cross" ? hmaDn : (not na(donLo) and close < donLo)
+
+bool longSig  = trigUp and regimeOkL and smaOkL and sma2OkL
+bool shortSig = not longOnly and trigDn and regimeOkS and smaOkS and sma2OkS
+
+// ═════════════════════════════════════════════════════════════
+// STATE
+// ═════════════════════════════════════════════════════════════
+bool tpOn = tpMode != "Off"
+
+var float trailStop = na
+var float tpStop    = na
+var float tpTarget  = na
+var float tp1Px     = na
+var float tp2Px     = na
+var bool  tp1Done   = false
+var bool  tp2Done   = false
+var float lastAdd   = na
+var int   nAdds     = 0
+
+// ═════════════════════════════════════════════════════════════
+// TRAILING STOP
+// Ratchets in the trade's favour only, anchored to the PREVIOUS bar's
+// extreme so the current bar can never move its own stop and then hit it.
+// ═════════════════════════════════════════════════════════════
+if strategy.position_size > 0
+    float cand = trailMode == "Donchian low" ? donLoTrail : high[1] - atr * trailMultE
+    trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
+else if strategy.position_size < 0
+    float cand = trailMode == "Donchian low" ? donHiTrail : low[1] + atr * trailMultE
+    trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
+else
+    trailStop := na
+    lastAdd   := na
+    nAdds     := 0
+
+// ═════════════════════════════════════════════════════════════
+// ADD TO A WINNING POSITION
+// PORT DELTA: with process_orders_on_close the add fills at THIS bar's
+// close, so the enlarged position only meets the trailing stop from the
+// next bar. The research engine adds at the trigger price and exposes the
+// enlarged size on the same bar, so Python is the stricter of the two.
+// ═════════════════════════════════════════════════════════════
+if usePyr and not tpOn and strategy.position_size != 0 and nAdds < pyrMax and not na(lastAdd)
+    float step   = atr * pyrAtr
+    bool  isLong = strategy.position_size > 0
+    float nxt    = isLong ? lastAdd + step : lastAdd - step
+    if isLong ? high >= nxt : low <= nxt
+        float aRisk = (isLong ? riskPct : riskPct * shortRisk) * pyrRisk
+        float aQty  = math.floor(math.min(strategy.equity * aRisk / 100.0 / (atr * trailMultE),
+             strategy.equity * maxLev / close - math.abs(strategy.position_size)))
+        if aQty >= 1
+            strategy.entry(isLong ? "L" : "S", isLong ? strategy.long : strategy.short, qty=aQty)
+            nAdds   := nAdds + 1
+            lastAdd := nxt
+
+// ═════════════════════════════════════════════════════════════
+// ENTRIES
+// ═════════════════════════════════════════════════════════════
+bool  wantShort = shortSig and not longSig
+float effRisk   = wantShort ? riskPct * shortRisk : riskPct
+float stopDist  = atr * trailMultE
+float qtyRaw    = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
+float qtyCap    = strategy.equity * maxLev / close
+float qty       = math.floor(math.min(qtyRaw, qtyCap))
+
+if longSig and strategy.position_size == 0 and qty >= 1
+    strategy.entry("L", strategy.long, qty=qty)
+    trailStop := close - stopDist
+    tpStop    := close - atr * tpStopAtr
+    tpTarget  := tpMode == "Fixed points" ? close + tpPoints : close * (1.0 + tpPct / 100.0)
+    tp1Px     := close + atr * tp1Atr
+    tp2Px     := close + atr * tp2Atr
+    tp1Done   := false
+    tp2Done   := false
+    lastAdd   := close
+    nAdds     := 0
+
+if shortSig and strategy.position_size == 0 and qty >= 1
+    strategy.entry("S", strategy.short, qty=qty)
+    trailStop := close + stopDist
+    tpStop    := close + atr * tpStopAtr
+    tpTarget  := tpMode == "Fixed points" ? close - tpPoints : close * (1.0 - tpPct / 100.0)
+    tp1Px     := close - atr * tp1Atr
+    tp2Px     := close - atr * tp2Atr
+    tp1Done   := false
+    tp2Done   := false
+    lastAdd   := close
+    nAdds     := 0
+
+// ═════════════════════════════════════════════════════════════
+// STAGED PROFIT TAKING (off by default)
+// PORT DELTA: these fill at the bar CLOSE via strategy.close, not at the
+// target price. Two live limit orders plus a trailing stop on one entry
+// is where order conflicts come from. The research engine fills at the
+// target, so expect Pine to read slightly worse here.
+// ═════════════════════════════════════════════════════════════
+bool tpSideOk = not tpShorts or strategy.position_size < 0
+bool tp1Hit = tp1On and not tpOn and not tp1Done and tpSideOk and strategy.position_size != 0 and
+     (strategy.position_size > 0 ? high >= tp1Px : low <= tp1Px)
+bool tp2Hit = tp2On and not tpOn and not tp2Done and tpSideOk and strategy.position_size != 0 and
+     (strategy.position_size > 0 ? high >= tp2Px : low <= tp2Px)
+
+if tp1Hit
+    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=tp1Pct, comment="TP1")
+    tp1Done := true
+if tp2Hit
+    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=tp2Pct, comment="TP2")
+    tp2Done := true
+
+// ═════════════════════════════════════════════════════════════
+// EXITS
+// Fixed-target mode replaces the ratchet entirely: static stop, fixed
+// limit, no trail and no adds. Anything else would be a third
+// architecture that was never measured.
+// ═════════════════════════════════════════════════════════════
+if tpOn
+    if strategy.position_size > 0 and not na(tpStop)
+        strategy.exit("L-exit", "L", stop=tpStop, limit=tpTarget)
+    if strategy.position_size < 0 and not na(tpStop)
+        strategy.exit("S-exit", "S", stop=tpStop, limit=tpTarget)
+else
+    if strategy.position_size > 0 and not na(trailStop)
+        strategy.exit("L-exit", "L", stop=trailStop)
+    if strategy.position_size < 0 and not na(trailStop)
+        strategy.exit("S-exit", "S", stop=trailStop)
+
+// ═════════════════════════════════════════════════════════════
+// VISUALS
+// ═════════════════════════════════════════════════════════════
+plot(showBand and entryMode == "Donchian breakout" and not na(donHi) ? donHi : na, "Breakout high", color.new(color.orange, 40), 1, plot.style_stepline)
+plot(showBand and entryMode == "Donchian breakout" and not na(donLo) ? donLo : na, "Breakout low", color.new(color.orange, 70), 1, plot.style_stepline)
+plot(showBand and entryMode == "HMA cross" ? hmaVal : na, "HMA", color.new(color.fuchsia, 0), 2)
+plot(showStop and strategy.position_size != 0 ? (tpOn ? tpStop : trailStop) : na, "Stop", color.new(#D50000, 0), 2, plot.style_stepline)
+plot(tpOn and strategy.position_size != 0 ? tpTarget : na, "Fixed target", color.new(#00E676, 0), 2, plot.style_stepline)
+plot(tp1On and not tpOn and strategy.position_size != 0 and not tp1Done ? tp1Px : na, "TP1", color.new(#00E676, 20), 1, plot.style_circles)
+plot(tp2On and not tpOn and strategy.position_size != 0 and not tp2Done ? tp2Px : na, "TP2", color.new(#00E676, 45), 1, plot.style_circles)
+plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 55), 1)
+plot(useSma  ? trendSma : na, "Fast SMA", color.new(color.aqua, 25), 2)
+plot(useSma2 ? slowSma  : na, "Slow SMA", color.new(#7E57C2, 15), 2)
+
+plotshape(longSig  and strategy.position_size == 0, "Long entry",  shape.triangleup,   location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
+plotshape(shortSig and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")
+
+bool exitedLong  = strategy.position_size[1] > 0 and strategy.position_size == 0
+bool exitedShort = strategy.position_size[1] < 0 and strategy.position_size == 0
+plotshape(exitedLong or exitedShort, "Exit", shape.xcross, location.absolute, color.new(color.gray, 0), size=size.tiny)
+
+// ═════════════════════════════════════════════════════════════
+// ALERTS
+// ═════════════════════════════════════════════════════════════
+alertcondition(longSig,  "Gold Trend — LONG entry",  "LONG {{ticker}} {{interval}} at {{close}}")
+alertcondition(shortSig, "Gold Trend — SHORT entry", "SHORT {{ticker}} {{interval}} at {{close}}")
+alertcondition(exitedLong or exitedShort, "Gold Trend — position closed", "EXIT {{ticker}} {{interval}} at {{close}}")
+alertcondition(tp1Hit, "Gold Trend — TP1 hit", "TP1 {{ticker}} {{interval}} at {{close}}")
+alertcondition(tp2Hit, "Gold Trend — TP2 hit", "TP2 {{ticker}} {{interval}} at {{close}}")
+
+// ═════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═════════════════════════════════════════════════════════════
+var table dash = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 60))
+if showDash and barstate.islast
+    int   nT = strategy.closedtrades
+    int   wT = 0
+    float gw = 0.0
+    float gl = 0.0
+    if nT > 0
+        for i = 0 to nT - 1
+            float p = strategy.closedtrades.profit(i)
+            wT += p > 0 ? 1 : 0
+            gw += p > 0 ?  p : 0.0
+            gl += p < 0 ? -p : 0.0
+    float wr     = nT > 0 ? wT * 100.0 / nT : na
+    float pf     = gl > 0 ? gw / gl : na
+    float netPct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
+    int   nUp    = (regimeOkL ? 1 : 0) + (smaOkL ? 1 : 0) + (sma2OkL ? 1 : 0)
+    int   nDn    = (regimeOkS ? 1 : 0) + (smaOkS ? 1 : 0) + (sma2OkS ? 1 : 0)
+
+    table.cell(dash, 0, 0, "GOLD TREND", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, entryMode == "HMA cross" ? "HMA " + str.tostring(hmaLen) : str.tostring(entryLenE) + " brk", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 0, 1, "Trades", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 1, str.tostring(nT), text_color=nT < 250 ? color.yellow : color.white, text_size=size.tiny)
+    table.cell(dash, 0, 2, "Win rate", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 2, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 0, 3, "Profit factor", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 3, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1.3 ? color.lime : pf >= 1.0 ? color.yellow : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 4, "Net", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 4, str.tostring(netPct, "#.#") + "%", text_color=netPct > 0 ? color.lime : color.red, text_size=size.tiny)
+    table.cell(dash, 0, 5, "Position", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 5, strategy.position_size > 0 ? "LONG +" + str.tostring(nAdds) : strategy.position_size < 0 ? "SHORT +" + str.tostring(nAdds) : "flat", text_color=strategy.position_size != 0 ? color.lime : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 6, "Stop", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 6, na(trailStop) and na(tpStop) ? "-" : str.tostring(tpOn ? tpStop : trailStop, format.mintick), text_color=color.red, text_size=size.tiny)
+    table.cell(dash, 0, 7, "Confluence", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 7, nUp == 3 ? "LONG 3/3" : nDn == 3 ? "SHORT 3/3" : "none (" + str.tostring(math.max(nUp, nDn)) + "/3)", text_color=nUp == 3 ? color.lime : nDn == 3 ? color.red : color.gray, text_size=size.tiny)
+    table.cell(dash, 0, 8, "Exit engine", text_color=color.silver, text_size=size.tiny)
+    table.cell(dash, 1, 8, tpOn ? "fixed target" : trailMode == "Donchian low" ? "donchian " + str.tostring(donchN) : "chandelier " + str.tostring(trailMultE, "#.##"), text_color=color.aqua, text_size=size.tiny)
+    table.cell(dash, 0, 9, autoScale ? "auto " + timeframe.period : "MANUAL", text_color=autoScale ? color.aqua : color.orange, text_size=size.tiny)
+    table.cell(dash, 1, 9, autoScale ? "sma " + str.tostring(smaLenE) + "/" + str.tostring(sma2LenE) : (nT < 250 ? "n<250: unstable" : ""), text_color=color.silver, text_size=size.tiny)
