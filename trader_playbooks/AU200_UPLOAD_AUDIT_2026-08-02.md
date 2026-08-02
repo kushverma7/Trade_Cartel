@@ -276,3 +276,105 @@ AICartel Scalper, Super Scalper, Fabio+Marco Entry/Exit, HalfTrend EMA
 Stack, plus the two AU200 HalfTrend builds. Dialectic Engine v1's sweep
 detection is correctly written — it compares against `rh[1]`/`rl[1]`,
 avoiding BUG-015.
+
+---
+
+# Addendum — batch 5
+
+## `au200_trading_system_requirements.pdf` — the most important document in the set
+
+This is a previous session's handoff. It is the only document that states the
+system honestly and completely: DE v4's exact parameters (SuperTrend 97/3.1,
+AlphaTrend 14/1.0, EMA 9/21/50/200, RSI 14 with bull zone 45–70 and bear zone
+30–55, MACD 8/17/9), the hard gate, the 3-of-5 confluence score, and the
+instrument facts (Capital.com AU200, $100/pt, 1pt commission, $50,000 initial,
+1 contract fixed).
+
+Its section 7, "WHAT WAS WRONG WITH EVERY VERSION BUILT", is a bug list that
+was never registered anywhere:
+
+1. UT Bot was the wrong engine entirely — DE v4 is the real system. **This
+   retroactively disqualifies the nine-row UT Bot table** discussed earlier in
+   this session.
+2. Hardcoded UTC+10 fires an hour early from October to April; must use the
+   `Australia/Sydney` timezone so daylight saving is handled.
+3. Inverted flip stop-loss signs in `ema_hybrid_v2` produced 5,000+ cascading
+   trades. That is BUG-011 recurring.
+4. `process_orders_on_close=true` filled entry and exit on the same bar close;
+   the rule requires filling at the next bar's open.
+5. An EMA200+RSI approximation was substituted for the real DE v4 engine.
+6. A one-month backtest was presented as representative.
+
+### The smoking gun was found and read backwards
+
+The document states:
+
+> "Every winning trade = exactly +9 pts after commission (TP hit). Every
+> losing trade = exactly −16 pts after commission (SL hit). **This confirms
+> clean fixed TP/SL exits with no partial fills.**"
+
+It confirms the opposite. Identical fills across 242 trades on the ASX
+opening bar prove that gaps and slippage were never modelled — a real
+opening-bar sample cannot produce 59 losses of exactly −16.0. The previous
+session found the defect, looked straight at it, and recorded it as evidence
+of correctness. This is the single most consequential error in the archive.
+
+### Its Master System figures match no other document
+
+| metric | `master_system.pdf` chart | requirements doc |
+|---|---|---|
+| N | 309 | 328 |
+| WR | 42.1% | 38.4% |
+| PF | 1.85 | 2.85 |
+| net | +3406 pts | +4844 pts |
+| max DD | −407 pts | −184 pts |
+
+Every figure differs. The requirements doc took PF from the master system's
+cover page — the same cover shown above to contradict its own chart — and a
+drawdown that appears nowhere in either.
+
+## `au200_backtest_report.pdf` — the honest one, and it fails
+
+A from-scratch Python backtest of the two AICartel systems, 14 Apr – 12 Jun
+2026, ~60 days.
+
+**NQ Master CLC:** 41 trades, WR 58.5%, **PF 1.10**, net **−0.53R**,
+expectancy **−0.013R per trade**, Sharpe **−0.14**. And costs were set to
+**zero** — "Commission: None (conservative), Slippage: None". A system with
+negative expectancy in R at zero cost is a losing system once costs exist.
+
+Two genuinely useful breakdowns, and they are the most actionable numbers in
+the entire upload set because they isolate one variable each:
+
+- **B-grade signals destroy the edge.** A-grade (3/3) returned +4.08R over 25
+  trades; B-grade (2/3) returned **−4.61R over 16**. The half-size 2-of-3
+  signal is not a smaller version of the edge, it is the opposite of it.
+- **Shorts were net negative**: longs +$7,292 over 21 trades, shorts −$5,515
+  over 20.
+
+**Crypto Scalp Model v1:** PF 5.24 on **five trades**. The trade guide's
+claim of "verified 75% WR on BTCUSD 5m" rests on this. Recorded as an
+unverified claim with n=5.
+
+## `big_players_reversal_entry.txt` — inverted DI, deliberately or not
+
+The signal conditions read:
+
+```
+BUY  : varl3 > varl3[1] and close > close[1] and ADX > 40 and DIMinus > DIPlus
+SELL : varh3 > varh3[1] and close < close[1] and ADX > 40 and DIMinus < DIPlus
+```
+
+A buy requires **bearish** directional pressure and a sell requires **bullish**
+pressure. That is the reverse of conventional DMI use, and the reverse of the
+HalfTrend+DMI report in this same upload set, which states "+DI > −DI → only
+LONG permitted."
+
+For a reversal indicator this may be intentional — buying into peak bearish
+pressure is a defensible mean-reversion premise. But it is undocumented, and
+anyone porting this into a trend system inherits inverted signals (BUG-011).
+Which it is must be settled before use, not assumed.
+
+Also carries unexplained magic constants (`* 40`, `* 0.312`, `> 100`), an
+unusually high `ADX > 40` gate, and a promotional Telegram table — it is an
+unvetted public script, not validated work.
