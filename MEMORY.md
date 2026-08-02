@@ -417,6 +417,34 @@ The LSE API key lived in a gitignored `.env` which does NOT survive a new
 container. For persistence set `LSE_API_KEY` in the environment's own
 variable settings — `backtest/lse_client.py` prefers it over `.env`.
 
+## STANDING RULE: Verify push BEFORE doing the work (2026-08-02)
+
+**Earned twice, the same way, in three days.** A session built the AU200
+research files (`research/au200_indicator_v1.pine`,
+`au200_base_flip_v1.pine`, `au200_tbt_flip_backtest.pine`,
+`top_bottom_entry_v1.pine`, `top_bottom_strategy_v1.pine`), committed them
+LOCALLY, hit a 403 on push, carried on working, and lost all of it when the
+container was reclaimed. A second session then produced a nine-row AU200
+results table with PFs of 3.46 to 7.11 and pushed none of it — so the report
+survives only as a screenshot with no code, no data, and no way to check a
+single number in it.
+
+Containers here are ephemeral. Local commits are not saved work. **Only
+pushed git objects persist.**
+
+**The rule:** at the START of every session, before any real work, make a
+trivial commit and push it. If the push 403s or otherwise fails, fix that
+FIRST — it is a blocker, not a nuisance to deal with later. Then push again
+at every natural checkpoint, not at the end. A 403 discovered after four
+hours of research costs four hours; discovered in the first minute it costs
+nothing.
+
+**Corollary for reports:** a results table whose code was never pushed is
+not a finding, it is a rumour. Do not record it in RESULTS_LEDGER.md, do not
+act on it, do not carry it forward into another session's assumptions.
+
+---
+
 ## Standing discipline (earned the hard way)
 
 - A PF with no trade count and no date range is not a result.
