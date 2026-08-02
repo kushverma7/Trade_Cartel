@@ -13,10 +13,25 @@
 // THIS STRATEGY - larger than any parameter in it. Break-even is about
 // 1.2-1.5 points of slippage.
 //
-//   SHIPPED DEFAULTS, XAUUSD 30m, full 6.7 years
-//     profit factor 1.635 | net +679.9% | max drawdown 17.01%
+// ── LIVE CONFIRMATION, TradingView Deep Backtest (2026-08-02) ───────
+// Balanced profile, XAUUSD 30m, 0.20 pt slippage, Apr 2020 - Aug 2026.
+// This is the platform's own engine, not the research model:
+//
+//                          research      TradingView     delta
+//     profit factor          1.634          1.579        0.055
+//     max drawdown          33.09%         32.98%        0.11 pp
+//     net return           +983.6%        +865.4%
+//     entry orders            2,160          2,157          3
+//
+// DRAWDOWN AGREES TO A TENTH OF A POINT AND ORDER COUNT TO THREE ORDERS.
+// The research engine and TradingView now describe the same system. The
+// remaining net-return gap is the two months TradingView runs past the end
+// of the research data plus fill-price convention.
+//
+//   RESEARCH FIGURES, XAUUSD 30m, Dec 2019 - Jul 2026, 0.20 pt slippage
+//     Balanced      profit factor 1.641 | net +1,620% | drawdown 33.40%
+//     Conservative  profit factor 1.635 | net   +680% | drawdown 17.01%
 //     buy & hold over the same period: +179.1% at 29.08% drawdown
-//     return per unit of drawdown: 40.0 vs 6.16
 //   Out-of-sample half only: PF 1.930, +83.4%, drawdown 12.79%
 //   Positive in all five consecutive walk-forward slices.
 //
