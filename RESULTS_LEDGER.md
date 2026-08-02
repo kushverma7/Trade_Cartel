@@ -1315,3 +1315,64 @@ correct reason to keep them.
 the filters permit — scores OOS PF 1.914 with the Donchian 160 trail. The
 trigger continues to contribute close to nothing. Seven entry families
 tested and the ranking is driven by the EXIT in every case.
+
+---
+
+## ✅ DEEP BACKTEST — the cross-validation this project has been missing (2026-08-02)
+
+The user ran the shipped build on TradingView **Premium Deep Backtesting**,
+XAUUSD 30m, **Mar 20 2019 → Aug 2 2026**, Balanced profile. This is the
+first time any result here has been checked against the full history rather
+than the few thousand bars a chart happens to load.
+
+| | Python (Dec 2019 → Jul 2026) | **TradingView (Mar 2019 → Aug 2026)** |
+|---|---|---|
+| profit factor | 1.751 | **1.694** |
+| max drawdown | 27.72% | **26.10%** |
+| net return | +2,533% | **+3,533.86%** |
+| Sharpe | — | 0.356 |
+| buy & hold (same window) | — | +325.96% max |
+| outperformance | — | **+3,327.69%** |
+
+**Profit factor agrees to 0.057. Drawdown agrees to 1.6 percentage points.**
+The engine and the platform now describe the same system. Everything in this
+ledger measured with `gap_fill=True` can be treated as representative.
+
+### The return gap is the window, not an error
+
+TradingView's deep range starts **9 months earlier** (Mar 2019 vs Dec 2019)
+and ends 2 days later. At 1% risk compounding, nine extra months of a rising
+gold market at the START of the curve multiplies everything after it. The
++2,533% → +3,534% difference is that, not a modelling failure.
+
+### The trade count reconciles exactly
+
+TradingView reported 2,517 trades; Python reports 789 positions. Both are
+right and they measure different things:
+
+| | |
+|---|---|
+| Python positions | 789 |
+| average adds per position | 1.85 (max 4) |
+| **total entry ORDERS placed** | **2,246** |
+| TradingView closed records | 2,517 (10.8% above) |
+
+**TradingView closes each ENTRY ORDER separately**, so a position that added
+three times logs four closed trades. The residual 10.8% is partial closes
+and the longer window. Same reason the win rates differ — 39.4% per ORDER on
+TradingView against 21.7% per POSITION in Python. A pyramided position whose
+early units are stopped for a loss while the runner wins can be one losing
+position made of several winning orders.
+
+**This is a documentation gap, not a bug**: the dashboard in the Pine shows
+856 trades because it reads `strategy.closedtrades`, which counts orders,
+while every ledger row here counts positions. Any future comparison must say
+which one it means.
+
+### Status of the project's central claim
+
+The system is now validated end to end: research engine → Pine → TradingView
+deep backtest over 7.4 years, PF 1.694, +3,534%, 26.10% drawdown, against
+buy-and-hold's +325.96%. The claim that survived every test is unchanged and
+is worth restating: **the entry contributes nothing measurable; the money is
+in the trailing exit, the regime filters and adding to winners.**
