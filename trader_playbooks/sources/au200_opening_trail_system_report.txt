@@ -1,0 +1,160 @@
+AU200  OPENING TRAIL SYSTEM
+10:00 AM AEST  |  Mon–Fri Daily  |  2019–2026  |  $100/pt
+Entry: DE v4 TREND signal at open  ·  TP1=10pts (½ pos)  ·  Trail=30pts (½ pos)  ·  SL=15pts
+56.7%
+Win Rate
+4.59
+Profit Factor
+$247,440
+Net 8Y @$100/pt
+-$6,900
+Max Drawdown
+$3,955
+Avg Winner
+-$1,150
+Avg Loser
+WHEN
+• 10:00 AM AEST (00:00 UTC) bar only
+• Mon / T ue / Wed / Thu / Fri — every day
+ENTRY
+• DE v4 TREND BUY → go LONG at next bar open
+• DE v4 TREND SELL → go SHORT at next bar open
+• Ignore any REV signals at 10:00 AM
+EXIT — 3 LEVELS
+• TP1: +10 pts — close HALF position ($+900)
+• Trail: SL trails 30 pts behind peak price
+         activates once price moves 5 pts in favour
+• SL: -15 pts hard stop (-$1,600 max loss)
+RESULT
+• Loss limited to $1,600 always
+• Winners run 10 → 300+ pts on trending days
+Backtested 2019-2026 on AU200 AUD 5m | $1/pt commission | SL=15 | TP1=10 | Trail=30
+Signal
+10:00AM
+TP1 +10pts (½ exit)
+ENTRY
+SL -15pts
+Peak
+Trail SL (peak-30)
+LONG EXAMPLE — Trailing SL captures the move
+0 20 40 60 80 100 120 140
+Trade #
+0
+500
+1000
+1500
+2000
+2500
+Cumulative PnL (pts)
+2020 2021 2022 2023 2024 2025 2026
+AU200 Opening Trail System  |  2019–2026
+WR=56.7%   PF=4.59   Net=+2474pts (+247, 440)MaxDD = −69pts(−6,900)
+−300
+−250
+−200
+−150
+−100
+−50
+0
+Drawdown (pts)
+2019 2020 2021 2022 2023 2024 2025 2026
+0
+100
+200
+300
+400
+500
+600
+700
+PnL (pts)
+WR:70%
+PF:7.5
+N=20
+WR:57%
+PF:5.9
+N=23
+WR:62%
+PF:4.0
+N=29
+WR:57%
+PF:12.7
+N=21
+WR:44%
+PF:2.7
+N=16
+WR:50%
+PF:2.2
+N=12
+WR:47%
+PF:2.4
+N=17
+WR:67%
+PF:0.5
+N=3
+Annual PnL (pts)
+Mon T ue Wed Thu Fri
+0
+100
+200
+300
+400
+500
+600
+PnL (pts)
+WR:42%
+PF:4.1
+N=24
+WR:68%
+PF:6.9
+N=31
+WR:53%
+PF:4.9
+N=32
+WR:50%
+PF:3.1
+N=24
+WR:67%
+PF:4.6
+N=30
+By Day of Week (pts)
+YEARLY RESUL TS & DAY-OF-WEEK BREAKDOWN  (2019–2026)
+0 50 100 150 200 250 300
+PnL per trade (pts)
+0
+5
+10
+15
+20
+25
+30
+35
+Count
+PnL Distribution — Trail captures big moves
+Winners N=80
+Losers N=60
+Avg win 40pts
+Avg loss -11pts
+COMPLETE STATISTICS
+METRIC VALUE
+Period 2019 – 2026
+T otal Trades 141
+Trades / Year 17.6
+Winners 80
+Losers 60
+Win Rate 56.7%
+Profit Factor 4.59
+Net 8Y (pts) +2474
+Net 8Y @ $100/pt $+247,440
+Max Drawdown -69pts  ($6,900)
+Avg Win +39.6pts  (+$3,955)
+Avg Loss -11.5pts  (-$1,150)
+Max Single Win +284pts  (+$28,350)
+Max Single Loss -16pts  (-$1,600)
+Win/Loss Ratio 3.4:1
+Expectancy/trade +17.5pts  (+$1,755)
+Initial SL 15 pts  (-$1,500)
+TP1 (½ position) 10 pts  (+$1,000 on ½)
+Trailing SL 30 pts behind peak
+Trail activates after 5 pts profit
+Profitable Years 7 of 8  (87.5%)
+TRADE STATISTICS & PnL DISTRIBUTION  (2019–2026)

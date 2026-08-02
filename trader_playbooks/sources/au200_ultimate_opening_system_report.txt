@@ -1,0 +1,202 @@
+AU200  ULTIMATE OPENING SYSTEM
+Optimal Config: 9:50+9:55+10:00  |  All Days  |  Mon-Fri Daily  |  $100/pt
+Entry: EMA200 + RSI + SuperTrend  ·  TP1=10pts (½ pos)  ·  Trail=30pts (½ pos)  ·  SL=15pts
+56.5%
+Win Rate
+4.52
+Profit Factor
+$+281,710
+Net 2019-2026
+$8,050
+Max Drawdown
++$3,768
+Avg Winner
+170
+T otal Trades
+vs BASELINE (10:00 AEST only, All Days)
+ENTRY RULE
+Fire on 9:50+9:55+10:00 AEST bar(s)  |  All Days  |  All 5 days
+EMA200 above/below close  +  RSI>50/<50  +  SuperTrend bull/bear
+EXIT RULES
+TP1: +10pts — exit HALF position immediately  ($+900 locked)
+TRAIL: SL trails 30pts behind peak, activates after 5pts in profit
+SL: -15pts hard stop — maximum loss always capped at -$1,600
+Backtested 2019-2026 on AU200 AUD 5m | $1/pt commission each side | bar-by-bar OHLC
+Config N Trades Win Rate Profit Factor Net Profit Max DD Avg Win
+10:00 Only 141 56.7% 4.59 $+247,440 -$6,900 +$3,955BEST: 9:50+9:55+10:00
+All Days 170 56.5% 4.52 $+281,710 -$8,050 +$3,768
+All DaysMon+T ue
+Mon+Wed+Fri
+Mon-FriThu OnlyThu+FriT ue OnlyT ue+ThuT ue-Thu
+09:50
+09:55
+10:00
+212 103 128 137 9 25
+131 86 102 86
+2474 1074 1579 2474 288 789 601 889 1500
+Net Profit (pts)
+All DaysMon+T ue
+Mon+Wed+Fri
+Mon-FriThu OnlyThu+FriT ue OnlyT ue+ThuT ue-Thu
+09:50
+09:55
+10:00
+3.92 3.58 4.51 3.02 1.29 1.53
+4.49 3.29 5.74 3.29
+4.59 5.18 4.52 4.59 2.99 3.77 6.88 4.60 4.80
+Profit Factor
+500
+1000
+1500
+2000
+2
+3
+4
+5
+6
+TIMING x DOW GRID — NET PROFIT (pts)
+0 25 50 75 100 125 150 175
+Trade #
+0
+500
+1000
+1500
+2000
+2500
+Cumulative PnL (pts)
+2020 2021 2022 2023 2024 2025 2026
+UL TIMATE CONFIG — 9:50+9:55+10:00 | All Days  |  2019-2026
+WR=56.5%   PF=4.52   Net=+2817pts ($+281,710)   MaxDD=-80pts
+−400
+−350
+−300
+−250
+−200
+−150
+−100
+−50
+0
+Drawdown (pts)
+2019 2020 2021 2022 2023 2024 2025 2026
+0
+100
+200
+300
+400
+500
+600
+PnL (pts)
+WR:64%
+PF:6.5
+N=25
+WR:54%
+PF:5.1
+N=24
+WR:63%
+PF:4.0
+N=30
+WR:58%
+PF:10.1
+N=24
+WR:38%
+PF:2.3
+N=21
+WR:46%
+PF:2.1
+N=13
+WR:50%
+PF:2.5
+N=18
+WR:73%
+PF:9.4
+N=15
+Annual PnL (pts)
+Mon T ue Wed Thu Fri
+0
+100
+200
+300
+400
+500
+600
+PnL (pts)
+WR:47%
+PF:4.6
+N=32
+WR:66%
+PF:5.9
+N=35
+WR:54%
+PF:4.7
+N=37
+WR:48%
+PF:2.8
+N=29
+WR:67%
+PF:4.7
+N=33
+By Day of Week (pts)
+YEARLY + DOW BREAKDOWN  |  9:50+9:55+10:00  |  All Days
+Timing DOW N WR PF Net MaxDD MaxWin W L
+9:50+9:55+10:00 All Days 170 56.5% 4.52 +2817pts -80pts +284pts 96 73
+9:50+9:55+10:00 Mon-Fri 164 56.1% 4.39 +2697pts -80pts +284pts 92 71
+9:50+10:00 All Days 161 55.9% 4.52 +2686pts -75pts +284pts 90 70
+9:50+10:00 Mon-Fri 157 56.1% 4.45 +2611pts -75pts +284pts 88 68
+9:55+10:00 All Days 150 57.3% 4.58 +2605pts -74pts +284pts 86 63
+9:55+10:00 Mon-Fri 148 56.8% 4.52 +2560pts -74pts +284pts 84 63
+10:00 Mon-Fri 141 56.7% 4.59 +2474pts -69pts +284pts 80 60
+10:00 All Days 141 56.7% 4.59 +2474pts -69pts +284pts 80 60
+9:50+9:55+10:00 T ue-Thu 104 56.7% 4.35 +1611pts -54pts +284pts 59 45
+9:55+10:00 T ue-Thu 94 57.4% 4.67 +1586pts -49pts +284pts 54 40
+10:00 Mon+Wed+Fri 86 54.7% 4.52 +1579pts -76pts +284pts 47 38
+9:50+10:00 T ue-Thu 97 56.7% 4.44 +1525pts -49pts +284pts 55 42
+10:00 T ue-Thu 87 57.5% 4.80 +1500pts -43pts +284pts 50 37
+10:00 Mon+T ue 55 56.4% 5.18 +1074pts -60pts +159pts 31 23
+10:00 T ue+Thu 56 58.9% 4.60 +889pts -50pts +152pts 33 23
+10:00 Thu+Fri 55 58.2% 3.77 +789pts -38pts +139pts 32 23
+10:00 T ue Only 31 67.7% 6.88 +601pts -32pts +152pts 21 10
+10:00 Thu Only 25 48.0% 2.99 +288pts -47pts +139pts 12 13
+09:50 All Days 20 50.0% 3.92 +212pts -40pts +100pts 10 10
+09:50 Mon-Fri 16 50.0% 3.02 +137pts -40pts +100pts 8 8
+TOP 20 CONFIGURATIONS — Ranked by Net Profit
+0 50 100 150 200 250 300
+PnL per trade (pts)
+0
+5
+10
+15
+20
+25
+30
+35
+40
+Count
+PnL Distribution — Trail captures 100+ pt moves
+Winners N=96
+Losers N=73
+Avg win 38pts
+Avg loss -11pts
+COMPLETE STATISTICS
+METRIC VALUE
+Configuration 9:50+9:55+10:00 AEST
+Day Filter All Days
+Period 2019 – 2026
+T otal Trades 170
+Trades / Year 24.3
+Winners 96
+Losers 73
+Win Rate 56.5%
+Profit Factor 4.52
+Net 7Y (pts) +2817
+Net 7Y @ $100/pt $+281,710
+Max Drawdown -80pts  ($8,050)
+Avg Win +37.7pts  (+$3,768)
+Avg Loss -11.0pts  (-$1,096)
+Max Single Win +284pts  (+$28,350)
+Win/Loss Ratio 3.4:1
+Expectancy/trade +16.6pts  (+$1,657)
+Initial SL 15 pts  (-$1,500)
+TP1 (half position) 10 pts  (+$1,000 on half)
+Trailing SL 30 pts behind peak
+Trail activates after 5 pts profit
+TRADE ANALYSIS & STATISTICS
