@@ -500,3 +500,81 @@ buried.
 respect — the thing being tested. Write down what the null holds constant
 before running it. If the random arm is itself profitable, the null is
 wrong or the edge is not where you think it is.
+
+---
+
+## BUG-024 — Yearly high/low leak future data into the mandatory key-levels module
+
+**Found:** 2026-08-02, by auditing an uploaded third-party code review
+(`gold_scalping_strategy_blueprint.pdf`) against
+`trader_playbooks/skills/key_levels_module.pine`.
+**Severity:** silently optimistic backtests in every strategy that trades a
+yearly level. No effect on live/forward trading.
+
+**Symptom:** none visible. Backtests using the yearly range simply look
+better than they should.
+
+**Root cause.** The module makes 20 `request.security()` calls, all with
+`lookahead=barmerge.lookahead_on`. That is NOT wrong by itself — paired with
+a `[1]` offset it is the standard non-repainting idiom, and 10 of the calls
+do exactly that. Six more request `open`, which is known at the start of the
+period and so is also safe.
+
+Four calls are neither:
+
+```
+L83  cdailyh_open = request.security(..., 'D',   high,          lookahead_on)
+L84  cdailyl_open = request.security(..., 'D',   low,           lookahead_on)
+L102 [yearlyh_time, yearlyh_open] = request.security(..., '12M', [time, high], lookahead_on)
+L103 [yearlyl_time, yearlyl_open] = request.security(..., '12M', [time, low],  lookahead_on)
+```
+
+A period's high and low are not known until the period closes. With
+`lookahead_on` and no `[1]`, a historical bar receives the COMPLETED period's
+extreme — future information.
+
+Note the asymmetry that identifies it as a slip rather than a design: every
+other timeframe (D, W, M, 3M, 240) uses `[time[1], high[1]]` for its
+high/low. Only the yearly pair omits the offset.
+
+**Blast radius.** `cdailyh_open`/`cdailyl_open` are drawn on the chart but
+never reach `f_klPush`, so they do not enter `klPrices[]` and cannot affect
+trade logic. The yearly pair does reach it, at lines 375–377, along with a
+midpoint derived from both:
+
+```
+f_klPush(is_yearlyrange_enabled, yearlyh_open, cyhtext)
+f_klPush(is_yearlyrange_enabled, yearlyl_open, cyltext)
+f_klPush(is_yearly_mid, (yearlyh_open + yearlyl_open) / 2, cymtext)
+```
+
+Three exported levels — yearly high, yearly low, yearly mid — carry future
+information into any strategy that reads `klPrices[]`. Eight repo strategies
+embed the module: `gold_trend_trailing`, `key_to_key_strategy`,
+`trendline_key_level_strategy`, `key_levels_spaceman_edition`,
+`multivoice_confluence_engine`, `amdm_confluence_strategy`,
+`omnibus_four_model_engine`, `confluence_sniper_strategy`.
+
+**`strategies/gold_trend_strategy.pine` — the validated champion — does NOT
+embed the module.** Its PF 1.583 / +1,591.7% result is unaffected.
+
+**Fix, and the constraint on it.** CLAUDE.md requires the module to be
+embedded verbatim (BUG-013: three rewrites were rejected). The correct
+minimal change is a numbered port delta on two lines only:
+
+```
+[yearlyh_time, yearlyh_open] = request.security(..., '12M', [time[1], high[1]], lookahead_on)
+[yearlyl_time, yearlyl_open] = request.security(..., '12M', [time[1], low[1]],  lookahead_on)
+```
+
+bringing the yearly pair into line with every other timeframe in the same
+file. Do NOT strip `lookahead_on` from the module wholesale — the uploaded
+review recommends exactly that, and it would introduce repainting on the ten
+calls that are currently correct.
+
+**Prevention:** `lookahead_on` is safe only when the requested expression is
+already historical (`[1]`-offset) or is knowable at period start (`open`).
+Any `high`, `low`, or `close` requested for the CURRENT period with
+`lookahead_on` is a future leak. Grep for
+`request.security` and classify each call before trusting a backtest; the
+check takes a minute and is now part of the pre-flight.
