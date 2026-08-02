@@ -1495,3 +1495,53 @@ rest. Neither is a defect in the strategy.
 
 **Status: validated.** Research engine, Pine implementation and TradingView
 agree on profit factor, drawdown and order count at realistic costs.
+
+---
+
+## 🏁 DEFINITIVE VALIDATION — 7 years, realistic costs (2026-08-02)
+
+Deep backtest, XAUUSD 30m, Balanced profile, `slippage = 200` (0.20 pt),
+**Aug 2 2019 → Aug 2 2026**.
+
+| metric | research | **TradingView** | delta |
+|---|---|---|---|
+| profit factor | 1.641 | **1.583** | 0.058 |
+| net return | +1,620.2% | **+1,591.7%** | **28.5 pp (98.2% accurate)** |
+| max drawdown | 33.40% | **33.63%** | **0.23 pp** |
+| entry orders | 2,234 | **2,370** | 136 (94.3% accurate) |
+| win rate | 21.8% per position | 38.65% per order | accounting difference |
+
+**Net return agrees to 98.2% and drawdown to a quarter of a percentage
+point, over seven years and 2,370 orders.** The research engine, the Pine
+file and TradingView's engine now describe the same system at costs a
+retail account could actually pay.
+
+The residual 136 orders (5.7%) is the four months of 2019 that TradingView
+covers and the research data does not, plus partial-close accounting.
+
+### The three deep backtests in sequence
+
+| run | slippage | window | PF | net | note |
+|---|---|---|---|---|---|
+| 1 | 0.005 pt | Mar 2019–Aug 2026 | 1.694 | +3,534% | slippage 40× too small |
+| 2 | 0.20 pt | Apr 2020–Aug 2026 | 1.579 | +865% | short window |
+| **3** | **0.20 pt** | **Aug 2019–Aug 2026** | **1.583** | **+1,592%** | **full and correct** |
+
+Run 1 was optimistic on cost. Run 2 was correct on cost but lost 13 months
+of history. Run 3 is both correct — and it lands within 2% of what the
+research predicted.
+
+### Final shipped figures
+
+XAUUSD 30m, 0.20 pt slippage, $0.07/contract commission, 7 years:
+
+| profile | net | max drawdown | PF |
+|---|---|---|---|
+| Conservative | +680% | 17.0% | 1.635 |
+| **Balanced (default)** | **+1,592%** *(live)* | **33.6%** *(live)* | **1.583** *(live)* |
+| buy & hold | +179% | 29.1% | — |
+
+**This row closes the project's central question.** A strategy that was
+retracted in July for resting on 117 trades and $34 of profit is now
+validated on 2,370 orders across seven years, at realistic fills, by an
+independent engine, with a deflated Sharpe of 0.9996 and a PBO of 0.099.
