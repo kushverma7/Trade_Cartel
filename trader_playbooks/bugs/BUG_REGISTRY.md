@@ -578,3 +578,81 @@ Any `high`, `low`, or `close` requested for the CURRENT period with
 `lookahead_on` is a future leak. Grep for
 `request.security` and classify each call before trusting a backtest; the
 check takes a minute and is now part of the pre-flight.
+
+---
+
+## BUG-025 — Victor Aimstar: long and short conditions are the SAME expression
+
+**Found:** 2026-08-02, verifying an uploaded audit against
+`indicators/victor_aimstar_past_strategy_v1.pine`.
+**Severity:** with QQE Mod selected, the strategy is incoherent — longs and
+shorts fire together.
+
+**Symptom:** none at compile. The selector simply behaves nonsensically when
+one of its eight options is chosen.
+
+**Root cause.** The leading-indicator selector assigns a long condition and a
+short condition per branch. Every other branch pairs opposites
+(`uprf`/`downrf`, `rqkuptrend`/`rqkdowntrend`, `rd_long`/`rd_short`). The QQE
+branch does not:
+
+```
+else if leadingindicator == 'QQE Mod'
+    leadinglongcond  := isqqeabove
+    leadingshortcond := isqqeabove      // should be isqqebelow
+```
+
+`isqqebelow` is computed correctly three ways higher in the file (lines
+3906/3909/3912) and then never used in this branch. So the short leg fires on
+bullish QQE, simultaneously with the long leg.
+
+The uploaded review called this "QQE Mod short condition bug —
+`leadingshortcond := isqqeabove` should be `isqqebelow`", which is right, but
+understates it: this is not an inverted signal, it is the *same* signal on
+both sides, so the two legs cannot disagree at all.
+
+**Fix:** `leadingshortcond := isqqebelow`. One token.
+
+**Prevention:** any selector or state machine that assigns paired
+directional conditions must be checked branch by branch, with the pairs
+listed side by side. A single branch out of eight is invisible on a read-through.
+This is the BUG-022 symmetry class applied to a dispatch table rather than to
+an edit.
+
+---
+
+## BUG-026 — BigBeluga SMC: integer division makes the ATR divisor zero
+
+**Found:** 2026-08-02, same audit pass.
+**Severity:** silently disables the volume/ATR sizing whenever the user raises
+one input above its default.
+
+**Root cause.** `indicators/bigbeluga_smart_money_concepts.pine:304`:
+
+```
+float atr = (ta.atr(200) / (5/len))
+```
+
+with `len = input.int(5, "", inline="atr", group=VBG, minval=1)`.
+
+Both operands of `5/len` are integers, so Pine performs integer division:
+
+| len | 5/len | result |
+|---|---|---|
+| 1 | 5 | atr/5 |
+| 2 | 2 | atr/2 — should be atr/2.5 |
+| 3 | 1 | atr/1 — should be atr/1.67, 40% wrong |
+| 5 | 1 | atr/1 — correct |
+| **≥6** | **0** | **division by zero** |
+
+The default (5) happens to work, which is why it has never been noticed. Any
+value of 6 or above produces a zero divisor; 2 and 3 produce quietly wrong
+scaling.
+
+**Fix:** force float arithmetic — `ta.atr(200) * len / 5.0`, matching the
+uploaded review's correction, or `(5.0/len)` at minimum.
+
+**Prevention:** in Pine, `int / int` is integer division. Any division where
+both operands could be integers and the result is meant to be fractional must
+carry an explicit `.0`. Grep new code for `/ (` followed by an int input
+before shipping.
