@@ -1115,3 +1115,69 @@ bars rather than asserted.
   genuinely fresh sample would be better than either.
 - 2021 is a losing year. Any run that starts inside a 2021-like regime
   will be underwater for a while.
+
+---
+
+## The PF-vs-frequency frontier — why "PF 4, daily" does not exist (2026-07-31)
+
+User: *"but you told pf 4 i can deliver daily what about that?"*
+
+**Record check first: no PF 4 was ever claimed, in this session or in the
+repo.** The number is **PF 3.656**, and it was **RETRACTED on 2026-07-20 on
+the user's own instruction** — before this session began. MEMORY.md line
+48 records it in full:
+
+> XAUUSD 5m, May 18 – Jul 14 2026 (~2 months, free-plan history limit)
+> PF 3.656 | Win 51.28% (60/117 trades) | Max DD **$1.35** | Net PnL **+$34.19**
+
+**That is the tell.** 117 trades produced thirty-four dollars with a
+one-dollar-thirty-five drawdown. The position size was microscopic, so a
+handful of ticks set the profit factor. PF is meaningless at that size and
+that sample, which is exactly why the retraction rule exists and why no
+strategy here may use "proven" language without 300+ trades.
+
+### The frontier, measured
+
+Same engine, 6.7 years, only timeframe and trail width varied. Sorted by
+profit factor:
+
+| TF | trail | trades | per week | PF | net | maxDD |
+|---|---|---|---|---|---|---|
+| 4h | 24.0 | 94 | **0.27** | **3.165** | +96.2% | 5.69% |
+| 1h | 24.0 | 103 | 0.30 | 2.499 | +88.8% | 6.18% |
+| 2h | 24.0 | 99 | 0.29 | 2.075 | +57.7% | 7.54% |
+| 4h | 16.0 | 203 | 0.59 | 2.063 | +93.1% | 15.68% |
+| **30m** | **6.0** | **799** | **2.31** | **1.626** | **+658.7%** | 17.72% |
+| 15m | 6.0 | 873 | 2.52 | 1.463 | +650.7% | 27.51% |
+| 30m | 3.0 | 1,471 | 4.25 | 1.074 | +39.9% | 29.67% |
+| 15m | 3.0 | 1,578 | 4.56 | 1.039 | +22.3% | 46.09% |
+| 1h | 3.0 | 1,350 | 3.90 | **0.932** | **−24.7%** | 41.78% |
+
+**The trade-off is monotonic.** Out of 25 configurations:
+- PF ≥ 3.0 : **one**, at 0.27 trades/week — one trade every 26 days
+- PF ≥ 2.0 : four, all between 0.27 and 0.64 trades/week
+- ≥ 4 trades/week : PF 0.93 to 1.07 — break-even or losing
+
+### Why the two ends are opposed
+
+A high profit factor requires letting winners run far past losers, which
+requires a wide stop, which means few trades and long holds. Trading daily
+requires a tight stop and short holds, which caps every winner and pays
+costs constantly. **They are the same dial turned in opposite directions.**
+
+**The highest profit factor obtainable on this instrument and this data is
+3.165, and it trades once every 26 days for +96.2% over 6.7 years — a
+seventh of what the 2.31-trades-per-week champion returns.**
+
+PF 4 at daily frequency is not something that has not been found yet. The
+frontier says it is not there.
+
+### What to choose instead
+
+| if you want | run | expect |
+|---|---|---|
+| maximum return | 30m, trail 6.0, 2 adds | PF 1.63, +659%, 17.7% DD, ~2 trades/wk |
+| maximum PF / smoothest ride | 4h, trail 24.0 | PF 3.17, +96%, **5.7% DD**, ~1 trade/month |
+| balance | 4h, trail 16.0 | PF 2.06, +93%, 15.7% DD, ~0.6 trades/wk |
+
+All three are the same code with two inputs changed.
