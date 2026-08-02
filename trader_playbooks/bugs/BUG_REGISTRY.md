@@ -656,3 +656,63 @@ uploaded review's correction, or `(5.0/len)` at minimum.
 both operands could be integers and the result is meant to be fractional must
 carry an explicit `.0`. Grep new code for `/ (` followed by an int input
 before shipping.
+
+---
+
+## BUG-027 — Quarter-grid proximity "filter" is a constant, and its target is 15x too close
+
+**Found:** 2026-08-02, testing `gold_scalping_strategy_blueprint.pdf`'s
+Quarter Theory module against `data/xauusd_15m.csv.gz`.
+**Severity:** the module contributes nothing as a filter and loses money as a
+target. Both halves fail.
+
+**The filter half.** The blueprint proposes:
+
+```
+bool nearWholeNumber = distToWhole < atr * 0.3
+bool nearQuarter     = distToMajorQuarter < atr * 0.2
+```
+
+`distToWhole` cannot exceed 0.50 by construction — it is the distance to the
+nearest integer. So whenever `atr * 0.3 > 0.5`, i.e. ATR > $1.67, the
+condition is unconditionally true.
+
+Measured on this repo's own XAUUSD 15m history (median ATR $2.58, price range
+$1,454–$5,586):
+
+| gate | unconditionally true on |
+|---|---|
+| `nearWholeNumber` (ATR×0.3 > 0.50) | **79.8% of bars** |
+| `nearQuarter` (ATR×0.2 > 0.25) | **93.6% of bars** |
+
+It is not a filter. On four bars in five it is the literal constant `true`,
+and it degrades to a real filter only in the quietest 20% of the sample —
+precisely the regime a scalper should be sitting out. BUG-006 class
+(always-true gate), but arrived at through a units mismatch rather than a
+logic slip: a 0.25 grid was designed for an instrument priced in single
+dollars and applied to one that moves $2.58 per 15 minutes.
+
+**The target half.** The blueprint sets "Target 1: next quarter level (1:1
+R/R)" against a "Stop: 1.5x ATR". Applying BUG-017's mandatory pre-ship
+check:
+
+```
+median target distance / stop distance = 0.25 / (1.5 x 2.58) = 0.065
+```
+
+BUG-017 requires this ratio to exceed 1.0 or the structure loses before a
+single trade is placed. The key-level build that produced live PF 0.702 and
+−2.99% scored **0.077**. This scores **0.065** — 15% worse than the
+configuration this project already measured as a failure.
+
+The "1:1 R/R" label attached to it is simply false: a $0.25 target against a
+$3.87 stop is 1:15.5 against.
+
+**Prevention:** any price-grid rule must be checked against the instrument's
+ATR in the same units before it is coded, not after. Two one-line checks:
+(1) can the gate's threshold exceed the metric's maximum possible value? (2)
+what is target/stop in ATR? Both were available before writing any Pine.
+
+**Related:** BUG-017, and the standing finding that level- and grid-based
+targets fail structurally because their distance is set by where a line
+happens to sit rather than by what the trade needs.
