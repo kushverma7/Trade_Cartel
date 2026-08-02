@@ -558,17 +558,40 @@ embed the module: `gold_trend_trailing`, `key_to_key_strategy`,
 **`strategies/gold_trend_strategy.pine` — the validated champion — does NOT
 embed the module.** Its PF 1.583 / +1,591.7% result is unaffected.
 
-**Fix, and the constraint on it.** CLAUDE.md requires the module to be
-embedded verbatim (BUG-013: three rewrites were rejected). The correct
-minimal change is a numbered port delta on two lines only:
+**Inherited, not introduced.** Verified 2026-08-02 against the user-supplied
+original (`indicators/key_levels_spaceman.pine`, and the copy inside
+`sources/all_indicators_dump.txt`): lines 48-49 of the original are identical
+to lines 102-103 of the module. The port did not cause this. The module's
+four logged port deltas are all unrelated and all compliant.
+
+**Fix — and why the obvious one is wrong.** The tempting change is to bring
+the yearly pair into line with every other timeframe:
 
 ```
 [yearlyh_time, yearlyh_open] = request.security(..., '12M', [time[1], high[1]], lookahead_on)
-[yearlyl_time, yearlyl_open] = request.security(..., '12M', [time[1], low[1]],  lookahead_on)
 ```
 
-bringing the yearly pair into line with every other timeframe in the same
-file. Do NOT strip `lookahead_on` from the module wholesale — the uploaded
+**Do not do this.** Every other timeframe deliberately shows the PREVIOUS
+period's extreme — that is what makes them PDH/PDL, previous-week high/low
+and so on, which is the whole point of those levels. The yearly pair shows
+the CURRENT year's running range, which is a different level and is what the
+user sees on the indicator. Rewriting it would silently replace a level with
+a different level and change the drawing, violating the standing "displays
+the levels as it is in the indicator" directive.
+
+The leak is not in the drawing — live and forward trading have no future to
+look at. It exists only when a BACKTEST reads those values through
+`klPrices[]`. So the fix belongs at the export, not at the request:
+
+- Preferred: gate lines 375-377 behind a `kl_export_yearly` input defaulting
+  to **false**, so the yearly high, low and mid still draw but never enter
+  `klPrices[]`. One new input, three guarded lines, drawing untouched.
+- Or, in any strategy that consumes `klPrices[]`, skip entries whose name
+  matches the yearly set.
+
+Either way, log it as port delta 5 with this reason.
+
+Also: do NOT strip `lookahead_on` from the module wholesale — the uploaded
 review recommends exactly that, and it would introduce repainting on the ten
 calls that are currently correct.
 
