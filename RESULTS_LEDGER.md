@@ -1376,3 +1376,73 @@ deep backtest over 7.4 years, PF 1.694, +3,534%, 26.10% drawdown, against
 buy-and-hold's +325.96%. The claim that survived every test is unchanged and
 is worth restating: **the entry contributes nothing measurable; the money is
 in the trailing exit, the regime filters and adding to winners.**
+
+---
+
+## ⚠ COST STRESS TESTS — and a slippage-unit error in the shipped Pine (2026-08-02)
+
+Three tests were proposed: commission +50%, double the spread, and
+realistic gold slippage. All three were run on the Balanced profile over
+the full period. Two pass comfortably. The third found the strategy's
+biggest vulnerability AND a mistake in my own Pine defaults.
+
+### Test 1 — commission +50%: PASSES
+
+| commission | PF | net | drawdown |
+|---|---|---|---|
+| $0.07 (baseline) | 1.751 | +2,533% | 27.72% |
+| $0.105 (+50%) | 1.723 | +2,279% | 29.29% |
+| $0.14 (×2) | 1.699 | +2,063% | 31.93% |
+| $0.35 (×5) | 1.535 | +1,116% | 52.69% |
+
+Commission is not the binding constraint. Even 5× survives.
+
+### Test 2 — double the spread: PASSES
+
+| slippage | PF | net | drawdown |
+|---|---|---|---|
+| 0.05 pt | 1.751 | +2,533% | 27.72% |
+| 0.10 pt (×2) | 1.714 | +2,274% | 28.85% |
+
+### Test 3 — realistic gold slippage: THIS IS THE VULNERABILITY
+
+| slippage | PF | net | **drawdown** |
+|---|---|---|---|
+| 0.20 pt | 1.641 | +1,620% | 33.40% |
+| 0.50 pt | 1.452 | +715% | **52.23%** |
+| 1.00 pt | 1.141 | +109% | **76.08%** |
+| 1.50 pt | **0.888** | **−54%** | 88.18% |
+
+**Break-even is roughly 1.2–1.5 points of slippage.** Return falls 23× from
+0.05 to 1.0 points, and drawdown nearly triples.
+
+**Why so sensitive:** pyramiding. Each position places ~2.85 entry orders
+plus exits, so ~3,000 fills across the sample. Every fill pays the spread.
+The feature that produced the returns is also what makes execution quality
+the dominant risk.
+
+Combined (commission +50% AND slippage): 0.2 pt → PF 1.624 / +1,507%;
+0.5 pt → 1.428 / +656%; 1.0 pt → 1.107 / +80%.
+
+### The error this exposed in the shipped Pine
+
+**`slippage` in Pine is in TICKS, not points.** XAUUSD/OANDA quotes three
+decimals, so mintick is 0.001:
+
+| | ticks | points |
+|---|---|---|
+| shipped Pine (wrong) | 5 | **0.005** |
+| research model | — | 0.05 |
+| realistic retail fill | 200 | 0.20 |
+
+**The deep backtest that returned PF 1.694 and +3,534% modelled slippage
+about 40× smaller than a real fill.** Corrected: `slippage = 200`. At that
+setting the honest expectation is **PF ~1.64, +1,620%, 33.4% drawdown** —
+not +3,534%.
+
+The 15m data behaves the same way, and the early years suffer most because
+a fixed point cost is a larger share of price at gold 1,800 than at 4,050.
+
+**Action for the user:** set `slippage` to your broker's actual gold spread
+in ticks (0.2 pt = 200, 0.5 pt = 500) before trusting any number the script
+reports, and re-run the deep backtest.

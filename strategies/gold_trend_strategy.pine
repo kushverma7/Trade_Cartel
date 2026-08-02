@@ -5,6 +5,14 @@
 // (Dec 2019 - Jul 2026), resampled to 30m, split 80/20, with gap-aware
 // stop fills. Defaults reproduce the best result the research produced.
 //
+// ⚠ SLIPPAGE CORRECTED 2026-08-02. The header numbers below were measured
+// at 0.05 points of slippage. The shipped default is now 0.20 points (200
+// ticks), which is a realistic retail gold fill, and at that level the
+// Balanced profile returns +1,620% at 33.4% drawdown with PF 1.641 rather
+// than +2,533% at 27.7%. EXECUTION QUALITY IS THE LARGEST SINGLE RISK TO
+// THIS STRATEGY - larger than any parameter in it. Break-even is about
+// 1.2-1.5 points of slippage.
+//
 //   SHIPPED DEFAULTS, XAUUSD 30m, full 6.7 years
 //     profit factor 1.635 | net +679.9% | max drawdown 17.01%
 //     buy & hold over the same period: +179.1% at 29.08% drawdown
@@ -83,7 +91,19 @@ strategy("Gold Trend — Strategy",
      default_qty_value       = 1000,
      commission_type         = strategy.commission.cash_per_contract,
      commission_value        = 0.07,
-     slippage                = 5,
+     // SLIPPAGE IS IN TICKS, NOT POINTS. XAUUSD/OANDA quotes three decimals,
+     // so mintick is 0.001 and 200 ticks = 0.20 points - a realistic retail
+     // gold fill. The earlier value of 5 modelled 0.005 points, roughly 40x
+     // too little, and it flattered every backtest run with it.
+     // COST STRESS (full period, Balanced, measured 2026-08-02):
+     //     0.05 pt ( 50) -> PF 1.751  +2,533%  drawdown 27.7%
+     //     0.20 pt (200) -> PF 1.641  +1,620%  drawdown 33.4%   <- shipped
+     //     0.50 pt (500) -> PF 1.452    +715%  drawdown 52.2%
+     //     1.00 pt (1000)-> PF 1.141    +109%  drawdown 76.1%
+     //     1.50 pt (1500)-> PF 0.888     -54%  BREAK-EVEN IS HERE
+     // Set this to YOUR broker's actual gold spread before trusting any
+     // number this script reports.
+     slippage                = 200,
      process_orders_on_close = true,
      // BUG-012 guard. Pine's margin default of 100% silently REJECTS
      // risk-sized orders with no error and no log line. It has bitten
