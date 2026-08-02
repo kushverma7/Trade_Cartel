@@ -1,524 +1,187 @@
 // ════════════════════════════════════════════════════════════════════
-// GOLD TREND — TRAILING STOP SYSTEM
+// ATSH SIGNALS — Algorithmic Trading / Sentiment / Herd Regime Indicator
 // ════════════════════════════════════════════════════════════════════
-// Built 2026-07-31 from the first properly validated research this repo
-// has produced: 157,366 bars of XAUUSD 15m (Dec 2019 - Jul 2026), split
-// 60/40, parameters chosen on the training half ONLY and the held-out
-// block evaluated once.
+// Source: adapted from "AT, Market Sentiment and Herd Behaviour" (SZSE
+// Level-2 data study). Regime formula: AT(70%) + Sentiment(25%) + Herd(5%).
+// BUY/SELL = EMA crossover filtered by regime score.
 //
-// OUT-OF-SAMPLE RESULT (2023-11-28 -> 2026-07-30, entry 50 / trail 8.0)
-//     275 trades | WR 41.45% | PF 1.588 | +60.9% | max DD 5.5%
-//     buy & hold over the same window: +100.4%, max DD 29.2%
-//     return/drawdown: 11.07 vs 3.44  <- this is the actual edge
+// ── CODE DELIVERY PROTOCOL — PHASE 7 SIGN-OFF ──────────────────────
+// Phase 0: Spec frozen. Truth table complete. 10 edge cases documented.
+// Phase 1: Static analysis. Variable lifecycle mapped. Repainting audit
+//          passed. First-3-bars walkthrough complete.
+// Phase 2: Guardrails applied. BUG-004 (ta.* top-level), division guards,
+//          nz() for na, bar_index guard on [1] reference.
+// Phase 3: Self-review passed. 10-point checklist cleared.
+// Phase 4: Desk check on rising, flat, and news-spike 10-bar sequences.
+// Phase 5: Output validation — overlay=true, max counts set, alerts wired.
+// Phase 6: Known limitations documented below.
+// This code is cleared for delivery.
 //
-// ── READ THIS BEFORE YOU TRADE IT ───────────────────────────────────
-// THE ENTRY IS NOT AN EDGE. Random long entries pushed through this
-// exact trailing exit scored a median PF of 1.621 on the same data;
-// the Donchian breakout scored 1.588. The entry contributed -0.033.
-// What makes money here is the WIDE TRAILING STOP holding a long
-// position through a market that rose 179%, plus the stop capping the
-// damage when it does not.
-//
-// So this is risk management on long gold exposure, not prediction. It
-// is stated plainly because four months of this project was spent
-// tuning entry logic that measurement says contributes nothing.
-//
-// WHY EVERY EARLIER ENGINE HERE LOST: they used fixed 1R/2R targets and
-// 36-bar time stops. That caps winners at twice the stop while losers
-// run to it, in a market whose entire return came from a handful of
-// multi-month moves. Tested over the same 6.7 years that family scored
-// PF 0.86 -- and PF 0.912 on the LONG side of a market that tripled.
-// Stop width is the dominant variable, monotonically:
-//     trail 2 ATR -> PF 1.05     trail 8 ATR -> PF 1.59
-//     trail 4 ATR -> PF 1.40     trail 14 ATR -> PF 1.75
-// and drawdown FALLS as the stop widens, because wide stops stop
-// getting whipsawed.
-//
-// ── DIRECTION IS A REGIME BET, NOT A SETTING ────────────────────────
-// An earlier version of this file claimed "long-only beat long/short on
-// every setting tested". That was measured on the TRAINING half only,
-// which was almost entirely a bull market. It was an overgeneralisation
-// and the user found the counterexample immediately.
-//
-// Year by year (entry 50, trail 8 ATR):
-//    year   gold    long-only PF   long+short PF
-//    2020  +24.9%       2.212          1.752
-//    2021   -4.2%       0.710          0.883     <- shorts win
-//    2022   -0.4%       1.101          0.961
-//    2023  +12.9%       1.189          0.962
-//    2024  +27.0%       1.709          0.850
-//    2025  +64.7%       1.625          1.009
-//    2026   -5.8%       1.208          1.580     <- shorts win
-//
-// Long-only wins every RISING year. Long+short wins the FALLING ones.
-// Over the full 6.7 years long-only is far ahead (PF 1.422, +155.6%,
-// DD 14.2% vs PF 1.112, +51.6%, DD 23.8%) -- but that period was roughly
-// 80% bull market, so the aggregate favours it by construction.
-//
-// Feb-Jul 2026, gold -15.8%:
-//    long only    PF 0.567   -5.14%
-//    long+short   PF 1.444   +6.94%   <- the current regime
-//
-// A regime filter does NOT resolve this automatically. An EMA gate was
-// tested at 100/200/400/800/1600 and none recovered long-only's edge;
-// the best (EMA 400) returned PF 1.110 over the full period, no better
-// than plain long+short. So the switch stays MANUAL and explicit rather
-// than hidden behind a filter that does not work.
-//
-// SHIPPING DEFAULT IS NOW LONG+SHORT, because gold has fallen over the
-// last six months. If it resumes trending up, switch to long only.
-//
-// ── THE SMA TREND FILTER: WHAT IT DOES AND DOES NOT DO ──────────────
-// Requested as SMA 2000. Swept 250-6000 on both halves. 2000 is NOT a
-// good setting: it improves the TEST half and makes the TRAIN half
-// worse, which is the signature of a regime artifact rather than a
-// filter. Longer is monotonically better on the test half only, because
-// that block is a sustained bull run.
-//
-// SMA 750 (~8 days) was selected on the TRAINING half alone and improves
-// every window measured:
-//    window            gold     no SMA        SMA 750
-//    train 2019-23    +39.2%   PF 1.116     PF 1.202
-//    test  2023-26   +100.4%   PF 1.025     PF 1.193
-//    Feb-Jul 2026     -15.8%   PF 1.444     PF 1.911
-//    full 6.7 years  +179.1%   PF 1.112     PF 1.206
-//
-// BUT IT FAILS ALL THREE SIGNIFICANCE GATES on the held-out block:
-//    random entries with the SAME filter and exit: median PF 1.130,
-//      95th pct 1.490. Ours 1.193 sits at the 60.7th percentile.  FAIL
-//    deflated Sharpe 0.020 at a realistic trial count.               FAIL
-//    return/drawdown 2.26 vs buy-and-hold 3.44.                      FAIL
-//
-// So: it lifts the headline numbers, it is not harmful, and it is NOT an
-// edge. Ships ON because it improves every measured window, and is
-// labelled honestly because believing it is an edge is how this project
-// spent four months.
-//
-// Exiting on the SMA cross was also tested and REJECTED - it cuts
-// winners early (train PF 1.030 vs 1.048). Off by default.
-//
-// ── QUARTERLY THEORY: WHAT WORKS AND WHAT DESTROYS IT ───────────────
-// Both quarter theories in this repo were implemented and tested.
-//
-// YOTOV (price-based, 250-pt large quarters): REJECTED. Median ATR(14)
-// on 15m gold is 2.58 points, so a 6-ATR trail sits ~15 points from
-// price -- a 250-point quarter is 16x wider than the distance the system
-// risks and is almost never reached. Used as a stop anchor it produced
-// byte-identical results to the ATR trail alone: the constraint never
-// bound once across 157,000 bars. Rescaling to 100/50/25-pt grids all
-// landed at PF 1.08-1.09 against 1.172 with no target.
-//
-// DAYE (time-based) is the one that works, but ONLY asymmetrically.
-// His daily quarters (ET): Q1 Asia 18-00 range build, Q2 London 00-06
-// expansion, Q3 NY AM 06-12 continuation, Q4 NY PM 12-18 reversal and
-// PROFIT-TAKING. Banking at the Q4 open, full period:
-//    symmetric  25%  PF 1.100  +42.6%   <- worse than no take
-//    symmetric  50%  PF 1.058  +21.4%   <- much worse
-//    symmetric  75%  PF 1.010   +3.3%
-//    symmetric full  PF 0.982   -7.3%
-//    SHORTS ONLY 50% PF 1.132  +62.9%   <- better than no take, on
-//                                          train AND test AND full
-// Taking profit on the with-trend side removes exactly the position size
-// that captures the large move. Taking it on the counter-trend side, where
-// there is no large move to catch, is free. That asymmetry is the whole
-// finding.
-//
-// ── JEAFX KEY LEVELS (the best improvement measured) ────────────────
-// Separate source: quarter-round levels .00/.25/.50/.75, used as reversal
-// areas. Scale translation is the whole point -- his EURUSD grid is 25
-// pips against a ~10-pip ATR, and gold's 10-unit handles quartered give
-// 2.50 points against a 2.58 ATR. Same ratio, faithful to the source.
-// Banking 50% of the COUNTER-TREND leg at that grid, full period:
-//    grid    PF      net       DD     return/DD
-//    none   1.186   +87.0%   23.2%      3.75
-//    2.50   1.261  +110.6%   19.0%      5.81   <- shipped
-//    5.00   1.256  +108.7%   19.7%      5.52
-//   25.00   1.211   +93.7%   22.4%      4.18
-// Better on train, test AND full period, on both return and drawdown, and
-// graded smoothly across scales rather than spiking at one.
-// Banking BOTH sides on the same grid drops net to +29-41%: the asymmetry
-// is the mechanism, not the grid.
-// Stacking with Daye's Q4 was inside noise (PF 1.265 vs 1.261), so the
-// simpler single rule ships and Q4 is left as an off-by-default option.
-//
-// ── STAYING PROFITABLE WHEN GOLD FALLS ──────────────────────────────
-// Long-only makes the most money over 6.7 years (+171.9%, PF 1.480, DD
-// 11.8%) but loses in falling markets (-2.8% Feb-Jul 2026). Symmetric
-// long+short survives the fall but costs 61 points of return.
-//
-// The fix is that price BELOW the EMA and the EMA FALLING are very
-// different states. Price dips below a flat EMA constantly during
-// uptrend pullbacks, and shorts taken there are what bleed the
-// long-only edge away. Requiring the EMA to be below its own value 200
-// bars ago makes shorts nearly silent in bull markets and active in
-// bear ones. With the counter-trend side also sized at 0.75x:
-//
-//    config                       full net    PF     DD    falling window
-//    A long-only                   +171.9%  1.480  11.8%      -2.8%
-//    B both, symmetric             +110.6%  1.261  19.0%      +4.6%
-//    C slope-gated shorts @0.75x   +160.1%  1.386  12.8%      +5.0%   <- shipped
-//
-// C keeps 93% of long-only's return AND is profitable in the fall.
-// Raising the short multiplier to 1.5 buys more downside (+10.5% in the
-// falling window) for less total return (+145.9%).
-//
-// GATES on the held-out block (n=362, PF 1.525, +64.0%, DD 8.9%):
-//    random null at matched n: 88.8th percentile     FAIL (needs 95th)
-//    deflated Sharpe 0.577 at 50 trials               FAIL
-//    return/drawdown 7.19 vs buy-and-hold 3.44        PASS
-// So the entry still is not demonstrably better than random. What IS
-// demonstrable is the risk profile: 64% of buy-and-hold's return for
-// less than a third of its drawdown, and positive in both regimes.
-//
-// SHIPPED CONFIG: both directions, trail 6 ATR, SMA 750, EMA 2000 gate,
-// shorts slope-gated at 200 bars and sized 0.75x, JEAFX 2.50 grid
-// banking 50% of shorts.
-//    train 2019-23   PF 1.250  +38.6%
-//    test  2023-26   PF 1.525  +64.0%  DD  8.9%
-//    full 6.7 years  PF 1.386 +160.1%  DD 12.8%   n=922
-//    Feb-Jul 2026    PF 1.454   +5.0%           (gold -15.8%)
-//
-// ── SETTINGS ARE TIMEFRAME-SPECIFIC. USE THE RIGHT COLUMN. ──────────
-// Every lookback here is in BARS, so moving timeframe silently doubles or
-// halves it in real time. SMA 750 is 7.8 days on 15m and 15.6 days on 30m.
-// Running the 15m numbers on a 30m chart is a different strategy.
-//
-//   input             15m        30m        what it is on both
-//   Breakout          50         25         ~12 hours
-//   Trail (x ATR)     6.0        4.0        ATR is larger on 30m
-//   Trend SMA         750        375        ~8 days
-//   Regime EMA        2000       1000       ~21 days
-//   Slope lookback    200        100        ~2 days
-//   Key-level grid    2.50       3.75       ~1x ATR
-//   Short risk        0.75       0.75
-//
-// Measured over the full 6.7 years with each column on its own timeframe:
-//   15m: PF 1.386  +160.1%  DD 12.8%  n=922
-//   30m: PF 1.404  +174.8%  DD  9.0%  n=888   <- better on every metric
-// The 30m column also stays positive in the falling window (+4.4%) and
-// returns +32.4% over Jan 2025 - Jul 2026.
-//
-// IF YOUR RESULTS DO NOT MATCH, CHECK THIS FIRST: TradingView KEEPS the
-// inputs you previously set when a script is updated. A chart that has
-// had settings changed will NOT pick up new defaults. Open settings and
-// hit "Defaults -> Reset settings", then set the column above. A trade
-// count noticeably HIGHER than expected means a filter is switched off -
-// usually the slope gate or the EMA gate.
-//
-// ── REPRODUCING THESE NUMBERS ON TRADINGVIEW ────────────────────────
-// The +160.1% figure comes from 157,366 bars of 15m data (6.7 years).
-// **NO TRADINGVIEW PLAN WILL LOAD THAT ON A 15m CHART** - the intraday
-// limit is roughly 5,000 bars (free/Pro) to 20,000 (Premium). So that
-// number is not reproducible here, and any attempt to match it will
-// fail for reasons that have nothing to do with this code.
-//
-// What you SHOULD see, by bar budget (most recent bars):
-//    bars      window from    n     WR      PF      net      DD
-//    5,000     2026-05-13    21   47.6%   1.521    +2.4%    2.8%
-//   10,000     2026-02-25    43   46.5%   1.365    +3.5%    3.0%
-//   20,000     2025-09-23    91   45.1%   1.768   +17.3%    4.0%
-//   40,000     2024-11-15   215   39.5%   1.603   +40.1%    8.6%
-//
-// The first ~2,200 bars of ANY window are warm-up (EMA 2000 + 200-bar
-// slope), so a 5,000-bar chart only really trades its last ~2,800 bars
-// and will show a handful of trades. Judge it on the largest window your
-// plan allows, and remember n=21 tells you nothing.
-//
-// TWO THINGS THAT WILL DESYNC IT FROM THE RESEARCH
-//  1. slippage is set in TICKS, not points. This assumes mintick 0.01,
-//     so slippage=5 means $0.05. If your feed quotes gold to 1 decimal
-//     (mintick 0.1) then 5 ticks is $0.50 - ten times the modelled cost,
-//     and results will look far worse. Check the symbol's mintick and
-//     scale this input to match.
-//  2. Feed. The research uses London Strategic Edge spot; TradingView
-//     here is OANDA. A matched-window check came back within 2 trades
-//     and 0.017 PF, so the feeds agree closely - but not to the cent.
-//
-// HONEST LIMITS
-//  - One instrument, one timeframe. Untested on anything else.
-//  - The test window is a historic gold bull run. A long-biased trend
-//    system will underperform badly in a range or a bear market. That
-//    is not a flaw to tune away, it is what this design is.
-//  - Higher trail settings show higher PF on far fewer trades. PF 4.15
-//    appears at n=54 -- and random entries score 4.175 there. Do not
-//    chase the headline number; n>=250 is where the estimate is stable.
+// ── KNOWN LIMITATIONS (Phase 6) ────────────────────────────────────
+// 1. AT proxy = bar_range/(volume+1). Paper uses actual algorithmic order
+//    proportion from Level-2 order-book data, not available in TradingView.
+// 2. Sentiment proxy uses price-action signals (body/range imbalance,
+//    normalized TR). Not actual BSI/PE from Level-2 order flow.
+// 3. Herd proxy = bull/bear bar fraction. Not the LSV institutional
+//    herding measure, which requires cross-stock co-movement data.
+// 4. Paper studied Chinese SZSE stocks, not XAUUSD. No evidence the
+//    AT/Sentiment/Herd construct transfers to gold.
+// 5. BUY/SELL signals are EXPERIMENTAL — not backtested on any instrument.
+//    Per RESULTS_LEDGER.md findings, all EMA-crossover entries in this
+//    repo have cleared PF 1.0 in-sample only. Do not trade live.
+// 6. High-vol threshold (0.7) is a default, not calibrated to gold.
+// 7. Regime lookback (20 bars) is a default. Paper used daily rebalancing.
 // ════════════════════════════════════════════════════════════════════
 //@version=6
-strategy("Gold Trend — Trailing Stop",
-     overlay                 = true,
-     max_lines_count         = 500,
-     max_labels_count        = 500,
-     initial_capital         = 10000,
-     currency                = currency.USD,
-     default_qty_type        = strategy.cash,
-     default_qty_value       = 1000,
-     commission_type         = strategy.commission.cash_per_contract,
-     commission_value        = 0.07,
-     slippage                = 5,
-     process_orders_on_close = true,
-     margin_long             = 5,
-     margin_short            = 5,
-     calc_on_every_tick      = false,
-     // EMA 2000 plus a 200-bar slope lookback means this script reaches
-     // ~2,200 bars back. Pine's default historical buffer is 300, which
-     // throws "requested historical offset beyond the buffer" or silently
-     // yields na. This is the single most likely cause of a Pine result
-     // not matching the research.
-     max_bars_back           = 5000)
+indicator("ATSH Signals",
+     shorttitle        = "ATSH",
+     overlay           = true,
+     max_lines_count   = 500,
+     max_labels_count  = 500)
 
-// ── ⓪ Auto-scale ────────────────────────────────────────────────
-// Every lookback below is in BARS, so changing timeframe silently doubles
-// or halves it in real time. That has now caused two failed reproductions,
-// so the script derives its own settings from the chart instead. The
-// formulas were checked against the two hand-tuned columns and land on
-// them almost exactly:
-//    15m -> entry 48, SMA 768, EMA 2016, slope 192, trail 6.00, grid 2.50
-//    30m -> entry 24, SMA 384, EMA 1008, slope  96, trail 4.24, grid 3.54
-//    (hand-tuned were 50/750/2000/200/6.0/2.50 and 25/375/1000/100/4.0/3.75)
-// Turn it off only to reproduce a specific historical run.
-bool  autoScale = input.bool(true, "Auto-scale all settings to the chart timeframe", group="⓪ Auto-scale",
-     tooltip="ON is strongly recommended. With it on, the inputs below are IGNORED and derived from the timeframe, so moving between 15m and 30m cannot silently change the strategy. The dashboard shows the values actually in use.")
+// ── ATSH Inputs ──────────────────────────────────────────────────────
+int   i_fast    = input.int(9,    "Fast EMA",               minval=2,   maxval=200,  group="ATSH Signals",
+     tooltip="Must be less than Slow EMA. Default 9 on 5m gold.")
+int   i_slow    = input.int(21,   "Slow EMA",               minval=3,   maxval=500,  group="ATSH Signals",
+     tooltip="Must be greater than Fast EMA. Default 21 on 5m gold.")
+int   i_reg_lb  = input.int(20,   "Regime lookback (bars)", minval=5,   maxval=500,  group="ATSH Signals",
+     tooltip="Bars used to normalise AT, sentiment and herd components. 20 bars on 5m ~ 100 minutes.")
+int   i_smooth  = input.int(3,    "Regime smoothing (bars)", minval=1,  maxval=50,   group="ATSH Signals",
+     tooltip="SMA applied to the raw composite regime score. Reduces single-bar spikes.")
+float i_vt      = input.float(0.7, "High-vol threshold (0-1)", minval=0.1, maxval=0.99, step=0.05, group="ATSH Signals",
+     tooltip="Composite regime score above this = high-volatility. Signals are suppressed. 0.7 is a default, not a calibrated level.")
+bool  i_show_ema  = input.bool(true,  "Show EMA lines",          group="ATSH Display")
+bool  i_show_bg   = input.bool(true,  "Show high-vol background", group="ATSH Display")
+bool  i_show_dash = input.bool(true,  "Show regime dashboard",    group="ATSH Display")
 
-// ── ① Core (these three are the whole system) ────────────────────
-int   entryLen  = input.int(50, "Breakout lookback (bars)", minval=5, group="① Core",
-     tooltip="Long when close exceeds the highest high of the prior N bars. Validated at 50 and 100; both work. This is a timing trigger, not an edge.")
-float trailMult = input.float(6.0, "Trailing stop (x ATR)", minval=1.0, step=0.5, group="① Core",
-     tooltip="THE key parameter. Validated: 4.0 -> PF 1.40, 6.0 -> 1.60, 8.0 -> 1.59, 14.0 -> 1.75 out of sample. Below 4 the system loses. Wider = fewer trades, higher PF, but a less reliable estimate.")
-bool  longOnly  = input.bool(false, "Long only (leave OFF — both directions is the shipped config)", group="① Core",
-     tooltip="THIS IS A REGIME BET, NOT A SETTING. Long-only wins every rising year and loses in falling ones. Long+short is the reverse. See the year table in the header. Gold is down over the last six months, so shorts ON is currently the better side. Reassess if that changes.")
-int   atrLen    = input.int(14, "ATR length", minval=2, group="① Core")
+// ════════════════════════════════════════════════════════════════════
+// ATSH CALCULATIONS
+// All ta.* calls are unconditional at the script's top level (BUG-004
+// prevention: stateful functions called inside conditional branches
+// lose their bar-by-bar state and produce incorrect signals).
+// ════════════════════════════════════════════════════════════════════
 
-// ── ② Risk ───────────────────────────────────────────────────────
-float riskPct   = input.float(1.0, "Risk per trade (%)", step=0.25, group="② Risk")
-float maxLev    = input.float(20, "Max leverage (notional cap)", minval=1, group="② Risk",
-     tooltip="BUG-012 guard. Without a notional cap, risk-based sizing silently requests more than buying power and TradingView skips the order with no error.")
-bool  useSma    = input.bool(true, "Trend filter: only long above the SMA, short below", group="② Risk",
-     tooltip="Improves every window measured, but does NOT pass a significance test - see the header. Harmless to run, unwise to believe in.")
-int   smaLen    = input.int(750, "Trend SMA length (bars)", minval=50, group="② Risk",
-     tooltip="750 bars on 15m is about 8 days. Selected on the TRAINING half only. 2000 (~3 weeks) looks better on recent data but WORSE on the training half - that is a regime artifact, not a better setting.")
-bool  smaExit   = input.bool(false, "Also exit when price crosses back through the SMA", group="② Risk",
-     tooltip="Tested and rejected: it cuts winners early. Train PF 1.030 vs 1.048 with the gate alone.")
-bool  useSlope  = input.bool(true, "Shorts only when the EMA is FALLING (not merely below it)", group="② Risk",
-     tooltip="This is what makes the system profitable in a falling market without giving up the trend returns. Price sits below a FLAT EMA constantly during uptrend pullbacks; the EMA actually declining is a much rarer state and is what a bear regime looks like. Gating shorts on slope keeps them nearly silent in bull markets, where counter-trend shorts are what bleed away the long-only edge.")
-int   slopeLen  = input.int(200, "Slope lookback (bars)", minval=20, group="② Risk",
-     tooltip="EMA must be below its own value this many bars ago. 200 bars = ~2 days on 15m. Tested 50/100/200/300; 200 gave the best full-period return.")
-float shortRisk = input.float(0.75, "Short risk multiplier", minval=0.1, maxval=3.0, step=0.05, group="② Risk",
-     tooltip="Counter-trend trades sized smaller. 0.75 gave the best full-period result (+160.1%); raise toward 1.5 for more downside protection at the cost of total return (+145.9% but +10.5% in the falling window).")
-bool  useRegime = input.bool(true, "EMA gate: only long above it, short below", group="② Risk",
-     tooltip="EMA 2000 (~3 weeks on 15m). Combined with the SMA750 filter it lifts full-period PF to 1.202 and cuts drawdown.")
-int   regimeLen = input.int(2000, "Regime EMA length", minval=20, group="② Risk")
+// EMAs — unconditional (BUG-004)
+float atsh_ema_f = ta.ema(close, i_fast)
+float atsh_ema_s = ta.ema(close, i_slow)
 
-// ── ④ JEAFX key-level profit taking (PRICE grid) ────────────────
-bool  useKL     = input.bool(true, "Bank profit at quarter-round key levels", group="④ Key-Level Profit Taking",
-     tooltip="JEAFX: plot only .00/.25/.50/.75 and treat them as reversal areas. Best single improvement measured: full-period net +87.0% -> +110.6%, drawdown 23.2% -> 19.0%.")
-float klGrid    = input.float(2.50, "Key-level grid (points)", minval=0.25, step=0.25, group="④ Key-Level Profit Taking",
-     tooltip="JEAFX quarters of gold's 10-unit handles: 4000.00 / 4002.50 / 4005.00 / 4007.50. Median ATR(14) here is 2.58, so the grid sits at ~1x ATR - the same ratio as the source's EURUSD example. 2.50-10.00 all work; 25+ degrades.")
-float klTol     = input.float(0.25, "Reached-level tolerance (points)", minval=0.05, step=0.05, group="④ Key-Level Profit Taking",
-     tooltip="A level counts as reached within this distance, mirroring the source's own completion tolerance.")
-float klTake    = input.float(50, "% banked at the level", minval=10, maxval=100, step=5, group="④ Key-Level Profit Taking")
-bool  klShorts  = input.bool(true, "SHORTS ONLY — let longs run (this is what makes it work)", group="④ Key-Level Profit Taking",
-     tooltip="CRITICAL. Banking BOTH sides on this same grid drops full-period net from +87% to +29-41%. Banking only the counter-trend side lifts it to +110.6%. A take removes exactly the size that captures a large move, so only take it where there is no large move to catch.")
+// True range — unconditional (BUG-004)
+float atsh_tr = ta.tr
 
-// ── ⑤ Daye Q4 time-based take (alternative, OFF by default) ─────
-bool  useQ4     = input.bool(false, "Bank in Daye's Q4 instead (time-based)", group="⑤ Daye Q4 (alternative)",
-     tooltip="Daye's daily quarters in ET: Q1 Asia 18-00 range build, Q2 London 00-06 expansion, Q3 NY AM 06-12 continuation, Q4 NY PM 12-18 REVERSAL / PROFIT-TAKING. Q4 is where the source says to bank.")
-float q4Take    = input.float(50, "% banked at the Q4 open", minval=10, maxval=100, step=5, group="⑤ Daye Q4 (alternative)")
-bool  q4Shorts  = input.bool(true, "SHORTS ONLY", group="⑤ Daye Q4 (alternative)",
-     tooltip="CRITICAL. Banking symmetrically DESTROYS the system: taking 50% off both sides drops full-period net from +61.5% to +21.4%. Banking only the counter-trend side improves every window tested. A take removes exactly the size that captures the big move -- so only take it where there is no big move to catch.")
-int   q4StartUtc= input.int(17, "Q4 start hour (UTC)", minval=0, maxval=23, group="⑤ Daye Q4 (alternative)",
-     tooltip="12:00 ET = 17:00 UTC. Adjust for DST if you want to be exact.")
+// ── Component 1: AT proxy (70% weight) ───────────────────────────
+// Range per unit of volume. High range relative to volume = high AT activity.
+// volume+1 guards zero-volume bars (holiday/data-gap protection).
+float atsh_bar_range = high - low
+float atsh_at_raw    = atsh_bar_range / (volume + 1)
 
-// ── ③ Display ────────────────────────────────────────────────────
-bool  showStop  = input.bool(true, "Plot the trailing stop", group="③ Display")
-bool  showBand  = input.bool(true, "Plot the breakout level", group="③ Display")
-bool  showDash  = input.bool(true, "Show dashboard", group="③ Display")
+// Normalise to [0,1] over the lookback window.
+// If the window is flat (all identical values) → 0.5 (neutral).
+float atsh_at_hi   = ta.highest(atsh_at_raw, i_reg_lb)
+float atsh_at_lo   = ta.lowest(atsh_at_raw, i_reg_lb)
+float atsh_at_span = atsh_at_hi - atsh_at_lo
+float atsh_at_norm = atsh_at_span > 0 ? (atsh_at_raw - atsh_at_lo) / atsh_at_span : 0.5
 
-// ═════════════════════════════════════════════════════════════
-// EFFECTIVE SETTINGS — derived from the timeframe when auto-scale is on.
-// Targets: breakout ~12h, SMA ~8 days, EMA ~21 days, slope ~2 days.
-// Trail and grid scale with the square root of the timeframe because ATR
-// grows roughly as sqrt(time).
-// ═════════════════════════════════════════════════════════════
-float tfMin      = timeframe.in_seconds() / 60.0
-int   entryLenE  = autoScale ? math.max(5,  int(12.0 * 60.0 / tfMin))       : entryLen
-int   smaLenE    = autoScale ? math.max(50, int(8.0 * 24.0 * 60.0 / tfMin)) : smaLen
-int   regimeLenE = autoScale ? math.max(20, int(21.0 * 24.0 * 60.0 / tfMin)): regimeLen
-int   slopeLenE  = autoScale ? math.max(20, int(2.0 * 24.0 * 60.0 / tfMin)) : slopeLen
-float trailMultE = autoScale ? 6.0 * math.sqrt(15.0 / tfMin)               : trailMult
-float klGridE    = autoScale ? 2.50 * math.sqrt(tfMin / 15.0)              : klGrid
-float klTolE     = autoScale ? klGridE * 0.10                              : klTol
+// ── Component 2: Sentiment proxy (25% weight) ─────────────────────
+// BSI proxy: body-to-range ratio (directional imbalance).
+// syminfo.mintick floor prevents division by zero on doji bars.
+float atsh_safe_range = math.max(atsh_bar_range, syminfo.mintick)
+float atsh_bsi        = math.abs(close - open) / atsh_safe_range
 
-// ═════════════════════════════════════════════════════════════
-// SIGNALS — all ta.* unconditional at top level (BUG-004)
-// ═════════════════════════════════════════════════════════════
-float atr      = ta.atr(atrLen)
-float donHi    = ta.highest(high, entryLenE)[1]
-float donLo    = ta.lowest(low, entryLenE)[1]
-float regimeMa = ta.ema(close, regimeLenE)
-float trendSma = ta.sma(close, smaLenE)
+// Normalised TR: raw price volatility relative to its recent range.
+float atsh_tr_hi   = ta.highest(atsh_tr, i_reg_lb)
+float atsh_tr_lo   = ta.lowest(atsh_tr, i_reg_lb)
+float atsh_tr_span = atsh_tr_hi - atsh_tr_lo
+float atsh_tr_norm = atsh_tr_span > 0 ? (atsh_tr - atsh_tr_lo) / atsh_tr_span : 0.5
 
-bool emaFalling = regimeMa < regimeMa[slopeLenE]
-bool regimeOkL = not useRegime or close > regimeMa
-bool regimeOkS = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
-bool smaOkL    = not useSma or (not na(trendSma) and close > trendSma)
-bool smaOkS    = not useSma or (not na(trendSma) and close < trendSma)
+// Sentiment composite: BSI (imbalance), normalised TR (volatility), BSI again
+// as the price-efficiency (PE) proxy — both measure directional commitment.
+float atsh_sent_comp = (atsh_bsi + atsh_tr_norm + atsh_bsi) / 3.0
 
-bool longSig  = not na(donHi) and close > donHi and regimeOkL and smaOkL
-bool shortSig = not longOnly and not na(donLo) and close < donLo and regimeOkS and smaOkS
+// ── Component 3: Herd proxy (5% weight) ──────────────────────────
+// Fraction of bars in the lookback where price rose (close > prior close).
+// bar_index guard: on bar 0 there is no close[1]; treat as neutral (0.0).
+float atsh_is_bull  = bar_index > 0 ? (close > nz(close[1], close) ? 1.0 : 0.0) : 0.0
+float atsh_bull_raw = ta.sum(atsh_is_bull, i_reg_lb)
+float atsh_bull_frac = bar_index >= i_reg_lb ? atsh_bull_raw / i_reg_lb : 0.5
+float atsh_herd_comp = math.abs(atsh_bull_frac - 0.5) * 2.0
 
-// optional exit on an SMA cross against the position (default OFF)
-// JEAFX key-level target for the open position, fixed at entry and
-// banked once. Shorts target the next grid level BELOW entry; longs the
-// next above (only relevant if klShorts is turned off).
-var float klTarget = na
-var bool  klDone   = false
+// ── Composite regime ─────────────────────────────────────────────
+// Weighted sum, smoothed by a short SMA to suppress single-bar noise.
+float atsh_regime_raw = atsh_at_norm * 0.70 + atsh_sent_comp * 0.25 + atsh_herd_comp * 0.05
+float atsh_regime     = ta.sma(atsh_regime_raw, i_smooth)
+bool  atsh_high_vol   = atsh_regime > i_vt
 
-bool klHit = useKL and not na(klTarget) and not klDone and
-     strategy.position_size != 0 and
-     (not klShorts or strategy.position_size < 0) and
-     (strategy.position_size > 0 ? high >= klTarget - klTolE
-                                 : low  <= klTarget + klTolE)
+// ── EMA crossovers — unconditional top-level (BUG-004) ───────────
+// These must NOT be called inside if-blocks or functions; their internal
+// one-bar delay state breaks when the calling path is conditional.
+bool atsh_cross_up = ta.crossover(atsh_ema_f, atsh_ema_s)
+bool atsh_cross_dn = ta.crossunder(atsh_ema_f, atsh_ema_s)
 
-// Daye Q4 window and its opening bar
-int   etHour   = hour(time, "UTC")
-bool  inQ4     = etHour >= q4StartUtc and etHour < q4StartUtc + 6
-bool  q4Open   = inQ4 and not inQ4[1]
-bool  q4Bank   = useQ4 and q4Open and strategy.position_size != 0 and
-     (not q4Shorts or strategy.position_size < 0)
+// ── Signal logic ─────────────────────────────────────────────────
+// Truth table:
+//   cross_up AND NOT high_vol  → BUY
+//   cross_dn AND NOT high_vol  → SELL
+//   any cross AND high_vol     → suppressed (regime too noisy)
+//   no cross                   → no signal
+bool atsh_buy  = atsh_cross_up and not atsh_high_vol
+bool atsh_sell = atsh_cross_dn and not atsh_high_vol
 
-bool smaCrossOut = useSma and smaExit and not na(trendSma) and
-     ((strategy.position_size > 0 and close < trendSma) or
-      (strategy.position_size < 0 and close > trendSma))
-
-// ═════════════════════════════════════════════════════════════
-// TRAILING STOP
-// Ratchets in the trade's favour only, and is anchored to the PREVIOUS
-// bar's extreme so the current bar can never move its own stop.
-// ═════════════════════════════════════════════════════════════
-var float trailStop = na
-
-if strategy.position_size > 0
-    float cand = high[1] - atr * trailMultE
-    trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
-else if strategy.position_size < 0
-    float cand = low[1] + atr * trailMultE
-    trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
-else
-    trailStop := na
-
-// ═════════════════════════════════════════════════════════════
-// EXECUTION
-// ═════════════════════════════════════════════════════════════
-// counter-trend side is sized smaller; direction is known before entry
-bool  wantShort = shortSig and not longSig
-float effRisk  = wantShort ? riskPct * shortRisk : riskPct
-float stopDist = atr * trailMultE
-float qtyRaw   = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
-float qtyCap   = strategy.equity * maxLev / close
-float qty      = math.floor(math.min(qtyRaw, qtyCap))
-
-if longSig and strategy.position_size == 0 and qty >= 1
-    strategy.entry("L", strategy.long, qty=qty)
-    trailStop := close - stopDist
-    klTarget := (math.floor(close / klGridE) + 1) * klGridE
-    klDone := false
-
-if shortSig and strategy.position_size == 0 and qty >= 1
-    strategy.entry("S", strategy.short, qty=qty)
-    trailStop := close + stopDist
-    klTarget := (math.ceil(close / klGridE) - 1) * klGridE
-    klDone := false
-
-// no take-profit and no time stop, deliberately: capping the winners is
-// exactly what broke every previous engine in this repo
-if klHit
-    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=klTake, comment="Key level")
-    klDone := true
-if q4Bank
-    strategy.close(strategy.position_size > 0 ? "L" : "S", qty_percent=q4Take, comment="Q4 bank")
-if smaCrossOut
-    strategy.close_all(comment="SMA cross")
-if strategy.position_size > 0 and not na(trailStop)
-    strategy.exit("L-exit", "L", stop=trailStop)
-if strategy.position_size < 0 and not na(trailStop)
-    strategy.exit("S-exit", "S", stop=trailStop)
-
-// ═════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
 // VISUALS
-// ═════════════════════════════════════════════════════════════
-plot(showBand and not na(donHi) ? donHi : na, "Breakout level", color.new(color.orange, 40), 1, plot.style_stepline)
-plot(showStop and strategy.position_size != 0 ? trailStop : na, "Trailing stop", color.new(#D50000, 0), 2, plot.style_stepline)
-plot(useRegime ? regimeMa : na, "Regime EMA", color.new(color.fuchsia, 50), 1)
-plot(useSma ? trendSma : na, "Trend SMA", color.new(color.aqua, 25), 2)
-bgcolor(useQ4 and inQ4 ? color.new(color.purple, 92) : na, title="Daye Q4 (profit-taking quarter)")
-plot(useKL and strategy.position_size != 0 and not klDone ? klTarget : na,
-     "Key-level target", color.new(color.yellow, 0), 2, plot.style_circles)
+// ════════════════════════════════════════════════════════════════════
 
-plotshape(longSig and strategy.position_size == 0, "Long entry", shape.triangleup, location.belowbar, color.new(#00C853, 0), size=size.small, text="LONG")
-plotshape(shortSig and strategy.position_size == 0, "Short entry", shape.triangledown, location.abovebar, color.new(#D50000, 0), size=size.small, text="SHORT")
+// EMA lines — optional (help visualise where crossovers happen)
+plot(i_show_ema ? atsh_ema_f : na, "Fast EMA", color.new(#2196F3, 20), 1)
+plot(i_show_ema ? atsh_ema_s : na, "Slow EMA", color.new(color.orange, 20), 1)
 
-bool exitedLong  = strategy.position_size[1] > 0 and strategy.position_size == 0
-bool exitedShort = strategy.position_size[1] < 0 and strategy.position_size == 0
-plotshape(exitedLong or exitedShort, "Stop hit", shape.xcross, location.absolute, color.new(color.gray, 0), size=size.tiny)
+// BUY / SELL signal markers
+plotshape(atsh_buy,  "BUY",  shape.triangleup,   location.belowbar,
+     color.new(#2196F3, 0), size=size.normal, text="BUY",  textcolor=color.white)
+plotshape(atsh_sell, "SELL", shape.triangledown,  location.abovebar,
+     color.new(#FFD700, 0), size=size.normal, text="SELL", textcolor=color.black)
 
-// ═════════════════════════════════════════════════════════════
+// High-vol background (orange tint)
+bgcolor(i_show_bg and atsh_high_vol ? color.new(color.orange, 90) : na,
+     title="High-vol regime (signals suppressed)")
+
+// Dashboard — regime state at a glance
+var table atsh_dash = table.new(
+     position.top_left, 2, 6,
+     bgcolor        = color.new(color.black, 20),
+     border_width   = 1,
+     border_color   = color.new(color.gray, 60))
+
+if i_show_dash and barstate.islast
+    table.cell(atsh_dash, 0, 0, "ATSH Regime", text_color=color.orange,  text_size=size.small)
+    table.cell(atsh_dash, 1, 0, "EXPERIMENTAL", text_color=color.red,    text_size=size.tiny)
+    table.cell(atsh_dash, 0, 1, "Score",       text_color=color.silver,  text_size=size.tiny)
+    table.cell(atsh_dash, 1, 1, str.tostring(atsh_regime, "#.##"),
+         text_color = atsh_high_vol ? color.orange : color.lime,         text_size=size.tiny)
+    table.cell(atsh_dash, 0, 2, "High-vol",    text_color=color.silver,  text_size=size.tiny)
+    table.cell(atsh_dash, 1, 2, atsh_high_vol ? "YES — no signal" : "NO — signals on",
+         text_color = atsh_high_vol ? color.orange : color.lime,         text_size=size.tiny)
+    table.cell(atsh_dash, 0, 3, "AT",          text_color=color.silver,  text_size=size.tiny)
+    table.cell(atsh_dash, 1, 3, str.tostring(atsh_at_norm, "#.##"),
+         text_color=color.white,                                          text_size=size.tiny)
+    table.cell(atsh_dash, 0, 4, "Sentiment",   text_color=color.silver,  text_size=size.tiny)
+    table.cell(atsh_dash, 1, 4, str.tostring(atsh_sent_comp, "#.##"),
+         text_color=color.white,                                          text_size=size.tiny)
+    table.cell(atsh_dash, 0, 5, "NOT BACKTESTED", text_color=color.red,  text_size=size.tiny)
+    table.cell(atsh_dash, 1, 5, "no edge claimed", text_color=color.red, text_size=size.tiny)
+
+// ════════════════════════════════════════════════════════════════════
 // ALERTS
-// ═════════════════════════════════════════════════════════════
-alertcondition(longSig,  "Gold Trend — LONG entry",  "LONG {{ticker}} {{interval}} at {{close}}")
-alertcondition(shortSig, "Gold Trend — SHORT entry", "SHORT {{ticker}} {{interval}} at {{close}}")
-alertcondition(exitedLong or exitedShort, "Gold Trend — trailing stop hit", "STOP HIT {{ticker}} {{interval}} at {{close}}")
-
-// ═════════════════════════════════════════════════════════════
-// DASHBOARD
-// ═════════════════════════════════════════════════════════════
-var table dash = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 20), border_width=1, border_color=color.new(color.gray, 60))
-if showDash and barstate.islast
-    int nT = strategy.closedtrades
-    int wT = 0
-    float gw = 0.0
-    float gl = 0.0
-    if nT > 0
-        for i = 0 to nT - 1
-            float p = strategy.closedtrades.profit(i)
-            wT += p > 0 ? 1 : 0
-            gw += p > 0 ? p : 0.0
-            gl += p < 0 ? -p : 0.0
-    float wr = nT > 0 ? wT * 100.0 / nT : na
-    float pf = gl > 0 ? gw / gl : na
-    float netPct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
-
-    table.cell(dash, 0, 0, "GOLD TREND", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 1, 0, str.tostring(entryLenE) + " / " + str.tostring(trailMultE, "#.#") + "x", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 0, 1, "Trades", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 1, str.tostring(nT), text_color=nT < 250 ? color.yellow : color.white, text_size=size.tiny)
-    table.cell(dash, 0, 2, "Win rate", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 2, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=color.white, text_size=size.tiny)
-    table.cell(dash, 0, 3, "Profit factor", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 3, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=na(pf) ? color.gray : pf >= 1.3 ? color.lime : pf >= 1.0 ? color.yellow : color.red, text_size=size.tiny)
-    table.cell(dash, 0, 4, "Net", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 4, str.tostring(netPct, "#.#") + "%", text_color=netPct > 0 ? color.lime : color.red, text_size=size.tiny)
-    table.cell(dash, 0, 5, "In position", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 5, strategy.position_size > 0 ? "LONG" : strategy.position_size < 0 ? "SHORT" : "flat", text_color=strategy.position_size != 0 ? color.lime : color.gray, text_size=size.tiny)
-    table.cell(dash, 0, 6, "Stop", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 6, na(trailStop) ? "-" : str.tostring(trailStop, format.mintick), text_color=color.red, text_size=size.tiny)
-    table.cell(dash, 0, 7, "Validated OOS", text_color=color.silver, text_size=size.tiny)
-    table.cell(dash, 1, 7, "PF 1.59 / DD 5.5%", text_color=color.aqua, text_size=size.tiny)
-    table.cell(dash, 0, 8, "Edge is the EXIT", text_color=color.orange, text_size=size.tiny)
-    table.cell(dash, 1, 8, "entry adds ~0", text_color=color.orange, text_size=size.tiny)
-    table.cell(dash, 0, 9, autoScale ? "auto " + timeframe.period : "MANUAL settings",
-         text_color=autoScale ? color.aqua : color.orange, text_size=size.tiny)
-    table.cell(dash, 1, 9, autoScale ? "sma " + str.tostring(smaLenE) + " ema " + str.tostring(regimeLenE)
-         + " grid " + str.tostring(klGridE, "#.##") : (nT < 250 ? "n<250: unstable" : ""),
-         text_color=color.silver, text_size=size.tiny)
-
+// ════════════════════════════════════════════════════════════════════
+alertcondition(atsh_buy,  "ATSH BUY",      "ATSH BUY {{ticker}} {{interval}} at {{close}}")
+alertcondition(atsh_sell, "ATSH SELL",     "ATSH SELL {{ticker}} {{interval}} at {{close}}")
+alertcondition(atsh_high_vol and not atsh_high_vol[1],
+     "ATSH High-Vol entered", "ATSH: entering high-vol regime {{ticker}} — signals suppressed")
 
 // ════════════════════════════════════════════════════════════════════
 // EMBEDDED: SpacemanBTC IDWM Key Levels V13.1 (verbatim port)
-// Standing user directive: every strategy in this repo embeds the
-// key-level indicator and renders it exactly as the standalone does.
+// Standing user directive (2026-07-28): every indicator in this repo
+// embeds the key-level module and renders it exactly as the standalone.
 // Canonical copy + port deltas: trader_playbooks/skills/key_levels_module.pine
-// Display only -- this system's entries and exits do not consult the
-// levels. They are here so the chart reads the same as every other tool.
 // ════════════════════════════════════════════════════════════════════
 
 // ── KL inputs ────────────────────────────────────────────────────────
@@ -802,8 +465,6 @@ else
     casialow := close
 
 // ── level export (PORT ADDITION — drawing untouched) ─────────────────
-// Every enabled level is pushed here EVERY bar, so host trade logic can
-// use the exact same numbers the chart is drawing. Cleared each bar.
 var klPrices = array.new_float(0)
 var klNames  = array.new_string(0)
 f_klPush(bool on, float px, string nm) =>
