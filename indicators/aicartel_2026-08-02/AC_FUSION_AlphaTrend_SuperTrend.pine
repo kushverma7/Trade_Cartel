@@ -1,0 +1,119 @@
+// SERIES: AC Fusion | VERSION: 1.0 | TYPE: strategy
+// COMPONENTS: AlphaTrend(14/1.0), SuperTrend(10/3.0), EMA200 filter
+// ENTRY: AT crossover (AT vs AT[2]) + ST direction + EMA filter + session
+// EXIT: ATR SL(1.5x) + RR TP(2.0x) OR opposite ST/AT flip after min_bars_hold
+// TIMEFRAME: 5m-15m | INSTRUMENT: BTC/XAUUSD | FLIP_EXITS: YES (configurable)
+// UNIQUE: Purest AT+ST combo — no RSI/MACD/EMA stack. Fast params vs DE swing.
+//@version=6
+strategy("AC·FUSION — AlphaTrend + SuperTrend", shorttitle="AC·FUSION", overlay=true,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=10,
+     initial_capital=10000, commission_type=strategy.commission.percent,
+     commission_value=0.05, slippage=2)
+
+at_coeff    = input.float(1.0,  "AT Coefficient",  step=0.1, group="AlphaTrend", minval=0.1, maxval=5.0)
+at_period   = input.int(14,     "AT Period",        group="AlphaTrend", minval=5, maxval=50)
+no_volume   = input.bool(false, "No Volume Data (use RSI instead of MFI)", group="AlphaTrend")
+st_atr_len  = input.int(10,    "ST ATR Length",    group="SuperTrend", minval=5, maxval=50)
+st_mult     = input.float(3.0, "ST Multiplier",    group="SuperTrend", step=0.1, minval=1.0, maxval=8.0)
+ema_len     = input.int(200,    "EMA Length",        group="EMA Filter")
+use_ema     = input.bool(false, "Use EMA Filter",    group="EMA Filter")
+use_session = input.bool(false, "Use Session Filter",  group="Session")
+session_str = input.session("0700-2100", "Active Session (Exchange TZ)", group="Session")
+tp_pct      = input.float(1.5,  "Take Profit %",  step=0.1, minval=0.2, maxval=10.0, group="Risk")
+sl_pct      = input.float(0.8,  "Stop Loss %",    step=0.1, minval=0.1, maxval=5.0,  group="Risk")
+use_atr_sl  = input.bool(true,  "Use ATR-based SL (overrides % SL)", group="Risk")
+atr_sl_mult = input.float(1.5,  "ATR SL Multiplier", step=0.1, group="Risk")
+rr_ratio    = input.float(2.0,  "TP = SL x RR Ratio", step=0.1, group="Risk")
+require_at_confirm = input.bool(false, "Require AlphaTrend confirmation (2-bar cross)", group="Confirmation")
+require_st_confirm = input.bool(true,  "Require SuperTrend direction", group="Confirmation")
+min_bars_hold      = input.int(3, "Min bars before exit", minval=1, group="Confirmation")
+c_bull = input.color(color.new(#00FFBB, 0), "Bull Colour", group="Display")
+c_bear = input.color(color.new(#FF3D57, 0), "Bear Colour", group="Display")
+
+in_session = not use_session or na(time(timeframe.period, session_str)) == false
+
+at_atr   = ta.sma(ta.tr, at_period)
+upT      = low  - at_atr * at_coeff
+downT    = high + at_atr * at_coeff
+momentum_bull = no_volume ? ta.rsi(close, at_period) >= 50 : ta.mfi(hlc3, at_period) >= 50
+var float AlphaTrend = na
+AlphaTrend := momentum_bull ? (upT < nz(AlphaTrend[1]) ? nz(AlphaTrend[1]) : upT) : (downT > nz(AlphaTrend[1]) ? nz(AlphaTrend[1]) : downT)
+
+at_buy  = ta.crossover(AlphaTrend, AlphaTrend[2])
+at_sell = ta.crossunder(AlphaTrend, AlphaTrend[2])
+_bs_sell1 = nz(ta.barssince(at_sell[1]), 99999)
+_bs_buy1  = nz(ta.barssince(at_buy[1]),  99999)
+at_buy_confirmed  = at_buy  and (_bs_sell1 > _bs_buy1)
+at_sell_confirmed = at_sell and (_bs_buy1  > _bs_sell1)
+at_long_signal  = require_at_confirm ? at_buy_confirmed  : at_buy
+at_short_signal = require_at_confirm ? at_sell_confirmed : at_sell
+at_bullish = AlphaTrend > AlphaTrend[2]
+at_bearish = AlphaTrend < AlphaTrend[2]
+
+[st_line, st_dir] = ta.supertrend(st_mult, st_atr_len)
+st_bull = st_dir == -1
+st_bear = st_dir ==  1
+
+ema = ta.ema(close, ema_len)
+ema_long_ok  = not use_ema or close > ema
+ema_short_ok = not use_ema or close < ema
+
+atr14 = ta.atr(14)
+
+long_entry  = at_long_signal  and (not require_st_confirm or st_bull) and ema_long_ok  and in_session and strategy.position_size == 0
+short_entry = at_short_signal and (not require_st_confirm or st_bear) and ema_short_ok and in_session and strategy.position_size == 0
+
+var float entry_price = na
+var float tp_price    = na
+var float sl_price    = na
+var int   entry_bar   = na
+
+if strategy.position_size == 0
+    entry_price := na
+    tp_price    := na
+    sl_price    := na
+    entry_bar   := na
+
+if long_entry
+    entry_price := close
+    entry_bar   := bar_index
+    float raw_sl = use_atr_sl ? atr14 * atr_sl_mult : entry_price * sl_pct / 100
+    sl_price    := entry_price - raw_sl
+    tp_price    := entry_price + raw_sl * rr_ratio
+    strategy.entry("Long", strategy.long)
+
+if short_entry
+    entry_price := close
+    entry_bar   := bar_index
+    float raw_sl = use_atr_sl ? atr14 * atr_sl_mult : entry_price * sl_pct / 100
+    sl_price    := entry_price + raw_sl
+    tp_price    := entry_price - raw_sl * rr_ratio
+    strategy.entry("Short", strategy.short)
+
+bars_held = na(entry_bar) ? 0 : bar_index - entry_bar
+past_min  = bars_held >= min_bars_hold
+
+if strategy.position_size > 0 and not na(entry_price)
+    strategy.exit("Long Exit", "Long", limit=tp_price, stop=sl_price)
+    if past_min and st_bear
+        strategy.close("Long", comment="ST Flip")
+    if past_min and at_short_signal
+        strategy.close("Long", comment="AT Flip")
+
+if strategy.position_size < 0 and not na(entry_price)
+    strategy.exit("Short Exit", "Short", limit=tp_price, stop=sl_price)
+    if past_min and st_bull
+        strategy.close("Short", comment="ST Flip")
+    if past_min and at_long_signal
+        strategy.close("Short", comment="AT Flip")
+
+k1 = plot(AlphaTrend,    color=color.new(#0022FC, 0), linewidth=2, title="AlphaTrend")
+k2 = plot(AlphaTrend[2], color=color.new(#FC0400, 0), linewidth=2, title="AlphaTrend[2]")
+fill(k1, k2, color=AlphaTrend > AlphaTrend[2] ? color.new(#00E60F, 75) : color.new(#80000B, 75))
+plot(st_line, "SuperTrend", color=st_bull ? color.new(c_bull,20) : color.new(c_bear,20), linewidth=2)
+plot(ema, "EMA", color=color.new(#4FC3F7, 60), linewidth=1)
+plotshape(long_entry,  "BUY",  style=shape.labelup,   location=location.belowbar, color=c_bull, textcolor=color.black, text="BUY",  size=size.normal)
+plotshape(short_entry, "SELL", style=shape.labeldown, location=location.abovebar, color=c_bear, textcolor=color.white, text="SELL", size=size.normal)
+
+alertcondition(long_entry,  "AC·FUSION LONG",  "LONG signal — AlphaTrend + SuperTrend confirm. {{ticker}} {{interval}}")
+alertcondition(short_entry, "AC·FUSION SHORT", "SHORT signal — AlphaTrend + SuperTrend confirm. {{ticker}} {{interval}}")

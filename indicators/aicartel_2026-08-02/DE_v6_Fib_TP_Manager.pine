@@ -1,0 +1,285 @@
+// © AICartel / Kush — Dialectic Engine v6 + Fib TP Management
+// SERIES: Dialectic Engine | VERSION: v6 | TYPE: strategy
+// COMPONENTS: Supertrend(97/4.0), AlphaTrend(14/1.0), BBSR EMA200,
+//             EMA Stack(9/21/50), RSI(14), MACD(8/17/9),
+//             Volatility Gate (ATR%rank + BB), Liquidity Sweep,
+//             Fib TP (1.272/1.618/2.618), Drawdown Protection
+// ENTRY: Trend engine (ST+BBSR+EMA50 gate + 5-point score >= min_conf)
+//        OR Reversal engine (Sweep + AT flip + RSI extreme + EMA9 curl)
+// EXIT: Fib partial exits (40%@TP1, 35%@TP2, 25%@TP3), SL=1xATR, BE after TP1, trail after TP2
+// TIMEFRAME: Any (originally swing-focused)
+// INSTRUMENT: Any (XAUUSD primary)
+// FLIP_EXITS: NO — separate trend/reversal engines, no same-bar flip
+// NOTES: Most advanced DE version. Adds Fib TP management and DD protection over v5.
+
+//@version=6
+strategy("DE v6 — Fib TP Manager", shorttitle="DE·v6·FIB",
+     overlay           = true,
+     default_qty_type  = strategy.fixed,
+     default_qty_value = 1,
+     initial_capital   = 10000,
+     commission_type   = strategy.commission.percent,
+     commission_value  = 0.05,
+     slippage          = 2,
+     calc_on_every_tick= false)
+
+st_len     = input.int(97,    "ATR Period",             group="① Supertrend")
+st_mult    = input.float(4.0, "Multiplier",             group="① Supertrend", step=0.1)
+st_confirm = input.int(1,     "Confirm Bars",           group="① Supertrend", minval=1, maxval=10)
+at_period  = input.int(14,    "Period",                 group="② AlphaTrend")
+at_coeff   = input.float(1.0, "Coefficient",            group="② AlphaTrend", step=0.1)
+no_vol_at  = input.bool(false,"No Volume (use RSI)",    group="② AlphaTrend")
+ema_bbsr   = input.int(200,   "BBSR EMA Period",        group="③ BBSR")
+ema_fast   = input.int(9,     "EMA Fast",               group="④ EMA Stack")
+ema_mid    = input.int(21,    "EMA Mid",                group="④ EMA Stack")
+ema_slow   = input.int(50,    "EMA Slow",               group="④ EMA Stack")
+rsi_len    = input.int(14,    "RSI Length",             group="⑤ RSI")
+rsi_ob     = input.int(60,    "Overbought",             group="⑤ RSI", minval=55, maxval=80)
+rsi_os     = input.int(40,    "Oversold",               group="⑤ RSI", minval=20, maxval=45)
+macd_f     = input.int(8,     "MACD Fast",              group="⑥ MACD")
+macd_s     = input.int(17,    "MACD Slow",              group="⑥ MACD")
+macd_sig   = input.int(9,     "MACD Signal",            group="⑥ MACD")
+atr_gate_len  = input.int(14,    "ATR Length",          group="⑦ Vol Gate")
+atr_pct_low   = input.int(25,    "ATR Pct Min",         group="⑦ Vol Gate", minval=10, maxval=60)
+atr_pct_high  = input.int(90,    "ATR Pct Max",         group="⑦ Vol Gate", minval=60, maxval=95)
+bb_len        = input.int(20,    "BB Length",           group="⑦ Vol Gate")
+bb_mult_in    = input.float(2.0, "BB StdDev",           group="⑦ Vol Gate", step=0.1)
+use_vol_gate  = input.bool(true, "Require Vol Gate",    group="⑦ Vol Gate")
+liq_lb     = input.int(20,    "Sweep Lookback",         group="⑧ Sweep", minval=5, maxval=50)
+sweep_age  = input.int(5,     "Max Sweep Age",          group="⑧ Sweep", minval=1, maxval=20)
+min_conf   = input.int(3,     "Min Score (Trend)",      group="⑨ Engine", minval=1, maxval=8)
+use_trend  = input.bool(true, "Trend Engine",           group="⑨ Engine")
+use_rev    = input.bool(true, "Reversal Engine",        group="⑨ Engine")
+cooldown   = input.int(3,     "Cooldown Bars",          group="⑨ Engine", minval=1, maxval=30)
+vol_ma_len = input.int(20,    "Volume MA",              group="⑨ Engine")
+vol_thresh = input.float(1.1, "Volume Surge Mult",      group="⑨ Engine", step=0.1)
+use_vol    = input.bool(false,"Require Volume Surge",   group="⑨ Engine")
+use_sess   = input.bool(false,        "Session Filter", group="⑩ Session")
+sess_start = input.int(700,  "Start (HHMM)",            group="⑩ Session")
+sess_end   = input.int(1700, "End   (HHMM)",            group="⑩ Session")
+atr_sl_mult   = input.float(1.0,  "SL = ATR x",        group="⑪ Fib TP", step=0.1)
+fib_tp1_mult  = input.float(1.272,"TP1 Fib Level",     group="⑪ Fib TP", step=0.001)
+fib_tp2_mult  = input.float(1.618,"TP2 Fib Level",     group="⑪ Fib TP", step=0.001)
+fib_tp3_mult  = input.float(2.618,"TP3 Fib Level",     group="⑪ Fib TP", step=0.001)
+tp1_pct       = input.int(40,     "TP1 Close %",       group="⑪ Fib TP", minval=10, maxval=80)
+tp2_pct       = input.int(35,     "TP2 Close %",       group="⑪ Fib TP", minval=10, maxval=60)
+be_after_tp1  = input.bool(true,  "Move SL to BE after TP1", group="⑪ Fib TP")
+trail_after_tp2 = input.bool(true,"Trail SL after TP2 (1.5x ATR)", group="⑪ Fib TP")
+use_dd_prot    = input.bool(true,  "Enable Drawdown Protection", group="⑫ DD Protection")
+max_consec_loss= input.int(3,      "Reduce Size After N Losses", group="⑫ DD Protection", minval=1, maxval=10)
+size_reduction = input.float(0.5,  "Reduced Size Multiplier",    group="⑫ DD Protection", step=0.1)
+reset_after_win= input.bool(true,  "Reset Size After Win",       group="⑫ DD Protection")
+c_bull = input.color(color.new(#00FFBB, 0), "Bull",     group="⑬ Colours")
+c_bear = input.color(color.new(#FF3D57, 0), "Bear",     group="⑬ Colours")
+c_rev  = input.color(color.new(#FFD700, 0), "Reversal", group="⑬ Colours")
+c_fib  = input.color(color.new(#A78BFA, 0), "Fib Levels",group="⑬ Colours")
+
+[st_line, st_dir] = ta.supertrend(st_mult, st_len)
+st_bull = st_dir == -1
+st_bear = st_dir ==  1
+
+st_bull_count = 0
+st_bear_count = 0
+for i = 0 to st_confirm - 1
+    if st_dir[i] == -1
+        st_bull_count += 1
+    if st_dir[i] ==  1
+        st_bear_count += 1
+st_bull_conf = st_bull_count == st_confirm
+st_bear_conf = st_bear_count == st_confirm
+
+at_atr_val = ta.sma(ta.tr, at_period)
+upT        = low  - at_atr_val * at_coeff
+downT      = high + at_atr_val * at_coeff
+mom_bull   = no_vol_at ? ta.rsi(close, at_period) >= 50 : ta.mfi(hlc3, at_period) >= 50
+
+var float AT = na
+AT := mom_bull ? (upT < nz(AT[1]) ? nz(AT[1]) : upT) : (downT > nz(AT[1]) ? nz(AT[1]) : downT)
+
+at_bull      = AT > AT[2]
+at_bear      = AT < AT[2]
+at_flip_bull = AT > AT[2] and AT[1] <= AT[3]
+at_flip_bear = AT < AT[2] and AT[1] >= AT[3]
+at_cont_bull = at_bull and AT[2] > AT[4]
+at_cont_bear = at_bear and AT[2] < AT[4]
+
+bbsr       = ta.ema(close, ema_bbsr)
+above_bbsr = close > bbsr
+below_bbsr = close < bbsr
+
+ef = ta.ema(close, ema_fast)
+em = ta.ema(close, ema_mid)
+es = ta.ema(close, ema_slow)
+
+bull_stack    = ef > em and em > es
+bear_stack    = ef < em and em < es
+ema50_rising  = es > es[3]
+ema50_falling = es < es[3]
+ema9_up       = ef > ef[1] and ef[1] > ef[2]
+ema9_down     = ef < ef[1] and ef[1] < ef[2]
+
+rsi           = ta.rsi(close, rsi_len)
+rsi_bull_zone = rsi > 45 and rsi < 70
+rsi_bear_zone = rsi < 55 and rsi > 30
+rsi_rev_bull  = rsi < rsi_os and rsi > rsi[1]
+rsi_rev_bear  = rsi > rsi_ob and rsi < rsi[1]
+
+[ml, sl2, mh] = ta.macd(close, macd_f, macd_s, macd_sig)
+macd_bull = ml > sl2
+macd_bear = ml < sl2
+
+atr_val      = ta.atr(atr_gate_len)
+atr_pct_rank = ta.percentrank(atr_val, 100)
+in_vol_zone  = atr_pct_rank >= atr_pct_low and atr_pct_rank <= atr_pct_high
+
+[bb_upper, bb_basis, bb_lower] = ta.bb(close, bb_len, bb_mult_in)
+vol_gate_bull = not use_vol_gate or (in_vol_zone and close > bb_basis)
+vol_gate_bear = not use_vol_gate or (in_vol_zone and close < bb_basis)
+
+recent_high = ta.highest(high[1], liq_lb)
+recent_low  = ta.lowest(low[1],   liq_lb)
+sw_bull     = low  < recent_low  and close > recent_low
+sw_bear     = high > recent_high and close < recent_high
+
+var int sweep_bull_age = 9999
+var int sweep_bear_age = 9999
+sweep_bull_age := sw_bull ? 0 : sweep_bull_age + 1
+sweep_bear_age := sw_bear ? 0 : sweep_bear_age + 1
+recent_sw_bull = sweep_bull_age <= sweep_age
+recent_sw_bear = sweep_bear_age <= sweep_age
+
+vol_ma    = ta.sma(volume, vol_ma_len)
+vol_surge = volume > vol_ma * vol_thresh
+vol_ok    = not use_vol or vol_surge
+
+_hhmm      = hour * 100 + minute
+in_session = not use_sess or (_hhmm >= sess_start and _hhmm < sess_end)
+
+var int bars_since_sig = cooldown + 1
+bars_since_sig := bars_since_sig + 1
+cooled = bars_since_sig > cooldown
+
+t_buy_score  = (st_bull_conf  ? 2 : 0) +
+               (above_bbsr    ? 2 : 0) +
+               (at_cont_bull  ? 1 : 0) +
+               (rsi_bull_zone ? 1 : 0) +
+               (macd_bull     ? 1 : 0)
+
+t_sell_score = (st_bear_conf  ? 2 : 0) +
+               (below_bbsr    ? 2 : 0) +
+               (at_cont_bear  ? 1 : 0) +
+               (rsi_bear_zone ? 1 : 0) +
+               (macd_bear     ? 1 : 0)
+
+trend_buy_gate  = st_bull_conf and above_bbsr and ema50_rising
+trend_sell_gate = st_bear_conf and below_bbsr and ema50_falling
+
+t_buy_raw  = use_trend and trend_buy_gate  and t_buy_score  >= min_conf and vol_gate_bull and vol_ok and in_session and cooled
+t_sell_raw = use_trend and trend_sell_gate and t_sell_score >= min_conf and vol_gate_bear and vol_ok and in_session and cooled
+
+rev_buy_raw  = use_rev and recent_sw_bull and at_flip_bull and rsi_rev_bull and ema9_up   and vol_gate_bull and in_session and cooled
+rev_sell_raw = use_rev and recent_sw_bear and at_flip_bear and rsi_rev_bear and ema9_down and vol_gate_bear and in_session and cooled
+
+var int pos = 0
+
+any_buy      = (t_buy_raw  or rev_buy_raw)  and pos != 1
+any_sell     = (t_sell_raw or rev_sell_raw) and pos != -1
+is_rev_buy   = rev_buy_raw  and not t_buy_raw
+is_rev_sell  = rev_sell_raw and not t_sell_raw
+
+if any_buy
+    pos            := 1
+    bars_since_sig := 0
+if any_sell
+    pos            := -1
+    bars_since_sig := 0
+
+var int  consec_losses  = 0
+var bool size_reduced   = false
+
+if strategy.closedtrades > 0
+    last_profit = strategy.closedtrades.profit(strategy.closedtrades - 1)
+    if last_profit < 0
+        consec_losses := consec_losses + 1
+    else if reset_after_win
+        consec_losses := 0
+
+size_reduced := use_dd_prot and consec_losses >= max_consec_loss
+
+atr14 = ta.atr(14)
+
+var float entry_price = na
+var float sl_price    = na
+var float tp1_price   = na
+var float tp2_price   = na
+var float tp3_price   = na
+var float atr_at_entry= na
+var bool  tp1_hit     = false
+var bool  tp2_hit     = false
+var int   entry_bar   = -9999
+
+if any_buy and strategy.position_size == 0
+    entry_price   := close
+    atr_at_entry  := atr14
+    sl_price      := close - atr14 * atr_sl_mult
+    tp1_price     := close + atr14 * atr_sl_mult * fib_tp1_mult
+    tp2_price     := close + atr14 * atr_sl_mult * fib_tp2_mult
+    tp3_price     := close + atr14 * atr_sl_mult * fib_tp3_mult
+    tp1_hit       := false
+    tp2_hit       := false
+    entry_bar     := bar_index
+    strategy.entry("Long", strategy.long)
+
+if any_sell and strategy.position_size == 0
+    entry_price   := close
+    atr_at_entry  := atr14
+    sl_price      := close + atr14 * atr_sl_mult
+    tp1_price     := close - atr14 * atr_sl_mult * fib_tp1_mult
+    tp2_price     := close - atr14 * atr_sl_mult * fib_tp2_mult
+    tp3_price     := close - atr14 * atr_sl_mult * fib_tp3_mult
+    tp1_hit       := false
+    tp2_hit       := false
+    entry_bar     := bar_index
+    strategy.entry("Short", strategy.short)
+
+if strategy.position_size > 0 and not na(entry_price)
+    if not tp1_hit and high >= tp1_price
+        tp1_hit  := true
+        strategy.close("Long", comment="TP1 Fib 1.272", qty_percent=tp1_pct)
+        if be_after_tp1
+            sl_price := entry_price
+    if tp1_hit and not tp2_hit and high >= tp2_price
+        tp2_hit  := true
+        strategy.close("Long", comment="TP2 Fib 1.618", qty_percent=tp2_pct)
+    if tp2_hit and high >= tp3_price
+        strategy.close("Long", comment="TP3 Fib 2.618")
+    trail_sl = tp2_hit and trail_after_tp2 ? high - atr14 * 1.5 : sl_price
+    eff_sl   = math.max(sl_price, trail_sl)
+    if low <= eff_sl
+        strategy.close("Long", comment="SL")
+
+if strategy.position_size < 0 and not na(entry_price)
+    if not tp1_hit and low <= tp1_price
+        tp1_hit  := true
+        strategy.close("Short", comment="TP1 Fib 1.272", qty_percent=tp1_pct)
+        if be_after_tp1
+            sl_price := entry_price
+    if tp1_hit and not tp2_hit and low <= tp2_price
+        tp2_hit  := true
+        strategy.close("Short", comment="TP2 Fib 1.618", qty_percent=tp2_pct)
+    if tp2_hit and low <= tp3_price
+        strategy.close("Short", comment="TP3 Fib 2.618")
+    trail_sl = tp2_hit and trail_after_tp2 ? low + atr14 * 1.5 : sl_price
+    eff_sl   = math.min(sl_price, trail_sl)
+    if high >= eff_sl
+        strategy.close("Short", comment="SL")
+
+if strategy.position_size == 0
+    entry_price := na
+    sl_price    := na
+    tp1_price   := na
+    tp2_price   := na
+    tp3_price   := na
+    tp1_hit     := false
+    tp2_hit     := false
+    entry_bar   := -9999

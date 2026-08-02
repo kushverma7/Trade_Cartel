@@ -1,0 +1,83 @@
+AU200 FLIP ENGINE — BACKTEST ANALYSIS
+Base vs Flip on SL Hit | 9:50+9:55+10:00 AEST | All Days | 2019-2026
+BASE
+(no flip)
+Trades 170
+Win Rate 56.5%
+Profit Factor 4.52
+Net Profit $+281,710
+Max Drawdown -$8,050
+Avg Win +$3,768
+Max Win +$28,350
+FLIP x1
+(max 1/day)
+Trades 317
+Win Rate 53.6%
+Profit Factor 3.69
+Net Profit $+537,240
+Max Drawdown -$9,200
+Avg Win +$4,335
+Max Win +$28,350
+FLIP x2
+(max 2/day)
+Trades 382
+Win Rate 55.0%
+Profit Factor 3.75
+Net Profit $+677,950
+Max Drawdown -$11,850
+Avg Win +$4,402
+Max Win +$28,350
+Flip trades alone: N=158  WR=51.9%  PF=3.15  Net=$+265,060
+FLIP adds $+255,530 net vs base
+HOW FLIP ENGINE WORKS
+1. Opening entry fires at 9:50 / 9:55 / 10:00 AEST — normal trail system
+2. When SL is hit during session (9:00-12:00 AEST): instead of closing flat,
+   immediately reverse to opposite direction at the SL price
+3. Flip SL = original SL x 1.5 (wider stop on reversal trade)
+4. Flip also trails 30pts behind peak — captures the reversal move
+5. Max 1 flip per day (configurable) to prevent over-trading
+WHEN IT WORKS BEST
+• Opening gap fakeout — price breaks one way then immediately reverses
+• Choppy open that traps initial direction then trends opposite
+RISK NOTE
+• Flip can double drawdown if reversal also fails — wider SL + consecutive losses
+Backtested 2019-2026 | AU200 AUD 5m | $1/pt commission | bar-by-bar OHLC
+0 25 50 75 100 125 150 175
+Trade #
+0
+500
+1000
+1500
+2000
+2500
+Cumulative PnL (pts)
+BASE (no flip)
+WR=56.5%  PF=4.52  Net=$+281,710
+0 50 100 150 200 250 300
+Trade #
+0
+1000
+2000
+3000
+4000
+5000
+Cumulative PnL (pts)
+FLIP x1
+WR=53.6%  PF=3.69  Net=$+537,240
+−400
+−350
+−300
+−250
+−200
+−150
+−100
+−50
+0
+DD (pts)
+−400
+−300
+−200
+−100
+0
+DD (pts)
+EQUITY CURVES: Base vs Flip Engine (2019-2026)

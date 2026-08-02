@@ -1,0 +1,68 @@
+// SERIES: Super Scalper | VERSION: original | TYPE: indicator
+// COMPONENTS: ATR Bands(14/1.0 WMA), EMA(21/65), Double RSI(25/100)
+// ENTRY: open < lower_band AND rsi1>rsi2 (long) | open > upper_band AND rsi1<rsi2 (short)
+// EXIT: None (indicator only) | TIMEFRAME: 5m/15m | FLIP_EXITS: N/A
+// UNIQUE: Double RSI as trend filter, ATR band open-price breakout entry
+//@version=6
+indicator("Super Scalper — 5m / 15m", overlay=true, max_labels_count=500)
+
+g1 = "ATR Band"
+atrLen    = input.int(14,    "ATR Period",           group=g1)
+atrMult   = input.float(1.0, "ATR Multiplier",       group=g1, step=0.1)
+smoothing = input.string("WMA", "ATR Smoothing",     group=g1, options=["RMA","SMA","EMA","WMA"])
+g2 = "EMAs"
+fastEMALen = input.int(21,  "Fast EMA",              group=g2)
+slowEMALen = input.int(65,  "Slow EMA",              group=g2)
+g3 = "Double RSI"
+rsiLen1   = input.int(25,   "Fast RSI",              group=g3)
+rsiLen2   = input.int(100,  "Slow RSI",              group=g3)
+g4 = "Signal"
+cooldown  = input.int(2,    "Cooldown Bars",         group=g4)
+reqGolden = input.bool(false,"Require Golden Cross", group=g4)
+
+ma_func(src, len) =>
+    switch smoothing
+        "RMA" => ta.rma(src, len)
+        "SMA" => ta.sma(src, len)
+        "EMA" => ta.ema(src, len)
+        =>       ta.wma(src, len)
+
+atr_smooth = ma_func(ta.tr(true), atrLen)
+upper_band = atr_smooth * atrMult + close
+lower_band = close - atr_smooth * atrMult
+
+fastEMA = ta.ema(close, fastEMALen)
+slowEMA = ta.ema(close, slowEMALen)
+goldenCrossLong  = ta.crossover(fastEMA,  slowEMA)
+goldenCrossShort = ta.crossunder(fastEMA, slowEMA)
+emaBull = fastEMA > slowEMA
+emaBear = fastEMA < slowEMA
+
+rsi1 = ta.rsi(close, rsiLen1)
+rsi2 = ta.rsi(close, rsiLen2)
+rsiBull = rsi1 > rsi2
+rsiBear = rsi1 < rsi2
+
+longCondition  = open < lower_band
+shortCondition = open > upper_band
+
+var int lastBar = na
+canTrade = na(lastBar) or (bar_index - lastBar > cooldown)
+
+buySignal  = barstate.isconfirmed and canTrade and longCondition  and rsiBull and (reqGolden ? emaBull : true)
+sellSignal = barstate.isconfirmed and canTrade and shortCondition and rsiBear and (reqGolden ? emaBear : true)
+
+if buySignal or sellSignal
+    lastBar := bar_index
+
+plotshape(buySignal,  "BUY",  shape.labelup,   location.belowbar, color=color.new(color.teal,0), text="BUY",  textcolor=color.white, size=size.small)
+plotshape(sellSignal, "SELL", shape.labeldown, location.abovebar, color=color.new(color.red, 0), text="SELL", textcolor=color.white, size=size.small)
+plot(upper_band, "ATR Upper", color=color.new(color.red,  40), linewidth=1)
+plot(lower_band, "ATR Lower", color=color.new(color.lime, 40), linewidth=1)
+plot(fastEMA, "Fast EMA", color=color.new(color.red,    20), linewidth=1)
+plot(slowEMA, "Slow EMA", color=color.new(color.yellow, 20), linewidth=2)
+
+alertcondition(buySignal,              "Scalper BUY",    "Super Scalper — BUY")
+alertcondition(sellSignal,             "Scalper SELL",   "Super Scalper — SELL")
+alertcondition(goldenCrossLong,        "Golden Long",    "Super Scalper — Golden Cross LONG")
+alertcondition(goldenCrossShort,       "Golden Short",   "Super Scalper — Golden Cross SHORT")

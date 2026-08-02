@@ -1,0 +1,138 @@
+// SERIES: Dialectic Engine | VERSION: v4 | TYPE: indicator
+// COMPONENTS: Supertrend(97/3.1), AlphaTrend(14/1.0), BBSR EMA200,
+//             EMA Stack(9/21/50), RSI(14), MACD(8/17/9), Liquidity Sweep
+// ENTRY: Trend engine: ST+BBSR+EMA50 gate + 5pt score >= min_conf
+//        Reversal: Sweep + AT flip + RSI extreme + EMA9 curl
+// EXIT: Flip — opposite signal exits current trade
+// TIMEFRAME: Any (swing) | INSTRUMENT: XAUUSD primary | FLIP_EXITS: YES
+// NOTES: Base DE architecture. ST 3.1 mult. No volatility gate.
+//@version=6
+indicator("Dialectic Engine v4 — Flip Signal", shorttitle="DE·v4", overlay=true)
+
+st_len    = input.int(97,    "ST ATR Period",         group="① Supertrend")
+st_mult   = input.float(3.1, "ST Multiplier",         group="① Supertrend", step=0.1)
+at_period = input.int(14,    "AT Period",             group="② AlphaTrend")
+at_coeff  = input.float(1.0, "AT Coefficient",        group="② AlphaTrend", step=0.1)
+no_vol    = input.bool(false,"No Volume (use RSI)",   group="② AlphaTrend")
+ema_bbsr  = input.int(200,   "BBSR EMA Period",       group="③ BBSR")
+ema_fast  = input.int(9,     "EMA Fast",              group="④ EMA Stack")
+ema_mid   = input.int(21,    "EMA Mid",               group="④ EMA Stack")
+ema_slow  = input.int(50,    "EMA Slow",              group="④ EMA Stack")
+rsi_len   = input.int(14,    "RSI Length",            group="⑤ RSI")
+rsi_ob    = input.int(60,    "RSI Overbought",        group="⑤ RSI", minval=55, maxval=80)
+rsi_os    = input.int(40,    "RSI Oversold",          group="⑤ RSI", minval=20, maxval=45)
+macd_f    = input.int(8,     "MACD Fast",             group="⑥ MACD")
+macd_s    = input.int(17,    "MACD Slow",             group="⑥ MACD")
+macd_sig  = input.int(9,     "MACD Signal",           group="⑥ MACD")
+liq_lb    = input.int(20,    "Sweep Lookback",        group="⑦ Sweep", minval=5, maxval=50)
+sweep_age = input.int(5,     "Max Sweep Age (bars)",  group="⑦ Sweep", minval=1, maxval=20)
+vol_ma_len= input.int(20,    "Volume MA Length",      group="⑧ Volume")
+vol_thresh= input.float(1.1, "Volume Surge Mult",     group="⑧ Volume", step=0.1)
+use_vol   = input.bool(false,"Require Volume Surge",  group="⑧ Volume")
+min_conf  = input.int(3,     "Min Confluences (Trend)",group="⑨ Engine", minval=1, maxval=5)
+use_trend = input.bool(true, "Enable Trend Engine",   group="⑨ Engine")
+use_rev   = input.bool(true, "Enable Reversal Engine",group="⑨ Engine")
+cooldown  = input.int(5,     "Signal Cooldown (bars)",group="⑨ Engine", minval=1, maxval=30)
+use_sess  = input.bool(false,        "Session Filter",group="⑩ Session")
+sess_str  = input.session("0700-1700","Active Session",group="⑩ Session")
+c_bull = input.color(color.new(#00FFBB,0),"Bull", group="⑪ Colours")
+c_bear = input.color(color.new(#FF3D57,0),"Bear", group="⑪ Colours")
+c_rev  = input.color(color.new(#FFD700,0),"Reversal", group="⑪ Colours")
+
+[st_line, st_dir] = ta.supertrend(st_mult, st_len)
+st_bull = st_dir == -1
+st_bear = st_dir ==  1
+
+at_atr   = ta.sma(ta.tr, at_period)
+upT      = low  - at_atr * at_coeff
+downT    = high + at_atr * at_coeff
+mom_bull = no_vol ? ta.rsi(close,at_period)>=50 : ta.mfi(hlc3,at_period)>=50
+var float AT = na
+AT := mom_bull ? (upT<nz(AT[1])?nz(AT[1]):upT) : (downT>nz(AT[1])?nz(AT[1]):downT)
+at_bull      = AT > AT[2]
+at_flip_bull = AT > AT[2] and AT[1] <= AT[3]
+at_flip_bear = AT < AT[2] and AT[1] >= AT[3]
+at_cont_bull = at_bull and AT[2] > AT[4]
+at_cont_bear = not at_bull and AT[2] < AT[4]
+
+bbsr       = ta.ema(close, ema_bbsr)
+above_bbsr = close > bbsr
+below_bbsr = close < bbsr
+
+ef = ta.ema(close, ema_fast)
+em = ta.ema(close, ema_mid)
+es = ta.ema(close, ema_slow)
+ema50_rising  = es > es[3]
+ema50_falling = es < es[3]
+ema9_up       = ef > ef[1] and ef[1] > ef[2]
+ema9_down     = ef < ef[1] and ef[1] < ef[2]
+
+rsi          = ta.rsi(close, rsi_len)
+rsi_bull_zone= rsi > 45 and rsi < 70
+rsi_bear_zone= rsi < 55 and rsi > 30
+rsi_rev_bull = rsi < rsi_os and rsi > rsi[1]
+rsi_rev_bear = rsi > rsi_ob and rsi < rsi[1]
+
+[ml, sl2, mh] = ta.macd(close, macd_f, macd_s, macd_sig)
+macd_bull = ml > sl2
+macd_bear = ml < sl2
+
+recent_high = ta.highest(high[1], liq_lb)
+recent_low  = ta.lowest(low[1],   liq_lb)
+sw_bull     = low < recent_low  and close > recent_low
+sw_bear     = high > recent_high and close < recent_high
+var int bsb = 9999
+var int bss = 9999
+bsb := sw_bull ? 0 : bsb + 1
+bss := sw_bear ? 0 : bss + 1
+recent_sw_bull = bsb <= sweep_age
+recent_sw_bear = bss <= sweep_age
+
+vol_ma    = ta.sma(volume, vol_ma_len)
+vol_surge = volume > vol_ma * vol_thresh
+vol_ok    = not use_vol or vol_surge
+in_session = not use_sess or not na(time(timeframe.period, sess_str))
+
+var int bss2 = cooldown + 1
+bss2  := bss2 + 1
+cooled = bss2 > cooldown
+
+t_buy_score  = (st_bull?1:0)+(at_cont_bull?1:0)+(above_bbsr?1:0)+(rsi_bull_zone?1:0)+(macd_bull?1:0)
+t_sell_score = (st_bear?1:0)+(at_cont_bear?1:0)+(below_bbsr?1:0)+(rsi_bear_zone?1:0)+(macd_bear?1:0)
+trend_buy_gate  = st_bull and above_bbsr and ema50_rising
+trend_sell_gate = st_bear and below_bbsr and ema50_falling
+t_buy_raw  = use_trend and trend_buy_gate  and t_buy_score >=min_conf and vol_ok and in_session and cooled
+t_sell_raw = use_trend and trend_sell_gate and t_sell_score>=min_conf and vol_ok and in_session and cooled
+rev_buy_raw  = use_rev and recent_sw_bull and at_flip_bull and rsi_rev_bull and ema9_up   and in_session and cooled
+rev_sell_raw = use_rev and recent_sw_bear and at_flip_bear and rsi_rev_bear and ema9_down and in_session and cooled
+
+var int pos = 0
+any_buy     = (t_buy_raw  or rev_buy_raw)  and pos != 1
+any_sell    = (t_sell_raw or rev_sell_raw) and pos != -1
+is_rev_buy  = rev_buy_raw  and not t_buy_raw
+is_rev_sell = rev_sell_raw and not t_sell_raw
+if any_buy
+    pos  := 1
+    bss2 := 0
+if any_sell
+    pos  := -1
+    bss2 := 0
+
+plot(st_line,"SuperTrend", color=st_bull?color.new(c_bull,20):color.new(c_bear,20), linewidth=2)
+k1=plot(AT,   "AT",    color=color.new(#0022FC,0), linewidth=2)
+k2=plot(AT[2],"AT[2]", color=color.new(#FC0400,0), linewidth=2)
+fill(k1,k2, color=at_bull?color.new(#00E60F,80):color.new(#80000B,80))
+plot(bbsr,"BBSR EMA",  color=color.new(#4FC3F7,40), linewidth=2)
+plot(ef,"EMA 9",  color=color.new(color.yellow,60), linewidth=1)
+plot(em,"EMA 21", color=color.new(color.orange,60), linewidth=1)
+plot(es,"EMA 50", color=color.new(color.red,60),    linewidth=1)
+plotshape(any_buy  and not is_rev_buy,  style=shape.labelup,   location=location.belowbar, color=c_bull, textcolor=color.black, text="BUY",    size=size.normal)
+plotshape(any_buy  and is_rev_buy,      style=shape.labelup,   location=location.belowbar, color=c_rev,  textcolor=color.black, text="R·BUY",  size=size.normal)
+plotshape(any_sell and not is_rev_sell, style=shape.labeldown, location=location.abovebar, color=c_bear, textcolor=color.white, text="SELL",   size=size.normal)
+plotshape(any_sell and is_rev_sell,     style=shape.labeldown, location=location.abovebar, color=c_rev,  textcolor=color.white, text="R·SELL", size=size.normal)
+barcolor(pos==1?color.new(c_bull,65):pos==-1?color.new(c_bear,65):na)
+
+alertcondition(any_buy  and not is_rev_buy,  "DE·v4 TREND BUY",     "TREND BUY. {{ticker}} {{interval}}")
+alertcondition(any_sell and not is_rev_sell, "DE·v4 TREND SELL",    "TREND SELL. {{ticker}} {{interval}}")
+alertcondition(is_rev_buy,                   "DE·v4 REVERSAL BUY",  "REVERSAL BUY. {{ticker}} {{interval}}")
+alertcondition(is_rev_sell,                  "DE·v4 REVERSAL SELL", "REVERSAL SELL. {{ticker}} {{interval}}")

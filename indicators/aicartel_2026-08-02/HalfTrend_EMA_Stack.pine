@@ -1,0 +1,166 @@
+//@version=6
+// HalfTrend + EMA Stack Filter [AICartel]
+// Original HalfTrend by Alex Orekhov (everget) — GPL-3.0
+// Enhancement: 9/21/50/100/200 EMA stack confluence gate
+// RULE: HalfTrend flip only valid when EMA stack agrees
+// BUY  = HT flips bull + EMA9 > EMA21 > EMA50 (+ optional EMA200 macro gate)
+// SELL = HT flips bear + EMA9 < EMA21 < EMA50 (+ optional EMA200 macro gate)
+// EMA50 slope filter eliminates flat/chop signals
+indicator("HalfTrend + EMA Stack [AICartel]", shorttitle="HT·EMA", overlay=true)
+
+// ─── HALFTREND INPUTS ──────────────────────────────────────────────────────
+grp_ht  = "HalfTrend"
+grp_ema = "EMA Stack"
+grp_fil = "Filters"
+grp_vis = "Visuals"
+
+amplitude        = input.int(3,    "Amplitude",        minval=1, maxval=10, group=grp_ht)
+channelDeviation = input.int(2,    "Channel Deviation", minval=1, maxval=9,  group=grp_ht)
+
+// ─── EMA INPUTS ────────────────────────────────────────────────────────────
+show_emas   = input.bool(true,  "Show EMAs",              group=grp_ema)
+e9_len      = input.int(9,      "EMA Fast",   minval=1,   group=grp_ema)
+e21_len     = input.int(21,     "EMA Mid",    minval=1,   group=grp_ema)
+e50_len     = input.int(50,     "EMA Trend",  minval=1,   group=grp_ema)
+e100_len    = input.int(100,    "EMA Slow",   minval=1,   group=grp_ema)
+e200_len    = input.int(200,    "EMA Macro",  minval=1,   group=grp_ema)
+
+// ─── FILTER INPUTS ─────────────────────────────────────────────────────────
+use_stack   = input.bool(true,  "Require EMA9>21>50 Stack",       group=grp_fil)
+use_slope   = input.bool(true,  "Require EMA50 Rising/Falling",   group=grp_fil)
+slope_bars  = input.int(3,      "EMA50 Slope Lookback",  minval=2, maxval=10, group=grp_fil)
+use_e200    = input.bool(false, "Require EMA200 Macro Gate",      group=grp_fil)
+
+// ─── VISUALS ───────────────────────────────────────────────────────────────
+showArrows  = input.bool(true,  "Show Arrows",     group=grp_vis)
+showChannels= input.bool(true,  "Show Channels",   group=grp_vis)
+showLabels  = input.bool(true,  "Show Labels",     group=grp_vis)
+
+// ─── HALFTREND CORE (unchanged logic) ─────────────────────────────────────
+var int   trend        = 0
+var int   nextTrend    = 0
+var float maxLowPrice  = nz(low[1], low)
+var float minHighPrice = nz(high[1], high)
+var float up           = 0.0
+var float down         = 0.0
+float atrHigh  = 0.0
+float atrLow   = 0.0
+float arrowUp   = na
+float arrowDown = na
+
+atr2 = ta.atr(100) / 2
+dev  = channelDeviation * atr2
+
+highPrice = high[math.abs(ta.highestbars(amplitude))]
+lowPrice  = low[math.abs(ta.lowestbars(amplitude))]
+highma    = ta.sma(high, amplitude)
+lowma     = ta.sma(low,  amplitude)
+
+if nextTrend == 1
+    maxLowPrice := math.max(lowPrice, maxLowPrice)
+    if highma < maxLowPrice and close < nz(low[1], low)
+        trend       := 1
+        nextTrend   := 0
+        minHighPrice := highPrice
+else
+    minHighPrice := math.min(highPrice, minHighPrice)
+    if lowma > minHighPrice and close > nz(high[1], high)
+        trend       := 0
+        nextTrend   := 1
+        maxLowPrice := lowPrice
+
+if trend == 0
+    if not na(trend[1]) and trend[1] != 0
+        up      := na(down[1]) ? down : down[1]
+        arrowUp := up - atr2
+    else
+        up := na(up[1]) ? maxLowPrice : math.max(maxLowPrice, up[1])
+    atrHigh := up + dev
+    atrLow  := up - dev
+else
+    if not na(trend[1]) and trend[1] != 1
+        down      := na(up[1]) ? up : up[1]
+        arrowDown := down + atr2
+    else
+        down := na(down[1]) ? minHighPrice : math.min(minHighPrice, down[1])
+    atrHigh := down + dev
+    atrLow  := down - dev
+
+ht = trend == 0 ? up : down
+
+// ─── EMA STACK ─────────────────────────────────────────────────────────────
+e9   = ta.ema(close, e9_len)
+e21  = ta.ema(close, e21_len)
+e50  = ta.ema(close, e50_len)
+e100 = ta.ema(close, e100_len)
+e200 = ta.ema(close, e200_len)
+
+// Stack conditions
+bull_stack = e9 > e21 and e21 > e50
+bear_stack = e9 < e21 and e21 < e50
+
+// EMA50 slope — eliminates flat/chop signals
+ema50_rising  = e50 > e50[slope_bars]
+ema50_falling = e50 < e50[slope_bars]
+
+// EMA200 macro gate
+above_e200 = close > e200
+below_e200 = close < e200
+
+// ─── RAW HALFTREND SIGNALS ─────────────────────────────────────────────────
+ht_buy  = not na(arrowUp)   and trend == 0 and trend[1] == 1
+ht_sell = not na(arrowDown) and trend == 1 and trend[1] == 0
+
+// ─── FILTERED SIGNALS (EMA stack gate) ─────────────────────────────────────
+buy_stack_ok  = not use_stack or bull_stack
+sell_stack_ok = not use_stack or bear_stack
+buy_slope_ok  = not use_slope or ema50_rising
+sell_slope_ok = not use_slope or ema50_falling
+buy_e200_ok   = not use_e200  or above_e200
+sell_e200_ok  = not use_e200  or below_e200
+
+buySignal  = ht_buy  and buy_stack_ok  and buy_slope_ok  and buy_e200_ok
+sellSignal = ht_sell and sell_stack_ok and sell_slope_ok and sell_e200_ok
+
+// Filtered-out signals (HT fired but EMA blocked)
+buy_filtered  = ht_buy  and not buySignal
+sell_filtered = ht_sell and not sellSignal
+
+// ─── PLOTS ─────────────────────────────────────────────────────────────────
+// HalfTrend line
+htColor = trend == 0 ? color.blue : color.red
+htPlot  = plot(ht, "HalfTrend", linewidth=2, color=htColor)
+
+// Channels
+atrHighPlot = plot(showChannels ? atrHigh : na, "ATR High", style=plot.style_circles, color=color.red)
+atrLowPlot  = plot(showChannels ? atrLow  : na, "ATR Low",  style=plot.style_circles, color=color.blue)
+fill(htPlot, atrHighPlot, "ATR High Ribbon", color=color.new(color.red,  85))
+fill(htPlot, atrLowPlot,  "ATR Low Ribbon",  color=color.new(color.blue, 85))
+
+// EMAs
+plot(show_emas ? e9   : na, "EMA 9",   color=color.new(#00E5FF, 0),  linewidth=1)
+plot(show_emas ? e21  : na, "EMA 21",  color=color.new(#00FFBB, 0),  linewidth=1)
+plot(show_emas ? e50  : na, "EMA 50",  color=color.new(#FFD700, 0),  linewidth=2)
+plot(show_emas ? e100 : na, "EMA 100", color=color.new(#FF9800, 40), linewidth=1)
+plot(show_emas ? e200 : na, "EMA 200", color=color.new(#FF1744, 50), linewidth=2)
+
+// Valid signals — full size arrows + labels
+plotshape(showArrows and buySignal  ? atrLow  : na, "Buy Arrow",  shape.triangleup,   location.absolute, color.blue, size=size.small)
+plotshape(showArrows and sellSignal ? atrHigh : na, "Sell Arrow", shape.triangledown, location.absolute, color.red,  size=size.small)
+
+plotshape(showLabels and buySignal  ? atrLow  : na, "Buy Label",  text="BUY",  location.absolute, style=shape.labelup,   size=size.small, color=color.blue, textcolor=color.white)
+plotshape(showLabels and sellSignal ? atrHigh : na, "Sell Label", text="SELL", location.absolute, style=shape.labeldown, size=size.small, color=color.red,  textcolor=color.white)
+
+// Filtered signals — small grey X (HT fired but EMA blocked)
+plotshape(buy_filtered,  "Buy Filtered",  shape.xcross, location.belowbar, color=color.new(color.gray, 50), size=size.tiny, title="Buy filtered by EMA")
+plotshape(sell_filtered, "Sell Filtered", shape.xcross, location.abovebar, color=color.new(color.gray, 50), size=size.tiny, title="Sell filtered by EMA")
+
+// EMA stack state background (subtle)
+bgcolor(bull_stack and trend == 0 ? color.new(color.blue,  97) : na, title="Bull Stack BG")
+bgcolor(bear_stack and trend == 1 ? color.new(color.red,   97) : na, title="Bear Stack BG")
+
+// ─── ALERTS ────────────────────────────────────────────────────────────────
+alertcondition(buySignal,  "HT+EMA BUY",  "HalfTrend BUY — EMA stack confirmed. {{exchange}}:{{ticker}}")
+alertcondition(sellSignal, "HT+EMA SELL", "HalfTrend SELL — EMA stack confirmed. {{exchange}}:{{ticker}}")
+alertcondition(buy_filtered,  "HT Buy BLOCKED by EMA",  "HalfTrend buy signal — EMA stack NOT aligned. Skip.")
+alertcondition(sell_filtered, "HT Sell BLOCKED by EMA", "HalfTrend sell signal — EMA stack NOT aligned. Skip.")

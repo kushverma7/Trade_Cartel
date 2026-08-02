@@ -1,0 +1,204 @@
+// SERIES: AICartel Scalper | VERSION: 1.0 | TYPE: indicator
+// COMPONENTS: Supertrend(14/2.0 FAST), BBSR EMA200, EMA Stack(9/21/50),
+//             RSI(7 FAST), MACD(5/13/4 FAST), AlphaTrend(10/1.0 FAST),
+//             Liquidity Sweep (10-bar lookback, 3-bar max age)
+// ENTRY TREND: ST+BBSR+EMA50 gate + 5pt score (AT cont + RSI zone&rising +
+//              MACD direction + MACD hist accel + EMA9/21 cross)
+// ENTRY REV: Sweep + AT flip + RSI extreme + EMA9 curl (all 4 required)
+// EXIT: 3-TP: TP1=1:1 (BE), TP2=2:1, TP3=3:1 runner. SL=0.8xATR14
+// TIMEFRAME: 5m/15m | INSTRUMENT: XAUUSD/BTC | FLIP_EXITS: NO
+// UNIQUE: MACD histogram acceleration, EMA9/21 cross as entry trigger,
+//         tighter sweep (10 bars vs 20), all params scalp-optimised
+//@version=6
+indicator("AICartel — Scalper [Kush]", shorttitle="AC·SCALP", overlay=true)
+
+st_len   = input.int(14,    "ATR Period",         group="① Supertrend")
+st_mult  = input.float(2.0, "Multiplier",         group="① Supertrend", step=0.1)
+bbsr_len = input.int(200,   "BBSR EMA Period",    group="② BBSR")
+ef_len   = input.int(9,     "EMA Fast",           group="③ EMA Stack")
+em_len   = input.int(21,    "EMA Mid",            group="③ EMA Stack")
+es_len   = input.int(50,    "EMA Slow",           group="③ EMA Stack")
+rsi_len  = input.int(7,     "RSI Length",         group="④ RSI")
+rsi_ob   = input.int(65,    "Overbought",         group="④ RSI", minval=55, maxval=80)
+rsi_os   = input.int(35,    "Oversold",           group="④ RSI", minval=20, maxval=45)
+macd_f   = input.int(5,     "Fast",               group="⑤ MACD")
+macd_s   = input.int(13,    "Slow",               group="⑤ MACD")
+macd_sig = input.int(4,     "Signal",             group="⑤ MACD")
+at_len   = input.int(10,    "AT Period",          group="⑥ AlphaTrend")
+at_coeff = input.float(1.0, "AT Coefficient",     group="⑥ AlphaTrend", step=0.1)
+no_vol   = input.bool(false,"No Volume (RSI)",    group="⑥ AlphaTrend")
+liq_lb   = input.int(10,    "Sweep Lookback",     group="⑦ Sweep", minval=3, maxval=30)
+sw_age   = input.int(3,     "Max Sweep Age",      group="⑦ Sweep", minval=1, maxval=10)
+cooldown  = input.int(2,    "Cooldown (bars)",    group="⑧ Scalp Engine", minval=1, maxval=10)
+use_sess  = input.bool(true, "Session Filter",    group="⑧ Scalp Engine")
+sess_s    = input.int(700,  "Session Start",      group="⑧ Scalp Engine")
+sess_e    = input.int(2100, "Session End",        group="⑧ Scalp Engine")
+min_score = input.int(3,    "Min Score (1-5)",    group="⑧ Scalp Engine", minval=1, maxval=5)
+atr_sl   = input.float(0.8, "SL = ATR x",        group="⑨ Scalp TP", step=0.1)
+tp1_r    = input.float(1.0, "TP1 = SL x",        group="⑨ Scalp TP", step=0.1)
+tp2_r    = input.float(2.0, "TP2 = SL x",        group="⑨ Scalp TP", step=0.1)
+tp3_r    = input.float(3.0, "TP3 = SL x",        group="⑨ Scalp TP", step=0.1)
+c_bull = input.color(color.new(#00FFBB,0), "Bull",     group="⑩ Colours")
+c_bear = input.color(color.new(#FF3D57,0), "Bear",     group="⑩ Colours")
+c_rev  = input.color(color.new(#FFD700,0), "Reversal", group="⑩ Colours")
+
+var int   pos      = 0
+var int   bsb      = 9999
+var int   bss      = 9999
+var int   cd       = 0
+var float AT       = na
+var float entry_px = na
+var float sl_px    = na
+var float tp1_px   = na
+var float tp2_px   = na
+var float tp3_px   = na
+var bool  tp1_hit  = false
+var bool  tp2_hit  = false
+
+[st_line, st_dir] = ta.supertrend(st_mult, st_len)
+st_bull = st_dir == -1
+st_bear = st_dir ==  1
+
+bbsr       = ta.ema(close, bbsr_len)
+above_bbsr = close > bbsr
+below_bbsr = close < bbsr
+
+ef = ta.ema(close, ef_len)
+em = ta.ema(close, em_len)
+es = ta.ema(close, es_len)
+bull_stack    = ef > em and em > es
+bear_stack    = ef < em and em < es
+ema50_rising  = es > es[2]
+ema50_falling = es < es[2]
+ema9_up       = ef > ef[1] and ef[1] > ef[2]
+ema9_down     = ef < ef[1] and ef[1] < ef[2]
+cross_bull = ta.crossover(ef,  em)
+cross_bear = ta.crossunder(ef, em)
+
+rsi           = ta.rsi(close, rsi_len)
+rsi_bull_zone = rsi > 45 and rsi < 70
+rsi_bear_zone = rsi < 55 and rsi > 30
+rsi_rev_bull  = rsi < rsi_os and rsi > rsi[1]
+rsi_rev_bear  = rsi > rsi_ob and rsi < rsi[1]
+rsi_rising    = rsi > rsi[1] and rsi > rsi[2]
+rsi_falling   = rsi < rsi[1] and rsi < rsi[2]
+
+[ml, sl2, mh]  = ta.macd(close, macd_f, macd_s, macd_sig)
+macd_bull      = ml > sl2
+macd_bear      = ml < sl2
+macd_accel_up  = mh > mh[1] and mh[1] > mh[2]
+macd_accel_dn  = mh < mh[1] and mh[1] < mh[2]
+
+at_atr_v = ta.sma(ta.tr, at_len)
+upT      = low  - at_atr_v * at_coeff
+downT    = high + at_atr_v * at_coeff
+mom_bull = no_vol ? ta.rsi(close, at_len) >= 50 : ta.mfi(hlc3, at_len) >= 50
+AT := mom_bull ? (upT < nz(AT[1]) ? nz(AT[1]) : upT) : (downT > nz(AT[1]) ? nz(AT[1]) : downT)
+at_bull      = AT > AT[2]
+at_flip_bull = AT > AT[2] and AT[1] <= AT[3]
+at_flip_bear = AT < AT[2] and AT[1] >= AT[3]
+at_cont_bull = at_bull and AT[2] > AT[4]
+at_cont_bear = not at_bull and AT[2] < AT[4]
+
+r_high = ta.highest(high[1], liq_lb)
+r_low  = ta.lowest(low[1],   liq_lb)
+sw_bull = low  < r_low  and close > r_low
+sw_bear = high > r_high and close < r_high
+bsb := sw_bull ? 0 : bsb + 1
+bss := sw_bear ? 0 : bss + 1
+recent_sw_bull = bsb <= sw_age
+recent_sw_bear = bss <= sw_age
+
+hhmm       = hour * 100 + minute
+in_session = not use_sess or (hhmm >= sess_s and hhmm < sess_e)
+cd     := cd + 1
+cooled  = cd > cooldown
+atr14 = ta.atr(14)
+
+trend_buy_gate  = st_bull and above_bbsr and ema50_rising
+trend_sell_gate = st_bear and below_bbsr and ema50_falling
+
+t_buy_score  = (at_cont_bull?1:0) + (rsi_bull_zone and rsi_rising?1:0) + (macd_bull?1:0) + (macd_accel_up?1:0) + (cross_bull?1:0)
+t_sell_score = (at_cont_bear?1:0) + (rsi_bear_zone and rsi_falling?1:0) + (macd_bear?1:0) + (macd_accel_dn?1:0) + (cross_bear?1:0)
+
+t_buy_raw  = trend_buy_gate  and t_buy_score  >= min_score and in_session and cooled
+t_sell_raw = trend_sell_gate and t_sell_score >= min_score and in_session and cooled
+rev_buy_raw  = recent_sw_bull and at_flip_bull and rsi_rev_bull and ema9_up   and in_session and cooled
+rev_sell_raw = recent_sw_bear and at_flip_bear and rsi_rev_bear and ema9_down and in_session and cooled
+
+any_sell    = (t_sell_raw or rev_sell_raw) and pos != -1
+any_buy     = (t_buy_raw  or rev_buy_raw)  and pos !=  1
+is_rev_sell = rev_sell_raw and not t_sell_raw
+is_rev_buy  = rev_buy_raw  and not t_buy_raw
+
+if any_sell
+    pos := -1
+    cd  := 0
+if any_buy
+    pos := 1
+    cd  := 0
+
+sl_size = atr14 * atr_sl
+if any_buy
+    entry_px := close
+    sl_px    := close - sl_size
+    tp1_px   := close + sl_size * tp1_r
+    tp2_px   := close + sl_size * tp2_r
+    tp3_px   := close + sl_size * tp3_r
+    tp1_hit  := false
+    tp2_hit  := false
+if any_sell
+    entry_px := close
+    sl_px    := close + sl_size
+    tp1_px   := close - sl_size * tp1_r
+    tp2_px   := close - sl_size * tp2_r
+    tp3_px   := close - sl_size * tp3_r
+    tp1_hit  := false
+    tp2_hit  := false
+
+if pos == 1  and not na(tp1_px) and high >= tp1_px and not tp1_hit
+    tp1_hit := true
+    sl_px   := entry_px
+if pos == -1 and not na(tp1_px) and low  <= tp1_px and not tp1_hit
+    tp1_hit := true
+    sl_px   := entry_px
+if pos == 1  and tp1_hit and not na(tp2_px) and high >= tp2_px
+    tp2_hit := true
+if pos == -1 and tp1_hit and not na(tp2_px) and low  <= tp2_px
+    tp2_hit := true
+if pos == 0
+    entry_px := na
+    sl_px    := na
+    tp1_px   := na
+    tp2_px   := na
+    tp3_px   := na
+    tp1_hit  := false
+    tp2_hit  := false
+
+plot(st_line, "SuperTrend", color=st_bull?color.new(c_bull,20):color.new(c_bear,20), linewidth=2)
+k1 = plot(AT,    "AT",    color=color.new(#0022FC,0), linewidth=2)
+k2 = plot(AT[2], "AT[2]", color=color.new(#FC0400,0), linewidth=2)
+fill(k1, k2, color=at_bull?color.new(#00E60F,80):color.new(#80000B,80))
+plot(bbsr, "BBSR EMA 200", color=color.new(#4FC3F7,40), linewidth=2)
+plot(ef,   "EMA 9",        color=color.new(color.yellow,60), linewidth=1)
+plot(em,   "EMA 21",       color=color.new(color.orange,60), linewidth=1)
+plot(es,   "EMA 50",       color=color.new(color.red,60),    linewidth=1)
+
+in_trade = pos != 0
+plot(in_trade ? entry_px : na, "Entry", color=color.new(color.white,50), style=plot.style_linebr, linewidth=1)
+plot(in_trade ? sl_px    : na, "SL",    color=color.new(c_bear,20),      style=plot.style_linebr, linewidth=2)
+plot(in_trade ? tp1_px   : na, "TP1",   color=color.new(#A78BFA,20),     style=plot.style_linebr, linewidth=1)
+plot(in_trade ? tp2_px   : na, "TP2",   color=color.new(#A78BFA,10),     style=plot.style_linebr, linewidth=2)
+plot(in_trade ? tp3_px   : na, "TP3",   color=color.new(c_bull,10),      style=plot.style_linebr, linewidth=2)
+
+plotshape(any_buy  and not is_rev_buy,  style=shape.labelup,   location=location.belowbar, color=c_bull, textcolor=color.black, text="BUY",    size=size.normal)
+plotshape(any_buy  and is_rev_buy,      style=shape.labelup,   location=location.belowbar, color=c_rev,  textcolor=color.black, text="R-BUY",  size=size.normal)
+plotshape(any_sell and not is_rev_sell, style=shape.labeldown, location=location.abovebar, color=c_bear, textcolor=color.white, text="SELL",   size=size.normal)
+plotshape(any_sell and is_rev_sell,     style=shape.labeldown, location=location.abovebar, color=c_rev,  textcolor=color.white, text="R-SELL", size=size.normal)
+barcolor(pos == 1 ? color.new(c_bull,65) : pos == -1 ? color.new(c_bear,65) : na)
+
+alertcondition(any_buy  and not is_rev_buy,  "AC Scalp TREND BUY",     "TREND BUY. {{ticker}} {{interval}}")
+alertcondition(any_sell and not is_rev_sell, "AC Scalp TREND SELL",    "TREND SELL. {{ticker}} {{interval}}")
+alertcondition(is_rev_buy,                   "AC Scalp REVERSAL BUY",  "REVERSAL BUY. {{ticker}} {{interval}}")
+alertcondition(is_rev_sell,                  "AC Scalp REVERSAL SELL", "REVERSAL SELL. {{ticker}} {{interval}}")
+alertcondition(tp1_hit and not tp1_hit[1],   "AC Scalp TP1 Hit",       "TP1 hit — move SL to BE. {{ticker}}")

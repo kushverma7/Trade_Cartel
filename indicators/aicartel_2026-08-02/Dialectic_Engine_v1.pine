@@ -1,0 +1,110 @@
+// SERIES: Dialectic Engine | VERSION: v1 | TYPE: indicator
+// COMPONENTS: EMA Stack(9/21/50), RSI(14), MACD(8/17/9), Volume MA,
+//             Regime Classifier (ATR%: thesis/antithesis/synthesis),
+//             Liquidity Sweep, 6-point confluence score
+// ENTRY: bscore>=min_confluence AND sweep_low AND bull_trend
+// EXIT: Simulated TP=2xATR / SL=1xATR (internal tracker only)
+// TIMEFRAME: Any | INSTRUMENT: Any | FLIP_EXITS: NO
+//@version=6
+indicator("Dialectic Engine v1.0", overlay=true, max_bars_back=500, max_lines_count=100, max_labels_count=100)
+
+group_regime = "Regime Classifier"
+atr_len      = input.int(14,   "ATR Length",                  group=group_regime)
+vol_len      = input.int(20,   "Volume MA Length",             group=group_regime)
+group_liq = "Liquidity Map"
+liq_lookback = input.int(20,   "Liquidity Lookback Bars",      group=group_liq)
+group_conf = "Confluence Filters"
+ema_fast     = input.int(9,    "EMA Fast",                    group=group_conf)
+ema_mid      = input.int(21,   "EMA Mid",                     group=group_conf)
+ema_slow     = input.int(50,   "EMA Slow",                    group=group_conf)
+rsi_len      = input.int(14,   "RSI Length",                  group=group_conf)
+rsi_ob       = input.float(60, "RSI Overbought",              group=group_conf)
+rsi_os       = input.float(40, "RSI Oversold",                group=group_conf)
+macd_fast    = input.int(8,    "MACD Fast",                   group=group_conf)
+macd_slow    = input.int(17,   "MACD Slow",                   group=group_conf)
+macd_sig     = input.int(9,    "MACD Signal",                 group=group_conf)
+group_sig = "Signal Settings"
+min_confluence  = input.int(4,    "Min Confluence Score (max 6)", group=group_sig, minval=1, maxval=6)
+show_labels     = input.bool(true, "Show Signal Labels",          group=group_sig)
+show_liq_zones  = input.bool(true, "Show Liquidity Zones",        group=group_sig)
+show_regime     = input.bool(true, "Show Regime Background",      group=group_sig)
+show_ema_labels = input.bool(true, "Show EMA Cross Labels",       group=group_sig)
+group_risk = "Risk Levels"
+show_tp_sl   = input.bool(true,  "Show TP / SL Levels",          group=group_risk)
+tp_mult      = input.float(2.0,  "TP ATR Multiplier",            group=group_risk, step=0.1)
+sl_mult      = input.float(1.0,  "SL ATR Multiplier",            group=group_risk, step=0.1)
+
+atr  = ta.atr(atr_len)
+ef   = ta.ema(close, ema_fast)
+em   = ta.ema(close, ema_mid)
+es   = ta.ema(close, ema_slow)
+rsi  = ta.rsi(close, rsi_len)
+[ml, sl2, mh] = ta.macd(close, macd_fast, macd_slow, macd_sig)
+vol_ma    = ta.sma(volume, vol_len)
+vol_surge = volume > vol_ma * 1.3
+
+atr_h   = ta.highest(atr, 50)
+atr_l   = ta.lowest(atr,  50)
+atr_pct = (atr - atr_l) / (atr_h - atr_l + 0.0001)
+
+bool thesis = atr_pct < 0.35 and math.abs(close - em) < atr * 1.2
+bool anti   = atr_pct > 0.65
+bool synth  = not thesis and not anti
+
+bool bull_trend = ef > em and em > es
+bool bear_trend = es > em and em > ef
+
+rh = ta.highest(high, liq_lookback)
+rl = ta.lowest(low,   liq_lookback)
+bool sw_high = high > rh[1] and close < rh[1] and high > high[1]
+bool sw_low  = low  < rl[1] and close > rl[1] and low  < low[1]
+bool psb     = sw_high[1]
+bool psl     = sw_low[1]
+
+bool g1b = ef > em
+bool g1s = ef < em
+bool g2b = rsi > 45 and rsi < rsi_ob
+bool g2s = rsi < 55 and rsi > rsi_os
+bool g3b = ml > sl2 and mh > 0
+bool g3s = ml < sl2 and mh < 0
+bool g4b = vol_surge
+bool g4s = vol_surge
+bool g5b = psl
+bool g5s = psb
+bool g6b = not anti or synth
+bool g6s = not anti or synth
+
+int bscore = (g1b?1:0)+(g2b?1:0)+(g3b?1:0)+(g4b?1:0)+(g5b?1:0)+(g6b?1:0)
+int sscore = (g1s?1:0)+(g2s?1:0)+(g3s?1:0)+(g4s?1:0)+(g5s?1:0)+(g6s?1:0)
+
+bool lsig = bscore >= min_confluence and g5b and bull_trend
+bool ssig = sscore >= min_confluence and g5s and bear_trend
+
+var bool lwas = false
+var bool swas = false
+bool vl = lsig and not lwas
+bool vs = ssig and not swas
+if vl
+    lwas := true
+    swas := false
+if vs
+    swas := true
+    lwas := false
+
+plot(ef, "EMA9",  color.new(color.aqua,   30), 1)
+plot(em, "EMA21", color.new(color.yellow, 30), 1)
+plot(es, "EMA50", color.new(color.orange, 30), 2)
+
+bgcolor(show_regime and thesis ? color.new(color.blue,  92) : na)
+bgcolor(show_regime and anti   ? color.new(color.red,   92) : na)
+bgcolor(show_regime and synth  ? color.new(color.green, 94) : na)
+
+plotshape(vl, title="BUY",  style=shape.labelup,   location=location.belowbar, color=color.new(color.lime,0), textcolor=color.black, text="B", size=size.normal)
+plotshape(vs, title="SELL", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, text="S", size=size.normal)
+plotshape(show_liq_zones and sw_high, title="Sweep High", style=shape.triangledown, location=location.abovebar, color=color.new(color.orange,20), size=size.tiny)
+plotshape(show_liq_zones and sw_low,  title="Sweep Low",  style=shape.triangleup,   location=location.belowbar, color=color.new(color.aqua,  20), size=size.tiny)
+
+alertcondition(vl, "Confluence LONG",  "Dialectic v1: LONG signal")
+alertcondition(vs, "Confluence SHORT", "Dialectic v1: SHORT signal")
+alertcondition(sw_low,  "Sweep LOW",  "Liquidity swept below — watch for long")
+alertcondition(sw_high, "Sweep HIGH", "Liquidity swept above — watch for short")

@@ -1,0 +1,282 @@
+HALF TREND + DMI STRATEGY
+Intensive Build Report
+Complete Technical Specification for Pine Script / Indicator Development
+1. STRATEGY OVERVIEW
+This strategy was developed and publicly shared by Anish Singh Thakur (Booming Bulls) as a 1-million-subscriber special. It is a fully indicator-based, rules-driven system that requires zero price action interpretation — designed for all experience levels.
+2. INDICATORS: FULL SPECIFICATION
+2.1 Indicator 1 — Half Trend
+Source: TradingView public indicator by "everget" (5,000+ users). Search for "Half Trend" in the TradingView indicator library.
+Configuration Settings
+Style Settings — Disable All Except One
+In the Style tab, turn OFF the following plot elements:
+Arrow Up
+Arrow Down
+ATR Low
+Low Ribbon
+High Ribbon
+ATR High
+Turn ON only:
+Half Trend line — set color to DARK GREEN for bullish (buy) state
+Half Trend line — set color to RED for bearish (sell) state
+Result: The chart shows only a single colored line. Green = bullish bias. Red = bearish bias. This line is the ENTRY SIGNAL generator.
+Signal Logic
+CRITICAL: Always act on candle CLOSE, not mid-candle color. Wait for the 5-minute candle to fully close before entering or exiting.
+Key Difference vs SuperTrend
+Half Trend does NOT flip on price touching the trend line. It stays directional longer than SuperTrend — meaning it holds winning trades through pullbacks and avoids early exits. This is the core mechanical advantage over SuperTrend-based systems.
+2.2 Indicator 2 — Directional Movement Index (DMI)
+Built-in TradingView indicator. Search "Directional Movement Index" in the indicator library.
+Input Settings
+Style Settings
+The 23 Level — Trading Zone Gate
+Draw a horizontal line at ADX value 23 on the DMI panel. This line is the "trading zone gate":
+ADX (black) ABOVE 23 → Trading is active. Signals are valid.
+ADX (black) BELOW 23 → No trading zone. All signals are IGNORED regardless of Half Trend color.
+This filter eliminates low-volatility chop and flat market conditions where trend-following strategies fail.
+DMI Filter Logic (Directional Bias)
+The +DI (green) and -DI (red) lines are compared against EACH OTHER — not against the ADX (black) or the 23 level:
+You cannot take a long trade when -DI is above +DI, even if Half Trend turns green. You cannot take a short trade when +DI is above -DI, even if Half Trend turns red.
+3. FULL ENTRY & EXIT RULES
+3.1 Long (Buy) Entry — All 3 Conditions Required
+If all 3 conditions are met simultaneously → ENTER LONG at candle close.
+3.2 Short (Sell) Entry — All 3 Conditions Required
+If all 3 conditions are met simultaneously → ENTER SHORT at candle close.
+3.3 Exit Rules
+LONG EXIT — Close long position when:
+Half Trend turns RED on a 5m candle close
+OR: ADX (black) drops below 23 (no-trade zone re-entered)
+SHORT EXIT — Close short position when:
+Half Trend turns GREEN on a 5m candle close
+OR: ADX (black) drops below 23
+NEVER exit mid-candle. Always wait for the full 5-minute candle to close before confirming a signal change.
+3.4 Re-Entry Rules
+After a stop loss is hit:
+Do NOT re-enter against the DMI directional bias (e.g., do not go long if -DI is still above +DI)
+Wait for a new valid signal: all 3 conditions met simultaneously on a candle close
+If 2 stop losses hit in the same day: STOP TRADING for that day. No more trades regardless of signals.
+4. RISK MANAGEMENT & POSITION SIZING
+4.1 Risk/Reward Philosophy
+This strategy is NOT win-rate-dependent. The edge comes from win size. The developer demonstrated this math explicitly:
+The developer explicitly observed 1:3, 1:4, and 1:6 risk/reward ratios in BANK NIFTY and INFOSYS examples. Even with win rates below 50%, the system can be profitable if RR ratios hold.
+4.2 Stop Loss Placement
+Initial stop loss: Below the entry candle low (for longs) / above the entry candle high (for shorts)
+No fixed pip/point stop — stop is defined by the Half Trend signal reversal
+If Half Trend flips to opposite color → that IS the stop loss trigger
+Developer noted stops are "very small" by design — the Half Trend indicator structure keeps stops tight
+4.3 Daily Loss Limit
+Maximum 2 stop losses per day
+If 2 SLs are hit in the same trading session: CLOSE ALL positions and DO NOT take any further trades that day
+This protects against revenge trading and high-volatility chop days
+4.4 Position Sizing
+Developer referenced "position sizing" and "risk management" but did not give a specific % per trade in this video
+For options: Use ITM (in-the-money) strikes — buy the nearest ITM strike to the current market price
+For expiry day only: Move 50–100 points further OTM than the nearest ITM strike to reduce theta risk
+For futures/equity: Normal position sizing applies; 0.25–0.5% account risk per trade is a reasonable starting point
+5. OPTIONS STRIKE PRICE SELECTION
+5.1 Standard Days (Non-Expiry)
+Buy the nearest ITM (In-The-Money) strike to the current market price:
+For CALLS (long signal): Buy the strike just BELOW the current market price (e.g., market at 16,540 → buy 16,500 CE)
+For PUTS (short signal): Buy the strike just ABOVE the current market price (e.g., market at 16,540 → buy 16,550 PE)
+Rationale: ITM options have higher delta (move more in line with the underlying), lower time value loss per tick, and better liquidity in most Indian index options.
+5.2 Expiry Day Adjustment
+On the weekly/monthly expiry day, theta decay accelerates rapidly for ITM/ATM options
+For calls: Go 50–100 strike points DEEPER ITM (lower strike) than normal
+For puts: Go 50–100 strike points DEEPER ITM (higher strike) than normal
+This reduces gamma risk and the impact of rapid time decay on expiry
+6. TIMEFRAME ARCHITECTURE
+The strategy uses a dual-timeframe structure — entry execution on 5m, filtered by 15m DMI readings:
+Implementation note for Pine Script: Use request.security() to pull the 15-minute ADX and DI values onto the 5-minute chart. Entry logic executes on the 5-minute chart while reading filters from the 15-minute timeframe.
+7. PINE SCRIPT v5/v6 BUILD SPECIFICATION
+7.1 Inputs
+The following inputs should be user-configurable:
+halfTrend_amplitude: integer, default = 2 (Half Trend amplitude)
+halfTrend_channelDev: float, default = 2.0 (Channel deviation)
+adx_smoothing: integer, default = 13
+adx_len: integer, default = 13
+adx_threshold: integer, default = 23 (trading zone gate)
+dmi_tf: string, default = "15" (timeframe for DMI calculation)
+7.2 Calculations
+Half Trend
+Replicate the "everget" Half Trend logic:
+Uses ATR-based channel to determine trend direction
+Plots a single line that is colored green (bullish) or red (bearish)
+Does NOT flip on intra-candle price movement — only on confirmed candle close
+Key difference from SuperTrend: uses channel-based confirmation rather than price-touching-line flip
+DMI / ADX on 15m
+Use request.security() in Pine Script to read DMI values from 15-minute timeframe:
+adx_val = request.security(syminfo.tickerid, "15", ta.dmi(adx_len, adx_smoothing)[0])
+plusDI = request.security(syminfo.tickerid, "15", ta.dmi(adx_len, adx_smoothing)[1])
+minusDI = request.security(syminfo.tickerid, "15", ta.dmi(adx_len, adx_smoothing)[2])
+Draw ADX value on DMI panel, draw horizontal line at adx_threshold (23)
+7.3 Signal Logic (Pseudocode)
+7.4 Alerts to Build
+Long Entry Alert: All 3 long conditions true on candle close
+Short Entry Alert: All 3 short conditions true on candle close
+Long Exit Alert: Half Trend turns red OR ADX drops below 23
+Short Exit Alert: Half Trend turns green OR ADX drops below 23
+No Trade Zone Alert: ADX crosses below 23 (optional — good for intraday sessions)
+8. BACKTESTED EXAMPLES FROM TRANSCRIPT
+8.1 BANK NIFTY Examples
+Developer walked through multiple BANK NIFTY (5m chart) scenarios:
+SHORT trade: Entered on red signal with -DI above, exited ~370 points profit in 4 hours. No exit signal for majority of move.
+LONG entry next day after crossover: Immediate stop loss hit. Re-entered on next signal, held through day for multi-hundred point gain.
+LONG held BTST: Opened gap up next day, extended profit well beyond intraday target.
+Example of 650-point gain in BANK NIFTY from single held trade.
+Example of 150-point gain in a shorter move.
+8.2 INFOSYS Examples
+Developer walked through INFY (5m chart) scenarios:
+1:6 risk/reward trade identified — 1% stop loss, 6% target reached.
+BTST signal given at 3:15–3:20 PM — predicting next day movement. Position held overnight for large gap move.
+Day with 2 stop losses (both small) followed by large winner on same instrument.
+Pattern: After 2 stop losses in one day, rule states to stop trading — protecting from further losses even if subsequent signal would have been profitable.
+8.3 GRASIM Examples
+Developer demonstrated the strategy works on individual stocks (not just indices):
+Short trade: Entry near open, stop loss hit first (2% loss). Re-entered same direction, same day: 3.4% gain. Net day: +1.4% despite initial stop loss.
+This demonstrates the core math of the strategy — large winners absorb small losers.
+9. DEVELOPER NOTES, WARNINGS & EDGE CASES
+9.1 What Developer Explicitly Warned
+Win rate is NOT high — expect 50–65% range. Do not expect 70%+ win rate.
+Some days will have 2 consecutive stop losses — accept this and stop trading that day.
+Strategy will sometimes give signals in sideways/choppy markets and lose. ADX > 23 reduces but does not eliminate this.
+Do not take BTST if you are an intraday trader — know your trading style before entering
+Expiry day has higher risk due to theta decay — adjust strike selection accordingly.
+9.2 Where the Strategy is Strongest
+Trending days with clear momentum — Half Trend stays one color for long periods.
+Gap-up or gap-down opens following a BTST signal — massive RR outcomes.
+Liquid instruments: BANK NIFTY, NIFTY, major large-cap stocks (INFY, GRASIM, AIRTEL referenced).
+Instruments where ATR is high relative to spread — ensures stop losses are clean.
+9.3 Where the Strategy Struggles
+Sideways/range-bound markets — ADX will be below 23, blocking entries (this is by design).
+First-hour high-volatility opens — can trigger large initial stop losses (developer showed 2% SL in first candle of GRASIM).
+Small-cap stocks with low liquidity — spread impact on entry/exit quality.
+Expiry day afternoon — gamma squeeze and rapid IV changes can override technical signals.
+9.4 Indicator Choice Rationale
+Half Trend vs SuperTrend — explicitly contrasted by developer:
+SuperTrend flips when PRICE TOUCHES the trend line.
+Half Trend uses ATR-based channel confirmation — requires price to establish beyond the channel before flipping.
+Result: Half Trend "holds winners through pullbacks" — does not whipsaw out of valid trends on minor retracements.
+This is the mechanical reason for superior RR ratios — exits come later, captures more of the move.
+9.5 DMI Period Choice (13)
+Developer chose 13 as both ADX smoothing and DI length.
+Rationale: "Fibonacci number" — 13 is in the Fibonacci sequence, commonly used in technical analysis.
+Developer stated this was personally backtested, not taken from another source.
+Standard default for DMI is usually 14 — this is a deliberate deviation.
+10. COMPLETE TRADING SETUP CHECKLIST
+TradingView Chart Setup (Step by Step)
+Open TradingView. Set chart to 5-minute timeframe.
+Search indicator: "Half Trend" by everget. Add to chart.
+Half Trend Settings → Style: Disable ALL plots except main line. Set line: GREEN for bullish, RED for bearish.
+Search indicator: "Directional Movement Index". Add to chart.
+DMI Settings → Input: Smoothing = 13, Length = 13, Timeframe = 15 minutes.
+DMI Settings → Style: ADX = BLACK thick, +DI = GREEN thick, -DI = RED thick.
+On the DMI sub-panel: Draw horizontal line at value 23. Make it BLUE and thick.
+Verify Half Trend line is visible on the main price chart.
+Verify DMI panel shows ADX, +DI, -DI lines with the 23 threshold line.
+Pre-Market Checklist (Each Day)
+Check where ADX is currently — is it above or below 23? Know your starting zone.
+Check +DI vs -DI — which is above? Know the current directional bias.
+Check if there are any pending Half Trend signals from prior day that may carry forward (BTST awareness).
+Trade Decision Tree
+11. POTENTIAL ENHANCEMENTS FOR YOUR BUILD
+The following improvements are NOT in the original strategy but are logical extensions based on the underlying indicator logic and your existing trading stack:
+ADX slope filter: Only take entries when ADX is rising (not just above 23 but trending up) — removes entries at peak trend momentum.
+ATR-based stop loss: Instead of relying solely on Half Trend flip for exit, calculate entry ATR and set hard stop at 1.0x–1.5x ATR below/above entry. This defines initial SL size precisely.
+Volume filter: Add minimum volume condition (e.g., bar volume > 20-period average volume) to confirm institutional participation at entry.
+Session filter: Restrict entries to high-liquidity windows — 09:20–11:30 AM and 01:30–03:00 PM IST. Avoid the 12–1 PM dead zone.
+Multi-stock scanner: Alert fires across a watchlist of 5–10 stocks simultaneously. Trade the first valid signal each day.
+BTST detection: Auto-detect when a signal fires after 2:30 PM — flag as BTST rather than intraday. Send separate alert.
+Trailing stop after 1:2 RR hit: If trade moves 2x the initial SL distance in your favor, move stop to breakeven and trail from there.
+12. STRATEGY SUMMARY — ONE PAGE REFERENCE
+This report is extracted entirely from the Booming Bulls 1-million-subscriber video transcript. All strategy logic, parameter values, and examples are sourced from the developer's direct explanation. Backtest on your preferred instruments before live deployment.
+--- TABLE 1 ---
+PARAMETER | VALUE
+Strategy Type | Indicator-based trend following
+Chart Timeframe | 5-minute (entry/exit)
+Filter Timeframe | 15-minute (DMI/ADX applied here)
+Primary Instruments | BANK NIFTY, NIFTY 50, GRASIM, INFOSYS — all Indian equities & indices
+Trade Direction | Both long and short
+Trade Styles Supported | Intraday, BTST (Buy Today Sell Tomorrow), Swing
+Win Rate Profile | 50–65% (tested by developer)
+Risk/Reward Profile | 1:3 to 1:6 per trade
+Edge | Win size > win rate — system is profitable even at ~50% WR due to large RR
+--- TABLE 2 ---
+SETTING | VALUE | NOTES
+Amplitude | Default (unchanged) | Leave as-is
+Channel Deviation | Default (unchanged) | Leave as-is
+Timeframe | Same as chart (5m) | No MTF override for this indicator
+--- TABLE 3 ---
+GREEN | BUY signal activated. Long entry permitted (subject to DMI filter).
+RED | SELL signal activated. Short entry permitted (subject to DMI filter). If already long, EXIT the trade.
+--- TABLE 4 ---
+PARAMETER | VALUE | NOTES
+ADX Smoothing | 13 | Changed from default — Fibonacci-adjacent, developer-tested
+DI Length | 13 | Changed from default — same as smoothing
+Timeframe | 15 minutes | OVERRIDE chart timeframe to 15m — critical
+--- TABLE 5 ---
+LINE | COLOR | MEANING
+ADX line | BLACK (thick) | Trend strength — the gating signal
++DI line | GREEN (thick) | Bullish directional pressure
+-DI line | RED (thick) | Bearish directional pressure
+23 level line | BLUE (thick) | Trading zone threshold — manually drawn
+--- TABLE 6 ---
+CONDITION | MEANING
++DI (green) > -DI (red) | Bullish bias: Only LONG trades permitted
+-DI (red) > +DI (green) | Bearish bias: Only SHORT trades permitted
+--- TABLE 7 ---
+# | INDICATOR | CONDITION
+1 | DMI — ADX Gate | ADX (black line, 15m) is ABOVE 23
+2 | DMI — Directional Bias | +DI (green line, 15m) is ABOVE -DI (red line)
+3 | Half Trend — Entry Signal | Half Trend line turns GREEN on 5m chart (on candle close)
+--- TABLE 8 ---
+# | INDICATOR | CONDITION
+1 | DMI — ADX Gate | ADX (black line, 15m) is ABOVE 23
+2 | DMI — Directional Bias | -DI (red line, 15m) is ABOVE +DI (green line)
+3 | Half Trend — Entry Signal | Half Trend line turns RED on 5m chart (on candle close)
+--- TABLE 9 ---
+SCENARIO | P&L CALCULATION | RESULT
+5 wins, 5 losses at 1:3 RR | 5 x (+3000) + 5 x (-1000) | +Rs 10,000 net profit
+3 wins, 7 losses at 1:3 RR | 3 x (+3000) + 7 x (-1000) | +Rs 2,000 net profit
+1 win, 6 losses at 1:6 RR | 1 x (+6) + 6 x (-1) | Still breakeven or profit
+--- TABLE 10 ---
+TIMEFRAME | INDICATOR | PURPOSE
+5 minutes | Half Trend | Entry signal, exit signal, actual trade execution
+15 minutes | DMI (ADX + DI lines) | Trading zone gate (ADX > 23) + directional bias filter (+DI vs -DI)
+--- TABLE 11 ---
+// Trading Zone Gate
+isInTradingZone = adx_val > adx_threshold
+
+// Directional Bias Filter
+bullishBias = plusDI > minusDI
+bearishBias = minusDI > plusDI
+
+// Entry Signals (all on candle close)
+longSignal  = isInTradingZone and bullishBias and halfTrend_green
+shortSignal = isInTradingZone and bearishBias and halfTrend_red
+
+// Exit Signals
+exitLong  = halfTrend_red or not isInTradingZone
+exitShort = halfTrend_green or not isInTradingZone
+--- TABLE 12 ---
+QUESTION | IF NO → ACTION
+Is ADX (15m) above 23? | NO TRADE. Wait.
+Is +DI > -DI (for long)? | Cannot go long. Look for short.
+Is Half Trend green (for long)? | No entry yet. Monitor.
+All 3 long conditions met? | Do not enter.
+Is it candle close (not mid-candle)? | Wait for candle to close.
+Have I hit 2 SLs today already? | If yes → stop trading today.
+--- TABLE 13 ---
+ELEMENT | SPECIFICATION
+Indicator 1 | Half Trend (everget) — 5m chart — Green/Red only
+Indicator 2 | DMI (Directional Movement Index) — 15m override — ADX smoothing 13, DI length 13
+Gate Condition | ADX (black, 15m) must be above 23
+Long Filter | +DI (green) > -DI (red) on 15m
+Short Filter | -DI (red) > +DI (green) on 15m
+Long Entry | Half Trend turns green on 5m candle close
+Short Entry | Half Trend turns red on 5m candle close
+Long Exit | Half Trend turns red on 5m candle close
+Short Exit | Half Trend turns green on 5m candle close
+Candle Rule | ALWAYS act on candle close — never mid-candle
+Daily Loss Rule | Max 2 stop losses per day then stop
+Win Rate | ~50–65% expected
+RR Ratio | 1:3 to 1:6 typical
+Options Strike | Nearest ITM (deeper ITM on expiry day)
+Instruments | NIFTY, BANK NIFTY, GRASIM, INFOSYS, large liquid stocks

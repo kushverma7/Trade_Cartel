@@ -1,0 +1,139 @@
+// SERIES: Fabio+Marco | VERSION: 1.0 | TYPE: indicator
+// COMPONENTS: VWAP+SD Bands(1/2/3), CVD (daily reset, EMA smoothed),
+//             Aggression Bubbles (vol spike + body ratio),
+//             LVN Detection (box zones), Liquidity Levels (pivot lines),
+//             Sweep Detection, OOB state (VWMA deviation)
+// ENTRY SCORE: Long = sweep_low + bull_aggression + cvd_confirms_long + vwap_bias_long
+//              Short = sweep_high + bear_aggression + cvd_confirms_short + vwap_bias_short
+//              A-grade=4/4, B-grade=3/4
+// EXIT: CVD divergence = BE signal (no hard TP/SL)
+// TIMEFRAME: Intraday, NY session 09:30-11:30 default
+// INSTRUMENT: Any (Fabio Valentino order flow model)
+// FLIP_EXITS: N/A — indicator only
+// UNIQUE: Only non-DE indicator. CVD divergence as exit/BE trigger.
+//         LVN zones, aggression bubbles, VWAP SD bands. No ST/AT/EMA stack.
+//@version=6
+indicator("Fabio + Marco Entry & Exit System", overlay=true, max_bars_back=500,
+     max_lines_count=100, max_boxes_count=100, max_labels_count=100)
+
+i_session_start    = input.session("0930-1130", "NY Session Window", group="Session")
+i_session_timezone = input.string("America/New_York", "Timezone", group="Session")
+i_show_session     = input.bool(true, "Highlight Session Window", group="Session")
+i_show_vwap = input.bool(true, "Show VWAP + SD Bands", group="VWAP")
+i_sd1       = input.float(1.0, "SD Band 1 (Trend Zone)", group="VWAP")
+i_sd2       = input.float(2.0, "SD Band 2 (TP Zone)", group="VWAP")
+i_sd3       = input.float(3.0, "SD Band 3 (Extreme)", group="VWAP")
+i_show_lvn      = input.bool(true, "Show Low Volume Node Detection", group="LVN")
+i_lvn_lookback  = input.int(50, "LVN Lookback Bars", minval=20, maxval=200, group="LVN")
+i_lvn_threshold = input.float(0.4, "LVN Volume Threshold", minval=0.1, maxval=0.9, step=0.05, group="LVN")
+i_show_cvd  = input.bool(true, "Show CVD Divergence Signal", group="CVD")
+i_cvd_length = input.int(14, "CVD Smoothing Length", minval=5, maxval=50, group="CVD")
+i_show_bubbles = input.bool(true, "Show Aggression Bubbles", group="Aggression")
+i_bubble_mult  = input.float(2.0, "Volume Multiplier for Aggression", minval=1.5, maxval=5.0, step=0.1, group="Aggression")
+i_min_body     = input.float(0.3, "Min Body % of Range", minval=0.1, maxval=0.9, step=0.05, group="Aggression")
+i_show_liq     = input.bool(true, "Show Liquidity Levels", group="Liquidity")
+i_liq_lookback = input.int(20, "Liquidity Lookback", minval=5, maxval=50, group="Liquidity")
+i_liq_strength = input.int(3, "Swing Strength", minval=1, maxval=10, group="Liquidity")
+i_show_signals   = input.bool(true, "Show Entry Signals", group="Signals")
+i_show_exit      = input.bool(true, "Show Exit / BE Signals", group="Signals")
+c_bull    = input.color(color.new(#00E676, 0), "Bull Color", group="Colors")
+c_bear    = input.color(color.new(#FF1744, 0), "Bear Color", group="Colors")
+c_vwap    = input.color(color.new(#FFD700, 0), "VWAP Color", group="Colors")
+c_lvn     = input.color(color.new(#FF6D00, 70), "LVN Zone Color", group="Colors")
+c_session = input.color(color.new(#1565C0, 92), "Session BG Color", group="Colors")
+
+in_session = not na(time(timeframe.period, i_session_start, i_session_timezone))
+bgcolor(i_show_session and in_session ? c_session : na)
+
+var float vwap_pv_sum  = 0.0
+var float vwap_v_sum   = 0.0
+var float vwap_pv2_sum = 0.0
+is_new_day = ta.change(time("D")) != 0
+if is_new_day
+    vwap_pv_sum  := 0.0
+    vwap_v_sum   := 0.0
+    vwap_pv2_sum := 0.0
+typical_price = (high + low + close) / 3.0
+vwap_pv_sum  += typical_price * volume
+vwap_v_sum   += volume
+vwap_pv2_sum += typical_price * typical_price * volume
+vwap_val = vwap_v_sum != 0 ? vwap_pv_sum / vwap_v_sum : na
+variance = vwap_v_sum != 0 ? math.max(vwap_pv2_sum / vwap_v_sum - vwap_val * vwap_val, 0.0) : na
+vwap_sd  = math.sqrt(variance)
+vwap_upper1 = vwap_val + i_sd1 * vwap_sd
+vwap_lower1 = vwap_val - i_sd1 * vwap_sd
+vwap_upper2 = vwap_val + i_sd2 * vwap_sd
+vwap_lower2 = vwap_val - i_sd2 * vwap_sd
+vwap_bias_long  = close > vwap_val
+vwap_bias_short = close < vwap_val
+
+plot(i_show_vwap ? vwap_val    : na, "VWAP", color=c_vwap, linewidth=2)
+plot(i_show_vwap ? vwap_upper1 : na, "1SD+", color=color.new(c_bull,50), linewidth=1)
+plot(i_show_vwap ? vwap_lower1 : na, "1SD-", color=color.new(c_bull,50), linewidth=1)
+plot(i_show_vwap ? vwap_upper2 : na, "2SD+", color=color.new(c_bull,20), linewidth=1, style=plot.style_circles)
+plot(i_show_vwap ? vwap_lower2 : na, "2SD-", color=color.new(c_bull,20), linewidth=1, style=plot.style_circles)
+
+candle_range = high - low
+buy_vol_frac = candle_range > 0 ? (close - low) / candle_range : 0.5
+delta_bar    = volume * buy_vol_frac - volume * (1.0 - buy_vol_frac)
+var float cvd_cum = 0.0
+if is_new_day
+    cvd_cum := 0.0
+cvd_cum += delta_bar
+cvd_smooth = ta.ema(cvd_cum, i_cvd_length)
+cvd_prev   = cvd_smooth[i_cvd_length]
+price_up   = close > close[i_cvd_length]
+price_down = close < close[i_cvd_length]
+cvd_up     = cvd_smooth > cvd_prev
+cvd_down   = cvd_smooth < cvd_prev
+cvd_bear_div = price_up and cvd_down
+cvd_bull_div = price_down and cvd_up
+cvd_confirms_long  = cvd_up and vwap_bias_long
+cvd_confirms_short = cvd_down and vwap_bias_short
+
+avg_vol      = ta.sma(volume, 20)
+vol_spike    = volume > avg_vol * i_bubble_mult
+candle_body  = math.abs(close - open)
+body_ratio   = candle_range > 0 ? candle_body / candle_range : 0.0
+strong_body  = body_ratio >= i_min_body
+bull_aggression = vol_spike and strong_body and close > open and in_session
+bear_aggression = vol_spike and strong_body and close < open and in_session
+
+recent_pivot_high = ta.highest(high, i_liq_lookback)[1]
+recent_pivot_low  = ta.lowest(low, i_liq_lookback)[1]
+sweep_high = high > recent_pivot_high and close < recent_pivot_high
+sweep_low  = low < recent_pivot_low and close > recent_pivot_low
+
+long_conditions  = (sweep_low?1:0) + (bull_aggression?1:0) + (cvd_confirms_long?1:0)  + (vwap_bias_long?1:0)
+short_conditions = (sweep_high?1:0) + (bear_aggression?1:0) + (cvd_confirms_short?1:0) + (vwap_bias_short?1:0)
+
+atr14 = ta.atr(14)
+a_grade_long  = long_conditions  >= 4 and in_session
+b_grade_long  = long_conditions  == 3 and in_session
+a_grade_short = short_conditions >= 4 and in_session
+b_grade_short = short_conditions == 3 and in_session
+
+if i_show_signals and a_grade_long
+    label.new(bar_index, low - atr14*0.5,  "▲ A-LONG\n"+str.tostring(long_conditions)+"/4",  style=label.style_label_up,   color=c_bull, textcolor=color.white, size=size.normal)
+if i_show_signals and b_grade_long
+    label.new(bar_index, low - atr14*0.3,  "△ B-LONG\n"+str.tostring(long_conditions)+"/4",  style=label.style_label_up,   color=color.new(c_bull,40), textcolor=color.white, size=size.small)
+if i_show_signals and a_grade_short
+    label.new(bar_index, high + atr14*0.5, "▼ A-SHORT\n"+str.tostring(short_conditions)+"/4", style=label.style_label_down, color=c_bear, textcolor=color.white, size=size.normal)
+if i_show_signals and b_grade_short
+    label.new(bar_index, high + atr14*0.3, "▽ B-SHORT\n"+str.tostring(short_conditions)+"/4", style=label.style_label_down, color=color.new(c_bear,40), textcolor=color.white, size=size.small)
+if i_show_cvd and i_show_exit and cvd_bear_div
+    label.new(bar_index, high, "CVD↓\nBE", style=label.style_label_down, color=color.new(#FF6F00,10), textcolor=color.white, size=size.tiny)
+if i_show_cvd and i_show_exit and cvd_bull_div
+    label.new(bar_index, low, "CVD↑\nBE", style=label.style_label_up, color=color.new(#1B5E20,10), textcolor=color.white, size=size.tiny)
+
+plotshape(i_show_bubbles and bull_aggression, style=shape.circle, location=location.belowbar, color=color.new(c_bull,20), size=size.small)
+plotshape(i_show_bubbles and bear_aggression, style=shape.circle, location=location.abovebar, color=color.new(c_bear,20), size=size.small)
+
+alertcondition(a_grade_long,  "A-GRADE LONG",  "A-Grade Long: All 4 conditions met.")
+alertcondition(a_grade_short, "A-GRADE SHORT", "A-Grade Short: All 4 conditions met.")
+alertcondition(b_grade_long,  "B-GRADE LONG",  "B-Grade Long: 3/4 conditions.")
+alertcondition(b_grade_short, "B-GRADE SHORT", "B-Grade Short: 3/4 conditions.")
+alertcondition(cvd_bear_div,  "CVD BEAR DIV — MOVE TO BE", "CVD diverging bear.")
+alertcondition(cvd_bull_div,  "CVD BULL DIV — MOVE TO BE", "CVD diverging bull.")
+alertcondition(sweep_low,  "SWEEP LOW — BUY ZONE",  "Low swept. Buy zone active.")
+alertcondition(sweep_high, "SWEEP HIGH — SELL ZONE", "High swept. Sell zone active.")

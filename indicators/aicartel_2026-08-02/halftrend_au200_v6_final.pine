@@ -1,0 +1,358 @@
+// STRATEGY : HalfTrend AU200 — v6 FINAL (Optimizer-informed + Oxford/Kaufman params)
+// INSTRUMENT: OANDA:AU200AUD  |  TF: 5m
+// BACKTEST v4 base     : PF=1.682 | WR=43.2% | DD=-344pts | 8/8yrs | Mo=43.1pts  | Score=11.1
+// BACKTEST v6 filters  : PF=1.707 | WR=43.7% | DD=-302pts | 8/8yrs | Mo=51.4pts  | Score=15.1 (+36%)
+// BACKTEST v6 exits    : PF=2.113 | WR=31.5% | DD=-226pts | 7/8yrs | Mo=51.8pts  | Score=17.8 (+60%)
+//
+// CHANGES vs v4:
+//   F — DayBias EMA: 50→20 (faster trend response, +10% trades)
+//   F — EMA150 removed (redundant with EMA50+daily refs, adds 15% more trades)
+//   F — ADX(14)≥18 toggle (Kaufman: ADX18 optimal PF/frequency tradeoff)
+//   F — 1H EMA50 toggle (MTF confirmation, optional — reduces trades)
+//   F — ORB 15min Sydney open toggle (Crabel: first 15min range breakout)
+//   X — SL: fixed 20pts → 1.5×ATR14 (adapts to volatility)
+//   X — TP1 qty: 50%→33% (Kaufman profit-taking: let more run)
+//   X — Trail: fixed 10pts → 0.5×ATR14 (tight adaptive trail on runner 67%)
+//
+// PINE v6 CONSTRAINTS: shorttitle≤10, no concat in plot titles, no line.extend_none,
+//   ternaries single-line, strategy.exit() for partial exits, SL/TP locked at entry
+//@version=6
+strategy("HalfTrend AU200 v6 [Kush]", shorttitle="HT·AU200v6",
+     overlay=true, pyramiding=0,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     initial_capital=10000,
+     commission_type=strategy.commission.cash_per_contract,
+     commission_value=1,
+     calc_on_order_fills=false,
+     process_orders_on_close=true,
+     max_bars_back=500, max_labels_count=500, max_lines_count=500)
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+htAmp      = input.int(3,    "HT Amplitude",             minval=1,  maxval=10,  group="HalfTrend")
+confWin    = input.int(5,    "Confirm Window (bars)",     minval=1,  maxval=10,  group="HalfTrend")
+emaFast    = input.int(5,    "EMA Fast",                  minval=3,  maxval=50,  group="EMAs")
+emaSlow    = input.int(50,   "EMA Slow",                  minval=10, maxval=300, group="EMAs")
+useEma15m  = input.bool(false,"Use EMA150 (15m proxy)",  group="EMAs")
+ema15m     = input.int(150,  "EMA150 length",             minval=50, maxval=500, group="EMAs")
+dBiasLen   = input.int(20,   "Daily EMA Bias Length",     minval=5,  maxval=200, group="Daily Bias")
+atrRegPct  = input.int(30,   "ATR Regime %ile",           minval=0,  maxval=70,  group="Regime")
+atrRegWin  = input.int(2000, "ATR Regime Window",         minval=200,maxval=5000,group="Regime")
+sydStart   = input.int(22,   "Sydney session start UTC",  minval=0,  maxval=23,  group="Session")
+sydEnd     = input.int(6,    "Sydney session end UTC",    minval=0,  maxval=23,  group="Session")
+cooldown   = input.int(10,   "SL Cooldown (bars)",        minval=0,  maxval=50,  group="Session")
+useADX     = input.bool(true, "Use ADX Filter",           group="Filters")
+adxMin     = input.int(18,   "Min ADX (Kaufman optimal)", minval=10, maxval=50,  group="Filters")
+use1H      = input.bool(false,"Use 1H EMA50 Filter",      group="Filters")
+useORB     = input.bool(false,"Use ORB 15min Filter",     group="Filters")
+useWeekly  = input.bool(false,"Use Weekly Trend Filter",  group="Filters")
+slMult     = input.float(1.5,"SL ATR Multiplier",         minval=0.5,maxval=5.0, step=0.1, group="Exits")
+tp1_pts    = input.float(40.0,"TP1 (pts) — 33% exit",    minval=10, maxval=200, step=1,   group="Exits")
+tp1Pct     = input.int(33,   "TP1 Close % (1-99)",        minval=1,  maxval=99,            group="Exits")
+trailMult  = input.float(0.5,"Trail ATR Multiplier",      minval=0.1,maxval=5.0, step=0.1, group="Exits")
+show_lines = input.bool(true, "Show SL / TP1 lines",      group="Display")
+show_labs  = input.bool(true, "Show exit labels",         group="Display")
+show1H     = input.bool(true, "Show 1H EMA50",            group="Display")
+showADX    = input.bool(false,"Show ADX pane",            group="Display")
+showORB    = input.bool(true, "Show ORB levels",          group="Display")
+
+// ── Colours ───────────────────────────────────────────────────────────────────
+C_BULL  = color.new(#1565C0, 0)
+C_BEAR  = color.new(#B71C1C, 0)
+C_SL    = color.new(color.red,    20)
+C_TP1   = color.new(color.green,  20)
+C_TRAIL = color.new(color.purple, 20)
+
+// ── Daily references ──────────────────────────────────────────────────────────
+dOpen  = request.security("OANDA:AU200AUD", "D", open,     lookahead=barmerge.lookahead_off)
+dPrevC = request.security("OANDA:AU200AUD", "D", close[1], lookahead=barmerge.lookahead_off)
+dClose = request.security("OANDA:AU200AUD", "D", close,    lookahead=barmerge.lookahead_off)
+dEma   = ta.ema(dClose, dBiasLen)
+dayBull = dClose >= dEma
+
+// ── 1H EMA50 (optional MTF filter) ───────────────────────────────────────────
+h1_close = request.security("OANDA:AU200AUD", "60", close,            lookahead=barmerge.lookahead_off)
+h1_ema50 = request.security("OANDA:AU200AUD", "60", ta.ema(close,50), lookahead=barmerge.lookahead_off)
+h1_bull  = h1_close > h1_ema50
+
+// ── Weekly trend filter (optional) ───────────────────────────────────────────
+wClose   = request.security("OANDA:AU200AUD", "W", close[1], lookahead=barmerge.lookahead_off)
+wkBull   = close >= wClose
+
+// ── ADX(14) via ta.dmi ────────────────────────────────────────────────────────
+[diPlus, diMinus, adxVal] = ta.dmi(14, 14)
+adxOk = not useADX or adxVal >= adxMin
+
+// ── 5m EMAs ───────────────────────────────────────────────────────────────────
+ef_line  = ta.ema(close, emaFast)
+es_line  = ta.ema(close, emaSlow)
+e15_line = ta.ema(close, ema15m)
+
+// ── ATR regime filter ─────────────────────────────────────────────────────────
+atr14    = ta.atr(14)
+atrHigh  = ta.highest(atr14, atrRegWin)
+atrLow   = ta.lowest(atr14,  atrRegWin)
+atrPct   = atrHigh != atrLow ? (atr14 - atrLow) / (atrHigh - atrLow) * 100 : 50.0
+inRegime = atrPct >= atrRegPct
+
+// ── ATR-based exit sizes (locked at entry bar) ────────────────────────────────
+sl_dyn   = atr14 * slMult
+trail_dyn = atr14 * trailMult
+
+// ── Session filter ────────────────────────────────────────────────────────────
+h         = hour(time, "UTC")
+inSession = h >= sydStart or h < sydEnd
+
+// ── ORB: 15-minute opening range (Crabel) at Sydney open 22:00 UTC ───────────
+var float orbHigh = na
+var float orbLow  = na
+var int   orbBars = 0
+isOrbStart = h == sydStart and minute(time) == 0
+if isOrbStart
+    orbHigh := high; orbLow := low; orbBars := 1
+else if not na(orbHigh) and orbBars < 3
+    orbHigh := math.max(orbHigh, high)
+    orbLow  := math.min(orbLow,  low)
+    orbBars := orbBars + 1
+orbReady = not na(orbHigh) and orbBars >= 3
+orbBullOk = not useORB or not orbReady or close > orbHigh
+orbBearOk = not useORB or not orbReady or close < orbLow
+
+// ── HalfTrend (everget algorithm) ────────────────────────────────────────────
+highma = ta.sma(ta.highest(high, htAmp), htAmp)
+lowma  = ta.sma(ta.lowest(low,  htAmp), htAmp)
+
+var int   trend        = 0
+var int   nextTrend    = 0
+var float maxLowPrice  = low
+var float minHighPrice = high
+var float htUp         = 0.0
+var float htDown       = 0.0
+
+if nextTrend == 1
+    maxLowPrice := math.max(low, maxLowPrice)
+    if highma < maxLowPrice and close < nz(low[1], low)
+        trend        := 1
+        nextTrend    := 0
+        htDown       := maxLowPrice
+        minHighPrice := high
+else
+    minHighPrice := math.min(high, minHighPrice)
+    if lowma > minHighPrice and close > nz(high[1], high)
+        trend       := 0
+        nextTrend   := 1
+        htUp        := minHighPrice
+        maxLowPrice := low
+
+if trend == 0
+    if nz(trend[1]) != 0
+        htUp := nz(htDown[1], htDown)
+    if htUp < nz(htUp[1], htUp)
+        htUp := nz(htUp[1], htUp)
+else
+    if nz(trend[1]) != 1
+        htDown := nz(htUp[1], htUp)
+    if htDown > nz(htDown[1], htDown)
+        htDown := nz(htDown[1], htDown)
+
+htLine     = trend == 0 ? htUp : htDown
+htBull     = trend == 0
+htFlipBuy  = htBull and not htBull[1]
+htFlipSell = not htBull and htBull[1]
+
+// ── Cooldown state ────────────────────────────────────────────────────────────
+var int lastSLBar = na
+inCooldown = not na(lastSLBar) and (bar_index - lastSLBar) <= cooldown
+
+// ── Filter gates ──────────────────────────────────────────────────────────────
+h1BullOk = not use1H or h1_bull
+h1BearOk = not use1H or not h1_bull
+wkBullOk = not useWeekly or wkBull
+wkBearOk = not useWeekly or not wkBull
+
+// ── Pending signals ───────────────────────────────────────────────────────────
+var int   pendBuyBar   = na
+var float pendBuyClose = na
+var float pendBuyY     = na
+var int   pendSelBar   = na
+var float pendSelClose = na
+var float pendSelY     = na
+
+if htFlipBuy and inRegime and inSession and dayBull and not inCooldown and h1BullOk and adxOk and wkBullOk
+    ema_ok = close > ef_line and close > es_line and (not useEma15m or close > e15_line)
+    if ema_ok and (na(dOpen) or close > dOpen) and (na(dPrevC) or close > dPrevC)
+        pendBuyBar   := bar_index
+        pendBuyClose := close
+        pendBuyY     := low
+
+if htFlipSell and inRegime and inSession and not dayBull and not inCooldown and h1BearOk and adxOk and wkBearOk
+    ema_ok = close < ef_line and close < es_line and (not useEma15m or close < e15_line)
+    if ema_ok and (na(dOpen) or close < dOpen) and (na(dPrevC) or close < dPrevC)
+        pendSelBar   := bar_index
+        pendSelClose := close
+        pendSelY     := high
+
+// ── Confirmation ──────────────────────────────────────────────────────────────
+buyFired  = false
+sellFired = false
+
+if not na(pendBuyBar)
+    elapsed = bar_index - pendBuyBar
+    if elapsed > 0 and elapsed <= confWin
+        if close > pendBuyClose and orbBullOk
+            buyFired := true
+    if elapsed > confWin
+        pendBuyBar := na
+
+if not na(pendSelBar)
+    elapsed = bar_index - pendSelBar
+    if elapsed > 0 and elapsed <= confWin
+        if close < pendSelClose and orbBearOk
+            sellFired := true
+    if elapsed > confWin
+        pendSelBar := na
+
+// ── Entry labels ──────────────────────────────────────────────────────────────
+if buyFired
+    label.new(pendBuyBar, pendBuyY, "BUY ▲", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_up, color=C_BULL, textcolor=color.white, size=size.small)
+    pendBuyBar := na
+
+if sellFired
+    label.new(pendSelBar, pendSelY, "SELL ▼", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=C_BEAR, textcolor=color.white, size=size.small)
+    pendSelBar := na
+
+// ── Entries ───────────────────────────────────────────────────────────────────
+if buyFired and strategy.position_size == 0
+    strategy.entry("L", strategy.long, comment="BUY")
+
+if sellFired and strategy.position_size == 0
+    strategy.entry("S", strategy.short, comment="SELL")
+
+// ── Locked SL/TP — set once at entry with ATR-based sizing ───────────────────
+var float lockedSL    = na
+var float lockedTP1   = na
+var float entryPrice  = na
+var float lockedTrail = na
+var bool  tp1Reached  = false
+var float trailHigh   = na
+var float trailLow    = na
+var line  slLine      = na
+var line  tp1Line     = na
+
+inLong  = strategy.position_size > 0
+inShort = strategy.position_size < 0
+inTrade = inLong or inShort
+
+if buyFired
+    entryPrice  := close
+    lockedSL    := close - sl_dyn       // 1.5×ATR at entry
+    lockedTP1   := close + tp1_pts      // fixed 40pts
+    lockedTrail := trail_dyn            // 0.5×ATR at entry
+    tp1Reached  := false
+    trailHigh   := na
+    trailLow    := na
+    if show_lines
+        if not na(slLine)
+            line.delete(slLine)
+        if not na(tp1Line)
+            line.delete(tp1Line)
+        slLine  := line.new(bar_index, lockedSL,  bar_index+80, lockedSL,  color=C_SL,  width=1, style=line.style_dashed)
+        tp1Line := line.new(bar_index, lockedTP1, bar_index+80, lockedTP1, color=C_TP1, width=1, style=line.style_dashed)
+
+if sellFired
+    entryPrice  := close
+    lockedSL    := close + sl_dyn
+    lockedTP1   := close - tp1_pts
+    lockedTrail := trail_dyn
+    tp1Reached  := false
+    trailHigh   := na
+    trailLow    := na
+    if show_lines
+        if not na(slLine)
+            line.delete(slLine)
+        if not na(tp1Line)
+            line.delete(tp1Line)
+        slLine  := line.new(bar_index, lockedSL,  bar_index+80, lockedSL,  color=C_SL,  width=1, style=line.style_dashed)
+        tp1Line := line.new(bar_index, lockedTP1, bar_index+80, lockedTP1, color=C_TP1, width=1, style=line.style_dashed)
+
+// ── TP1 hit: close tp1Pct%, move SL to BE ────────────────────────────────────
+if inTrade and not tp1Reached
+    if (inLong and close >= lockedTP1) or (inShort and close <= lockedTP1)
+        tp1Reached := true
+        strategy.close("L", qty_percent=tp1Pct, comment="TP1")
+        strategy.close("S", qty_percent=tp1Pct, comment="TP1")
+        lockedSL  := entryPrice          // BE
+        trailHigh := inLong  ? close : na
+        trailLow  := inShort ? close : na
+        if show_labs
+            label.new(bar_index, high, "TP1 HIT", style=label.style_label_down, color=C_TP1, textcolor=color.white, size=size.tiny)
+
+// ── Adaptive trail after BE (0.5×ATR14 behind running high/low) ──────────────
+if inTrade and tp1Reached
+    if inLong
+        trailHigh := math.max(nz(trailHigh, close), close)
+        lockedSL  := math.max(lockedSL, trailHigh - atr14 * trailMult)
+    else
+        trailLow := math.min(nz(trailLow, close), close)
+        lockedSL := math.min(lockedSL, trailLow + atr14 * trailMult)
+
+// ── Hard stop every bar ───────────────────────────────────────────────────────
+if inLong
+    strategy.exit("SL_L", from_entry="L", stop=lockedSL, comment=tp1Reached ? "TRAIL" : "SL")
+if inShort
+    strategy.exit("SL_S", from_entry="S", stop=lockedSL, comment=tp1Reached ? "TRAIL" : "SL")
+
+// ── Full exit detection + cooldown ────────────────────────────────────────────
+wasLong  = strategy.position_size[1] > 0 and strategy.position_size <= 0
+wasShort = strategy.position_size[1] < 0 and strategy.position_size >= 0
+
+if wasLong or wasShort
+    if not tp1Reached
+        lastSLBar := bar_index
+    if show_labs
+        exit_pnl  = strategy.closedtrades.profit(strategy.closedtrades - 1)
+        lbl_txt   = tp1Reached ? "TRAIL\n+" + str.tostring(math.round(exit_pnl,1)) + "pts" : "SL\n-" + str.tostring(math.abs(math.round(exit_pnl,1))) + "pts"
+        lbl_color = exit_pnl >= 0 ? C_TRAIL : C_SL
+        lbl_style = wasLong ? label.style_label_down : label.style_label_up
+        lbl_y     = wasLong ? low : high
+        label.new(bar_index, lbl_y, lbl_txt, style=lbl_style, color=lbl_color, textcolor=color.white, size=size.tiny)
+    tp1Reached := false
+    entryPrice  := na
+
+// ── Candle highlight ──────────────────────────────────────────────────────────
+barcolor(buyFired ? color.new(C_BULL, 60) : sellFired ? color.new(C_BEAR, 60) : na)
+
+// ── Regime background tint ────────────────────────────────────────────────────
+bgcolor(not inRegime ? color.new(color.gray, 93) : na, title="Low-regime shade")
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+plot(htLine,   "HalfTrend",     color=htBull ? C_BULL : C_BEAR,         linewidth=2)
+plot(ef_line,  "EMA Fast",      color=color.new(color.aqua,    40),      linewidth=1)
+plot(es_line,  "EMA Slow",      color=color.new(color.orange,  40),      linewidth=1)
+plot(useEma15m ? e15_line : na, "EMA 15m",     color=color.new(color.fuchsia,40),     linewidth=1)
+plot(dOpen,    "Daily Open",    color=color.new(color.yellow,  30),      linewidth=1, style=plot.style_stepline)
+plot(dPrevC,   "Prev Day Close",color=color.new(color.gray,    40),      linewidth=1, style=plot.style_stepline)
+plot(show1H ? h1_ema50 : na,    "1H EMA50",    color=color.new(color.lime, 30),       linewidth=2, style=plot.style_stepline)
+plot(inTrade and show_lines ? lockedSL : na,                              "Live SL",  color=C_SL,  linewidth=1, style=plot.style_linebr)
+plot(inTrade and show_lines and not tp1Reached ? lockedTP1 : na,          "Live TP1", color=C_TP1, linewidth=1, style=plot.style_linebr)
+
+// ── ORB levels ────────────────────────────────────────────────────────────────
+plot(showORB and orbReady ? orbHigh : na, "ORB High", color=color.new(color.lime,   40), linewidth=1, style=plot.style_stepline)
+plot(showORB and orbReady ? orbLow  : na, "ORB Low",  color=color.new(color.lime,   40), linewidth=1, style=plot.style_stepline)
+
+// ── Weekly close ──────────────────────────────────────────────────────────────
+plot(useWeekly ? wClose : na, "Prev Week Close", color=color.new(color.purple, 40), linewidth=1, style=plot.style_stepline)
+
+// ── ADX pane ──────────────────────────────────────────────────────────────────
+plot(showADX ? adxVal : na,   "ADX",    color=color.new(color.white,  0), linewidth=2)
+plot(showADX ? diPlus : na,   "DI+",    color=color.new(color.green,  20), linewidth=1)
+plot(showADX ? diMinus : na,  "DI-",    color=color.new(color.red,    20), linewidth=1)
+hline(showADX ? adxMin : na,  "ADX Min",  color=color.new(color.yellow, 50), linestyle=hline.style_dashed)
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(buyFired,                                     "HT BUY",         "BUY confirmed — AU200AUD 5m v6")
+alertcondition(sellFired,                                    "HT SELL",        "SELL confirmed — AU200AUD 5m v6")
+alertcondition(inTrade and not tp1Reached[1] and tp1Reached, "TP1 HIT",        "TP1 hit — partial close, SL→BE")
+alertcondition(wasLong  and tp1Reached[1],                   "TRAIL EXIT (L)", "Long trail exit — {{close}}")
+alertcondition(wasShort and tp1Reached[1],                   "TRAIL EXIT (S)", "Short trail exit — {{close}}")
+alertcondition(wasLong  and not tp1Reached[1],               "SL HIT (L)",     "Long SL hit — {{close}}")
+alertcondition(wasShort and not tp1Reached[1],               "SL HIT (S)",     "Short SL hit — {{close}}")
