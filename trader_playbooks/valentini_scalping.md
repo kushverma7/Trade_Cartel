@@ -9,6 +9,12 @@
 - He TESTED the trapped-traders/liquidity-sweep model: lower win rate
   than momentum-join. [Contradiction tally vs our reclaim family: 1]
 - Win rate over home runs: ~50% WR at min 1:2 RR beats lottery R:R.
+- **Volatility-anchored partial (added 2026-08-02, missed in the original
+  extraction — source `raw_transcripts/line0896`):** first partial is taken
+  at the instrument's AVERAGE session range, not at a fixed R. Verbatim:
+  "if I know on average EU is moving 15 pips every London session, why wait
+  for 20 or 25? I take it at 15." Full position closes at the average daily
+  range. Rationale is measured: P(3rd SD in a session) = 7%.
   Reversal WR 40% < trend-join 50-60% (his measured sample, 500+).
 
 ## The checklist (all boxes or no trade)

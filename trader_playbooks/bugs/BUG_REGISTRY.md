@@ -373,3 +373,130 @@ TradingView's 240.77.
 disagree on the WORST trade, suspect the fill model, not the logic. Compare
 the tails, not just the aggregates — an average can agree while the model
 of a bad day is completely wrong.
+
+---
+
+## BUG-019 — Intrabar lookahead: excursion updated before the stop check
+
+**Found:** 2026-07-31, by `exit_lab.py` failing to reproduce a known result.
+**Severity:** halves reported drawdown; invalidates every run made with it.
+
+**Symptom:** the new exit engine reported PF 1.183 at 45.2% drawdown where
+the established configuration was PF 1.635 at 17.01%. The numbers were not
+merely different, they were incompatible.
+
+**Root cause:** the per-bar block updated `pos["best"]` from bar *i*'s own
+high BEFORE resolving the stop on bar *i*. A trailing stop anchored to
+`best` therefore rose using information from inside the bar it was then
+tested against — the stop got to see the bar's high before deciding whether
+the bar's low took it out.
+
+**Fix:** `pos["best"]` is updated at the END of the bar block, after the
+stop and both targets are resolved. The ordering is now load-bearing and
+carries a comment saying so.
+
+**Prevention:** in any bar-loop engine, write the order of operations down
+before coding it: (1) move stop using data through bar i-1, (2) resolve
+bar i, (3) update state with bar i. Any state a stop depends on must be
+one bar stale. If a new engine cannot reproduce an old engine's known
+result, do not tune it — find the ordering difference first.
+
+---
+
+## BUG-020 — Trailing mode that arms at zero excursion
+
+**Found:** 2026-07-31, in the `giveback` trailing mode.
+**Severity:** silently produces a 1% win rate; looks like a bad idea
+rather than a bug.
+
+**Symptom:** the give-back-a-fraction-of-the-run trail scored a 1% win rate
+over 2,307 trades. The obvious reading — "this mode simply does not work" —
+was wrong.
+
+**Root cause:** excursion is zero at entry, so `best - run * frac` evaluates
+to the entry price on the trade's second bar. The stop snapped to breakeven
+immediately and every trade was scratched by normal noise. The mode never
+actually ran.
+
+**Fix:** `giveback_arm` — the trail does not engage until the trade has run
+at least N ATR from entry. Before that the original stop stands.
+
+**Prevention:** any trail defined as a function of profit must state what it
+does at zero profit. Evaluate the formula at entry by hand before running
+it. A near-zero or near-100% win rate is a bug signature, not a result —
+investigate it before recording it as a finding.
+
+---
+
+## BUG-021 — Pine `slippage` is in TICKS, not points
+
+**Found:** 2026-08-01, during cost-stress testing.
+**Severity:** flattered every backtest that used the wrong value; ~40x
+under-modelled cost.
+
+**Symptom:** a research engine charging 0.05 points per side agreed with a
+TradingView run declaring `slippage = 5`. The agreement was a coincidence
+of two different mistakes.
+
+**Root cause:** `strategy(slippage = N)` counts N **ticks**, not points.
+XAUUSD on OANDA quotes three decimals, so mintick is 0.001 and `slippage=5`
+models 0.005 points — roughly a fortieth of a realistic retail gold fill.
+A correct 0.20 point fill is `slippage = 200`.
+
+**Fix:** `slippage = 200` in the strategy declaration, with the arithmetic
+written into the code comment so it cannot be silently reverted. The
+corrected run returned +1,591.7% against +3,533.9% at the wrong value.
+
+**Prevention:** before trusting any cost figure, compute
+`slippage_input * syminfo.mintick` and confirm it is the intended number of
+POINTS. Do this per symbol — mintick differs. Any headline result produced
+before this check is provisional.
+
+---
+
+## BUG-022 — Asymmetric edit: one direction updated, the other left stale
+
+**Found:** 2026-07-31, adding TP1/TP2 to the entry logic.
+**Severity:** shorts trade against a previous configuration's levels.
+
+**Symptom:** the long entry branch assigned the new TP1/TP2 state; the short
+branch did not, because the edit anchor matched only once after a prior
+change had already altered the short block's text.
+
+**Root cause:** paired long/short blocks are near-identical, so a
+single-anchor edit lands on one of them and reports success. Nothing in the
+compile or the run flags the other side.
+
+**Fix:** both branches assign every per-trade state variable, and a symmetry
+check now enumerates those variables across both directions.
+
+**Prevention:** after any edit to directional trade state, list every
+per-trade variable and confirm it is assigned in BOTH branches. Never trust
+a successful single edit on symmetric code. This is the class of bug that
+BUG-011 (inverted SuperTrend conditions) also belongs to.
+
+---
+
+## BUG-023 — A null hypothesis that skipped the filters it was testing
+
+**Found:** 2026-08-01, on re-reading the significance test.
+**Severity:** methodological; invalidated every earlier significance claim.
+
+**Symptom:** the strategy sat far outside the random-entry distribution and
+was described as clearly significant.
+
+**Root cause:** the `random_p` arm randomised entries but did NOT apply the
+regime, slope and cooldown filters the real strategy uses. It compared
+"entry logic plus filters plus exit" against "nothing", so it measured the
+whole system against noise rather than measuring the ENTRY against noise.
+The random arm still returned +524% on its own, which was the clue.
+
+**Fix:** the null randomises entry TIMING while applying the identical
+filter set. Under the corrected null the champion sits at the 93.3rd
+percentile — inside noise. That is now stated in the ledger rather than
+buried.
+
+**Prevention:** a null must differ from the strategy in exactly ONE
+respect — the thing being tested. Write down what the null holds constant
+before running it. If the random arm is itself profitable, the null is
+wrong or the edge is not where you think it is.

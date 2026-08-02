@@ -1311,3 +1311,78 @@ the correct way to describe every confluence idea in this repo.
 **Invalidation:** a voice subset that improves BOTH return and drawdown on
 both halves. The greedy subset search was never run against the current
 engine — only the whole-register net score was.
+
+---
+
+## The knowledge layer's EXIT rules have never been tested — only its entries
+
+**Established 2026-08-02**, by a transcript-to-code traceability sweep.
+
+Every confluence claim measured in this repo so far has been an ENTRY
+claim: does voice X's signal improve the entry. The finding above — that
+the voices are additive against a weak baseline and redundant against a
+good one — is therefore a statement about entries only, and it has been
+quietly generalised to the whole knowledge layer. That generalisation is
+unsupported.
+
+The sweep checked eight named exit mechanics that ARE correctly extracted
+into the playbooks against their presence in `backtest/*.py`:
+
+| mechanic | in playbooks | in any engine |
+|---|---|---|
+| 21-EMA confirmed structure trail | yes | **no** |
+| swing-count regime switch | yes (3 docs) | **no** |
+| impulse-candle low trail | yes | **no** |
+| average daily range partial | yes (2 docs) | **no** |
+| previous-POC full exit | yes (9 docs) | **no** |
+| previous-daily-high first target | yes | **no** |
+| absorption-triggered exit | yes (4 docs) | **no** |
+| three-loss daily halt | yes | **no** |
+
+Eight for eight. The engines implement six trailing modes, none of which
+came from the knowledge layer — all six are generic quantitative forms
+(ATR, Donchian, EMA, step, giveback, none).
+
+**Why this matters:** this repo's single most robust finding is that the
+EXIT carries the edge, not the entry. The knowledge layer was mined
+exclusively for the thing that does not carry the edge, and its exit
+content — the part that would matter most — sits unbuilt in the playbooks.
+
+**Invalidation:** implement the structure trail (below) and find it does
+not beat the chandelier trail on the same window and costs. That is a real
+possibility and it is the point of testing it.
+
+**Highest-value untested candidate — Dave's 21-EMA structure trail**
+(`dave_market_structure.md:108-111`, source `raw_transcripts/line1200`):
+the stop trails ONLY to swing lows that (a) closed below the 21 EMA and
+(b) were then followed by price taking out the previous high. Lows that
+did not close through the EMA are ignored, so ordinary noise does not
+tighten the stop. Breakeven is defined mechanically: move to breakeven
+when price takes out the high that put in the low. After the third or
+fourth swing the mode switches to aggressive — trail behind bullish candle
+lows, anticipating reversal.
+
+This is structurally different from all six implemented modes: it tightens
+on SWING COUNT, not on ATR progress (the `step` mode) or on a fraction of
+excursion (`giveback`). The source demonstrates it holding 4.7R, 4.8R and
+8R runs on 15m charts. It is a two-regime trail — loose while the trend is
+young, aggressive once it is old — which is exactly the shape the `step`
+mode approximates with a cruder proxy.
+
+**Second candidate — Valentini's volatility-anchored partial**
+(`raw_transcripts/line0896`, and NOT currently in `valentini_scalping.md`
+— an extraction miss): take the first partial at the instrument's AVERAGE
+session range rather than at a fixed R multiple. Stated verbatim: "if I
+know on average EU is moving 15 pips every London session, why wait for 20
+or 25? I take it at 15." Full position closes at the average daily range.
+The rationale is measured, not stylistic — he reports the probability of
+reaching the third standard deviation in a session is 7%, so targets
+beyond it are priced wrong.
+
+This directly addresses BUG-017's failure mode. A level-based target fails
+because its distance is set by where a line happens to sit. An ADR-anchored
+target sets distance from the instrument's own realised volatility, so the
+target/stop ratio is stable across trades instead of random. It is the
+same family as the ATR target already in the engine but anchored to
+SESSION range rather than bar range — which is the horizon the trade is
+actually held over.
