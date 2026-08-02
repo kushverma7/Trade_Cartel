@@ -667,14 +667,36 @@ constraint: needs DOM/footprint), Renko/HA ABC, Pure PA/SMC.
 - `RESEARCH_PROTOCOL_PROMPT.md` — the method (23 rules, from 23 failures)
 - `ARCHIVE_SWEEP_PROMPT.md` — source-to-code traceability framework + findings
 
-## CURRENT STATE AND NEXT ACTION (updated 2026-08-02)
+## CURRENT STATE AND NEXT ACTION (updated 2026-08-02 — session 2)
 
-Same three priorities as above, in order:
+### Completed this session:
 
-1. Run Aggressive/Maximum profiles at 0.20 pt slippage. No new code.
-2. Fix V3 in voices.py (management tool, not entry signal). Re-run H82.
-3. Test Steve/MMM4x Brinks windows as a session filter in trend.py.
-   Then test the 2-hour scratch rule in exit_lab.py.
+**Aggressive and Maximum re-run at 0.20 pt slippage (DONE).**
+
+Research engine (XAUUSD 30m, Dec 2019 – Jul 2026, n=799 trades each):
+| profile | PF | net | maxDD | worst yr |
+|---|---|---|---|---|
+| Conservative | 1.541 | +497% | 19.4% | −2.1% (2021) |
+| Balanced | 1.621 | +1,500% | 33.4% | −8.2% (2021) |
+| Aggressive | 1.667 | +4,740% | 49.0% | −16.0% (2021) |
+| Maximum | 1.672 | +10,914% | 63.0% | −25.1% (2021) |
+
+Old (incorrect) Aggressive/Maximum figures were +8,627%/+24,712% at 40× too-small
+slippage. Corrected figures are 45–56% lower. All profiles remain profitable.
+Maximum's 2021 worst-year at corrected slippage: −25.1% with 49.9% intra-year DD.
+
+Pine file and RESULTS_LEDGER.md updated. RESULTS_LEDGER has a new section:
+"RISK LADDER CORRECTION — 2026-08-02". Pine header and tooltip corrected.
+
+### Remaining priorities:
+
+1. **Fix V3 in voices.py** (Hima Reddy 2-bar test-failure is a management tool,
+   not an entry signal). Re-run the voice gate (H82 equivalent). The net ≥ 6 gate's
+   measured OOS PF improvement (1.879 → 1.954) may shift.
+2. **Test Steve/MMM4x Brinks windows** as a session filter in `backtest/trend.py`:
+   03:30–03:45 ET and 09:30–09:45 ET. Check trade count after applying (below 300 = noise).
+   Also test the 2-hour scratch rule in `backtest/exit_lab.py`.
+3. **Port voice gate (net ≥ 6) to gold_trend_strategy.pine** — only after V3 is fixed.
 
 The data blocker (HuggingFace/Kronos, LSE feed) is unchanged. Everything
-above uses the existing `data/xauusd_15m.csv.gz` XAUUSD dataset.
+above uses the existing `data/xauusd_15m.csv.gz` dataset.

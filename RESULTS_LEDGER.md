@@ -1545,3 +1545,67 @@ XAUUSD 30m, 0.20 pt slippage, $0.07/contract commission, 7 years:
 retracted in July for resting on 117 trades and $34 of profit is now
 validated on 2,370 orders across seven years, at realistic fills, by an
 independent engine, with a deflated Sharpe of 0.9996 and a PBO of 0.099.
+
+---
+
+## ⚠ RISK LADDER CORRECTION — Aggressive and Maximum at 0.20 pt slippage (2026-08-02)
+
+The risk ladder shipped on 2026-07-31 showed Aggressive (+8,627%) and Maximum
+(+24,712%). Those were measured at `slippage=0.05` (the Python default), which
+is 0.05 points — roughly 4× too small for a realistic retail gold fill. The
+Conservative and Balanced profiles were corrected via TradingView live backtest
+on 2026-08-02, but Aggressive and Maximum were never re-run.
+
+These are the corrected Python research figures at `slippage=0.20` (0.20 pt):
+
+**Config:** XAUUSD 30m, Dec 2019 → Jul 2026 (research data window), same
+Donchian entry, EMA+slope+SMA confluence, chandelier 4.24 ATR trail,
+gap-aware fills. Slippage = 0.20 pt. Commission = $0.07/contract.
+
+| profile | adds | risk | n trades | PF | net (research) | max DD |
+|---|---|---|---|---|---|---|
+| Conservative | 3.0 ATR ×2 | 1.0% | 799 | 1.541 | +496.9% | 19.38% |
+| **Balanced** | 1.5 ATR ×4 | 1.0% | 799 | 1.621 | +1,499.8% | 33.35% |
+| **Aggressive** | 1.5 ATR ×4 | 1.5% | 799 | **1.667** | **+4,740%** | **48.98%** |
+| **Maximum** | 1.5 ATR ×4 | 2.0% | 799 | **1.672** | **+10,914%** | **62.99%** |
+
+Note: Balanced and Conservative here differ from the TradingView-validated
+figures (+1,592% / +680%) because TradingView covers Aug 2019 → Aug 2026
+(4 more months) and fills pyramid adds differently. The research agrees to
+~98% on Balanced as shown in the definitive validation above.
+
+### Year-by-year at corrected slippage
+
+| year | Conservative | Balanced | Aggressive | Maximum |
+|---|---|---|---|---|
+| 2020 | +61.4% / 15.8% DD | +104.4% / 22.0% DD | +173.0% / 32.1% DD | +231.6% / 40.7% DD |
+| **2021** | **−2.1%** / 15.5% DD | **−8.2%** / 27.5% DD | **−16.0%** / 39.6% DD | **−25.1%** / 49.9% DD |
+| 2022 | +11.1% / 11.0% DD | +11.1% / 18.7% DD | +14.3% / 27.6% DD | +14.8% / 37.1% DD |
+| 2023 | +15.2% / 18.9% DD | +27.4% / 29.4% DD | +38.2% / 42.1% DD | +46.0% / 53.1% DD |
+| 2024 | +24.8% / 14.3% DD | +33.5% / 21.7% DD | +48.7% / 31.7% DD | +60.8% / 40.9% DD |
+| 2025 | +77.4% / 15.5% DD | +162.9% / 21.8% DD | +303.9% / 31.8% DD | +492.2% / 40.5% DD |
+| 2026 | +33.3% / 8.9% DD | +71.8% / 11.2% DD | +122.4% / 16.9% DD | +178.2% / 22.3% DD |
+
+Format: net% / intra-year DD. All four profiles lose only in 2021.
+
+### What changed and what it means
+
+| profile | old net (0.05 pt) | new net (0.20 pt) | cost of real slippage |
+|---|---|---|---|
+| Conservative | +660% | +497% | −163 pp (−25%) |
+| Balanced | +2,307% | +1,500% | −807 pp (−35%) |
+| Aggressive | +8,627% | +4,740% | −3,887 pp (−45%) |
+| Maximum | +24,712% | +10,914% | −13,798 pp (−56%) |
+
+Return falls by 25–56% across profiles as slippage moves from 0.05 to 0.20 pt.
+The compounding losses are larger for higher-leverage profiles because each stop-out
+costs more relative to unrealised gains. All profiles remain profitable; the
+**structure is not broken, but the headline return is 2–3× lower than the old
+ledger implied.**
+
+**Maximum's worst year (2021) at corrected slippage:** −25.1% net with a
+49.9% intra-year drawdown. That number is the one that decides whether Maximum
+is tradeable, not the +10,914% over seven years.
+
+**The Pine file's risk-profile tooltip still shows the old numbers** and must be
+updated. See update note in the Pine header.

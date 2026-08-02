@@ -146,18 +146,22 @@ bool  autoScale = input.bool(true, "Auto-scale settings to the chart timeframe",
 // Same engine, same entry, same exit. Only how HARD it presses.
 // Full 6.7 years, XAUUSD 30m, gap-aware fills:
 //
-//   profile      adds        risk   net       maxDD   worst yr  PF
-//   Conservative 3 ATR x2    1.0%   +660%     17.7%    -1.5%    1.626
-//   Balanced     1.5 ATR x4  1.0%   +2,307%   29.8%    -6.3%    1.728
-//   Aggressive   1.5 ATR x4  1.5%   +8,627%   42.8%   -12.1%    1.769
-//   Maximum      1.5 ATR x4  2.0%   +24,712%  54.5%   -22.5%    1.764
+//   profile      adds        risk   net        maxDD   worst yr   PF
+//   Conservative 3 ATR x2    1.0%   +497%      19.4%    -2.1%    1.541
+//   Balanced     1.5 ATR x4  1.0%   +1,500%    33.4%    -8.2%    1.621
+//   Aggressive   1.5 ATR x4  1.5%   +4,740%    49.0%   -16.0%    1.667
+//   Maximum      1.5 ATR x4  2.0%   +10,914%   63.0%   -25.1%    1.672
 //
+// CORRECTED 2026-08-02: all four profiles above are at slippage=200 (0.20 pt).
+// The prior build shipped Aggressive/Maximum at slippage=5 (0.005 pt, 40x too
+// small); those showed +8,627%/+24,712% and are invalidated. Real-cost figures
+// are 45-56% lower. All four profiles remain profitable; structure is intact.
 // All four are positive in all five walk-forward slices and all four lose
 // only in 2021. Return roughly triples at each step and so does the pain:
-// Maximum spent 2021 down 22.5% with a 45.8% intra-year drawdown. Choose
+// Maximum spent 2021 down 25.1% with a 49.9% intra-year drawdown. Choose
 // by the drawdown you can hold through, not by the return.
 string riskProf = input.string("Balanced", "Risk profile", options=["Conservative", "Balanced", "Aggressive", "Maximum", "Custom"], group="⓿ Risk Profile",
-     tooltip="Sets risk-per-trade and the add schedule together. Custom uses whatever you set in groups 2 and 3 and ignores this.\n\nCONSERVATIVE +660% at 17.7% drawdown - the config the validation certificate was computed on.\nBALANCED +2,307% at 29.8% - 3.5x the return for 12 points more drawdown, worst year -6.3%. Default, because it is the best return-per-drawdown step on the ladder.\nAGGRESSIVE +8,627% at 42.8%, worst year -12.1%.\nMAXIMUM +24,712% at 54.5%, worst year -22.5% with a 45.8% intra-year drawdown. The largest return measured. Not the one to trade unless you have genuinely sat through a 50% drawdown before.")
+     tooltip="Sets risk-per-trade and the add schedule together. Custom uses whatever you set in groups 2 and 3 and ignores this.\n\nAll figures at 0.20 pt slippage (corrected 2026-08-02). Earlier build showed higher returns because slippage was 40x too small.\n\nCONSERVATIVE +497% at 19.4% drawdown, worst year -2.1%.\nBALANCED +1,500% at 33.4%, worst year -8.2%. Default - best return-per-drawdown step.\nAGGRESSIVE +4,740% at 49.0%, worst year -16.0%.\nMAXIMUM +10,914% at 63.0%, worst year -25.1% with a 49.9% intra-year drawdown. Not the one to trade unless you have genuinely sat through a 50%+ drawdown before.")
 
 // ── ⓫ Audit findings (2026-07-31 expert pass) ──────────────────
 // 35 entry x exit combinations were measured after this build shipped.
