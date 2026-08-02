@@ -351,7 +351,7 @@ answered; it fell off when the context compacted. Still open.
 
 ---
 
-# ►► CURRENT STATE AND NEXT ACTION (2026-07-30)
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-02)
 
 Read this before doing anything. It replaces having the previous
 conversation.
@@ -417,6 +417,31 @@ The LSE API key lived in a gitignored `.env` which does NOT survive a new
 container. For persistence set `LSE_API_KEY` in the environment's own
 variable settings — `backtest/lse_client.py` prefers it over `.env`.
 
+## Session 2026-08-02 — what was done
+
+### ATSH Signals indicator delivered (indicators/at_sentiment_herd_regime.pine)
+- Full CODE_DELIVERY_PROTOCOL Phase 7 sign-off; 1103 lines total
+- AT-Sentiment-Herd composite regime (AT 70%, Sentiment 25%, Herd 5%)
+- EMA crossover BUY/SELL signals gated by regime threshold
+- key_levels_module.pine embedded verbatim (BUG-013 compliance)
+- All ta.* calls unconditional at top level (BUG-004 compliance)
+- All ATSH variables prefixed atsh_ (KL module collision-safe)
+- 7 known limitations in header — signals EXPERIMENTAL / NOT BACKTESTED
+- Committed and pushed on branch claude/wizardly-heisenberg-skwv1a
+- Draft PR #2 created: github.com/kushverma7/Trade_Cartel/pull/2
+
+### Bug fix: trailMultEE typo in gold_trend_trailing.pine (lines 401/404)
+- `trailMultEE` (undeclared) → `trailMultE` (the declared multiplier)
+- Without this fix the trailing stop ratchet referenced an undefined variable
+  on every bar with an open position — OOS results in RESULTS_LEDGER are NOT
+  affected because the Python engine computed stops independently; the typo
+  only affects live TradingView execution
+
+### Session-start protocol status
+- All 11 mandatory files read in order this session (corrects prior session
+  failure to follow CLAUDE.md protocol)
+- Working branch: claude/wizardly-heisenberg-skwv1a (unchanged)
+
 ## Standing discipline (earned the hard way)
 
 - A PF with no trade count and no date range is not a result.
@@ -425,3 +450,5 @@ variable settings — `backtest/lse_client.py` prefers it over `.env`.
 - Trend and HTF filters have made results worse three separate times.
 - A screenshot is not a specification.
 - If the user supplies source, port it — do not reimplement it.
+- The ATSH indicator is a research/display tool, not a trading signal.
+  Do not use it for live entries until it has an OOS backtest row in RESULTS_LEDGER.md.
