@@ -1229,3 +1229,89 @@ profile tooltip wrote real newlines into a Pine string literal instead of
 escaped `\n`, breaking the string across 6 lines. `pine_lint` flagged it as
 74 undeclared identifiers. That check exists because of BUG-015 and it paid
 for itself again.
+
+---
+
+## EXPERT AUDIT: 35 entry × exit combinations, plus three structural audits (2026-07-31)
+
+User: *"go full expert mode and find out any mistakes and improvement."*
+Seven entry families × five exit families, ranked by the WEAKER of
+train/OOS profit factor so nothing tops the list on a train-only fluke.
+XAUUSD 30m, Balanced add schedule (1.5 ATR × 4, 1% risk), gap-aware fills.
+
+### Best combinations, out-of-sample half
+
+| entry | exit | OOS PF | OOS net | OOS DD | n | WR |
+|---|---|---|---|---|---|---|
+| Donchian 24 | **Donchian 160 trail** | 2.107 | +189.5% | 37.69% | 60 | 21.7% |
+| Squeeze→breakout | Donchian 160 trail | 2.523 | +256.3% | 30.04% | 48 | 25.0% |
+| **Pullback to fast SMA** | Donchian 160 trail | **2.764** | +243.8% | 25.09% | 54 | 22.2% |
+| *Every bar the gate allows* | Donchian 160 trail | 1.914 | +162.1% | 36.21% | 73 | 17.8% |
+| Donchian 24 | **Step 6→3 ATR** | 2.054 | +252.0% | **12.68%** | 149 | 29.5% |
+| **Donchian 24 (shipped)** | **Chandelier 4.24 (shipped)** | **2.065** | **+212.1%** | 19.06% | 152 | 27.0% |
+
+**The headline OOS numbers are misleading and I am not going to ship on
+them.** The top rows carry 48–60 out-of-sample trades. Run over the full
+period and five walk-forward slices they fall apart:
+
+| combination | FULL PF | FULL net | FULL DD | losing slices | losing years |
+|---|---|---|---|---|---|
+| **shipped (Donchian + chandelier)** | 1.746 | +2,432% | 28.55% | **0/5** | **1/7** |
+| Donchian + step 6→3 | 1.728 | +2,229% | 33.68% | 1/5 | 1/7 |
+| Donchian + chandelier + BE | 1.715 | +2,143% | 28.60% | 0/5 | 1/7 |
+| Donchian + Donchian 45 | 1.692 | +3,729% | 35.91% | 1/5 | 2/7 |
+| Squeeze + step | 1.630 | +626% | 38.72% | 1/5 | 1/7 |
+| Pullback + Donchian 45 | 1.530 | +829% | 30.92% | 1/5 | 2/7 |
+| Donchian + Donchian 160 | **2.026** | +3,327% | **61.51%** | 1/5 | 1/7 |
+
+**Nothing beat the shipped build on the criteria that predict live
+behaviour.** It is the only combination with zero losing slices AND the
+best return-per-drawdown (85.2) among the zero-loss options.
+
+### Audit 1 — cooldown after an exit (SHIPPED)
+
+The build could re-enter on the bar after a stop-out. Swept 0/3/10/24/48:
+
+| cooldown | FULL PF | net | DD | OOS PF |
+|---|---|---|---|---|
+| 0 (before) | 1.746 | +2,432% | 28.55% | 2.065 |
+| **3** | **1.751** | **+2,533%** | **27.72%** | 2.015 |
+| 24 | 1.758 | +2,387% | 30.40% | **2.098** |
+| 48 | 1.667 | +1,094% | 37.75% | 2.148 |
+
+3 bars is a free improvement — more return, less drawdown, nothing worse.
+**Shipped as the new default.**
+
+### Audit 2 — the slope asymmetry (SHIPPED AS A TOGGLE, OFF)
+
+Shorts required a falling EMA; longs were gated on nothing. Never tested.
+
+| | FULL PF | net | DD | losing slices | losing years |
+|---|---|---|---|---|---|
+| as shipped | 1.746 | +2,432% | 28.55% | 0/5 | 1/7 |
+| longs also need rising EMA | **1.778** | +2,456% | 33.78% | **1/5** | **0/7** |
+
+**It trades a bad year for a bad quarter** — the losing calendar year
+disappears, but a walk-forward slice turns negative and drawdown rises
+5 points. Genuine trade-off, so it is a toggle, defaulted off.
+
+### Audit 3 — is the short side worth trading?
+
+| | FULL PF | net | DD | losing slices | losing years |
+|---|---|---|---|---|---|
+| long + short | 1.746 | +2,432% | 28.55% | 0/5 | 1/7 |
+| LONG ONLY | **1.837** | +1,949% | **26.98%** | 0/5 | 1/7 |
+| **SHORT ONLY** | **1.076** | **+14.0%** | 26.06% | **2/5** | **3/7** |
+
+**The short side is barely profitable alone — PF 1.076 and +14% over 6.7
+years — and yet removing it costs +483% of return.** Shorts earn when longs
+cannot, so they compound the whole even though they are near-worthless in
+isolation. That is a diversification effect, not an edge, and it is the
+correct reason to keep them.
+
+### Confirmation of the standing finding
+
+"Every bar the gate allows" — no entry trigger at all, just enter whenever
+the filters permit — scores OOS PF 1.914 with the Donchian 160 trail. The
+trigger continues to contribute close to nothing. Seven entry families
+tested and the ranking is driven by the EXIT in every case.

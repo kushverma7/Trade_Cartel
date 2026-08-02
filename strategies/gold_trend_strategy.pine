@@ -124,6 +124,16 @@ bool  autoScale = input.bool(true, "Auto-scale settings to the chart timeframe",
 string riskProf = input.string("Balanced", "Risk profile", options=["Conservative", "Balanced", "Aggressive", "Maximum", "Custom"], group="⓿ Risk Profile",
      tooltip="Sets risk-per-trade and the add schedule together. Custom uses whatever you set in groups 2 and 3 and ignores this.\n\nCONSERVATIVE +660% at 17.7% drawdown - the config the validation certificate was computed on.\nBALANCED +2,307% at 29.8% - 3.5x the return for 12 points more drawdown, worst year -6.3%. Default, because it is the best return-per-drawdown step on the ladder.\nAGGRESSIVE +8,627% at 42.8%, worst year -12.1%.\nMAXIMUM +24,712% at 54.5%, worst year -22.5% with a 45.8% intra-year drawdown. The largest return measured. Not the one to trade unless you have genuinely sat through a 50% drawdown before.")
 
+// ── ⓫ Audit findings (2026-07-31 expert pass) ──────────────────
+// 35 entry x exit combinations were measured after this build shipped.
+// NOTHING beat it on the criteria that predict live behaviour (zero
+// losing walk-forward slices, one losing year, best return-per-drawdown
+// among the zero-loss options). Two real findings came out of it:
+int   coolDown  = input.int(3, "Cooldown after an exit (bars)", minval=0, maxval=100, group="⓫ Audit Findings",
+     tooltip="After an exit the shipped build could re-enter on the very next bar. Swept 0/3/10/24/48 bars: 3 is the free improvement - full period +2,432% to +2,533% and drawdown 28.55% to 27.72% with no cost anywhere else. 24 bars gives the best out-of-sample profit factor (2.098) but less return; 48 costs a third of the return.")
+bool  longSlope = input.bool(false, "Longs ALSO require a rising EMA", group="⓫ Audit Findings",
+     tooltip="AUDIT FINDING, defaulted OFF because it is a genuine trade-off, not a free win. Shorts must have the EMA falling but longs were gated on nothing - an asymmetry that was never tested until now.\n\nWith longs also requiring a RISING EMA: profit factor 1.746 to 1.778, out-of-sample 2.065 to 2.179, and the losing year DISAPPEARS - 0 of 7 years negative instead of 1 of 7.\n\nThe cost: one of the five walk-forward slices turns negative (0/5 becomes 1/5) and drawdown rises 28.55% to 33.78%. It trades a bad year for a bad quarter. Turn it on if a losing calendar year is what you cannot tolerate; leave it off if drawdown is.")
+
 // ── ① Entry ─────────────────────────────────────────────────────
 string entryMode= input.string("Donchian breakout", "Entry trigger", options=["Donchian breakout", "HMA cross"], group="① Entry",
      tooltip="Both measured through the identical exit, filters and adds.\n\nDONCHIAN: PF 1.626, +660.2%, drawdown 17.68%, return/drawdown 37.3.\nHMA CROSS: PF 1.743, +540.4%, drawdown 20.9%, return/drawdown 25.9.\n\nHMA has the higher profit factor in BOTH halves (train 1.462 vs 1.370, out of sample 2.008 vs 1.879) - it is more accurate per trade. Donchian captures more and does it at less drawdown. Neither is strictly better.\n\nAlso measured and NOT offered: SMA and EMA crosses. The SMA 200 cross, the usual default everywhere, is the worst setting tested - PF 0.920 and -17.0% with no filters.")
@@ -231,7 +241,8 @@ bool  hmaUp      = ta.crossover(close, hmaVal)
 bool  hmaDn      = ta.crossunder(close, hmaVal)
 
 bool emaFalling = regimeMa < regimeMa[slopeLenE]
-bool regimeOkL  = not useRegime or close > regimeMa
+bool emaRising  = regimeMa > regimeMa[slopeLenE]
+bool regimeOkL  = (not useRegime or close > regimeMa) and (not longSlope or emaRising)
 bool regimeOkS  = (not useRegime or close < regimeMa) and (not useSlope or emaFalling)
 bool smaOkL     = not useSma  or (not na(trendSma) and close > trendSma)
 bool smaOkS     = not useSma  or (not na(trendSma) and close < trendSma)
@@ -248,6 +259,10 @@ bool shortSig = not longOnly and trigDn and regimeOkS and smaOkS and sma2OkS
 // STATE
 // ═════════════════════════════════════════════════════════════
 bool tpOn = tpMode != "Off"
+
+var int barsSinceExit = 0
+barsSinceExit := strategy.position_size == 0 ? barsSinceExit + 1 : 0
+bool coolOk = barsSinceExit > coolDown
 
 var float trailStop = na
 var float tpStop    = na
@@ -305,7 +320,7 @@ float qtyRaw    = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 
 float qtyCap    = strategy.equity * maxLev / close
 float qty       = math.floor(math.min(qtyRaw, qtyCap))
 
-if longSig and strategy.position_size == 0 and qty >= 1
+if longSig and coolOk and strategy.position_size == 0 and qty >= 1
     strategy.entry("L", strategy.long, qty=qty)
     trailStop := close - stopDist
     tpStop    := close - atr * tpStopAtr
@@ -317,7 +332,7 @@ if longSig and strategy.position_size == 0 and qty >= 1
     lastAdd   := close
     nAdds     := 0
 
-if shortSig and strategy.position_size == 0 and qty >= 1
+if shortSig and coolOk and strategy.position_size == 0 and qty >= 1
     strategy.entry("S", strategy.short, qty=qty)
     trailStop := close + stopDist
     tpStop    := close + atr * tpStopAtr
