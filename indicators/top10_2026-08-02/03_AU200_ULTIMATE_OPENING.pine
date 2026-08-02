@@ -1,0 +1,129 @@
+//@version=6
+// ─────────────────────────────────────────────────────────────────────
+//  #3 — AU200 ULTIMATE OPENING SYSTEM
+//  Verified: PF 4.52 | $281,000/8yr | ~24 trades/year
+//  Instrument: AU200 | Timeframe: 5m
+//  Session: 9:50 / 9:55 / 10:00 AEST (three windows)
+//  TP1: 10pts at half position
+//  Trail: 30pts on runner
+//  SL: 15pts initial
+//  Bug fixed: in_window multi-line or → single-line (CE10013)
+// ─────────────────────────────────────────────────────────────────────
+strategy("AU200 · Ultimate Opening", shorttitle="AU200·UO",
+     overlay=true, initial_capital=50000,
+     default_qty_type=strategy.fixed, default_qty_value=2,
+     pyramiding=0, commission_type=strategy.commission.cash_per_contract,
+     commission_value=1.0, process_orders_on_close=true)
+
+// ── INPUTS ──────────────────────────────────────────────────────────
+g0 = "Entry Windows (UTC — AEST is UTC+10 or +11 DST)"
+use_950  = input.bool(true,  "9:50 AEST (23:50 UTC prev day)", group=g0)
+use_955  = input.bool(true,  "9:55 AEST (23:55 UTC prev day)", group=g0)
+use_1000 = input.bool(true,  "10:00 AEST (00:00 UTC)",        group=g0)
+sess_950  = input.session("2350-2351", "9:50 UTC session", group=g0)
+sess_955  = input.session("2355-2356", "9:55 UTC session", group=g0)
+sess_1000 = input.session("0000-0001", "10:00 UTC session", group=g0)
+eod_sess  = input.session("2350-0200", "Full session UTC", group=g0)
+
+g1 = "Exit"
+sl_pts      = input.float(15.0, "SL pts", group=g1)
+tp1_pts     = input.float(10.0, "TP1 pts (half exit)", group=g1)
+trail_pts   = input.float(30.0, "Trail pts", group=g1)
+trail_arm   = input.float(3.0,  "Trail arms after pts profit", group=g1)
+
+// ── SESSION DETECTION (single-line or — CE10013 fix) ─────────────────
+is_950  = not na(time(timeframe.period, sess_950))
+is_955  = not na(time(timeframe.period, sess_955))
+is_1000 = not na(time(timeframe.period, sess_1000))
+in_eod  = not na(time(timeframe.period, eod_sess))
+
+// CE10013 FIX: all on one line
+in_window = (use_950 and is_950) or (use_955 and is_955) or (use_1000 and is_1000)
+new_window = in_window and not in_window[1]
+
+// ── STATE ─────────────────────────────────────────────────────────────
+var int   _st      = 0
+var float _ep      = na
+var float _sl_cur  = na
+var float _peak    = na
+var float _trough  = na
+var bool  _t_arm   = false
+var bool  _tp1done = false
+
+// Midpoint context for direction
+float sess_mid = (ta.highest(high, 24) + ta.lowest(low, 24)) / 2.0
+
+// ── ENTRY ─────────────────────────────────────────────────────────────
+if new_window and _st == 0
+    if close >= sess_mid
+        _st      := 1
+        _ep      := close + 1.0
+        _sl_cur  := _ep - sl_pts
+        _peak    := close
+        _t_arm   := false
+        _tp1done := false
+        strategy.entry("L", strategy.long, qty=2)
+    else
+        _st      := -1
+        _ep      := close - 1.0
+        _sl_cur  := _ep + sl_pts
+        _trough  := close
+        _t_arm   := false
+        _tp1done := false
+        strategy.entry("S", strategy.short, qty=2)
+
+// ── LONG MANAGEMENT ───────────────────────────────────────────────────
+if _st == 1
+    _peak := math.max(_peak, close)
+    float p = close - _ep
+
+    if not _tp1done and p >= tp1_pts
+        strategy.close("L", qty=1, comment="TP1")
+        _sl_cur  := _ep
+        _tp1done := true
+
+    if _tp1done and p >= trail_arm and not _t_arm
+        _t_arm := true
+
+    if _t_arm
+        _sl_cur := math.max(_sl_cur, _peak - trail_pts)
+
+    if close <= _sl_cur
+        strategy.close("L", comment="SL/Trail")
+        _st := 0
+
+// ── SHORT MANAGEMENT ──────────────────────────────────────────────────
+if _st == -1
+    _trough := math.min(_trough, close)
+    float p2 = _ep - close
+
+    if not _tp1done and p2 >= tp1_pts
+        strategy.close("S", qty=1, comment="TP1")
+        _sl_cur  := _ep
+        _tp1done := true
+
+    if _tp1done and p2 >= trail_arm and not _t_arm
+        _t_arm := true
+
+    if _t_arm
+        _sl_cur := math.min(_sl_cur, _trough + trail_pts)
+
+    if close >= _sl_cur
+        strategy.close("S", comment="SL/Trail")
+        _st := 0
+
+// ── EOD ALL STATES ────────────────────────────────────────────────────
+sess_end = in_eod[1] and not in_eod
+if sess_end and _st != 0
+    strategy.close_all(comment="EOD")
+    _st := 0
+
+// ── PLOTS ─────────────────────────────────────────────────────────────
+plot(_st != 0 ? _sl_cur : na, "SL", color=color.new(#FF6D00, 0), linewidth=1, style=plot.style_linebr)
+bgcolor(in_window ? color.new(#00E676, 88) : na, title="Entry Window")
+
+plotshape(new_window and _st == 1,  "L", shape.labelup,   location.belowbar, color=#00E676, textcolor=color.black, text="UO·L", size=size.small)
+plotshape(new_window and _st == -1, "S", shape.labeldown, location.abovebar, color=#FF1744, textcolor=color.white, text="UO·S", size=size.small)
+
+alertcondition(new_window and _st == 1,  "UO Long",  "AU200 ULTIMATE LONG @ {{close}}")
+alertcondition(new_window and _st == -1, "UO Short", "AU200 ULTIMATE SHORT @ {{close}}")

@@ -1,0 +1,152 @@
+//@version=6
+// ─────────────────────────────────────────────────────────────────────
+//  #5 — AU200 UT BOT OPENING SESSION
+//  Verified: PF 4.07 | WR 67.7% | N=4,893 | 2019–2026
+//  Instrument: AU200 | Timeframe: 5m
+//  Session: 9:50–10:35 AEST
+//  Trail: 13pts arms after 3pts profit
+//  1 recovery flip, flip SL=15pts
+//  Predecessor of #1 — flip SL mechanic discovery baseline
+// ─────────────────────────────────────────────────────────────────────
+strategy("AU200 · UT Bot Opening", shorttitle="AU200·UB",
+     overlay=true, initial_capital=50000,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=1, commission_type=strategy.commission.cash_per_contract,
+     commission_value=1.0, process_orders_on_close=true)
+
+// ── INPUTS ──────────────────────────────────────────────────────────
+g0 = "UT Bot"
+ut_key = input.float(1.5, "Key",    step=0.1, group=g0)
+ut_atr = input.int(8,     "ATR Period", group=g0)
+
+g1 = "Session (UTC — 9:50–10:35 AEST = 23:50–00:35 UTC)"
+sess = input.session("2350-0035", "Session UTC", group=g1)
+
+g2 = "Exit"
+sl_pts       = input.float(15.0, "Initial SL pts", group=g2)
+trail_pts    = input.float(13.0, "Trail pts", group=g2)
+trail_arm_pt = input.float(3.0,  "Trail arms after pts", group=g2)
+
+g3 = "Flip"
+use_flip  = input.bool(true,  "Enable 1 recovery flip", group=g3)
+flip_sl   = input.float(15.0, "Flip SL pts (profit side)", group=g3)
+
+// ── UT BOT ───────────────────────────────────────────────────────────
+nLoss = ut_key * ta.atr(ut_atr)
+var float xATS = na
+xATS := na(xATS[1]) ? 0.0 :
+     close > nz(xATS[1]) and close[1] > nz(xATS[1]) ? math.max(xATS[1], close - nLoss) :
+     close < nz(xATS[1]) and close[1] < nz(xATS[1]) ? math.min(xATS[1], close + nLoss) :
+     close > nz(xATS[1]) ? close - nLoss : close + nLoss
+
+pos_ut  = close > xATS ? 1 : -1
+ut_buy  = ta.crossover(pos_ut,  0)
+ut_sell = ta.crossunder(pos_ut, 0)
+
+// ── SESSION ──────────────────────────────────────────────────────────
+in_sess  = not na(time(timeframe.period, sess))
+sess_end = in_sess[1] and not in_sess
+
+// ── STATE ─────────────────────────────────────────────────────────────
+var int   _st    = 0
+var float _ep    = na
+var float _sl    = na
+var float _pk    = na
+var float _tr    = na
+var bool  _t_arm = false
+var bool  _flipd = false
+
+long_ok  = ut_buy  and in_sess and _st == 0
+short_ok = ut_sell and in_sess and _st == 0
+
+// ── ENTRY ─────────────────────────────────────────────────────────────
+if long_ok
+    _st    := 1
+    _ep    := close + 1.0
+    _sl    := _ep - sl_pts
+    _pk    := close
+    _t_arm := false
+    _flipd := false
+    strategy.entry("L", strategy.long)
+
+if short_ok
+    _st    := -1
+    _ep    := close - 1.0
+    _sl    := _ep + sl_pts
+    _tr    := close
+    _t_arm := false
+    _flipd := false
+    strategy.entry("S", strategy.short)
+
+// ── LONG MANAGEMENT ───────────────────────────────────────────────────
+_fl = false
+_fs = false
+
+if _st == 1
+    _pk := math.max(_pk, close)
+    float p = close - _ep
+
+    if p >= trail_arm_pt and not _t_arm
+        _t_arm := true
+
+    if _t_arm
+        _sl := math.max(_sl, _pk - trail_pts)
+
+    if close <= _sl
+        strategy.close("L", comment="SL/Trail")
+        if use_flip and not _flipd
+            float _fep = close - 1.0
+            _ep    := _fep
+            _sl    := _fep + flip_sl   // inverted: ABOVE entry for long flip
+            _st    := -1
+            _tr    := close
+            _t_arm := false
+            _flipd := true
+            _fs    := true
+            strategy.entry("S", strategy.short)
+        else
+            _st := 0
+
+// ── SHORT MANAGEMENT ──────────────────────────────────────────────────
+if _st == -1
+    _tr := math.min(_tr, close)
+    float p2 = _ep - close
+
+    if p2 >= trail_arm_pt and not _t_arm
+        _t_arm := true
+
+    if _t_arm
+        _sl := math.min(_sl, _tr + trail_pts)
+
+    if close >= _sl
+        strategy.close("S", comment="SL/Trail")
+        if use_flip and not _flipd
+            float _fep2 = close + 1.0
+            _ep    := _fep2
+            _sl    := _fep2 - flip_sl  // inverted: BELOW entry for short flip
+            _st    := 1
+            _pk    := close
+            _t_arm := false
+            _flipd := true
+            _fl    := true
+            strategy.entry("L", strategy.long)
+        else
+            _st := 0
+
+// ── EOD ALL STATES ────────────────────────────────────────────────────
+if sess_end and _st != 0
+    strategy.close_all(comment="EOD")
+    _st := 0
+
+// ── PLOTS ─────────────────────────────────────────────────────────────
+plot(xATS, "UT Stop", color=color.new(#9C27B0, 40), linewidth=1, style=plot.style_linebr)
+plot(_st != 0 ? _sl : na, "SL", color=color.new(#FF6D00, 0), linewidth=1, style=plot.style_linebr)
+bgcolor(in_sess ? color.new(#00E5FF, 92) : na, title="Session")
+
+plotshape(long_ok,  "BUY",  shape.labelup,   location.belowbar, color=#00E676, textcolor=color.black, text="BUY",  size=size.small)
+plotshape(short_ok, "SELL", shape.labeldown, location.abovebar, color=#FF1744, textcolor=color.white, text="SELL", size=size.small)
+plotshape(_fl, "FL", shape.labelup,   location.belowbar, color=#9C27B0, textcolor=color.white, text="↺L", size=size.tiny)
+plotshape(_fs, "FS", shape.labeldown, location.abovebar, color=#9C27B0, textcolor=color.white, text="↺S", size=size.tiny)
+
+alertcondition(long_ok,  "Long",  "AU200·UB LONG @ {{close}}")
+alertcondition(short_ok, "Short", "AU200·UB SHORT @ {{close}}")

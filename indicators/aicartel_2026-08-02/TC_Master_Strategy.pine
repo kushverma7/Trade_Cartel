@@ -1,0 +1,430 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0
+// Trade Cartel — Master Strategy Indicator
+//
+// STRATEGIES COMBINED IN THIS INDICATOR:
+//   1. EMA Stack          — BTMM (Steve Mauro) 5/12/50/200/800 alignment
+//   2. VWAP               — Lance Breitstein's "line in the sand" rule
+//   3. Williams %R        — Larry Williams (World Cup Champion, 11,376% return)
+//   4. Session Kill Zones — ICT (London / New York / Sydney)
+//   5. Order Blocks       — SMC / ICT (institutional entry zones)
+//   6. Fair Value Gaps    — ICT IPDA (price delivery imbalances)
+//   7. BOS / CHoCH        — Smart Money market structure
+//   8. Wyckoff Spring     — Richard Wyckoff (spring / upthrust false breakouts)
+//   9. Turtle Breakout    — Richard Dennis (20/55 bar channel breakout)
+//  10. Signal Scoring     — Confluence engine: only fires when 4+ factors align
+//  11. Risk Levels        — Paul Tudor Jones 5:1 R:R + ATR stop placement
+
+//@version=5
+indicator('Trade Cartel — Master Strategy', 'TC Master', overlay=true,
+          max_lines_count=500, max_boxes_count=500, max_labels_count=500, precision=4)
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║                    SECTION 1: INPUTS                         ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ── General ────────────────────────────────────────────────────
+i_atr_len   = input.int(14, 'ATR Length', group='General')
+i_min_score = input.int(4,  'Min Score for Signal', minval=1, maxval=15, group='General',
+              tooltip='Minimum confluence score to trigger a signal. Raise to 5-6 for higher win rate (fewer signals). Each strategy component adds points.')
+i_show_bars = input.bool(true, 'Color Bars by Score', group='General')
+
+// ── EMA Stack (BTMM — Steve Mauro) ────────────────────────────
+i_show_emas = input.bool(true, 'Show EMA Stack', group='EMA Stack (BTMM)')
+i_ema1      = input.int(5,   'EMA 1 (Fast)',    group='EMA Stack (BTMM)')
+i_ema2      = input.int(12,  'EMA 2',           group='EMA Stack (BTMM)')
+i_ema3      = input.int(50,  'EMA 3 (Mid)',     group='EMA Stack (BTMM)')
+i_ema4      = input.int(200, 'EMA 4 (Slow)',    group='EMA Stack (BTMM)')
+i_ema5      = input.int(800, 'EMA 5 (Anchor)',  group='EMA Stack (BTMM)')
+
+// ── VWAP (Lance Breitstein) ────────────────────────────────────
+i_show_vwap = input.bool(true, 'Show VWAP', group='VWAP (Breitstein)')
+
+// ── Williams %R (Larry Williams) ───────────────────────────────
+i_wr_len    = input.int(14, 'Williams %R Period', group='Williams %R (L. Williams)')
+
+// ── ICT Kill Zones (UTC time) ──────────────────────────────────
+i_show_kz   = input.bool(true,  'Show Kill Zones',            group='Kill Zones — UTC Time')
+i_kz_london = input.bool(true,  'London   02:00-05:00 UTC',   group='Kill Zones — UTC Time')
+i_kz_ny     = input.bool(true,  'New York 12:00-15:00 UTC',   group='Kill Zones — UTC Time')
+i_kz_sydney = input.bool(true,  'Sydney   22:00-01:00 UTC',   group='Kill Zones — UTC Time')
+
+// ── Order Blocks (SMC / ICT) ───────────────────────────────────
+i_show_ob   = input.bool(true,  'Show Order Blocks',           group='Order Blocks (SMC)')
+i_ob_str    = input.float(1.5,  'Impulse Strength (x ATR)',    group='Order Blocks (SMC)', step=0.1,
+              tooltip='Min ATR multiple for a candle to qualify as an impulse move. Lower = more OBs detected.')
+
+// ── Fair Value Gaps (ICT) ──────────────────────────────────────
+i_show_fvg  = input.bool(true,  'Show Fair Value Gaps',        group='Fair Value Gaps (ICT)')
+
+// ── Market Structure: BOS / CHoCH ─────────────────────────────
+i_show_ms   = input.bool(true,  'Show BOS / CHoCH Labels',     group='Market Structure (SMC)')
+i_ms_len    = input.int(10,     'Swing Lookback Bars',          group='Market Structure (SMC)', minval=3, maxval=50,
+              tooltip='Number of bars left and right to identify pivot highs/lows for structure analysis.')
+
+// ── Wyckoff Spring / Upthrust ──────────────────────────────────
+i_show_wy   = input.bool(true,  'Show Spring / Upthrust',      group='Wyckoff Method')
+i_wy_range  = input.int(20,     'Range Lookback (bars)',        group='Wyckoff Method', minval=5, maxval=200)
+
+// ── Turtle Trading (Richard Dennis) ───────────────────────────
+i_show_trt  = input.bool(true,  'Show Turtle Breakout Levels', group='Turtle Breakout (R. Dennis)')
+i_trt_s     = input.int(20,     'System 1 Period (20-bar)',     group='Turtle Breakout (R. Dennis)')
+i_trt_l     = input.int(55,     'System 2 Period (55-bar)',     group='Turtle Breakout (R. Dennis)')
+
+// ── Risk Management (Paul Tudor Jones rules) ───────────────────
+i_show_risk = input.bool(true,  'Draw Stop & Target Lines',    group='Risk Management (PTJ Rules)')
+i_sl_atr    = input.float(1.5,  'Stop Loss       (x ATR)',     group='Risk Management (PTJ Rules)', step=0.1)
+i_tp1_atr   = input.float(3.0,  'Target 1  2:1   (x ATR)',    group='Risk Management (PTJ Rules)', step=0.1)
+i_tp2_atr   = input.float(5.0,  'Target 2  3:1   (x ATR)',    group='Risk Management (PTJ Rules)', step=0.1)
+i_tp3_atr   = input.float(7.5,  'Target 3  5:1   (x ATR)',    group='Risk Management (PTJ Rules)', step=0.1,
+              tooltip='Paul Tudor Jones minimum 5:1 R:R rule — will not enter unless 5x profit is possible vs risk.')
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║                  SECTION 2: CALCULATIONS                     ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+atr = ta.atr(i_atr_len)
+
+// ── EMA Stack ──────────────────────────────────────────────────
+ema1 = ta.ema(close, i_ema1)
+ema2 = ta.ema(close, i_ema2)
+ema3 = ta.ema(close, i_ema3)
+ema4 = ta.ema(close, i_ema4)
+ema5 = ta.ema(close, i_ema5)
+
+// Full bullish/bearish stack alignment (BTMM condition)
+ema_bull = ema1 > ema2 and ema2 > ema3 and ema3 > ema4 and ema4 > ema5
+ema_bear = ema1 < ema2 and ema2 < ema3 and ema3 < ema4 and ema4 < ema5
+
+// ── VWAP ───────────────────────────────────────────────────────
+vwap_line  = ta.vwap
+above_vwap = close > vwap_line
+below_vwap = close < vwap_line
+
+// ── Williams %R ────────────────────────────────────────────────
+wr      = ta.wpr(i_wr_len)
+wr_bull = wr > -50 and wr > wr[1]    // rising above midpoint = bullish momentum
+wr_bear = wr < -50 and wr < wr[1]    // falling below midpoint = bearish momentum
+
+// ── Kill Zones (UTC) ───────────────────────────────────────────
+utc_h   = hour(time, 'UTC')
+utc_m   = minute(time, 'UTC')
+t_mins  = utc_h * 60 + utc_m
+
+in_london = i_kz_london and (t_mins >= 120  and t_mins <  300)   // 02:00-05:00 UTC
+in_ny     = i_kz_ny     and (t_mins >= 720  and t_mins <  900)   // 12:00-15:00 UTC
+in_sydney = i_kz_sydney and (t_mins >= 1320 or  t_mins <   60)   // 22:00-01:00 UTC
+in_kz     = in_london or in_ny or in_sydney
+
+// ── Market Structure (Swing H/L → BOS / CHoCH) ─────────────────
+ph = ta.pivothigh(high, i_ms_len, i_ms_len)
+pl = ta.pivotlow (low,  i_ms_len, i_ms_len)
+
+var float last_ph = na
+var float last_pl = na
+
+if not na(ph)
+    last_ph := ph
+if not na(pl)
+    last_pl := pl
+
+bos_bull_raw = not na(last_ph) and ta.crossover (close, last_ph)
+bos_bear_raw = not na(last_pl) and ta.crossunder(close, last_pl)
+
+// Track trend direction for CHoCH (Change of Character = first reversal BOS)
+var bool bull_bias = true
+choch_bull = not bull_bias and bos_bull_raw   // was bearish, now breaks above → CHoCH
+choch_bear = bull_bias     and bos_bear_raw   // was bullish, now breaks below → CHoCH
+
+if bos_bull_raw
+    bull_bias := true
+if bos_bear_raw
+    bull_bias := false
+
+bos_bull = bos_bull_raw and not choch_bull    // continuation BOS (not reversal)
+bos_bear = bos_bear_raw and not choch_bear
+
+// ── Order Blocks (SMC) ─────────────────────────────────────────
+// Impulse = candle body larger than i_ob_str × ATR in one direction
+impulse_up   = (close - open) >= i_ob_str * atr[1] and close > open
+impulse_down = (open - close) >= i_ob_str * atr[1] and close < open
+
+// Bullish OB: last BEARISH candle before a strong bullish impulse
+bull_ob_trig = impulse_up   and close[1] < open[1]
+// Bearish OB: last BULLISH candle before a strong bearish impulse
+bear_ob_trig = impulse_down and close[1] > open[1]
+
+var float bull_ob_top = na
+var float bull_ob_bot = na
+var float bear_ob_top = na
+var float bear_ob_bot = na
+
+if bull_ob_trig
+    bull_ob_top := high[1]
+    bull_ob_bot := low[1]
+if bear_ob_trig
+    bear_ob_top := high[1]
+    bear_ob_bot := low[1]
+
+// Mitigate (invalidate) OB when price closes through it
+if not na(bull_ob_top) and close < bull_ob_bot
+    bull_ob_top := na
+    bull_ob_bot := na
+if not na(bear_ob_top) and close > bear_ob_top
+    bear_ob_top := na
+    bear_ob_bot := na
+
+// Active: price is currently inside the OB zone
+in_bull_ob = not na(bull_ob_top) and low  <= bull_ob_top and close >= bull_ob_bot
+in_bear_ob = not na(bear_ob_top) and high >= bear_ob_bot and close <= bear_ob_top
+
+// ── Fair Value Gaps (ICT IPDA) ─────────────────────────────────
+// 3-candle imbalance pattern
+fvg_bull = low  > high[2]   // bullish FVG: current low above candle[2] high
+fvg_bear = high < low[2]    // bearish FVG: current high below candle[2] low
+
+var float fvg_bull_top = na
+var float fvg_bull_bot = na
+var float fvg_bear_top = na
+var float fvg_bear_bot = na
+
+if fvg_bull
+    fvg_bull_top := low
+    fvg_bull_bot := high[2]
+if fvg_bear
+    fvg_bear_top := low[2]
+    fvg_bear_bot := high
+
+// Mitigate when filled
+if not na(fvg_bull_top) and close < fvg_bull_bot
+    fvg_bull_top := na
+    fvg_bull_bot := na
+if not na(fvg_bear_top) and close > fvg_bear_top
+    fvg_bear_top := na
+    fvg_bear_bot := na
+
+in_bull_fvg = not na(fvg_bull_top) and close <= fvg_bull_top and close >= fvg_bull_bot
+in_bear_fvg = not na(fvg_bear_top) and close >= fvg_bear_bot and close <= fvg_bear_top
+
+// ── Wyckoff Spring & Upthrust ──────────────────────────────────
+// Spring:   low breaks below N-bar support, close recovers above it (with volume)
+// Upthrust: high breaks above N-bar resistance, close reverses below it (with volume)
+prev_low_n  = ta.lowest (low,  i_wy_range)[1]   // lowest of previous N bars (not current)
+prev_high_n = ta.highest(high, i_wy_range)[1]   // highest of previous N bars (not current)
+rel_vol     = volume / ta.sma(volume, 20)        // relative volume (1.0 = average)
+
+spring   = low  < prev_low_n  and close > prev_low_n  and rel_vol >= 1.0
+upthrust = high > prev_high_n and close < prev_high_n and rel_vol >= 1.0
+
+// ── Turtle Breakout Levels (Richard Dennis) ────────────────────
+// System 1: 20-bar channel; System 2: 55-bar channel
+t1_high = ta.highest(high, i_trt_s)[1]   // 20-bar high (excluding current bar)
+t1_low  = ta.lowest (low,  i_trt_s)[1]
+t2_high = ta.highest(high, i_trt_l)[1]   // 55-bar high
+t2_low  = ta.lowest (low,  i_trt_l)[1]
+
+t_long_l  = ta.crossover (close, t2_high)              // System 2 long breakout
+t_short_l = ta.crossunder(close, t2_low)
+t_long_s  = ta.crossover (close, t1_high) and not t_long_l   // System 1 (not already S2)
+t_short_s = ta.crossunder(close, t1_low)  and not t_short_l
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║                 SECTION 3: SIGNAL SCORING                    ║
+// ╚══════════════════════════════════════════════════════════════╝
+//
+//  Component              Bull pts    Bear pts    Source
+//  ─────────────────────────────────────────────────────────────
+//  EMA Stack aligned         +2          +2       BTMM (S. Mauro)
+//  Price vs VWAP             +1          +1       L. Breitstein
+//  Williams %R momentum      +1          +1       L. Williams
+//  Kill Zone timing          +0.5        +0.5     ICT
+//  Inside Order Block        +2          +2       SMC / ICT
+//  Inside Fair Value Gap     +1          +1       ICT IPDA
+//  Break of Structure        +2          +2       SMC
+//  Change of Character       +3          +3       SMC (reversal)
+//  Wyckoff Spring/Upthrust   +3          +3       R. Wyckoff
+//  Turtle Sys2 breakout      +2          +2       R. Dennis
+//  Turtle Sys1 breakout      +1          +1       R. Dennis
+//  ─────────────────────────────────────────────────────────────
+//  Max possible score       ~18.5       ~18.5
+
+bull_score = (ema_bull    ? 2.0 : 0.0) +
+             (above_vwap  ? 1.0 : 0.0) +
+             (wr_bull     ? 1.0 : 0.0) +
+             (in_kz       ? 0.5 : 0.0) +
+             (in_bull_ob  ? 2.0 : 0.0) +
+             (in_bull_fvg ? 1.0 : 0.0) +
+             (bos_bull    ? 2.0 : 0.0) +
+             (choch_bull  ? 3.0 : 0.0) +
+             (spring      ? 3.0 : 0.0) +
+             (t_long_l    ? 2.0 : t_long_s ? 1.0 : 0.0)
+
+bear_score = (ema_bear    ? 2.0 : 0.0) +
+             (below_vwap  ? 1.0 : 0.0) +
+             (wr_bear     ? 1.0 : 0.0) +
+             (in_kz       ? 0.5 : 0.0) +
+             (in_bear_ob  ? 2.0 : 0.0) +
+             (in_bear_fvg ? 1.0 : 0.0) +
+             (bos_bear    ? 2.0 : 0.0) +
+             (choch_bear  ? 3.0 : 0.0) +
+             (upthrust    ? 3.0 : 0.0) +
+             (t_short_l   ? 2.0 : t_short_s ? 1.0 : 0.0)
+
+net_score  = bull_score - bear_score
+long_sig   = net_score >=  i_min_score
+short_sig  = net_score <= -i_min_score
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║                  SECTION 4: PLOTTING                         ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ── EMA Stack ──────────────────────────────────────────────────
+plot(i_show_emas ? ema1 : na, 'EMA 5',   color=color.new(#00E5FF, 0),  linewidth=1)
+plot(i_show_emas ? ema2 : na, 'EMA 12',  color=color.new(#26C6DA, 0),  linewidth=1)
+plot(i_show_emas ? ema3 : na, 'EMA 50',  color=color.new(#FF9800, 0),  linewidth=1)
+plot(i_show_emas ? ema4 : na, 'EMA 200', color=color.new(#EF5350, 0),  linewidth=2)
+plot(i_show_emas ? ema5 : na, 'EMA 800', color=color.new(#AB47BC, 0),  linewidth=2)
+
+// ── VWAP ───────────────────────────────────────────────────────
+plot(i_show_vwap ? vwap_line : na, 'VWAP', color=color.new(#FFEB3B, 0), linewidth=2)
+
+// ── Kill Zone Background ───────────────────────────────────────
+bgcolor(i_show_kz and in_london ? color.new(#4CAF50, 90) : na, title='London Kill Zone')
+bgcolor(i_show_kz and in_ny     ? color.new(#2196F3, 90) : na, title='New York Kill Zone')
+bgcolor(i_show_kz and in_sydney ? color.new(#FF9800, 90) : na, title='Sydney Kill Zone')
+
+// ── Order Block Boxes ──────────────────────────────────────────
+var box ob_bull = na
+var box ob_bear = na
+
+if i_show_ob
+    if bull_ob_trig
+        box.delete(ob_bull)
+        ob_bull := box.new(bar_index - 1, high[1], bar_index, low[1],
+                           border_color=color.new(#4CAF50, 0),
+                           bgcolor     =color.new(#4CAF50, 80),
+                           border_width=1, extend=extend.right)
+    if bear_ob_trig
+        box.delete(ob_bear)
+        ob_bear := box.new(bar_index - 1, high[1], bar_index, low[1],
+                           border_color=color.new(#EF5350, 0),
+                           bgcolor     =color.new(#EF5350, 80),
+                           border_width=1, extend=extend.right)
+
+// ── Fair Value Gap Boxes ───────────────────────────────────────
+var box fvg_bull_bx = na
+var box fvg_bear_bx = na
+
+if i_show_fvg
+    if fvg_bull
+        box.delete(fvg_bull_bx)
+        // Top = current bar's low, Bottom = candle[2]'s high
+        fvg_bull_bx := box.new(bar_index - 2, low, bar_index, high[2],
+                               border_color=color.new(#00BCD4, 20),
+                               bgcolor     =color.new(#00BCD4, 85),
+                               border_width=1, extend=extend.right)
+    if fvg_bear
+        box.delete(fvg_bear_bx)
+        // Top = candle[2]'s low, Bottom = current bar's high
+        fvg_bear_bx := box.new(bar_index - 2, low[2], bar_index, high,
+                               border_color=color.new(#FF5722, 20),
+                               bgcolor     =color.new(#FF5722, 85),
+                               border_width=1, extend=extend.right)
+
+// ── BOS / CHoCH Labels ─────────────────────────────────────────
+if i_show_ms
+    if choch_bull
+        label.new(bar_index, low - atr * 1.2, 'CHoCH', xloc.bar_index, yloc.price,
+                  color=color.new(#00E5FF, 0), textcolor=color.white,
+                  style=label.style_label_up, size=size.small)
+    else if bos_bull
+        label.new(bar_index, low - atr * 0.7, 'BOS', xloc.bar_index, yloc.price,
+                  color=color.new(#4CAF50, 20), textcolor=color.white,
+                  style=label.style_label_up, size=size.tiny)
+
+    if choch_bear
+        label.new(bar_index, high + atr * 1.2, 'CHoCH', xloc.bar_index, yloc.price,
+                  color=color.new(#FF9800, 0), textcolor=color.white,
+                  style=label.style_label_down, size=size.small)
+    else if bos_bear
+        label.new(bar_index, high + atr * 0.7, 'BOS', xloc.bar_index, yloc.price,
+                  color=color.new(#EF5350, 20), textcolor=color.white,
+                  style=label.style_label_down, size=size.tiny)
+
+// ── Wyckoff Spring & Upthrust Labels ──────────────────────────
+if i_show_wy
+    if spring
+        label.new(bar_index, low - atr * 2.0, 'Spring', xloc.bar_index, yloc.price,
+                  color=color.new(#1B5E20, 0), textcolor=color.white,
+                  style=label.style_label_up, size=size.normal)
+    if upthrust
+        label.new(bar_index, high + atr * 2.0, 'Upthrust', xloc.bar_index, yloc.price,
+                  color=color.new(#B71C1C, 0), textcolor=color.white,
+                  style=label.style_label_down, size=size.normal)
+
+// ── Turtle Breakout Channel Lines ─────────────────────────────
+plot(i_show_trt ? t1_high : na, 'Turtle S1 High (20)', color=color.new(#CE93D8, 60), linewidth=1, style=plot.style_stepline)
+plot(i_show_trt ? t1_low  : na, 'Turtle S1 Low  (20)', color=color.new(#CE93D8, 60), linewidth=1, style=plot.style_stepline)
+plot(i_show_trt ? t2_high : na, 'Turtle S2 High (55)', color=color.new(#9C27B0, 30), linewidth=2, style=plot.style_stepline)
+plot(i_show_trt ? t2_low  : na, 'Turtle S2 Low  (55)', color=color.new(#9C27B0, 30), linewidth=2, style=plot.style_stepline)
+
+// ── Main Signal Labels + Risk Lines ───────────────────────────
+if long_sig
+    s = str.tostring(math.round(net_score, 1))
+    label.new(bar_index, low - atr * 3.0, 'LONG  +' + s, xloc.bar_index, yloc.price,
+              color=color.new(#1B5E20, 0), textcolor=color.white,
+              style=label.style_label_up, size=size.large)
+    if i_show_risk
+        sl  = close - i_sl_atr  * atr
+        tp1 = close + i_tp1_atr * atr
+        tp2 = close + i_tp2_atr * atr
+        tp3 = close + i_tp3_atr * atr
+        // Stop Loss (red dashed)
+        line.new(bar_index, sl,  bar_index + 30, sl,
+                 color=color.new(#EF5350, 0), width=2, style=line.style_dashed)
+        // Target 1 — 2:1
+        line.new(bar_index, tp1, bar_index + 30, tp1,
+                 color=color.new(#A5D6A7, 0), width=1, style=line.style_dotted)
+        // Target 2 — 3:1
+        line.new(bar_index, tp2, bar_index + 30, tp2,
+                 color=color.new(#66BB6A, 0), width=1, style=line.style_dotted)
+        // Target 3 — 5:1 (PTJ Rule)
+        line.new(bar_index, tp3, bar_index + 30, tp3,
+                 color=color.new(#1B5E20, 0), width=2, style=line.style_solid)
+
+if short_sig
+    s = str.tostring(math.round(net_score, 1))
+    label.new(bar_index, high + atr * 3.0, 'SHORT  ' + s, xloc.bar_index, yloc.price,
+              color=color.new(#B71C1C, 0), textcolor=color.white,
+              style=label.style_label_down, size=size.large)
+    if i_show_risk
+        sl  = close + i_sl_atr  * atr
+        tp1 = close - i_tp1_atr * atr
+        tp2 = close - i_tp2_atr * atr
+        tp3 = close - i_tp3_atr * atr
+        line.new(bar_index, sl,  bar_index + 30, sl,
+                 color=color.new(#EF5350, 0), width=2, style=line.style_dashed)
+        line.new(bar_index, tp1, bar_index + 30, tp1,
+                 color=color.new(#EF9A9A, 0), width=1, style=line.style_dotted)
+        line.new(bar_index, tp2, bar_index + 30, tp2,
+                 color=color.new(#EF5350, 0), width=1, style=line.style_dotted)
+        line.new(bar_index, tp3, bar_index + 30, tp3,
+                 color=color.new(#B71C1C, 0), width=2, style=line.style_solid)
+
+// ── Bar Coloring by Net Score ──────────────────────────────────
+barcolor(i_show_bars and net_score >=  4 ? color.new(#4CAF50, 50) :
+         i_show_bars and net_score <= -4 ? color.new(#EF5350, 50) : na)
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║                    SECTION 5: ALERTS                         ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+alertcondition(long_sig,   title='TC Long Signal',         message='LONG | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(short_sig,  title='TC Short Signal',        message='SHORT | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(spring,     title='Wyckoff Spring',         message='Wyckoff Spring Detected | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(upthrust,   title='Wyckoff Upthrust',       message='Wyckoff Upthrust Detected | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(choch_bull, title='CHoCH Bullish',          message='Change of Character BULLISH | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(choch_bear, title='CHoCH Bearish',          message='Change of Character BEARISH | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(t_long_l,   title='Turtle Sys2 Long Break', message='Turtle S2 LONG Breakout | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(t_short_l,  title='Turtle Sys2 Short Break',message='Turtle S2 SHORT Breakout | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(in_bull_ob, title='Price at Bullish OB',    message='Price entering Bullish Order Block | {{ticker}} @ {{close}} | TF: {{interval}}')
+alertcondition(in_bear_ob, title='Price at Bearish OB',    message='Price entering Bearish Order Block | {{ticker}} @ {{close}} | TF: {{interval}}')

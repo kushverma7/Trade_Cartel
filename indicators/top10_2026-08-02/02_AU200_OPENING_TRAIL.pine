@@ -1,0 +1,128 @@
+//@version=6
+// ─────────────────────────────────────────────────────────────────────
+//  #2 — AU200 OPENING TRAIL SYSTEM
+//  Verified: PF 4.59 | $247,000/8yr | Max DD only $6,900
+//  Instrument: AU200 | Timeframe: 5m
+//  Session: 10:00 AEST single window
+//  Entry: ORB breakout at 10:00 AEST candle
+//  TP1: immediate half-position lock ($1,000 equiv)
+//  Trail: rides 100–300pt runner moves
+//  Best risk-adjusted system in the library
+// ─────────────────────────────────────────────────────────────────────
+strategy("AU200 · Opening Trail", shorttitle="AU200·OT",
+     overlay=true, initial_capital=50000,
+     default_qty_type=strategy.fixed, default_qty_value=2,
+     pyramiding=0, commission_type=strategy.commission.cash_per_contract,
+     commission_value=1.0, process_orders_on_close=true)
+
+// ── INPUTS ──────────────────────────────────────────────────────────
+g0 = "Session (UTC)"
+entry_sess   = input.session("0000-0001", "10:00 AEST entry window (UTC 00:00)", group=g0)
+eod_sess     = input.session("0000-0200", "Full session for EOD close", group=g0)
+
+g1 = "Position Sizing"
+contracts = input.int(2, "Contracts (half exits on TP1)", minval=2, step=2, group=g1)
+
+g2 = "Exit"
+sl_pts       = input.float(15.0, "Initial SL pts",        group=g2)
+tp1_pts      = input.float(10.0, "TP1 pts (half exit)",   group=g2)
+trail_pts    = input.float(30.0, "Trail pts (runner)",    group=g2)
+trail_arm_pts = input.float(3.0, "Trail arms after pts",  group=g2)
+
+// ── SESSION LOGIC ────────────────────────────────────────────────────
+in_entry_window = not na(time(timeframe.period, entry_sess))
+in_full_session = not na(time(timeframe.period, eod_sess))
+
+// ── ATR FOR CONTEXT ──────────────────────────────────────────────────
+atr14 = ta.atr(14)
+
+// ── STATE ────────────────────────────────────────────────────────────
+var int   _st       = 0
+var float _ep       = na
+var float _sl_cur   = na
+var float _peak     = na
+var float _trough   = na
+var bool  _t_armed  = false
+var bool  _tp1_done = false
+
+// ── ENTRY: first bar of 10:00 AEST window ────────────────────────────
+new_bar = in_entry_window and not in_entry_window[1]
+
+if new_bar and _st == 0
+    // Direction determined by close vs previous session midpoint
+    float sess_mid = (ta.highest(high, 12) + ta.lowest(low, 12)) / 2.0
+    if close >= sess_mid
+        _st       := 1
+        _ep       := close + 1.0
+        _sl_cur   := _ep - sl_pts
+        _peak     := close
+        _t_armed  := false
+        _tp1_done := false
+        strategy.entry("L", strategy.long, qty=contracts)
+    else
+        _st       := -1
+        _ep       := close - 1.0
+        _sl_cur   := _ep + sl_pts
+        _trough   := close
+        _t_armed  := false
+        _tp1_done := false
+        strategy.entry("S", strategy.short, qty=contracts)
+
+// ── LONG MANAGEMENT ──────────────────────────────────────────────────
+if _st == 1
+    _peak := math.max(_peak, close)
+    float profit = close - _ep
+
+    // TP1: half-exit, lock profits immediately
+    if not _tp1_done and profit >= tp1_pts
+        strategy.close("L", qty=contracts / 2, comment="TP1·half")
+        _sl_cur   := _ep
+        _tp1_done := true
+
+    // Trail arms after buffer
+    if _tp1_done and profit >= trail_arm_pts and not _t_armed
+        _t_armed := true
+
+    if _t_armed
+        _sl_cur := math.max(_sl_cur, _peak - trail_pts)
+
+    // SL
+    if close <= _sl_cur
+        strategy.close("L", comment="SL/Trail")
+        _st := 0
+
+// ── SHORT MANAGEMENT ─────────────────────────────────────────────────
+if _st == -1
+    _trough := math.min(_trough, close)
+    float profit2 = _ep - close
+
+    if not _tp1_done and profit2 >= tp1_pts
+        strategy.close("S", qty=contracts / 2, comment="TP1·half")
+        _sl_cur   := _ep
+        _tp1_done := true
+
+    if _tp1_done and profit2 >= trail_arm_pts and not _t_armed
+        _t_armed := true
+
+    if _t_armed
+        _sl_cur := math.min(_sl_cur, _trough + trail_pts)
+
+    if close >= _sl_cur
+        strategy.close("S", comment="SL/Trail")
+        _st := 0
+
+// ── EOD CLOSE — all states ────────────────────────────────────────────
+sess_end = in_full_session[1] and not in_full_session
+if sess_end and _st != 0
+    strategy.close_all(comment="EOD")
+    _st := 0
+
+// ── PLOTS ─────────────────────────────────────────────────────────────
+plot(_st != 0 ? _sl_cur : na, "SL/Trail", color=color.new(#FF6D00, 0), linewidth=1, style=plot.style_linebr)
+bgcolor(in_entry_window ? color.new(#00E676, 92) : na, title="Entry Window")
+
+plotshape(new_bar and _st == 1, "LONG",  shape.labelup,   location.belowbar, color=#00E676, textcolor=color.black, text="OPEN·L", size=size.small)
+plotshape(new_bar and _st == -1,"SHORT", shape.labeldown, location.abovebar, color=#FF1744, textcolor=color.white, text="OPEN·S", size=size.small)
+
+alertcondition(new_bar and _st == 1,  "Opening Long",  "AU200 OPENING LONG @ {{close}}")
+alertcondition(new_bar and _st == -1, "Opening Short", "AU200 OPENING SHORT @ {{close}}")

@@ -378,3 +378,133 @@ Which it is must be settled before use, not assumed.
 Also carries unexplained magic constants (`* 40`, `* 0.312`, `> 100`), an
 unusually high `ADX > 40` gate, and a promotional Telegram table — it is an
 unvetted public script, not validated work.
+
+---
+
+# Second pass — what the first pass missed
+
+The first pass read the PDFs and markdown in full but only **grep-scanned** the
+Pine files and never opened `AU200_Strategy_Report.pdf`,
+`daily_opening_report.pdf` or `au200_trail_strategy.pine`. Corrected here.
+
+## CORRECTION: the flip stop is NOT inverted in the archived Pine
+
+`AU200_Strategy_Report.pdf` describes the flip mechanism as an inverted stop:
+
+> "Flip formula: nsl = xp + nd × sl × mult. Long stopped → flip SHORT → SL
+> placed BELOW entry (xp − 22.5) → fires as immediate take-profit. The SL is
+> already in profit territory the moment the flip opens. That is why WR is
+> 95%+."
+
+A stop below entry on a short is indeed a guaranteed take-profit, and that
+would fully explain a 95.6% flip win rate. **But the archived Pine does not
+do this.** In `01_AU200_MASTER_SYSTEM.pine` and `05_AU200_UTBOT_OPENING.pine`:
+
+```
+// long stopped -> flip short
+_sl_cur := _flip_ep + flip_sl      // ABOVE entry, for a SHORT — correct
+_st     := -1
+
+// short stopped -> flip long
+_sl_cur := _flip_ep3 - flip_sl     // BELOW entry, for a LONG — correct
+_st     := 1
+```
+
+Both signs are conventionally correct. The misleading part is cosmetic: the
+input is labelled "Flip SL pts (profit side)" and a comment reads
+"// inverted", while the arithmetic is standard.
+
+So the inversion the PDF describes belongs to the Python engine
+`ema_hybrid_v2` — which `au200_trading_system_requirements.pdf` independently
+lists as a known bug ("Flip SL signs inverted in ema_hybrid_v2 — caused
+5,000+ cascading trades") and which was never pushed. The nine-row table came
+from that engine. The Pine files are the later, corrected builds.
+
+## The real defect in the Pine: stops are tested against CLOSE, not LOW/HIGH
+
+```
+if close <= _sl_cur          // long stop
+if close >= _sl_cur          // short stop
+```
+
+The stop is only honoured if the **close** violates it. A bar can trade fifty
+points through the stop intrabar and, if it closes back on the right side,
+the position survives untouched and the loss never appears.
+
+This explains the identical-loss finding far better than any fill-model
+assumption: losses cannot exceed the stop distance measured close-to-close,
+so they collapse onto one value. It systematically understates every loss,
+and on the ASX opening bar — the gappiest bar of the day — it understates
+them most. Registered behaviour class: same family as BUG-018, but the cause
+is the *test*, not the fill.
+
+## `AU200_Strategy_Report.pdf` — never opened in the first pass
+
+This is the source of the nine-row screenshot table, and it states the
+decisive fact plainly:
+
+> "Without flips, the system loses money. Flips are not a recovery tool —
+> they ARE the strategy. The first entry (WR 35.4%) is bait."
+
+| max flips | N | WR | PF | net |
+|---|---|---|---|---|
+| **0** | 2,714 | 37.8% | **0.79** | **−$369,270** |
+| 1 | 3,878 | 56.9% | 2.23 | $2,181,130 |
+| 2 | 4,893 | 67.7% | 4.07 | $5,142,420 |
+| 3 | 5,906 | 73.3% | 5.41 | $7,339,270 |
+
+**The underlying strategy loses money.** Every dollar of the headline comes
+from the flip layer, whose win rate the report itself attributes to a stop
+placed in profit territory. That is the whole nine-row table in one line.
+
+Three further findings in it are genuinely useful:
+
+- **EMA filters raise PF and lower net, every time** — +0.3 PF for −$1.4M to
+  −$1.8M net across five filter variants. This independently reproduces this
+  repo's own standing finding on a different instrument and a different
+  engine. Cross-validation of "never optimise profit factor alone."
+- **Fixed TP + flip was negative in every configuration tested** (PF 0.85–0.89
+  across TP 10–20 × SL 10–20 × flips 0–3). Consistent with BUG-017.
+- **Early profit-taking destroys trend systems**: TP1 at EMA8 pierce returned
+  14.6% WR and −$427,792, while holding to end of day returned 83.3% WR and
+  +$1,170,926 on the same signals.
+
+It also **contradicts the rest of the archive on the ASX open**: it says
+dropping the 9:50 bar gains $740k because "9:50 = ASX open, max noise, wide
+spreads, false crossovers", while `au200_open_trade_report.pdf` claims
+"tight spread at open (~1pt), ensuring accurate fills and reduced slippage"
+and the ultimate/trail reports trade 9:50 deliberately.
+
+## `TC_Opening_Session.pine` — the best-documented file in the entire upload
+
+XAUUSD, 5m, 5.5 years, 1,415 days. Two setups with modest, plausible numbers
+(London Close Fade 57.2% WR / +0.72pt expectancy; NY ORB with a ≤10pt
+pre-range filter, 50% WR / +0.91pt), and — uniquely in this archive — an
+explicit list of what was tested and removed:
+
+> Judas Swing to Asia target: 1–2% WR · ORB without filter: 27–31% WR
+> · Narrow Asia range filter: no improvement · Directional bias: 52% coin
+> flip · NY following London: 52% coin flip
+
+Negative results reported with numbers, on our own instrument. This is the
+one file here that follows the repo's own standards, and its expectancies are
+small enough to be credible.
+
+## Other second-pass notes
+
+- `au200_trail_strategy.pine` uses correct stop signs (`close − sl_pts` long,
+  `close + sl_pts` short) and has no flip layer. It is the clean variant.
+- `Dialectic_Engine_v4_Flip.pine`'s "flip" means *opposite signal exits the
+  trade* — an exit rule, not the stop-and-reverse engine. Do not conflate them.
+- `daily_opening_report.pdf` is a further variant: N=171, WR 76%, PF 1.78,
+  +514pts, MaxDD −53pts. It belongs to the fixed-TP family (PF ~1.7–1.8), not
+  the trail family (PF ~4.5).
+- `STRATEGY_EXTRACTION_PROTOCOL.md` is byte-identical to the repo's copy.
+- `THE_CONFLUENCE_STRATEGY.md` is this repo's own AMDM document. It is honest
+  about itself — labels its expectancy table "ESTIMATES… not backtested",
+  applies a 20–40% haircut, and states a 55.4% probability of significant
+  drawdown in six months. It remains untested.
+- `TC_Master_Strategy.pine` stacks eleven named methods into one 0–18.5 score.
+  Its structure is sound (`ta.pivothigh/low`, `[1]`-offset Turtle and Wyckoff
+  ranges avoid BUG-015) but the component weights are asserted, never
+  measured, and nothing in the archive tests them.
