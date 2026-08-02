@@ -417,6 +417,17 @@ The LSE API key lived in a gitignored `.env` which does NOT survive a new
 container. For persistence set `LSE_API_KEY` in the environment's own
 variable settings — `backtest/lse_client.py` prefers it over `.env`.
 
+CONFIRMED 2026-07-31 on a fresh container, running
+`python3 -m backtest.lse_client --check`: `.env` is gone and `LSE_API_KEY` is
+unset, so the client exits at the credential gate before any network call.
+Independently, `curl https://api.londonstrategicedge.com/` still returns
+`CONNECT tunnel failed, response 403`, and the agent proxy's own status
+endpoint logs the denial as `connect_rejected` for
+`api.londonstrategicedge.com:443`. Both blockers are live at once — setting
+the key alone will not produce data, and allowlisting alone will not either.
+The `lse-data` client itself is installed and importable (v0.14.0), so no code
+work is pending here; this is purely environment configuration.
+
 ## Standing discipline (earned the hard way)
 
 - A PF with no trade count and no date range is not a result.
