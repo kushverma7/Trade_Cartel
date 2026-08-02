@@ -1,0 +1,322 @@
+AU200 Trade Cartel — Full System Requirements
+Everything discussed across the entire session
+1. INSTRUMENT
+ Market: AU200 (ASX 200 Index CFD)
+ Timeframe: 5-minute chart
+ Broker/Data: Capital.com on TradingView
+ Contract value: $100 AUD per point
+ Commission: 1 point per contract (included in all backtest results)
+ Currency: AUD
+ Initial capital: $50,000 AUD
+ Quantity: 1 contract fixed
+2. THE INDICATOR — DIALECTIC ENGINE v4 (DE v4)
+The actual indicator is Dialectic Engine v4 — a custom proprietary indicator already built and stored in
+DE_v4_V2.pine. It is NOT UT Bot.
+DE v4 generates four signal types:
+ TREND BUY → go LONG
+ TREND SELL → go SHORT
+ REV BUY → SKIP (do not trade)
+ REV SELL → SKIP (do not trade)
+Only TREND signals are used. REV signals are ignored entirely.
+DE v4 Internal Components & Exact Parameters
+Component
+Parameter
+Value
+SuperTrend
+ATR Period
+97
+SuperTrend
+Multiplier
+3.1
+AlphaTrend
+Period
+14
+AlphaTrend
+Coefficient
+1.0
+AlphaTrend
+Volume mode
+MFI (use RSI if no volume)
+EMA Fast
+Period
+9
+EMA Mid
+Period
+21
+EMA Slow
+Period
+50
+EMA BBSR (trend bias)
+Period
+200
+RSI
+Length
+14
+RSI
+Bull zone
+45 – 70
+RSI
+Bear zone
+30 – 55
+
+MACD
+Fast
+8
+MACD
+Slow
+17
+MACD
+Signal
+9
+Confluences required
+Min of 5
+3
+DE v4 TREND Signal Logic
+Hard gate (ALL 3 must pass for a TREND signal):
+ LONG gate: SuperTrend bullish + price above EMA200 + EMA50 rising
+ SHORT gate: SuperTrend bearish + price below EMA200 + EMA50 falling
+Confluence scoring (need min 3 of 5):
+ SuperTrend bullish/bearish
+ AlphaTrend continuously bullish/bearish (AT > AT[2] > AT[4])
+ Price above/below EMA200
+ RSI in bull zone (45-70) or bear zone (30-55)
+ MACD line above/below signal line
+TREND BUY fires when: hard gate passes + score ≥ 3
+TREND SELL fires when: hard gate passes + score ≥ 3
+The Pine code is already in research/DE_v4_V2.pine. Any strategy should import or replicate this logic
+exactly.
+3. OPENING TRADE SYSTEM
+Source file: research/open_trade.pine (indicator) and research/opening_system_report.pdf
+Entry Rules
+1. Time: 9:50 AM + 9:55 AM + 10:00 AM AEST — all three bars
+- Timezone: "Australia/Sydney" (handles AEST UTC+10 and AEDT UTC+11 automatically)
+- Do NOT use hardcoded "UTC+10" — this fires 1 hour early Oct–Apr during daylight saving
+2. Days: All 5 days Monday–Friday
+- Best day: Tuesday (WR 81.6%, PF 2.50)
+- 2nd best: Friday (WR 75.0%, PF 1.69)
+3. Signal: DE v4 TREND BUY → LONG. TREND SELL → SHORT. Skip REV.
+4. Entry execution: Enter at open of the NEXT bar after the signal bar closes
+5. Max trades: 1 trade per session day. Once entered, no more entries until next day.
+Exit Rules
+ Stop Loss: 15 points fixed. Always. No exceptions.
+ Take Profit Option A (High Win-Rate): 10 points
+ Take Profit Option B (Max Net): 20 points
+ No trailing stop in this system. Fixed TP and SL only.
+
+Expected Backtest Results (2016–2026, 10 years)
+Mode
+Days
+TP
+Trades
+Win Rate
+Profit Factor
+Net (pts)
+Net ($)
+High-WR
+All 5
+10
+242
+75.6%
+1.74
++703
++$70,300
+Max-Net
+All 5
+20
+242
+59.1%
+1.72
++1,133
++$113,300
+High-WR
+Tue+Fri
+10
+87
+79.3%
+2.16
++333
++$33,300
+Max-Net
+Tue+Fri
+20
+87
+65.5%
+2.26
++603
++$60,300
+Max drawdown (TP=10, all days): -55 pts (-$5,500)
+Max drawdown (TP=20, all days): -123 pts (-$12,300)
+Every winning trade = exactly +9 pts after commission (TP hit).
+Every losing trade = exactly -16 pts after commission (SL hit).
+This confirms clean fixed TP/SL exits with no partial fills.
+Yearly Breakdown (TP=10, All Days)
+Year
+Trades
+WR
+PF
+Net pts
+2016
+21
+71%
+1.41
++39
+2017
+26
+73%
+1.53
++59
+2018
+24
+79%
+2.14
++91
+2019
+26
+81%
+2.36
++109
+2020
+24
+75%
+1.69
++66
+2021
+30
+77%
+1.85
++95
+2022
+24
+88%
+3.94
++141
+2023
+21
+67%
+1.12
++14
+2024
+13
+62%
+0.90
+-8
+2025
+18
+67%
+1.12
++12
+2026
+15
+87%
+3.66
++85
+4. MASTER SYSTEM (13 UTC WINDOWS)
+Source file: research/master_system.pdf
+Trades specific UTC hour + day combinations. Two operating modes:
+Trend Mode
+ No take profit — hold until next DE v4 signal flip
+ Win rate: 38%
+ Profit Factor: 2.85
+ Stop Loss: 15 pts always
+Scalp Mode
+
+ Only activates when ATR(20) ≥ 6
+ Take Profit: 30 pts
+ Stop Loss: 15 pts
+ Win rate: 75%
+The 13 Proven UTC Windows
+Direction
+UTC Hour
+Day
+BUY only
+05:00
+Friday
+BUY only
+01:00
+Tuesday
+BUY only
+01:00
+Friday
+BUY only
+03:00
+Wednesday
+BUY only
+03:00
+Thursday
+BUY only
+04:00
+Wednesday
+SELL only
+05:00
+Monday
+SELL only
+05:00
+Tuesday
+SELL only
+05:00
+Thursday
+SELL only
+04:00
+Thursday
+SELL only
+23:00
+Monday
+SELL only
+23:00
+Tuesday
+ANY direction
+14:00
+Monday
+Master System results (DE v4 V2, 2016–2026):
+ N=328, WR=38.4%, PF=2.85, Net=+4,844 pts, MaxDD=-184 pts
+5. MONTHLY REPORT SYSTEM
+Source file: research/monthly_report.pdf — DE v4 V2 BASE
+ Period: 2019–2026
+ Total trades: 213
+ Win Rate: 42.7%
+ Profit Factor: 1.85
+ Net result: +2,691 pts
+ Max Drawdown: -407 pts
+6. FILES ALREADY IN THE REPOSITORY
+All files are in /research/ folder on branch claude/amazing-johnson-ad1h2r:
+File
+Description
+`DE_v4_V2.pine`
+The actual DE v4 indicator (full source code)
+
+`DE_v4_P1P2.pine`
+DE v4 with Ultimate Windows filter
+`open_trade.pine`
+Opening trade indicator (simplified proxy signal)
+`opening_system_report.pdf`
+Opening system PDF with full stats
+`master_system.pdf`
+13-window master system PDF
+`monthly_report.pdf`
+Monthly report PDF
+`open_trade_report.pdf`
+Open trade detailed report
+`de_v4_backtest.py`
+Python backtest of DE v4
+`opening_system_report.py`
+Python backtest of opening system
+`master_system.py`
+Python backtest of master system
+7. WHAT WAS WRONG WITH EVERY VERSION BUILT
+1. UT Bot — completely wrong indicator system. DE v4 is the real system.
+2. UTC+10 hardcoded — fires 1 hour early Oct–Apr. Must use Australia/Sydney.
+3. Flip SL signs inverted in ema_hybrid_v2 — caused 5,000+ cascading trades.
+4. process_orders_on_close=true — entry and exit processed on same bar close. Must be false so entry
+fills at next bar open per PDF rule.
+5. Approximate signal — EMA200+RSI only is not DE v4. Must use the real engine.
+6. 1-month backtest — not representative. Must use "All" (full history 2016–2026).
+8. WHAT THE NEXT AI NEEDS TO BUILD
+A TradingView Pine Script v6 strategy that:
+1. Loads or replicates the DE v4 signal engine exactly (from DE_v4_V2.pine)
+2. Filters for TREND signals only (ignore REV)
+3. Checks for signal at 9:50, 9:55, 10:00 AM bars using "Australia/Sydney" timezone
+4. Enters at the open of the next bar (process_orders_on_close=false)
+5. Sets TP=10pts and SL=15pts (fixed, no trailing)
+6. Allows max 1 trade per session day
+7. All 5 days on by default with toggles
+8. Backtests to ~242 trades over 2016–2026 with WR ~75.6% and PF ~1.74

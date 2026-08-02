@@ -1,0 +1,210 @@
+//@version=6
+indicator("AU200 Opening Trail System", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ─── INPUTS ──────────────────────────────────────────────────────────────────
+grp1 = "① Entry (10:00 AM AEST = 00:00 UTC)"
+// Only 10:00 AEST fires the signal
+
+grp2 = "② Exit Levels"
+sl_pts    = input.float(15.0, "Initial SL (pts)",  minval=1, group=grp2)
+tp1_pts   = input.float(10.0, "TP1 — half exit (pts)", minval=1, group=grp2)
+trail_pts = input.float(30.0, "Trail SL distance (pts)", minval=1, group=grp2)
+trail_trig= input.float(5.0,  "Trail activates after N pts profit", minval=1, group=grp2)
+
+grp3 = "③ Signal Filters"
+use_ema = input.bool(true, "EMA 200 filter", group=grp3)
+use_rsi = input.bool(true, "RSI 14 > / < 50", group=grp3)
+use_st  = input.bool(true, "SuperTrend filter", group=grp3)
+
+grp4 = "④ Display"
+show_tp1_line  = input.bool(true, "Show TP1 line",   group=grp4)
+show_trail_line= input.bool(true, "Show Trail SL line",group=grp4)
+show_sl_line   = input.bool(true, "Show SL line",     group=grp4)
+line_bars      = input.int(60,    "Line length (bars)",group=grp4, minval=5)
+
+// ─── INDICATORS ──────────────────────────────────────────────────────────────
+ema200              = ta.ema(close, 200)
+rsi14               = ta.rsi(close, 14)
+[st_val, st_dir]    = ta.supertrend(3.1, 97)
+st_bull             = st_dir < 0
+st_bear             = st_dir > 0
+
+// Confluence filters
+ema_ok_long  = not use_ema or close > ema200
+ema_ok_short = not use_ema or close < ema200
+rsi_ok_long  = not use_rsi or rsi14 > 50
+rsi_ok_short = not use_rsi or rsi14 < 50
+st_ok_long   = not use_st  or st_bull
+st_ok_short  = not use_st  or st_bear
+
+bull_signal = ema_ok_long  and rsi_ok_long  and st_ok_long
+bear_signal = ema_ok_short and rsi_ok_short and st_ok_short
+
+// ─── TIME FILTER — 10:00 AM AEST (= 00:00 UTC) ───────────────────────────────
+bar_hour = hour(time, "UTC+10")
+bar_min  = minute(time)
+is_1000  = bar_hour == 10 and bar_min == 0
+
+long_entry  = is_1000 and bull_signal
+short_entry = is_1000 and bear_signal
+
+// ─── TRADE STATE (trailing SL logic) ─────────────────────────────────────────
+var float entry_price = na
+var int   trade_dir   = 0      // 1=long, -1=short, 0=flat
+var float best_price  = na     // best price reached
+var float cur_sl      = na     // current SL level (moves with trail)
+var bool  tp1_done    = false  // has TP1 been hit?
+var line  ln_sl_live  = na     // live trailing SL line
+
+// Open new trade
+if long_entry and trade_dir == 0
+    entry_price := close
+    trade_dir   := 1
+    best_price  := close
+    cur_sl      := close - sl_pts
+    tp1_done    := false
+
+if short_entry and trade_dir == 0
+    entry_price := close
+    trade_dir   := -1
+    best_price  := close
+    cur_sl      := close + sl_pts
+    tp1_done    := false
+
+// Manage open trade
+if trade_dir == 1
+    best_price := math.max(best_price, high)
+    // Activate trailing SL
+    if (best_price - entry_price) >= trail_trig
+        trail_sl_level = best_price - trail_pts
+        cur_sl := math.max(cur_sl, trail_sl_level)
+    // Check SL hit
+    if low <= cur_sl
+        trade_dir   := 0
+        entry_price := na
+        best_price  := na
+        cur_sl      := na
+        tp1_done    := false
+
+if trade_dir == -1
+    best_price := math.min(best_price, low)
+    if (entry_price - best_price) >= trail_trig
+        trail_sl_level = best_price + trail_pts
+        cur_sl := math.min(cur_sl, trail_sl_level)
+    if high >= cur_sl
+        trade_dir   := 0
+        entry_price := na
+        best_price  := na
+        cur_sl      := na
+        tp1_done    := false
+
+// ─── PLOT ─────────────────────────────────────────────────────────────────────
+plot(ema200, "EMA 200", color=color.new(color.orange, 40), linewidth=1)
+
+// Live trailing SL
+plot(trade_dir != 0 ? cur_sl : na, "Trail SL",
+     color=color.new(#FF9800, 0), linewidth=2, style=plot.style_linebr)
+
+// Entry signals
+plotshape(long_entry,  title="▲ LONG",  style=shape.triangleup,
+          location=location.belowbar, color=#00FFBB, size=size.normal, text="LONG")
+plotshape(short_entry, title="▼ SHORT", style=shape.triangledown,
+          location=location.abovebar, color=#FF3D57, size=size.normal, text="SHORT")
+
+// Opening window highlight
+bgcolor(is_1000 ? color.new(color.yellow, 88) : na, title="10:00 AEST Window")
+
+// ─── DRAW LEVELS ON ENTRY ─────────────────────────────────────────────────────
+if long_entry
+    ep = close
+    // Entry
+    line.new(bar_index, ep, bar_index + line_bars, ep,
+             color=color.new(color.white, 50), width=1, style=line.style_dotted)
+    // TP1
+    if show_tp1_line
+        ln = line.new(bar_index, ep + tp1_pts, bar_index + line_bars, ep + tp1_pts,
+                      color=color.new(#00FFBB, 0), width=2, style=line.style_dashed)
+        label.new(bar_index + 2, ep + tp1_pts,
+                  "TP1  +" + str.tostring(tp1_pts,"#") + "pts  ($" + str.tostring(tp1_pts*100,"#,###") + ")  ½ EXIT",
+                  color=color.new(#00FFBB,70), textcolor=#00FFBB, style=label.style_label_left, size=size.small)
+    // Trail zone annotation
+    if show_trail_line
+        label.new(bar_index + 2, ep - sl_pts * 0.4,
+                  "Trail=" + str.tostring(trail_pts,"#") + "pts\nactivates @+" + str.tostring(trail_trig,"#") + "pts",
+                  color=color.new(#FF9800,70), textcolor=#FF9800, style=label.style_label_left, size=size.small)
+    // SL
+    if show_sl_line
+        line.new(bar_index, ep - sl_pts, bar_index + line_bars, ep - sl_pts,
+                 color=color.new(#FF3D57, 0), width=2, style=line.style_solid)
+        label.new(bar_index + 2, ep - sl_pts,
+                  "SL  -" + str.tostring(sl_pts,"#") + "pts  (-$" + str.tostring(sl_pts*100,"#,###") + ")  HARD STOP",
+                  color=color.new(#FF3D57,70), textcolor=#FF3D57, style=label.style_label_left, size=size.small)
+    // Main entry label
+    label.new(bar_index, ep - sl_pts - 3,
+              "▲ LONG — 10:00 AEST\nEntry: " + str.tostring(ep, "#.##") +
+              "\nTP1:  +" + str.tostring(tp1_pts,"#") + "pts  (½ position)" +
+              "\nTrail: " + str.tostring(trail_pts,"#") + "pts behind peak" +
+              "\nSL:   -" + str.tostring(sl_pts,"#") + "pts  (full stop)",
+              style=label.style_label_up, color=#00FFBB, textcolor=color.black, size=size.small)
+
+if short_entry
+    ep = close
+    line.new(bar_index, ep, bar_index + line_bars, ep,
+             color=color.new(color.white, 50), width=1, style=line.style_dotted)
+    if show_tp1_line
+        line.new(bar_index, ep - tp1_pts, bar_index + line_bars, ep - tp1_pts,
+                 color=color.new(#00FFBB, 0), width=2, style=line.style_dashed)
+        label.new(bar_index + 2, ep - tp1_pts,
+                  "TP1  +" + str.tostring(tp1_pts,"#") + "pts  ($" + str.tostring(tp1_pts*100,"#,###") + ")  ½ EXIT",
+                  color=color.new(#00FFBB,70), textcolor=#00FFBB, style=label.style_label_left, size=size.small)
+    if show_trail_line
+        label.new(bar_index + 2, ep + sl_pts * 0.4,
+                  "Trail=" + str.tostring(trail_pts,"#") + "pts\nactivates @+" + str.tostring(trail_trig,"#") + "pts",
+                  color=color.new(#FF9800,70), textcolor=#FF9800, style=label.style_label_left, size=size.small)
+    if show_sl_line
+        line.new(bar_index, ep + sl_pts, bar_index + line_bars, ep + sl_pts,
+                 color=color.new(#FF3D57, 0), width=2, style=line.style_solid)
+        label.new(bar_index + 2, ep + sl_pts,
+                  "SL  -" + str.tostring(sl_pts,"#") + "pts  (-$" + str.tostring(sl_pts*100,"#,###") + ")  HARD STOP",
+                  color=color.new(#FF3D57,70), textcolor=#FF3D57, style=label.style_label_left, size=size.small)
+    label.new(bar_index, ep + sl_pts + 3,
+              "▼ SHORT — 10:00 AEST\nEntry: " + str.tostring(ep, "#.##") +
+              "\nTP1:  +" + str.tostring(tp1_pts,"#") + "pts  (½ position)" +
+              "\nTrail: " + str.tostring(trail_pts,"#") + "pts behind peak" +
+              "\nSL:   -" + str.tostring(sl_pts,"#") + "pts  (full stop)",
+              style=label.style_label_down, color=#FF3D57, textcolor=color.white, size=size.small)
+
+// ─── STATUS TABLE ─────────────────────────────────────────────────────────────
+var table tbl = table.new(position.top_right, 2, 8, border_width=1, border_color=color.new(color.gray,70))
+if barstate.islast
+    table.cell(tbl,0,0,"AU200 TRAIL",   text_color=#FFD700,bgcolor=#161B22,text_size=size.normal)
+    table.cell(tbl,1,0,"SYSTEM",        text_color=#FFD700,bgcolor=#161B22,text_size=size.normal)
+    table.cell(tbl,0,1,"Window",  text_color=color.white,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,1,1,is_1000?"ACTIVE ●":"waiting",
+               text_color=is_1000?#FFD700:color.gray,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,0,2,"Signal",  text_color=color.white,bgcolor=#161B22,text_size=size.small)
+    sig_t=long_entry?"▲ LONG":short_entry?"▼ SHORT":"flat"
+    sig_c=long_entry?#00FFBB:short_entry?#FF3D57:color.gray
+    table.cell(tbl,1,2,sig_t,text_color=sig_c,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,0,3,"Position",text_color=color.white,bgcolor=#161B22,text_size=size.small)
+    pos_t=trade_dir==1?"LONG ▲":trade_dir==-1?"SHORT ▼":"FLAT"
+    pos_c=trade_dir==1?#00FFBB:trade_dir==-1?#FF3D57:color.gray
+    table.cell(tbl,1,3,pos_t,text_color=pos_c,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,0,4,"Trail SL",text_color=color.white,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,1,4,not na(cur_sl)?str.tostring(cur_sl,"#.##"):"--",
+               text_color=#FF9800,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,0,5,"TP1",    text_color=color.white,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,1,5,str.tostring(tp1_pts,"#")+"pts / $"+str.tostring(tp1_pts*100,"#,###"),
+               text_color=#00FFBB,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,0,6,"Trail",  text_color=color.white,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,1,6,str.tostring(trail_pts,"#")+"pts behind peak",
+               text_color=#FF9800,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,0,7,"Hard SL",text_color=color.white,bgcolor=#161B22,text_size=size.small)
+    table.cell(tbl,1,7,str.tostring(sl_pts,"#")+"pts / $"+str.tostring(sl_pts*100,"#,###"),
+               text_color=#FF3D57,bgcolor=#161B22,text_size=size.small)
+
+// ─── ALERTS ───────────────────────────────────────────────────────────────────
+alertcondition(long_entry,  "▲ LONG — AU200 Trail System",
+               "LONG at {{close}} | TP1=+10pts | Trail=30pts | SL=-15pts")
+alertcondition(short_entry, "▼ SHORT — AU200 Trail System",
+               "SHORT at {{close}} | TP1=-10pts | Trail=30pts | SL=+15pts")
