@@ -598,3 +598,83 @@ had loaded (Feb-Jul 2026, or Jan 2025-Jul 2026), never the 6.7 years the
 research uses. Ask for a deep backtest over the full range before trusting
 or doubting any Pine-vs-Python gap. Premium also raises intraday history to
 20k bars and allows 400 alerts.
+
+---
+
+# ►► SESSION 2026-08-02 — full repo audit + archive sweep
+
+## Strategy audit (SESSION_HANDOFF_PROMPT.md job 1 — COMPLETE)
+
+Champion confirmed: `gold_trend_strategy.pine` (Balanced, 0.20 pt slip).
+Nothing in the archive beats it. Full ranked table delivered inline.
+Key finding: `de_hybrid_strategy.pine` (Python PF 1.635 / +198.1%) is
+missing the pyramid adds and has never been confirmed on TradingView —
+it is a weaker version of the champion's exit with a weaker entry, not
+a rival. Three highest-EV improvements identified:
+
+1. **Aggressive/Maximum profiles at 0.20 pt slippage — not confirmed.**
+   The risk ladder runs Balanced through Maximum, but only Balanced has
+   been re-run with `gap_fill=True` and `slippage=0.20`. Aggressive
+   (+8,627% / 42.8%) and Maximum (+24,712% / 54.5%) were measured at
+   0.005 pt — 40× too small. These profile numbers must NOT be cited or
+   traded until re-run. One command: `python3 -m backtest.trend --profile
+   aggressive --slippage 0.20`. Append two rows to the ledger.
+
+2. **Voice gate (net ≥ 6) — measured but not in the champion Pine.**
+   OOS PF 1.879 → 1.954, OOS DD 12.88% → 10.44%, cost ~9% of return.
+   Implementation: port from `voices.py` into `gold_trend_strategy.pine`.
+   Mechanical job; no new research needed. BUT see note below on V3 bug.
+
+3. **Long EMA slope gate (toggle) — measured, not shipped.**
+   Full PF 1.746 → 1.778, 0 losing years (vs 1), but DD +5pp and
+   1 losing WF slice. Re-run at 0.20 pt slippage to get honest numbers
+   before deciding whether to ship. Currently defaulted OFF in the code.
+
+## Archive sweep (ARCHIVE_SWEEP_PROMPT.md job 2 — COMPLETE)
+
+23 sources traced. Key findings:
+
+**CRITICAL BUG (known since 2026-07-22, still unfixed):**
+Hima Reddy V3 in `voices.py` fires the 2-bar test-failure pattern as a
+bidirectional ENTRY signal. The source explicitly says this is a
+MANAGEMENT tool for an open position, not an entry trigger. PLAYBOOK.md
+flagged it under the Wave 1 audit; voices.py was never corrected. Impact
+on the H82 gate measurement (net ≥ 6) is unknown until V3 is re-coded
+and H82 is re-run.
+
+**Highest-EV untested source: Steve/MMM4x (mm_cycle_engine.pine exists)**
+Two specific Brinks windows (03:30-03:45 ET, 09:30-09:45 ET) and a
+2-hour scratch rule (exit trades still at breakeven/loss after 2h) are
+the most testable unimplemented mechanics. Both are SESSION/EXIT type
+improvements — the category that historically moves results. Test by
+adding parameters to `backtest/trend.py` and `backtest/exit_lab.py`.
+
+**Q-alternation rule (H15, Daye — never tested):**
+"If the previous 90-min quarter's ATR is below the median, enter this
+quarter" is a volatility-gated session filter. Not in voices.py or
+trend.py. Testable as a one-parameter addition.
+
+**BUILT-NEVER-MEASURED (have indicators, no dedicated backtest):**
+Steve/MMM4x, Kurisko, PBD Logic, FX Master, Trader Dale (data
+constraint: needs DOM/footprint), Renko/HA ABC, Pure PA/SMC.
+
+**DELIBERATELY-EXCLUDED (documented):**
+"Forex James" (PLAYBOOK.md + sources/README.md). Murphy extraction
+(UNUSABLE, flagged in sources/README.md).
+
+## Files written this session
+
+- `RESEARCH_PROTOCOL_PROMPT.md` — the method (23 rules, from 23 failures)
+- `ARCHIVE_SWEEP_PROMPT.md` — source-to-code traceability framework + findings
+
+## CURRENT STATE AND NEXT ACTION (updated 2026-08-02)
+
+Same three priorities as above, in order:
+
+1. Run Aggressive/Maximum profiles at 0.20 pt slippage. No new code.
+2. Fix V3 in voices.py (management tool, not entry signal). Re-run H82.
+3. Test Steve/MMM4x Brinks windows as a session filter in trend.py.
+   Then test the 2-hour scratch rule in exit_lab.py.
+
+The data blocker (HuggingFace/Kronos, LSE feed) is unchanged. Everything
+above uses the existing `data/xauusd_15m.csv.gz` XAUUSD dataset.
