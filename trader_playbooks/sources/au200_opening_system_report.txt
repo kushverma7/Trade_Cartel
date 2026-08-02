@@ -1,0 +1,130 @@
+AU200  OPENING SYSTEM
+9:50 AM + 9:55 AM + 10:00 AM AEST  |  All 5 Days  |  2016-2026
+AU200 AUD 5-Minute  |  SL = 15 pts fixed  |  $100/pt  |  1pt commission included
+HIGH WIN-RATE MODE  (TP = 10 pts)
+75.6%
+Win Rate
+1.74
+Profit Factor
++703pts
+10Y Net  ($70,300)
+-55pts
+Max DD  ($-5,500)
+T otal Trades 242 Trades / Year 24.2
+Winners 183 Losers 59
+Avg Win +9.0pts  ($900) Avg Loss -16.0pts  ($-1,600)
+Max Win +9pts  ($900) Max Loss -16pts  ($-1,600)
+Min Win +9pts Min Loss -16pts
+TP Hits 183  (76%) SL Hits 59  (24%)
+MAX NET MODE  (TP = 20 pts)
+59.1%
+Win Rate
+1.72
+Profit Factor
++1133pts
+10Y Net  ($113,300)
+-123pts
+Max DD  ($-12,300)
+T otal Trades 242 Trades / Year 24.2
+Winners 143 Losers 99
+Avg Win +19.0pts  ($1,900) Avg Loss -16.0pts  ($-1,600)
+Max Win +19pts  ($1,900) Max Loss -16pts  ($-1,600)
+Min Win +19pts Min Loss -16pts
+TP Hits 143  (59%) SL Hits 99  (41%)
+ENTRY RULES
+① TIME:  Only trade 9:50 AM, 9:55 AM, and 10:00 AM AEST (23:50, 23:55, 00:00 UTC)
+② DAYS:  All 5 days (Mon–Fri). Best: Tuesday (WR=81.6%, PF=2.50). Skip nothing.
+③ SIGNAL:  DE v4 fires TREND BUY → go LONG. TREND SELL → go SHORT. Skip REV signals.
+④ ENTRY:  Enter at open of NEXT bar after signal candle closes.
+⑤ EXIT:  TP=10pts (High-WR) or TP=20pts (Max-Net). SL=15pts always. Max 1 trade per session.
+0 50 100 150 200 250
+Trade #
+0
+100
+200
+300
+400
+500
+600
+700
+Cumul. PnL (pts)
+HIGH WIN-RATE MODE — TP=10pts, SL=15pts    N=242  WR=75.6%  PF=1.74  Net=+703pts  MaxDD=-55pts
+0 50 100 150 200 250
+Trade #
+0
+200
+400
+600
+800
+1000
+Cumul. PnL (pts)
+MAX NET MODE — TP=20pts, SL=15pts    N=242  WR=59.1%  PF=1.72  Net=+1133pts  MaxDD=-123pts
+−200
+−175
+−150
+−125
+−100
+−75
+−50
+−25
+0
+−400
+−300
+−200
+−100
+0
+EQUITY CURVES — 9:50/9:55/10:00 AEST  |  All Days  2016-2026
+YEARLY & DAY-OF-WEEK BREAKDOWN
+TP = 10 pts (HIGH-WR) TP = 20 pts (MAX-NET)
+Year N WR% PF Net pts @100/pt || N WR% PF Net pts @100/pt
+2016 21 71% 1.41 +39 $+3,900 | 21 48% 1.08 +14 $+1,400
+2017 26 73% 1.53 +59 $+5,900 | 26 58% 1.62 +109 $+10,900
+2018 24 79% 2.14 +91 $+9,100 | 24 62% 1.98 +141 $+14,100
+2019 26 81% 2.36 +109 $+10,900 | 26 73% 3.22 +249 $+24,900
+2020 24 75% 1.69 +66 $+6,600 | 24 58% 1.66 +106 $+10,600
+2021 30 77% 1.85 +95 $+9,500 | 30 67% 2.38 +220 $+22,000
+2022 24 88% 3.94 +141 $+14,100 | 24 67% 2.38 +176 $+17,600
+2023 21 67% 1.12 +14 $+1,400 | 21 38% 0.73 -56 $-5,600
+2024 13 62% 0.90 -8 $-800 | 13 46% 1.02 +2 $+200
+2025 18 67% 1.12 +12 $+1,200 | 18 50% 1.19 +27 $+2,700
+2026 15 87% 3.66 +85 $+8,500 | 15 73% 3.27 +145 $+14,500
+DAY-OF-WEEK BREAKDOWN (TP=10, all 3 time slots)
+Day N WR% PF Net pts @100/pt Best?
+Mon 49 75.5% 1.73 +141 $+14,100
+Tue 49 81.6% 2.50 +216 $+21,600 ★ BEST DAY
+Wed 48 72.9% 1.51 +107 $+10,700
+Thu 48 70.8% 1.37 +82 $+8,200
+Fri 44 75.0% 1.69 +121 $+12,100 ★ 2nd BEST
+−15 −10 −5 0 5 10
+PnL (pts)
+0
+25
+50
+75
+100
+125
+150
+175
+Count
+PnL Distribution (TP=10)
+Wins (N=183)
+Losses (N=59)
+FULL STATISTICS TABLE
+T otal Trades 242 242
+Trades/Year 24.2 24.2
+Win Rate 75.6% 59.1%
+Profit Factor 1.74 1.72
+Net 10Y (pts) +703 +1133
+Net 10Y ($100/pt) $+70,300 $+113,300
+Max Drawdown -55pts -123pts
+Winners 183 143
+Avg Win +9.0pts +19.0pts
+Max Single Win +9pts +19pts
+Min Single Win +9pts +19pts
+Losers 59 99
+Avg Loss -16.0pts -16.0pts
+Max Single Loss -16pts -16pts
+Min Single Loss -16pts -16pts
+TP Hits 183 (76%) 143 (59%)
+SL Hits 59 (24%) 99 (41%)
+WIN / LOSS DISTRIBUTION  |  TP=10  (High Win-Rate Mode)

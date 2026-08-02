@@ -1,0 +1,269 @@
+TRADE CARTEL RESEARCH
+AU200 AUD  5-MINUTE
+MASTER DAY TRADING SYSTEM
+Dialectic Engine v4  ·  V2 High-Edge  ·  10-Year Backtested (2016-2026)
+PF  2.85
+Trend Mode
+Profit Factor
+WR  75%
+Scalp Mode
+Win Rate
+TP 30 pts
+Optimal
+T ake Profit
+SL  15 pts
+Fixed
+Stop Loss
+13 Windows
+Proven Time
+Edges
+0
+Losing
+Years (10Y)
+TREND MODE
+V2 windows + SL=15 + No TP
+PF=2.85  WR=38%  MaxDD=-184pts  ~33 trades/yr
+SCALP MODE
+V2 windows + ATR≥6 + SL=15 + TP=30
+WR=75%  Low drawdown  ~10 trades/yr
+CONFIDENTIAL · PERSONAL USE ONLY · PAST PERFORMANCE ≠ FUTURE RESULTS
+THE 13 PROVEN ENTRY WINDOWS — TIME × DIRECTION × DAY
+Window Dir Day UTC Hour N WR% PF Best Signal Edge
+05h Fri ▲ BUY Fri 05:00 13 54% 1.42 TREND BUY Pre-weekend buy; Asian bulls accumulat
+01h T ue ▲ BUY T ue 01:00 30 23% 2.61 TREND BUY Early T uesday upward drift
+01h Fri ▲ BUY Fri 01:00 22 41% 1.16 TREND BUY Friday early BUY; strong 10Y edge
+03h Wed ▲ BUY Wed 03:00 18 50% 1.78 TREND BUY Mid-week Asian buy; highest BUY PF
+03h Thu ▲ BUY Thu 03:00 16 62% 1.73 TREND BUY Pre-London Asian carry-through
+04h Wed ▲ BUY Wed 04:00 36 42% 1.04 TREND BUY Late Asian Wed accumulation
+05h Mon ▼ SELL Mon 05:00 13 31% 5.31 TREND SELL Monday open Asia — gap fill SELL
+05h T ue ▼ SELL T ue 05:00 16 38% 2.17 TREND SELL Repeat pattern SELL; consistent
+05h Thu ▼ SELL Thu 05:00 12 42% 1.24 TREND SELL Pre-London bear pressure Thu
+04h Thu ▼ SELL Thu 04:00 26 42% 2.08 TREND SELL Late Asian Thu distribution
+23h Mon ▼ SELL Mon 23:00 52 38% 1.38 TREND SELL NY close Mon — overnight bear trap
+23h T ue ▼ SELL T ue 23:00 44 45% 2.46 TREND SELL NY close T ue — session-end SELL
+14h Mon ↕ ANY Mon 14:00 11 64% 5.78 TREND BUY NY open Mon — big move ANY dir
+MASTER ENTRY RULES
+RULE 1 Only enter during a highlighted window (coloured background on chart). RULE 2 Match direction — BUY windows: LONG only. SELL windows: SHORT only. ANY: either.
+RULE 3 Wait for DE v4 signal (BUY/R.BUY label or SELL/R.SELL label) to appear on the bar. RULE 4 TREND MODE: SL=15pts. Hold until next signal or SL. No TP .
+RULE 5 SCALP MODE: Only enter when status box shows 'HRW MODE' (ATR≥6). Exit at TP=30pts. RULE 6 Never trade 09:00-10:00 UTC (London open). Proven trap. PF=0.09 over 10Y .
+RULE 7 One trade at a time. Wait for current position to close before new entry. RULE 8 Risk 1-2% of account per trade. At 100/pt : SL = 1,500. Size accordingly.
+00
+03
+06
+09
+12
+15
+18
+21
+UTC
+Clock
+Entry Windows by UTC Hour
+BUY windows (01h/03h/04h/05h)
+SELL windows (04h/05h/14h/23h)
+Both directions (04h,05h overlap)
+2016 2018 2020 2022 2024 2026
+0
+500
+1000
+1500
+2000
+2500
+3000
+3500
+PnL (pts)
+TRADE CARTEL
+TREND MODE — 10Y Equity  |  Net:+3406pts  MaxDD:-407pts  N=309  WR=42.1%  PF=1.85
+2016 2018 2020 2022 2024 2026
+−100
+0
+100
+200
+300
+400
+500
+PnL (pts)
+TRADE CARTEL
+SCALP MODE (ATR≥6+TP=30) — 10Y Equity  |  Net:+534pts  MaxDD:-118pts  N=96  WR=47.9%  PF=1.67
+MASTER SYSTEM — DUAL EQUITY CURVES (2016-2026)
+2016 2017 2018 2019 2020 2021 2022 2023 2024 2025 2026
+0
+200
+400
+600
+800
+1000
+PnL (pts)
+324
+113
+277
+-22
+300
+13
+552
+430
+179
+1064
+174
+TRADE CARTEL
+TREND MODE — Annual PnL
+0 1 2 3 4 5 6
+PF
+2016
+2017
+2018
+2019
+2020
+2021
+2022
+2023
+2024
+2025
+2026
+Trend PF/yr
+2016 2017 2018 2019 2020 2021 2022 2023 2024 2025 2026
+−50
+0
+50
+100
+150
+PnL (pts)
+-51
+13
+-51
+100 98
+4
+52
+84
+-22
+184
+123
+TRADE CARTEL
+SCALP MODE — Annual PnL (ATR≥6+TP=30)
+0 1 2 3 4 5 6 7
+PF
+2016
+2017
+2018
+2019
+2020
+2021
+2022
+2023
+2024
+2025
+2026
+Scalp PF/yr
+MASTER SYSTEM — ANNUAL PERFORMANCE COMPARISON
+FIL TER ANALYSIS — What Each Layer Adds to PF
+CONFLUENCE SCORE IMPACT (all V2 windows, 10Y)
+label n wr pf net maxdd
+Min conf ≥1 309 42.07 1.85 3405.50 -406.80
+Min conf ≥2 309 42.07 1.85 3405.50 -406.80
+Min conf ≥3 290 42.41 1.88 3408.30 -397.20
+Min conf ≥4 107 38.32 1.82 1195.60 -516.30
+ATR REGIME IMPACT (all V2 windows, 10Y)
+label n wr pf net maxdd
+ATR≥0 309 42.07 1.85 3405.50 -406.80
+ATR≥4 216 40.28 1.72 2223.20 -403.30
+ATR≥5 152 40.79 1.94 2004.80 -403.30
+ATR≥6 99 38.38 2.06 1683.20 -470.70
+ATR≥7 63 39.68 2.57 1710.20 -268.70
+ATR≥8 37 37.84 2.41 1023.00 -205.80
+TP OPTIMIZATION (ATR≥6, V2 windows, 10Y)
+tp n wr pf net
+5.0 96.0 78.12 0.89 -36.00
+7.0 96.0 73.96 1.06 26.00
+8.0 96.0 72.92 1.18 74.00
+9.0 96.0 72.92 1.35 144.00
+10.0 96.0 72.92 1.51 214.00
+12.0 96.0 69.79 1.59 273.00
+15.0 96.0 65.62 1.67 354.00
+20.0 96.0 55.21 1.46 319.00
+25.0 96.0 51.04 1.56 424.00
+30.0 96.0 47.92 1.67 534.00
+SIGNAL TYPE ANALYSIS — Trend vs Reversal per Window
+DIRECTION × SIGNAL TYPE BREAKDOWN
+Filter N WR% PF Net PnL Avg Win Avg Loss
+SELL | TREND SELL 169 41.4% 2.12 +2238.1 60.6 -20.4
+BUY | TREND BUY 140 42.9% 1.58 +1167.4 53.0 -25.5
+KEY SIGNAL INSIGHTS FROM 10Y DATA
+• TREND SELL signals produce highest net PnL in V2 windows — large avg winners (hold for trend moves)
+• TREND BUY signals best for V2 BUY windows — all individually PF≥2.0
+• REV BUY/SELL signals have lower PF but catch exhaustion tops/bottoms in ANY windows
+• Best single combo: BUY windows + TREND BUY signals → highest avg win trade
+• In SCALP MODE: ALL signal types valid (ATR filter is the key differentiator, not signal type)
+• Never skip trendline break filter — removes ~40% of signals but preserves all the edge
+MASTER SYSTEM — TRADE DECISION FLOWCHART
+STEP 1: CHECK TIME (UTC)
+Is current UTC hour in a V2 window?
+(01h/03h/04h/05h/14h/23h)
+NO → OUT
+Do nothing. Wait.
+Not a trading hour.
+YES → STEP 2
+Check day of week
+matches window rule.
+STEP 2: CHECK DAY
+Right hour + right day?
+(e.g. 05h = Mon/T ue/Thu SELL, Fri BUY)
+NO → OUT
+Wrong day for this hour.
+Wait for next window.
+YES → STEP 3
+Check DE v4 signal
+on current bar.
+STEP 3: WAIT FOR SIGNAL
+BUY/R.BUY label in BUY window?
+SELL/R.SELL in SELL window?
+NO SIGNAL
+Stay flat.
+Re-check next bar.
+SIGNAL! → STEP 4
+Choose Trend or
+Scalp Mode.
+SCALP MODE
+Status shows HRW MODE?
+(ATR≥6 confirmed)
+→ Enter + Set TP=30pts + SL=15pts
+TREND MODE
+ATR any level.
+→ Enter + Set SL=15pts only.
+Hold until next signal/SL hit.
+EXIT
+Price hits TP → WIN
+or SL → LOSS.
+Then go to STEP 1.
+EXIT
+Next signal flip → EXIT & FLIP
+or SL hit → EXIT.
+Then STEP 1.
+RISK MANAGEMENT & POSITION SIZING
+POSITION SIZING BY ACCOUNT SIZE (2% risk per trade, SL=15pts)
+Account 2% Risk Pts/$ Ratio Contracts SL $Loss TP $ (30pts) Daily Max Loss
+$5,000 $100 $6.67/pt 6.67x -$100 +$200 -$300
+$10,000 $200 $13.33/pt 13.33x -$200 +$400 -$600
+$25,000 $500 $33.33/pt 33.33x -$500 +$1,000 -$1,500
+$50,000 $1,000 $66.67/pt 66.67x -$1,000 +$2,000 -$3,000
+$100,000 $2,000 $133.33/pt 133.33x -$2,000 +$4,000 -$6,000
+$250,000 $5,000 $333.33/pt 333.33x -$5,000 +$10,000 -$15,000
+YOUR SETUP: $100 per point
+SL = 15pts × $100 = $1,500 risk per trade  |  TP = 30pts × $100 = $3000 per win  |  Expected 1 trade ≈ +$200 avg
+Trend Mode: avg win ~$8,200 (82pts) | avg loss ~$1,400 (14pts) | Need >$75,000 account for 2% risk
+Scalp Mode: avg win ~$800 (8pts) | avg loss ~$1,500 (15pts) | WR=75% compensates | Need >$7,500 for 2% risk
+STOP TRADING DAILY
+3 consecutive losses in a day → stop. Come back tomorrow.
+WEEKLY LIMIT
+Max 5% account drawdown per week → reduce size next week.
+STICK TO WINDOWS
+Never enter outside coloured window. Ever.
+NO REVENGE TRADES
+SL hit = signal invalidated. Wait for next setup.
+TREND MODE
+Hold through volatility. Avg win is 5× avg loss. Let it run.
+SCALP MODE
+T ake TP immediately when hit. Do not hold for more.
+RECORD EVERY TRADE
+Track entry time, window, signal type, ATR, result. Review weekly.
+PAPER TRADE FIRST
+2-4 weeks paper trading before live capital.
+⚠️⚠️  DISCLAIMER: Backtested results do not guarantee future profits. Trade only capital you can afford to lose. Not financial advice.

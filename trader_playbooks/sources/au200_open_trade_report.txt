@@ -1,0 +1,115 @@
+AU200 OPENING TRADE SYSTEM
+10:00 AM AEST (00:00 UTC)  |  ASX 200 5-Minute Scalp
+Backtested 2016–2026 on AU200 AUD 5m  |  $100/pt  |  1pt spread included
+WIN RATE
+79%
+High-WR mode
+PROFIT FACTOR
+2.26
+Best config
+STOP LOSS
+15 pts
+1, 500@100/pt
+TAKE PROFIT
+10–20 pts
+User togglable
+MAX DD
+$4,800
+48 pts worst
+TRADES/YR
+≈ 9
+Tue+Fri filter
+HIGH-WR MODE
+T ue + Fri  |  TP = 10pts
+WR = 79%  |  PF = 2.16  |  Net +333pts/10yr
+MAX-NET MODE
+T ue + Fri  |  TP = 20pts
+WR = 66%  |  PF = 2.26  |  Net +603pts/10yr
+0 20 40 60 80
+Trade #
+$0
+$10,000
+$20,000
+$30,000
+$40,000
+$50,000Cumulative P&L ($)
+Tue+Fri  TP=10
+WR=79.3%  PF=2.16  Net=+333pts
+0 20 40 60 80
+Trade #
+$0
+$10,000
+$20,000
+$30,000
+$40,000
+$50,000
+$60,000Cumulative P&L ($)
+Tue+Fri  TP=20
+WR=65.5%  PF=2.26  Net=+603pts
+Year 2016 2017 2018 2019 2020 2021 2022 2023 2024 2025
+Config A (TP=10) +35pts +24pts +34pts +47pts -2pts +67pts +24pts +21pts +12pts +52pts
+Config B (TP=20) +80pts +97pts +87pts +68pts +70pts +88pts +34pts +59pts +71pts +46pts
+Yearly P&L Breakdown (synthetic illustration)
+Equity Curves — 2016–2026  (AU200 5m, $100/pt)
+RULES & SETUP
+ENTRY CHECKLIST
+① Check day — Tuesday or Friday only (optionally add Wednesday)
+② Wait for 10:00 AM AEST bar — first candle of ASX 200 session
+③ Check direction — EMA(200) + RSI(14) + SuperTrend all agree
+④ Enter at close of 10:00 bar (or market open of next bar)
+⑤ Set TP = 10pts (High-WR) or 20pts (Max-Net) · SL = 15pts always
+DAY-OF-WEEK PERFORMANCE
+RISK / REWARD AT $100 PER POINT
+CONFIGURATION SUMMARY
+Day WR % Profit Factor
+Monday 53% 1.35 ❌
+Tuesday 68% 2.53 ✓✓
+Wednesday 57% 1.56 ✓
+Thursday 51% 1.24 ❌
+Friday 63% 1.98 ✓✓
+Mode Win Loss Exp/Trade
+High-WR (TP=10) +$900 -$1,600 +$383
+Max-Net  (TP=20) +$1,900 -$1,600 +$693
+Config N WR PF Net MaxDD
+T ue+Fri  TP=10 87 79.3% 2.16 +333pts -53pts
+T ue+Fri  TP=20 87 65.5% 2.26 +603pts -48pts
+T ue+Wed+Fri TP=20131 62.6% 1.99 +774pts -48pts
+12
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+10:00 AM AEST
+ASX 200 Market Open
+Sydney (AEST)
+10:00 AM
+UTC
+00:00
+London
+01:00 AM
+New York
+08:00 PM
+WHY THE OPENING TRADE WORKS
+Gap & Commit
+ASX 200 gaps on open based on overnight
+US/EU futures — price must commit to direction.
+First Candle Authority
+The 10:00 AM 5-min bar establishes the daily
+bias that institutions defend for 10–20pts.
+Institutional Order Flow
+DE v4 signals align with large institutional
+orders placed at the ASX electronic open.
+Tight Spread at Open
+AU200 spread is tightest at open (~1pt),
+ensuring accurate fills and reduced slippage.
+Directional Momentum
+Markets commit to direction in the first
+10–20pts before mean-reversion kicks in.
+SESSION TIMING & MARKET RATIONALE
