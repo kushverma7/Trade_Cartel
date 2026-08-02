@@ -1,0 +1,449 @@
+//@version=6
+indicator("DE V15 — Final [Kush]", shorttitle="DE·V15", overlay=true, max_labels_count=500)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V15 = V9b entry logic (60% WR / 1.51 PF proven) + LR Channel SL/trend
+// Key fixes from transcript analysis:
+// • Min bars exit: 3 → 8
+// • TP1 ATR: 2.0 → 1.5 (more trades hit BE, fewer full losses)
+// • Added momentum loss exit (was in V9, missing in V14)
+// • Added opposite sweep exit (was in V9, missing in V14)
+// • Removed HTF macro filter (was blocking valid trades)
+// • Removed overly strict EMA50 6-bar gate
+// • Kept LR Channel as dynamic SL + trend filter
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ① LR Channel
+grp_lr = "① LR Channel"
+lr_len       = input.int(50,    "LR Length",       group=grp_lr, minval=10, maxval=200)
+lr_dev       = input.float(2.0, "Deviation Mult",  group=grp_lr, step=0.1)
+show_lr      = input.bool(true, "Show LR Channel", group=grp_lr)
+use_lr_sl    = input.bool(true, "LR Band as SL",   group=grp_lr)
+use_lr_trend = input.bool(true, "LR Slope Filter", group=grp_lr)
+
+// ② Session (UTC)
+grp_sess = "② Session (UTC)"
+use_ol  = input.bool(true, "Overlap 12:00-15:00",      group=grp_sess)
+use_sb  = input.bool(true, "Silver Bullet 14:00-15:00", group=grp_sess)
+show_bg = input.bool(true, "Show Session Background",   group=grp_sess)
+
+// ③ Supertrend — V9b optimal
+grp_st  = "③ Supertrend"
+st_len  = input.int(50,    "ATR Period", group=grp_st)
+st_mult = input.float(3.0, "Mult",       group=grp_st, step=0.1)
+
+// ④ AlphaTrend
+grp_at    = "④ AlphaTrend"
+at_period = input.int(14,    "Period",      group=grp_at)
+at_coeff  = input.float(1.0, "Coefficient", group=grp_at, step=0.1)
+
+// ⑤ BBSR EMA
+grp_bb   = "⑤ BBSR EMA"
+ema_bbsr = input.int(200, "EMA Period", group=grp_bb)
+
+// ⑥ EMA Stack
+grp_ema  = "⑥ EMA Stack"
+ema_fast = input.int(9,  "EMA Fast", group=grp_ema)
+ema_mid  = input.int(21, "EMA Mid",  group=grp_ema)
+ema_slow = input.int(50, "EMA Slow", group=grp_ema)
+
+// ⑦ RSI
+grp_rsi = "⑦ RSI"
+rsi_len = input.int(14, "Length",     group=grp_rsi)
+rsi_ob  = input.int(60, "Overbought", group=grp_rsi, minval=55, maxval=80)
+rsi_os  = input.int(40, "Oversold",   group=grp_rsi, minval=20, maxval=45)
+
+// ⑧ MACD
+grp_macd = "⑧ MACD"
+macd_f   = input.int(8,  "Fast",   group=grp_macd)
+macd_s   = input.int(17, "Slow",   group=grp_macd)
+macd_sig = input.int(9,  "Signal", group=grp_macd)
+
+// ⑨ Sweep
+grp_sw = "⑨ Sweep"
+sw_lb  = input.int(20, "Lookback", group=grp_sw, minval=5, maxval=50)
+sw_age = input.int(8,  "Max Age",  group=grp_sw, minval=1, maxval=20)
+
+// ⑩ FVG
+grp_fvg  = "⑩ FVG"
+use_fvg  = input.bool(true, "Require FVG",   group=grp_fvg)
+fvg_age  = input.int(10,   "Max Age (bars)", group=grp_fvg)
+show_fvg = input.bool(true, "Show FVG",       group=grp_fvg)
+
+// ⑪ Volatility Gate
+grp_vol      = "⑪ Volatility Gate"
+use_adx      = input.bool(true,  "ADX > 20 Filter",      group=grp_vol)
+adx_len      = input.int(14,    "ADX Length",             group=grp_vol)
+use_atr_gate = input.bool(true,  "ATR Above Average",     group=grp_vol)
+
+// ⑫ Exit — V9b proven settings
+grp_exit      = "⑫ Exit (V9b Proven)"
+exit_atr_len  = input.int(14,    "ATR Length",              group=grp_exit)
+tp1_atr       = input.float(1.5, "TP1 ATR (1.5 optimal)",  group=grp_exit, step=0.1)
+tp2_atr       = input.float(3.0, "TP2 ATR (3.0 optimal)",  group=grp_exit, step=0.1)
+tp3_atr       = input.float(5.0, "TP3 ATR",                group=grp_exit, step=0.1)
+sl_atr        = input.float(2.0, "SL ATR (fallback)",      group=grp_exit, step=0.1)
+floor_offset  = input.float(0.3, "Floor ATR After TP1",    group=grp_exit, step=0.05)
+min_bars      = input.int(8,     "Min Bars Before Exit",   group=grp_exit, minval=1, maxval=20)
+giveback_atr  = input.float(2.5, "Giveback ATR (post-TP2)",group=grp_exit, step=0.1)
+trail_atr     = input.float(1.0, "Trail ATR (post-TP3)",   group=grp_exit, step=0.1)
+use_st_exit   = input.bool(true, "ST Flip Exit (post-TP1)",group=grp_exit)
+use_at_exit   = input.bool(true, "AT Flip Exit (post-TP1)",group=grp_exit)
+use_mom_exit  = input.bool(true, "Momentum Loss (post-TP1)",group=grp_exit)
+use_sw_exit   = input.bool(true, "Opposite Sweep (post-TP2)",group=grp_exit)
+
+// ⑬ Engine — V9b proven
+grp_eng  = "⑬ Engine"
+min_conf = input.int(4, "Min Confluences (4 optimal)", group=grp_eng, minval=1, maxval=7)
+cooldown = input.int(8, "Cooldown Bars",               group=grp_eng, minval=1, maxval=30)
+
+// ⑭ Colours
+grp_col = "⑭ Colours"
+c_bull = input.color(color.new(#00FFBB, 0),  "Bull",    group=grp_col)
+c_bear = input.color(color.new(#FF3D57, 0),  "Bear",    group=grp_col)
+c_tp1  = input.color(color.new(#00E5FF, 0),  "TP1",     group=grp_col)
+c_tp2  = input.color(color.new(#7B61FF, 0),  "TP2",     group=grp_col)
+c_tp3  = input.color(color.new(#FF9500, 0),  "TP3",     group=grp_col)
+c_sl   = input.color(color.new(#FF3D57, 50), "SL",      group=grp_col)
+c_lr   = input.color(color.new(#00E5FF, 70), "LR Band", group=grp_col)
+c_sb   = input.color(color.new(#FF9500, 93), "SB BG",   group=grp_col)
+c_ol   = input.color(color.new(#7B61FF, 93), "OL BG",   group=grp_col)
+
+// ─── LR CHANNEL
+lr_mid   = ta.linreg(close, lr_len, 0)
+lr_prev  = ta.linreg(close, lr_len, 1)
+lr_slope = lr_mid - lr_prev
+lr_std   = ta.stdev(close, lr_len)
+lr_upper = lr_mid + lr_dev * lr_std
+lr_lower = lr_mid - lr_dev * lr_std
+lr_bull  = lr_slope > 0
+lr_bear  = lr_slope < 0
+lr_long_ok  = not use_lr_trend or lr_bull
+lr_short_ok = not use_lr_trend or lr_bear
+
+p_lr_upper = plot(show_lr ? lr_upper : na, "LR Upper", color=color.new(c_lr, 40), linewidth=1)
+p_lr_mid   = plot(show_lr ? lr_mid   : na, "LR Mid",   color=color.new(c_lr, 20), linewidth=1)
+p_lr_lower = plot(show_lr ? lr_lower : na, "LR Lower", color=color.new(c_lr, 40), linewidth=1)
+fill(p_lr_upper, p_lr_lower, color=lr_bull ? color.new(c_bull, 96) : color.new(c_bear, 96))
+
+// ─── SESSION — hard-coded hm gate
+h_utc  = hour(time, "UTC")
+hm     = h_utc * 100 + minute(time, "UTC")
+w_sb   = use_sb and hm >= 1400 and hm < 1500
+w_ol   = use_ol and hm >= 1200 and hm < 1500
+in_kz  = hm >= 1200 and hm < 1500
+no_buf = not (hm >= 1200 and hm < 1230)
+
+bgcolor(show_bg and w_sb              ? color.new(c_sb, 90) : na, title="Silver Bullet")
+bgcolor(show_bg and w_ol and not w_sb ? color.new(c_ol, 93) : na, title="Overlap")
+
+// ─── SUPERTREND
+[st_line, st_dir] = ta.supertrend(st_mult, st_len)
+st_bull = st_dir == -1
+st_bear = st_dir == 1
+
+// ─── ALPHATREND
+at_atr   = ta.sma(ta.tr(true), at_period)
+upT      = low  - at_atr * at_coeff
+downT    = high + at_atr * at_coeff
+mom_bull = ta.mfi(hlc3, at_period) >= 50
+var float AT = na
+AT := mom_bull ? (upT < nz(AT[1]) ? nz(AT[1]) : upT) : (downT > nz(AT[1]) ? nz(AT[1]) : downT)
+at_bull      = AT > AT[2]
+at_bear      = AT < AT[2]
+at_cont_bull = at_bull and AT[2] > AT[4]
+at_cont_bear = at_bear and AT[2] < AT[4]
+at_flip_bull = AT > AT[2] and AT[1] <= AT[3]
+at_flip_bear = AT < AT[2] and AT[1] >= AT[3]
+
+// ─── BBSR + EMA
+bbsr         = ta.ema(close, ema_bbsr)
+above_bbsr   = close > bbsr
+below_bbsr   = close < bbsr
+ef           = ta.ema(close, ema_fast)
+em           = ta.ema(close, ema_mid)
+es           = ta.ema(close, ema_slow)
+ema50_rising = es > es[3]
+ema50_fall   = es < es[3]
+
+// ─── RSI
+rsi          = ta.rsi(close, rsi_len)
+rsi_bull_z   = rsi > 45 and rsi < 70
+rsi_bear_z   = rsi < 55 and rsi > 30
+rsi_rev_bull = rsi < rsi_os and rsi > rsi[1]
+rsi_rev_bear = rsi > rsi_ob and rsi < rsi[1]
+
+// ─── MACD
+[ml, sl2, mh] = ta.macd(close, macd_f, macd_s, macd_sig)
+macd_bull = ml > sl2
+macd_bear = ml < sl2
+
+// ─── ATR
+exit_atr = ta.atr(exit_atr_len)
+
+// ─── ADX
+adx_tr  = ta.tr(true)
+adx_atr = ta.rma(adx_tr, adx_len)
+adx_dmp = ta.rma(math.max(high - high[1], 0) > math.max(low[1] - low, 0) ? math.max(high - high[1], 0) : 0, adx_len)
+adx_dmm = ta.rma(math.max(low[1] - low, 0) > math.max(high - high[1], 0) ? math.max(low[1] - low, 0) : 0, adx_len)
+adx_dip = 100 * adx_dmp / adx_atr
+adx_dim = 100 * adx_dmm / adx_atr
+adx_dx  = 100 * math.abs(adx_dip - adx_dim) / (adx_dip + adx_dim)
+adx_val = ta.rma(adx_dx, adx_len)
+strong_trend = not use_adx or adx_val > 20
+
+// ─── ATR GATE
+atr_ma_gate   = ta.sma(exit_atr, 50)
+atr_above_avg = not use_atr_gate or exit_atr > atr_ma_gate
+
+// ─── SWEEP
+rph = ta.highest(high[1], sw_lb)
+rpl = ta.lowest(low[1],   sw_lb)
+swb = low  < rpl and close > rpl
+sws = high > rph and close < rph
+var int sba = sw_age + 1
+var int ssa = sw_age + 1
+sba := swb ? 0 : sba + 1
+ssa := sws ? 0 : ssa + 1
+rsb = sba <= sw_age
+rss = ssa <= sw_age
+
+plotshape(swb, "Sweep Lo", shape.triangleup,   location.belowbar, color.new(c_bull, 40), size=size.tiny)
+plotshape(sws, "Sweep Hi", shape.triangledown, location.abovebar, color.new(c_bear, 40), size=size.tiny)
+
+// ─── FVG
+bull_fvg = high[2] < low
+bear_fvg = low[2]  > high
+var int bfa = fvg_age + 1
+var int bea = fvg_age + 1
+bfa := bull_fvg ? 0 : bfa + 1
+bea := bear_fvg ? 0 : bea + 1
+fvg_ok_bull = not use_fvg or bfa <= fvg_age
+fvg_ok_bear = not use_fvg or bea <= fvg_age
+
+bgcolor(show_fvg and bull_fvg ? color.new(c_bull, 93) : na, title="Bull FVG")
+bgcolor(show_fvg and bear_fvg ? color.new(c_bear, 93) : na, title="Bear FVG")
+
+// ─── CONFLUENCE SCORE (V9b style — max 7)
+bull_score = (st_bull ? 1 : 0) +
+             (at_cont_bull ? 1 : 0) +
+             (above_bbsr ? 1 : 0) +
+             (rsi_bull_z ? 1 : 0) +
+             (macd_bull ? 1 : 0) +
+             (ema50_rising and close > em ? 1 : 0) +
+             (lr_bull ? 1 : 0)
+
+bear_score = (st_bear ? 1 : 0) +
+             (at_cont_bear ? 1 : 0) +
+             (below_bbsr ? 1 : 0) +
+             (rsi_bear_z ? 1 : 0) +
+             (macd_bear ? 1 : 0) +
+             (ema50_fall and close < em ? 1 : 0) +
+             (lr_bear ? 1 : 0)
+
+// ─── ENTRY — V9b logic + LR filter + session gate
+tbr = in_kz and no_buf and st_bull and above_bbsr and ema50_rising and bull_score >= min_conf and fvg_ok_bull and lr_long_ok and not (rsi > rsi_ob) and strong_trend and atr_above_avg
+
+tsr = in_kz and no_buf and st_bear and below_bbsr and ema50_fall and bear_score >= min_conf and fvg_ok_bear and lr_short_ok and not (rsi < rsi_os) and strong_trend and atr_above_avg
+
+rbr = in_kz and no_buf and rsb and at_flip_bull and rsi_rev_bull and ef > ef[1] and fvg_ok_bull and lr_long_ok and atr_above_avg
+
+rsr = in_kz and no_buf and rss and at_flip_bear and rsi_rev_bear and ef < ef[1] and fvg_ok_bear and lr_short_ok and atr_above_avg
+
+v15_buy  = tbr or rbr
+v15_sell = tsr or rsr
+
+// ─── COOLDOWN
+var int bss = cooldown + 1
+bss := bss + 1
+cd = bss > cooldown
+
+// ─── STATE MACHINE
+var int   state     = 0
+var float entry_px  = na
+var float sl_px     = na
+var float tp1_px    = na
+var float tp2_px    = na
+var float tp3_px    = na
+var float floor_px  = na
+var float best_hi   = na
+var float best_lo   = na
+var int   entry_bar = na
+var int   tp_level  = 0
+
+abuy  = v15_buy  and cd and (state == 0 or state == -2 or state == 2)
+asell = v15_sell and cd and (state == 0 or state ==  2 or state == -2)
+irb   = abuy  and rbr and not tbr
+irs   = asell and rsr and not tsr
+
+if abuy
+    state     := 1
+    bss       := 0
+    entry_px  := close
+    sl_px     := use_lr_sl ? lr_lower : close - exit_atr * sl_atr
+    tp1_px    := close + exit_atr * tp1_atr
+    tp2_px    := close + exit_atr * tp2_atr
+    tp3_px    := close + exit_atr * tp3_atr
+    floor_px  := na
+    best_hi   := high
+    best_lo   := na
+    entry_bar := bar_index
+    tp_level  := 0
+
+if asell
+    state     := -1
+    bss       := 0
+    entry_px  := close
+    sl_px     := use_lr_sl ? lr_upper : close + exit_atr * sl_atr
+    tp1_px    := close - exit_atr * tp1_atr
+    tp2_px    := close - exit_atr * tp2_atr
+    tp3_px    := close - exit_atr * tp3_atr
+    floor_px  := na
+    best_hi   := na
+    best_lo   := low
+    entry_bar := bar_index
+    tp_level  := 0
+
+if state == 1
+    best_hi := na(best_hi) ? high : math.max(best_hi, high)
+    if use_lr_sl
+        sl_px := math.max(sl_px, lr_lower)
+
+if state == -1
+    best_lo := na(best_lo) ? low : math.min(best_lo, low)
+    if use_lr_sl
+        sl_px := math.min(sl_px, lr_upper)
+
+// ─── TP ADVANCES + PROFIT FLOOR
+tp1_long_hit  = state ==  1 and tp_level < 1 and not na(tp1_px) and high >= tp1_px
+tp2_long_hit  = state ==  1 and tp_level < 2 and not na(tp2_px) and high >= tp2_px
+tp3_long_hit  = state ==  1 and tp_level < 3 and not na(tp3_px) and high >= tp3_px
+tp1_short_hit = state == -1 and tp_level < 1 and not na(tp1_px) and low  <= tp1_px
+tp2_short_hit = state == -1 and tp_level < 2 and not na(tp2_px) and low  <= tp2_px
+tp3_short_hit = state == -1 and tp_level < 3 and not na(tp3_px) and low  <= tp3_px
+
+if tp3_long_hit or tp3_short_hit
+    tp_level := 3
+else if tp2_long_hit or tp2_short_hit
+    tp_level := 2
+else if tp1_long_hit or tp1_short_hit
+    tp_level := 1
+    // Lock profit floor at entry + offset (never give back a winner)
+    floor_px := state == 1 ? entry_px + exit_atr * floor_offset : entry_px - exit_atr * floor_offset
+
+// ─── EXIT ENGINE (V9b exit logic restored)
+can_exit     = not na(entry_bar) and bar_index - entry_bar >= min_bars
+long_profit  = state ==  1 and close > entry_px
+short_profit = state == -1 and close < entry_px
+
+// SL or floor hit
+sl_long  = state ==  1 and not na(sl_px) and low  <= sl_px
+sl_short = state == -1 and not na(sl_px) and high >= sl_px
+floor_long  = state ==  1 and tp_level >= 1 and not na(floor_px) and low  <= floor_px
+floor_short = state == -1 and tp_level >= 1 and not na(floor_px) and high >= floor_px
+
+// ST flip (post-TP1)
+st_exit_long  = use_st_exit and state ==  1 and tp_level >= 1 and st_bear and st_bull[1]
+st_exit_short = use_st_exit and state == -1 and tp_level >= 1 and st_bull and st_bear[1]
+
+// AT flip (post-TP1)
+at_exit_long  = use_at_exit and state ==  1 and tp_level >= 1 and at_flip_bear
+at_exit_short = use_at_exit and state == -1 and tp_level >= 1 and at_flip_bull
+
+// Momentum loss — MACD hist 3 bars declining + RSI falling (post-TP1)
+mom_loss_long  = use_mom_exit and state ==  1 and tp_level >= 1 and mh < mh[1] and mh[1] < mh[2] and rsi < rsi[1]
+mom_loss_short = use_mom_exit and state == -1 and tp_level >= 1 and mh > mh[1] and mh[1] > mh[2] and rsi > rsi[1]
+
+// Opposite sweep (post-TP2)
+opp_sw_long  = use_sw_exit and state ==  1 and tp_level >= 2 and sws and rsi > 55 and rsi < rsi[1]
+opp_sw_short = use_sw_exit and state == -1 and tp_level >= 2 and swb and rsi < 45 and rsi > rsi[1]
+
+// LR slope flip (post-TP1)
+lr_flip_long  = state ==  1 and tp_level >= 1 and lr_bear and lr_bull[1]
+lr_flip_short = state == -1 and tp_level >= 1 and lr_bull and lr_bear[1]
+
+// Giveback trail from peak (post-TP2)
+giveback_long  = state ==  1 and tp_level >= 2 and long_profit  and not na(best_hi) and close < best_hi - exit_atr * giveback_atr
+giveback_short = state == -1 and tp_level >= 2 and short_profit and not na(best_lo) and close > best_lo + exit_atr * giveback_atr
+
+// Dynamic trail (post-TP3)
+trail_long  = state ==  1 and tp_level >= 3 and long_profit  and not na(best_hi) and close < best_hi - exit_atr * trail_atr
+trail_short = state == -1 and tp_level >= 3 and short_profit and not na(best_lo) and close > best_lo + exit_atr * trail_atr
+
+exl = can_exit and state ==  1 and (
+      sl_long or floor_long or
+      st_exit_long or at_exit_long or mom_loss_long or
+      opp_sw_long or lr_flip_long or
+      giveback_long or trail_long)
+
+exs = can_exit and state == -1 and (
+      sl_short or floor_short or
+      st_exit_short or at_exit_short or mom_loss_short or
+      opp_sw_short or lr_flip_short or
+      giveback_short or trail_short)
+
+if exl
+    state     := 2
+    entry_px  := na; sl_px  := na; floor_px := na
+    tp1_px    := na; tp2_px := na; tp3_px   := na
+    best_hi   := na; best_lo := na
+    entry_bar := na; tp_level := 0
+
+if exs
+    state     := -2
+    entry_px  := na; sl_px  := na; floor_px := na
+    tp1_px    := na; tp2_px := na; tp3_px   := na
+    best_hi   := na; best_lo := na
+    entry_bar := na; tp_level := 0
+
+// ─── PLOTS
+plot(st_line, "ST", color=st_bull ? color.new(c_bull, 20) : color.new(c_bear, 20), linewidth=2)
+k1 = plot(AT,    "AT",  color.new(#0022FC, 0), linewidth=2)
+k2 = plot(AT[2], "AT2", color.new(#FC0400, 0), linewidth=2)
+fill(k1, k2, color=at_bull ? color.new(#00E60F, 85) : color.new(#80000B, 85))
+plot(bbsr, "EMA 200", color.new(#4FC3F7, 40), linewidth=2)
+plot(ef,   "EMA 9",   color.new(color.yellow, 60), linewidth=1)
+plot(em,   "EMA 21",  color.new(color.orange, 60), linewidth=1)
+plot(es,   "EMA 50",  color.new(color.red,    60), linewidth=1)
+
+plot(state == 1 or state == -1 ? tp1_px   : na, "TP1",   color=color.new(c_tp1, 20), linewidth=1, style=plot.style_linebr)
+plot(state == 1 or state == -1 ? tp2_px   : na, "TP2",   color=color.new(c_tp2, 20), linewidth=1, style=plot.style_linebr)
+plot(state == 1 or state == -1 ? tp3_px   : na, "TP3",   color=color.new(c_tp3, 20), linewidth=1, style=plot.style_linebr)
+plot(state == 1 or state == -1 ? sl_px    : na, "SL",    color=color.new(c_sl,  30), linewidth=2, style=plot.style_linebr)
+plot(state == 1 or state == -1 ? floor_px : na, "Floor", color=color.new(color.white, 40), linewidth=1, style=plot.style_linebr)
+plot(state == 1 or state == -1 ? entry_px : na, "Entry", color=color.new(color.white, 60), linewidth=1, style=plot.style_linebr)
+
+plotshape(abuy  and not irb, "BUY",    shape.labelup,   location.belowbar, c_bull, textcolor=color.black, text="BUY",    size=size.large)
+plotshape(abuy  and irb,     "R-BUY",  shape.labelup,   location.belowbar, color.new(#FFD700,0), textcolor=color.black, text="R-BUY",  size=size.normal)
+plotshape(asell and not irs, "SELL",   shape.labeldown, location.abovebar, c_bear, textcolor=color.white, text="SELL",   size=size.large)
+plotshape(asell and irs,     "R-SELL", shape.labeldown, location.abovebar, color.new(#FFD700,0), textcolor=color.black, text="R-SELL", size=size.normal)
+
+plotshape(tp1_long_hit or tp1_short_hit, "TP1", shape.diamond, location.abovebar, c_tp1, size=size.small, text="TP1")
+plotshape(tp2_long_hit or tp2_short_hit, "TP2", shape.diamond, location.abovebar, c_tp2, size=size.small, text="TP2")
+plotshape(tp3_long_hit or tp3_short_hit, "TP3", shape.diamond, location.abovebar, c_tp3, size=size.small, text="TP3")
+
+plotshape(exl, "X Long",  shape.xcross, location.abovebar, color.new(c_bear, 0), size=size.small, text="X")
+plotshape(exs, "X Short", shape.xcross, location.belowbar, color.new(c_bull, 0), size=size.small, text="X")
+
+barcolor(state ==  1 ? color.new(c_bull, 70) : state == -1 ? color.new(c_bear, 70) : na)
+
+if abuy
+    sc = str.tostring(bull_score) + "/7" + (w_sb ? " SB" : " OL") + (lr_bull ? " LR" : "")
+    label.new(bar_index, low - exit_atr * 1.5, sc, style=label.style_label_up, color=color.new(c_bull, 60), textcolor=color.white, size=size.small)
+if asell
+    sc = str.tostring(bear_score) + "/7" + (w_sb ? " SB" : " OL") + (lr_bear ? " LR" : "")
+    label.new(bar_index, high + exit_atr * 1.5, sc, style=label.style_label_down, color=color.new(c_bear, 60), textcolor=color.white, size=size.small)
+
+// ─── ALERTS
+alertcondition(abuy  and not irb, "V15 BUY",       "V15 BUY — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(abuy  and irb,     "V15 R-BUY",     "V15 R-BUY — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(asell and not irs, "V15 SELL",      "V15 SELL — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(asell and irs,     "V15 R-SELL",    "V15 R-SELL — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(tp1_long_hit,      "TP1 LONG",      "TP1 Long — Floor locked @ {{close}}")
+alertcondition(tp2_long_hit,      "TP2 LONG",      "TP2 Long — 25% close @ {{close}}")
+alertcondition(tp3_long_hit,      "TP3 LONG",      "TP3 Long — 25% close @ {{close}}")
+alertcondition(tp1_short_hit,     "TP1 SHORT",     "TP1 Short — Floor locked @ {{close}}")
+alertcondition(tp2_short_hit,     "TP2 SHORT",     "TP2 Short — 25% close @ {{close}}")
+alertcondition(tp3_short_hit,     "TP3 SHORT",     "TP3 Short — 25% close @ {{close}}")
+alertcondition(exl,               "V15 EXIT LONG", "V15 Exit Long — {{ticker}} @ {{close}}")
+alertcondition(exs,               "V15 EXIT SHORT","V15 Exit Short — {{ticker}} @ {{close}}")

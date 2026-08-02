@@ -1,0 +1,143 @@
+AU200  DAILY OPENING SYSTEM
+9:50 AM · 9:55 AM · 10:00 AM AEST  |  Mon–Fri Daily  |  2019–2026
+TP1 = 10 pts  ·  TP2 = 20 pts  ·  SL = 15 pts  ·  100/pt·Spread = 100 included
+76%
+Win Rate
+(TP1 mode)
+1.78
+Profit Factor
+(TP1 mode)
++$51,400
+Net 8Y
+(TP1 @ $100/pt)
+-$5,300
+Max Drawdown
+(8 years)
+21/yr
+Avg Trades
+per Year
+7/8 yrs
+Profitable
+Years
+ENTRY & EXIT RULES
+WHEN TO TRADE
+• 9:50 AM AEST (23:50 UTC) — Pre-open signal
+• 9:55 AM AEST (23:55 UTC) — Confirmation signal
+• 10:00 AM AEST (00:00 UTC) — Market open signal  ← MAIN
+• All 5 days: Mon/T ue/Wed/Thu/Fri
+ENTRY SIGNAL
+• DE v4 prints TREND BUY  →  Go LONG at next bar open
+• DE v4 prints TREND SELL  →  Go SHORT at next bar open
+• Ignore REV signals at this time
+EXIT
+• TP1 = 10 pts  ($1,000 per contract)  — exit half or all
+• TP2 = 20 pts  ($2,000 per contract)  — exit remainder
+• SL  = 15 pts  (-$1,500 per contract)  — always hard stop
+• One trade per session only — done after first signal
+TP1 = +10 pts
+TP2 = +20 pts
+ENTRY
+SL = -15 pts
+Signal
+Bar
+LONG TRADE SETUP
+0 25 50 75 100 125 150 175
+Trade #
+0
+100
+200
+300
+400
+500
+PnL (pts)
+2020 2021 2022 2023 2024 2025 2026
+TP1 = 10 pts  (High Win-Rate)  WR=76%    PF=1.78  Net=+514pts  ($+51,400)  MaxDD=-53pts  N=171
+0 25 50 75 100 125 150 175
+Trade #
+0
+200
+400
+600
+800
+PnL (pts)
+2020 2021 2022 2023 2024 2025 2026
+TP2 = 20 pts  (Max Net)  WR=60%    PF=1.80  Net=+869pts  ($+86,900)  MaxDD=-123pts  N=171
+−200
+−175
+−150
+−125
+−100
+−75
+−50
+−25
+0
+−400
+−300
+−200
+−100
+0
+EQUITY CURVES  —  2019 to 2026  |  Daily Opening System
+YEARLY RESULTS  &  DAY-OF-WEEK BREAKDOWN  (2019–2026)
+─── TP1 = 10 pts ─── ─── TP2 = 20 pts ───
+Year N WR% PF Net @100/pt || N WR% Net
+2019 26 81% 2.36 +109 $+10,900 | 26 73% +249
+2020 24 75% 1.69 +66 $+6,600 | 24 58% +106
+2021 30 77% 1.85 +95 $+9,500 | 30 67% +220
+2022 24 88% 3.94 +141 $+14,100 | 24 67% +176
+2023 21 67% 1.12 +14 $+1,400 | 21 38% -56
+2024 13 62% 0.90 -8 $-800 | 13 46% +2
+2025 18 67% 1.12 +12 $+1,200 | 18 50% +27
+2026 15 87% 3.66 +85 $+8,500 | 15 73% +145
+TOTAL 171 +514pts $+51,400 171 +869pts
+DAY-OF-WEEK  (TP1 = 10 pts, 2019-2026)
+Day N Win Rate PF Net pts @100/pt Note
+Mon 32 71.9% 1.44 +63 $+6,300
+Tue 35 82.9% 2.72 +165 $+16,500 ★ BEST — WR 83%
+Wed 37 75.7% 1.75 +108 $+10,800
+Thu 30 73.3% 1.55 +70 $+7,000
+Fri 33 72.7% 1.50 +72 $+7,200
+2019 2020 2021 2022 2023 2024 2025 2026
+0
+5
+10
+15
+20
+Trade Count
+21
+18
+23
+21
+14
+8
+12
+13
+5
+6
+7
+3
+7
+5
+6
+2
+Winners vs Losers per Year (TP1=10)
+Winners
+Losers
+COMPLETE STATS TABLE
+METRIC TP1 = 10 pts TP2 = 20 pts
+Period 2019–2026 2019–2026
+T otal Trades 171 171
+Trades/Year 21.4 21.4
+Winners 130 103
+Losers 41 68
+Win Rate 76.0% 60.2%
+Profit Factor 1.78 1.80
+Win = TP hit +9 pts net (+$900) +19 pts net (+$1,900)
+Loss = SL hit -16 pts net (-$1,600) -16 pts net (-$1,600)
+Avg Trade Expectancy +3.0pts (+$301) +5.1pts (+$508)
+Net 8Y (pts) +514 +869
+Net 8Y ($100/pt) $+51,400 $+86,900
+Max Drawdown -53pts ($-5,300) -123pts ($-12,300)
+TP Hits 130 of 171 103 of 171
+SL Hits 41 of 171 68 of 171
+Profitable Years 7 of 8 6 of 8
+TRADE DISTRIBUTION & COMPLETE STATISTICS  (2019–2026)
