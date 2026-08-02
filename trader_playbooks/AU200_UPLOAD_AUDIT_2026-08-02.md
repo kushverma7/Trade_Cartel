@@ -164,3 +164,115 @@ consistent effect rather than a cherry-picked one, and it agrees with this
 project's own finding that the exit carries the edge. It is worth rebuilding
 from scratch under this repo's cost and validation standards. It is not worth
 believing at the numbers shown.
+
+---
+
+# Addendum — batches 3 and 4 (code, grid, HalfTrend)
+
+15 further files. Two duplicate pairs (`DE_v4_P1P2.pine`,
+`daily_opening_report.pdf`) and one identical duplicate of
+`es1_local_backtest.py` — archived once each.
+
+## `es1_local_backtest.py` — seven defects, two of them fatal
+
+1. **Equity accounting is broken (fatal).** Long entries do
+   `equity -= cost` where `cost` is the full notional. Exits add back only
+   the P&L (`equity += pnl`), never the principal. Every long permanently
+   removes `close × qty` from equity. The equity curve, net profit, return
+   percentage, drawdown and Sharpe are all meaningless.
+2. **The data cannot exist (fatal).** `yfinance` serves roughly 60 days of
+   5-minute history regardless of how the request is chunked. `START =
+   "2019-01-01"` returns empty frames for all but the most recent window.
+   Any "2019→2026 5m" result from this script is a few weeks of data
+   wearing a seven-year label.
+3. **TP1 partials are counted as whole trades.** Each TP1 fill appends its
+   own row to `trades`, and win rate (line 365) and profit factor (379–381)
+   both run over every row. A TP1 row is always positive, so every trade
+   that reaches TP1 donates a guaranteed extra win and extra gross profit.
+   BUG-016 in a new costume; it inflates both headline metrics.
+4. **Position sizing carries a spurious factor of price.** Risk per share is
+   `atr × mult`, but the sizer divides by `atr × mult × price`, making every
+   position roughly `price`× too small.
+5. **Assumed risk and actual risk differ by an order of magnitude.** Sizing
+   assumes a stop at `1.5 × ATR`; the stop actually placed is
+   `low − 0.1 × ATR`.
+6. **Short entries never touch equity.** Longs deduct `cost` and are gated by
+   `if cost <= equity`; shorts compute `rev` and discard it, with no
+   affordability check. BUG-022 class — one direction edited, the mirror
+   left behind.
+7. **Stops fill exactly at the stop price** (lines 244, 253), no gap
+   handling. BUG-018.
+
+Also: the "3-loss rule" increments on any *signal* near a level, not on a
+*loss*, and never resets after a win, so it does not implement the rule it
+is named for.
+
+## `halftrend_optimisation_results.csv` — 80% of the grid is duplicate rows
+
+`channelDeviation` ∈ {1,2,3,4,5} yields byte-identical output for every
+other setting — same signal count, same confirmation percentage. The
+uploaded HalfTrend source shows why: `dev = channelDeviation * atr2` feeds
+only `atrHigh`/`atrLow`, which are plotted bands. The flip logic uses
+`highma`, `lowma`, `maxLowPrice` and `minHighPrice` and never reads `dev`.
+The parameter provably cannot change a signal.
+
+So 1,920 rows are 384 real configurations and 1,536 duplicates. Any
+selection reporting a "best channelDeviation" is reporting noise.
+
+Worse, the ranking metric is circular. `pct_confirmed` rises monotonically
+with `confirmWindow` — 0.463, 0.591, 0.657, 0.726 for windows 1, 2, 3, 5 —
+because a wider window mechanically catches more confirmations. Choosing
+window 5 because it maximises confirmation rate selects a tautology.
+
+And the file contains no profit factor, no net, no drawdown. It measures how
+often an EMA agrees with HalfTrend. Agreement is not profitability; a filter
+can agree 74% of the time and still remove every winner.
+
+## `halftrend_au200_v6_final.pine`
+
+- **ATR regime filter self-satisfies at every volatility high.**
+  `atrHigh = ta.highest(atr14, atrRegWin)` includes the current bar, so
+  `atrPct = (atr14 − atrLow)/(atrHigh − atrLow) × 100` equals 100 whenever
+  ATR makes a new window high. The gate `atrPct >= atrRegPct` therefore
+  always passes at exactly the moments it was meant to judge. BUG-015 class.
+- **No `margin_long`/`margin_short` set**, so both default to 100%. With
+  `default_qty_value=1` on a ~8,000-point index against `initial_capital =
+  10000`, this sits squarely in BUG-012 territory. Read fill rate before
+  believing any metric from this file.
+
+## `au200_flip_engine_report.pdf`
+
+Confirms the drawdown contradiction a third time: states max drawdown
+−$8,050 while its own drawdown chart runs to −400pts.
+
+Its content is interesting though — reversing at the stop instead of going
+flat adds $255,530 net across 317 trades, at the cost of 0.83 profit factor.
+That is a real exit-side finding, and it is the only measured comparison in
+the whole upload set that isolates a single variable.
+
+## Genuinely valuable: `HalfTrend_DMI_Strategy_Report.docx`
+
+A complete, unambiguous mechanical specification (Booming Bulls / Anish
+Singh Thakur): ADX(13,13) read from 15m must exceed 23; +DI vs −DI sets
+permitted direction; HalfTrend flip on the 5m close is both entry and exit;
+maximum two stop losses per day.
+
+The stated reason for preferring HalfTrend over SuperTrend is the valuable
+part, and it is structural rather than stylistic: SuperTrend flips when
+price touches the line, HalfTrend requires channel confirmation, so it holds
+through pullbacks instead of whipsawing out. That is an exit-side mechanism,
+which is where this repo has measured the edge to be.
+
+**Three uploads disagree about flip exits.** The DMI report's exit *is* a
+flip. `indicator_forensics_brief_v2.md` lists "NO flip exits" as absolute
+rule 2 and disqualifies any combination containing one. The flip engine
+report measures flipping as worth +$255,530. Nobody reconciled them.
+
+## Indicators archived
+
+Twelve Pine files to `indicators/aicartel_2026-08-02/`: Dialectic Engine v1,
+v4 Flip, v4 Trendline, v4 P1P2, v5, v6 Fib TP Manager, V15 Final, AC FUSION,
+AICartel Scalper, Super Scalper, Fabio+Marco Entry/Exit, HalfTrend EMA
+Stack, plus the two AU200 HalfTrend builds. Dialectic Engine v1's sweep
+detection is correctly written — it compares against `rh[1]`/`rl[1]`,
+avoiding BUG-015.
