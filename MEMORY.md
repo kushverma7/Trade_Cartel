@@ -351,80 +351,81 @@ answered; it fell off when the context compacted. Still open.
 
 ---
 
-# ►► CURRENT STATE AND NEXT ACTION (2026-07-31)
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-02)
 
 Read this before doing anything. It replaces having the previous
 conversation.
 
-## Where the project actually stands
+## Where the project actually stands (2026-08-02)
 
-**Every result ever produced here is below the noise threshold.** Not close
-to working, not needing another tuning pass. See RESULTS_LEDGER.md: 17 runs,
-zero out-of-sample tests, and a Deflated Sharpe of 0.08 on the best of them
-against a 0.95 bar. The expected best Sharpe from 17 attempts on data with no
-edge is 0.107/trade; the best engine achieved 0.044 — less than half of it.
+**The champion is validated.** `strategies/gold_trend_strategy.pine`,
+XAUUSD 30m, Balanced profile, 0.20 pt slippage (slippage=200), $0.07/contract:
 
-**Do not build an 18th engine.** That instinct is what produced the ledger.
+| source | PF | net | max DD | orders | window |
+|---|---|---|---|---|---|
+| research engine | 1.641 | +1,620% | 33.40% | 2,234 | Aug 2019–Aug 2026 |
+| **TradingView deep** | **1.583** | **+1,592%** | **33.63%** | **2,370** | same |
 
-## The bar, concretely
+Research-to-live delta: PF 0.058, DD 0.23 pp, order count 94.3% match.
+DSR 0.9996 (1,000 trials). PBO 0.099. Six of seven years profitable.
+Five of five walk-forward slices profitable. Buy-and-hold: +179% / 29.1% DD.
 
-At n=521 and a 44% win rate a result must reach **PF ~1.45** to clear DSR
-0.95. Anything between 1.0 and 1.4 at this sample size is search noise.
+Conservative profile: +680% / 17.0% DD / PF 1.635.
 
-## What is built and working (all committed)
+## What the champion is NOT
 
-- `backtest/` — offline stack: non-lookahead level construction, fast engine
-  (0.14s per 14k bars), greedy optimiser with a LOCKED train/test split,
-  deflated Sharpe + PBO, tolerant CSV loader (gz/zip/chunked/any date format).
-- `backtest/test_engine.py` — 5 hand-computed accounting tests, all passing.
-  Run these first if anything is ever changed in the engine.
-- `backtest/lse_client.py` — wraps the official `lse-data` PyPI client.
-- Pine engines in `strategies/` with per-voter and per-level scorecards, so
-  one TradingView run ranks all contributors instead of guessing combos.
+- The entry predicts nothing. The corrected null (BUG-023) put it at the
+  93.3rd percentile — inside the noise band. The money is in the exit,
+  regime filters, and adding to winners.
+- The slippage was wrong until 2026-08-02. slippage=5 → 0.005 pt (BUG-021).
+  slippage=200 → 0.20 pt. Every run made before the correction is optimistic.
+  Any strategy file in strategies/ other than gold_trend_strategy.pine that
+  has not been re-run at slippage=200 carries the old optimistic figure.
+- The short side earns PF 1.076 standalone but is kept because it earns
+  when the long side cannot — diversification, not edge.
 
-## The single blocker: no market data
+## The one open vulnerability
 
-The sandbox sits behind a policy-enforcing egress proxy. Only PyPI, npm,
-crates, Go proxy and Anthropic are reachable. Every market-data host —
-londonstrategicedge.com, huggingface.co, Yahoo, Stooq, Binance,
-tradingview.com — fails at the CONNECT tunnel. **This is environment network
-policy, not authentication.** `pip install` works, which is why the official
-LSE client and backtrader installed fine.
+Break-even is roughly 1.2–1.5 points of slippage. At 0.50 pt: PF 1.452,
++715%, 52% DD. At 1.00 pt: PF 1.141, +109%, 76% DD.
+**The user has not measured their Pepperstone actual gold spread.**
+That measurement decides which risk profile is safe to run live.
+Action: re-run deep backtest with slippage=500 (0.50 pt). If PF holds
+above 1.45 and DD stays under 40%, Balanced is safe. If not, Conservative.
 
-Two ways forward:
-1. Allowlist `londonstrategicedge.com`, `api.londonstrategicedge.com` and
-   `huggingface.co` in the environment's network settings, then
-   `python3 -m backtest.lse_client --check`. This also revives Kronos.
-2. Export XAUUSD 15m from the LSE builder, gzip, drop in the repo, then
-   `python3 -m backtest.inspect_csv <file>`.
+## BUG_REGISTRY status
 
-## The order of work once data exists
+BUG-001 through BUG-023, all registered. Five bugs (019–023) were added
+2026-08-02 — they existed in RESULTS_LEDGER prose but not in the registry.
+Read the full registry before writing any Pine or Python.
 
-Do NOT start with the optimiser. Greedy search produced PF 1.73 and PF 2.49
-on synthetic random-walk data — search manufactures in-sample winners out of
-noise, reliably.
+## Backtest infrastructure (all committed, passing)
 
-1. Kronos `--mode validate` — does XAUUSD 15m have directional structure at
-   all? ~50% means stop tuning entries and change timeframe.
-2. Baselines — buy-and-hold, and random entries with identical stops and
-   targets. No engine here has ever been compared against either.
-3. Only then `python3 -m backtest.optimize --csv <file>`, and judge the
-   OUT-OF-SAMPLE number against PF 1.45.
+- `backtest/trend.py` — champion research engine. gap_fill=True is required.
+  Reproduces baseline PF 1.333 / +152.5% / 921 trades (the check row).
+- `backtest/exit_lab.py` — six trailing modes, TP1/TP2. Reproduces trend.py.
+- `backtest/overfit.py` — DSR + PBO. Run with actual trial count.
+- `backtest/stress_test.py` — corrected null + cost stress. All three gates
+  must pass before any result is VALID.
+- `backtest/test_engine.py` — 5 accounting tests. Run first if engine changes.
+- `backtest/pine_lint.py` — undeclared identifiers + trailing commas.
 
-## Credentials
+## Network blocker (unchanged)
 
-The LSE API key lived in a gitignored `.env` which does NOT survive a new
-container. For persistence set `LSE_API_KEY` in the environment's own
-variable settings — `backtest/lse_client.py` prefers it over `.env`.
+Only PyPI, npm, crates, Go proxy, Anthropic reachable. HuggingFace (Kronos
+weights) and LSE data still blocked. Data must be supplied by the user.
 
 ## Standing discipline (earned the hard way)
 
 - A PF with no trade count and no date range is not a result.
-- A suspiciously LOW trade count is an execution symptom, not selectivity
-  (BUG-012 struck twice; every engine now shows Signals/Filled/Fill rate).
-- Trend and HTF filters have made results worse three separate times.
+- LOW trade count = execution symptom (BUG-012); check fill rate first.
+- Trend/HTF filters have made results worse three separate times.
 - A screenshot is not a specification.
-- If the user supplies source, port it — do not reimplement it.
+- If the user supplies source, port it — do not reimplement it (BUG-013).
+- Report the TAIL metrics (worst loss, best win), not just PF (BUG-018).
+- slippage in Pine is in TICKS. On XAUUSD: 0.20 pt = slippage=200 (BUG-021).
+- Update best excursion AFTER resolving the stop, not before (BUG-019).
+- A null must vary exactly ONE thing from the strategy (BUG-023).
 
 
 ---

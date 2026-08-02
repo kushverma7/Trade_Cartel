@@ -373,3 +373,162 @@ TradingView's 240.77.
 disagree on the WORST trade, suspect the fill model, not the logic. Compare
 the tails, not just the aggregates — an average can agree while the model
 of a bad day is completely wrong.
+
+---
+
+## BUG-019 — Intrabar lookahead in trailing stop (best excursion updated before stop check)
+
+**Found:** 2026-07-31, when exit_lab.py could not reproduce trend.py's known result.
+**Severity:** Critical — understates drawdown, overstates PF.
+
+**Symptom:** A new engine built to reproduce the champion's PF 1.626 returned PF 1.183
+and 45.2% drawdown. A reproduction failure on a known result is a bug until proven
+otherwise (it was a bug).
+
+**Root cause:** The best-excursion variable (`v_pk` / `best`) was updated with the
+current bar's extreme BEFORE the stop was checked on that same bar. A bar could
+therefore raise its own trailing stop level and then trigger the stop it had just
+moved — a form of intrabar look-ahead. The engine "knew" the bar's high before
+deciding whether that bar was a stop-out bar.
+
+**Fix:** Resolve the stop FIRST on each bar; update the best excursion AFTER. The
+order of operations in the bar block must be: (1) check if stop is breached, (2) if
+yes, close and record; (3) if no, update the best excursion for the NEXT bar's stop.
+
+**Prevention:** Phase 4 desk check rule — for any trailing stop, write out the exact
+sequence of operations on a single bar and ask: "does the stop level used in step 1
+depend on data from this bar, or only from prior bars?" If it depends on this bar's
+data, it is lookahead.
+
+**Affected files:** exit_lab.py (first draft), backtest/trend.py (initial version).
+**Status:** Fixed in both. The fix is now part of exit_lab.py's reproduction test.
+
+---
+
+## BUG-020 — Giveback trail never armed (scored 1% win rate on 2,307 trades)
+
+**Found:** 2026-07-31, during the exit laboratory sweep.
+**Severity:** High — made a trailing mode look worthless when the mode was unimplemented.
+
+**Symptom:** The "giveback" trailing mode (exit when the trade gives back X% of peak
+profit) scored a 1% win rate over 2,307 trades — a shape that is a bug signature,
+not a discovery.
+
+**Root cause:** With zero profit at entry, the giveback stop snapped to the entry
+price on bar two (0% of 0 = 0 points of giveback allowed). Every trade was stopped
+out almost immediately. The mode was never "armed" — it did not wait for the trade
+to reach a minimum profit threshold before activating.
+
+**Fix:** Add an arming threshold: the giveback trail only activates once the trade has
+reached a minimum excursion (e.g. 1 ATR of profit). Below the threshold, hold the
+initial protective stop.
+
+**Prevention:** Any trail defined as a function of profit must explicitly state and
+implement what it does at ZERO profit. If the answer is "snap to entry," that is a
+stop-out machine. State the arming condition in the spec before coding.
+
+**Affected files:** exit_lab.py (first draft).
+**Status:** Fixed; arming threshold added.
+
+---
+
+## BUG-021 — Pine slippage in TICKS, not points (40× understatement)
+
+**Found:** 2026-08-02, during cost stress testing; confirmed by live TradingView run.
+**Severity:** Critical — flatters every cost-sensitive result by up to 40×.
+
+**Symptom:** The deep backtest returned PF 1.694 and +3,534%. After correcting the
+slippage unit, the same window returns PF 1.583 and +1,592% — a 55% cut in net return.
+
+**Root cause:** Pine's `strategy()` `slippage` parameter is in TICKS, not in the
+instrument's price points. On XAUUSD, mintick = 0.001, so:
+- `slippage = 5` → 0.005 points (what was shipped — 40× too small)
+- `slippage = 200` → 0.20 points (realistic retail fill)
+- `slippage = 500` → 0.50 points
+
+Every run made with `slippage = 5` modelled execution that is 40× better than
+reality. The PF and return numbers from those runs are all optimistic.
+
+**Fix:** `slippage = 200` for 0.20 pt (the base case); let the user set their
+broker's actual spread in ticks. Document the conversion in the strategy header.
+
+**Prevention:** For every new strategy, before writing the `strategy()` declaration,
+compute: (intended slippage in points) / (mintick) = value to pass. Write the
+intended value AND the computed tick count in the header comment. Never pass a raw
+number without stating what instrument it is calibrated for.
+
+**Which mind found it:** The cost stress test, which found a result far below
+expectation — the "number disagrees with expectation, investigate" rule paid off.
+
+**Affected files:** gold_trend_strategy.pine (corrected to slippage=200),
+gold_trend_trailing.pine, and every other strategy in strategies/ that inherited
+the `slippage=5` default.
+**Status:** Fixed in the champion. Other files in strategies/ still carry the
+wrong default — they have not been re-run at correct costs.
+
+---
+
+## BUG-022 — Edit symmetry: a change to one directional block misses the mirror
+
+**Found:** 2026-07-31 (pattern; multiple instances across the session).
+**Severity:** High — logic asymmetry that behaves correctly in one direction only.
+
+**Symptom:** A bug fix or feature addition appears to work in testing (which tends to
+trigger the more frequent direction first), but live trading reveals it only applies
+to longs or only to shorts.
+
+**Root cause:** Long and short trade-management blocks are near-identical mirror
+images. A single-anchor edit — find the relevant line, change it, verify it compiles
+— lands on one block and the reviewer sees "it works" on the next signal. The mirror
+block retains the old behavior.
+
+**Fix:** After any change to directional trade state (entry, exit, stop, add, trail),
+enumerate every per-trade variable and confirm it is assigned correctly in BOTH the
+long block AND the short block. Do this as a named step, not as a side effect of
+compilation.
+
+**Prevention:** CODE_DELIVERY_PROTOCOL phase 4 (desk check) must include: "list all
+`if direction == 1 / if direction == -1` blocks in the changed file; confirm the
+intended change is present in both." A grep for the changed variable name in the
+file, then reading every hit, is the two-minute check.
+
+**Affected files:** Multiple strategies across the session; the pattern is now
+a named anti-pattern in phase 4.
+**Status:** Prevention rule added; no single file is the canonical example.
+
+---
+
+## BUG-023 — Random-entry null was measuring the wrong thing (confounded null)
+
+**Found:** 2026-07-31, during the validation certificate pass.
+**Severity:** High — caused earlier results to be presented as stronger than they
+were, because the comparison arm was wrong.
+
+**Symptom:** An earlier null returned a very low random-arm PF, making the strategy
+look like it had a strong entry edge. The corrected null returned a random-arm median
+of +524% — suggesting the "edge" was in the filters and exit, not the entry. Both
+cannot be right; the earlier null was wrong.
+
+**Root cause:** The earlier `random_p` mode randomised entry timing but did NOT
+apply the same filter set (EMA regime, slope gate, SMA confluence). It therefore
+compared entry+filters against a raw random walk — two things differing in both the
+entry timing AND the filters. A null must differ from the strategy in exactly ONE
+respect: the thing being tested. If the null skips the filters, you are measuring
+"do filters help" not "does the entry trigger help."
+
+**Fix:** The corrected null draws random entries from the SAME filtered bars at a
+matched rate. The only difference between the strategy and the null is whether the
+specific entry trigger (Donchian breakout) fires or a coin flip fires on the same
+filtered bar. The champion sits at the 93.3rd percentile of the corrected null —
+above the median but inside the noise band, confirming the entry contributes little
+and the money is in the exit, regime, and adds.
+
+**Prevention:** Before running any null, write down explicitly: "what does the null
+hold constant, and what does it vary?" If the null varies more than one thing, it
+cannot answer the question being asked. The null specification is now a required
+element of the ledger row for any result claiming an entry edge.
+
+**Affected files:** backtest/stress_test.py (corrected null implementation),
+backtest/trend.py (random_p mode rewritten).
+**Status:** Fixed. The corrected null is now the standard; old runs that used the
+uncorrected null overstate the entry's contribution.
