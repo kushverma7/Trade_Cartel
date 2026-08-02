@@ -508,3 +508,105 @@ small enough to be credible.
   Its structure is sound (`ta.pivothigh/low`, `[1]`-offset Turtle and Wyckoff
   ranges avoid BUG-015) but the component weights are asserted, never
   measured, and nothing in the archive tests them.
+
+---
+
+# Third pass — the professional sweep
+
+## Four defects found in code this repo already owns
+
+Auditing `gold_scalping_strategy_blueprint.pdf`'s claims against our own
+files, rather than taking them on trust, produced four registry entries.
+Verifying rather than accepting mattered: the blueprint's headline claim was
+wrong, and acting on it would have broken working code.
+
+| id | file | defect | status |
+|---|---|---|---|
+| BUG-024 | `skills/key_levels_module.pine` | yearly high/low leak future data into `klPrices[]` | inherited from original; fix at the export |
+| BUG-025 | `victor_aimstar_past_strategy_v1.pine` | long and short conditions are the same expression | one-token fix |
+| BUG-026 | `bigbeluga_smart_money_concepts.pine` | `5/len` integer-divides to zero for len≥6 | one-token fix |
+| BUG-027 | blueprint's Quarter Theory module | filter is a constant; target 15x too close | do not build |
+
+### BUG-024 in detail — where the blueprint was wrong
+
+The blueprint's "Critical" finding was that **all 20** `request.security()`
+calls in the key-levels module repaint. Classifying each call:
+
+- 10 use `[time[1], high[1]]` — the standard **non-repainting idiom**. Correct.
+- 6 request `open`, knowable at period start. Safe.
+- 4 request current-period `high`/`low` with `lookahead_on`. **Genuine leak.**
+
+Had the blueprint's advice been followed and `lookahead_on` stripped
+wholesale, the ten correct calls would have started repainting. The audit
+found a real problem and prescribed a fix that would have made things worse.
+
+Of the four leaking calls, only the yearly pair reaches trade logic — the
+current-day pair draws but never enters `klPrices[]`. And the leak is
+inherited from the user-supplied original, not introduced by our port, whose
+four deltas are all logged and compliant.
+
+## The blueprint's Quarter Theory, measured against our own data
+
+Median XAUUSD 15m ATR is $2.58 over $1,454–$5,586 of price history.
+
+**The filter is a constant.** `distToWhole` cannot exceed 0.50 by
+construction, so `distToWhole < atr * 0.3` is unconditionally true whenever
+ATR > $1.67 — which is **79.8% of bars**. The `nearQuarter` variant is
+unconditionally true on **93.6%**.
+
+**The target is 15x too close.** Against a 1.5×ATR stop of $3.87:
+
+| grid | target/stop | BUG-017 gate (>1.0) |
+|---|---|---|
+| FX .25 grid (blueprint) | 0.065 | **FAIL** |
+| gold $2.5 minor | 0.646 | **FAIL** |
+| gold $5 major | 1.292 | PASS |
+| gold $10 | 2.584 | PASS |
+
+The blueprint's own grid scores 0.065 — worse than the 0.077 that produced
+live PF 0.702 and −2.99% under BUG-017. Its "Target 1: next quarter level
+(1:1 R/R)" label is false by a factor of fifteen.
+
+**Someone in the archive already fixed this.**
+`gold_confluence_engine_1.pine`'s header reads: *"Dave's Quarter Theory,
+gold-scaled: $2.5 minor / $5 major / $10 grid — NOT the FX .25 grid"*, and it
+documents the `[1] + lookahead_on` idiom correctly. It is the most technically
+literate file in the entire upload. Per the table above its $5 and $10 grids
+clear the BUG-017 gate; its $2.5 minor grid still does not and should be
+dropped from targeting.
+
+## The systemic defect across the AU200 family
+
+Every AU200 strategy in `TOP10_PINE_SCRIPTS.zip` — **9 of 10** — tests its
+stop against the bar CLOSE rather than the low/high:
+
+```
+if close <= _sl_cur      // long
+if close >= _sl_cur      // short
+```
+
+Only `07_APEX_ML_SIGNAL` does not. Intrabar stop violations are invisible: a
+bar can trade far through the stop and, if it closes back on the right side,
+the position survives and the loss never appears.
+
+This is not a per-file bug. It is the shared execution core of the entire
+AU200 research programme, and it explains the archive's most distinctive
+symptom — losses collapsing onto a single value — better than any fill-model
+assumption. **Every AU200 number in every document in this upload is affected
+by it.**
+
+## Files closed with nothing new
+
+- `all_indicators_dump.txt` — six scripts, all already in `indicators/`.
+  `key_levels_spaceman.pine` is byte-identical to the supplied original.
+- `FILE_MANIFEST.pdf` and `agent_2_1_cluster_detector_training.pdf` — a
+  different project (SEC Form 4 insider-cluster detection on US equities,
+  8 agents, PostgreSQL). Off-topic for XAUUSD/AU200. The manifest references
+  seven documents and three Python files that were never uploaded.
+- `NUCLEAR_PROMPT_v2.md` — the commissioning prompt that produced
+  `THE_CONFLUENCE_STRATEGY.md`. Historical artifact. Its one durable line is
+  worth keeping: *"THE ONLY METRIC THAT MATTERS: EXPECTANCY"* — which the
+  entire AU200 programme then ignored in favour of profit factor.
+- `STRATEGY_EXTRACTION_PROTOCOL.md`, `SKILL_EXPANSION_FRAMEWORK.md` —
+  byte-identical to the repo's copies.
+- `TC_Master_Strategy.pine` — uploaded twice, identical.
