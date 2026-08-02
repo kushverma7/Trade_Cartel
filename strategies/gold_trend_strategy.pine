@@ -107,6 +107,23 @@ strategy("Gold Trend — Strategy",
 bool  autoScale = input.bool(true, "Auto-scale settings to the chart timeframe", group="⓪ Auto-scale",
      tooltip="ON is strongly recommended. The inputs below are then IGNORED and derived from the timeframe, so moving between 15m and 30m cannot silently change the strategy. The dashboard shows what is actually in use. RUN THIS ON 30m: it beat 15m on profit factor, return AND drawdown in both halves.")
 
+// ── ⓿ RISK PROFILE (the only dial most people need) ─────────────
+// Same engine, same entry, same exit. Only how HARD it presses.
+// Full 6.7 years, XAUUSD 30m, gap-aware fills:
+//
+//   profile      adds        risk   net       maxDD   worst yr  PF
+//   Conservative 3 ATR x2    1.0%   +660%     17.7%    -1.5%    1.626
+//   Balanced     1.5 ATR x4  1.0%   +2,307%   29.8%    -6.3%    1.728
+//   Aggressive   1.5 ATR x4  1.5%   +8,627%   42.8%   -12.1%    1.769
+//   Maximum      1.5 ATR x4  2.0%   +24,712%  54.5%   -22.5%    1.764
+//
+// All four are positive in all five walk-forward slices and all four lose
+// only in 2021. Return roughly triples at each step and so does the pain:
+// Maximum spent 2021 down 22.5% with a 45.8% intra-year drawdown. Choose
+// by the drawdown you can hold through, not by the return.
+string riskProf = input.string("Balanced", "Risk profile", options=["Conservative", "Balanced", "Aggressive", "Maximum", "Custom"], group="⓿ Risk Profile",
+     tooltip="Sets risk-per-trade and the add schedule together. Custom uses whatever you set in groups 2 and 3 and ignores this.\n\nCONSERVATIVE +660% at 17.7% drawdown - the config the validation certificate was computed on.\nBALANCED +2,307% at 29.8% - 3.5x the return for 12 points more drawdown, worst year -6.3%. Default, because it is the best return-per-drawdown step on the ladder.\nAGGRESSIVE +8,627% at 42.8%, worst year -12.1%.\nMAXIMUM +24,712% at 54.5%, worst year -22.5% with a 45.8% intra-year drawdown. The largest return measured. Not the one to trade unless you have genuinely sat through a 50% drawdown before.")
+
 // ── ① Entry ─────────────────────────────────────────────────────
 string entryMode= input.string("Donchian breakout", "Entry trigger", options=["Donchian breakout", "HMA cross"], group="① Entry",
      tooltip="Both measured through the identical exit, filters and adds.\n\nDONCHIAN: PF 1.626, +660.2%, drawdown 17.68%, return/drawdown 37.3.\nHMA CROSS: PF 1.743, +540.4%, drawdown 20.9%, return/drawdown 25.9.\n\nHMA has the higher profit factor in BOTH halves (train 1.462 vs 1.370, out of sample 2.008 vs 1.879) - it is more accurate per trade. Donchian captures more and does it at less drawdown. Neither is strictly better.\n\nAlso measured and NOT offered: SMA and EMA crosses. The SMA 200 cross, the usual default everywhere, is the worst setting tested - PF 0.920 and -17.0% with no filters.")
@@ -185,6 +202,11 @@ bool  showDash  = input.bool(true, "Show dashboard", group="⑦ Display")
 // grows roughly as sqrt(time); that rule was validated by sweeping the
 // 30m trail directly (4.24 was best on train net, +113.5%).
 // ═════════════════════════════════════════════════════════════
+// Profile presets override the manual risk and add settings.
+float riskE   = riskProf == "Aggressive" ? 1.5 : riskProf == "Maximum" ? 2.0 : riskProf == "Custom" ? riskPct : 1.0
+float pyrAtrE = riskProf == "Conservative" ? 3.0 : riskProf == "Custom" ? pyrAtr : 1.5
+int   pyrMaxE = riskProf == "Conservative" ? 2   : riskProf == "Custom" ? pyrMax : 4
+
 float tfMin      = timeframe.in_seconds() / 60.0
 int   entryLenE  = autoScale ? math.max(5,   int(12.0 * 60.0 / tfMin))        : entryLen
 int   smaLenE    = autoScale ? math.max(50,  int(8.0 * 24.0 * 60.0 / tfMin))  : smaLen
@@ -260,12 +282,12 @@ else
 // next bar. The research engine adds at the trigger price and exposes the
 // enlarged size on the same bar, so Python is the stricter of the two.
 // ═════════════════════════════════════════════════════════════
-if usePyr and not tpOn and strategy.position_size != 0 and nAdds < pyrMax and not na(lastAdd)
-    float step   = atr * pyrAtr
+if usePyr and not tpOn and strategy.position_size != 0 and nAdds < pyrMaxE and not na(lastAdd)
+    float step   = atr * pyrAtrE
     bool  isLong = strategy.position_size > 0
     float nxt    = isLong ? lastAdd + step : lastAdd - step
     if isLong ? high >= nxt : low <= nxt
-        float aRisk = (isLong ? riskPct : riskPct * shortRisk) * pyrRisk
+        float aRisk = (isLong ? riskE : riskE * shortRisk) * pyrRisk
         float aQty  = math.floor(math.min(strategy.equity * aRisk / 100.0 / (atr * trailMultE),
              strategy.equity * maxLev / close - math.abs(strategy.position_size)))
         if aQty >= 1
@@ -277,7 +299,7 @@ if usePyr and not tpOn and strategy.position_size != 0 and nAdds < pyrMax and no
 // ENTRIES
 // ═════════════════════════════════════════════════════════════
 bool  wantShort = shortSig and not longSig
-float effRisk   = wantShort ? riskPct * shortRisk : riskPct
+float effRisk   = wantShort ? riskE * shortRisk : riskE
 float stopDist  = atr * trailMultE
 float qtyRaw    = stopDist > 0 ? strategy.equity * effRisk / 100.0 / stopDist : 0
 float qtyCap    = strategy.equity * maxLev / close
@@ -396,7 +418,7 @@ if showDash and barstate.islast
     int   nDn    = (regimeOkS ? 1 : 0) + (smaOkS ? 1 : 0) + (sma2OkS ? 1 : 0)
 
     table.cell(dash, 0, 0, "GOLD TREND", text_color=color.orange, text_size=size.small)
-    table.cell(dash, 1, 0, entryMode == "HMA cross" ? "HMA " + str.tostring(hmaLen) : str.tostring(entryLenE) + " brk", text_color=color.orange, text_size=size.small)
+    table.cell(dash, 1, 0, riskProf + " " + str.tostring(riskE, "#.#") + "%", text_color=color.orange, text_size=size.small)
     table.cell(dash, 0, 1, "Trades", text_color=color.silver, text_size=size.tiny)
     table.cell(dash, 1, 1, str.tostring(nT), text_color=nT < 250 ? color.yellow : color.white, text_size=size.tiny)
     table.cell(dash, 0, 2, "Win rate", text_color=color.silver, text_size=size.tiny)

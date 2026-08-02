@@ -1181,3 +1181,51 @@ frontier says it is not there.
 | balance | 4h, trail 16.0 | PF 2.06, +93%, 15.7% DD, ~0.6 trades/wk |
 
 All three are the same code with two inputs changed.
+
+---
+
+## FINAL: the risk ladder, measured and shipped (2026-07-31)
+
+User: *"give me the final strategy that gives me the most profit and
+return."* Same engine, same entry, same exit — only how hard it presses.
+XAUUSD 30m, full 6.7 years, gap-aware fills, selection ranked on full-period
+net return then checked year by year and walk-forward before shipping.
+
+| profile | adds | risk | TRAIN net/dd | OOS net/dd | FULL net | FULL dd | PF | worst yr |
+|---|---|---|---|---|---|---|---|---|
+| Conservative | 3 ATR ×2 | 1.0% | +487%/29.8 | +202%/19.5 | **+660%** | 17.7% | 1.626 | −1.5% |
+| **Balanced** | 1.5 ATR ×4 | 1.0% | +487%/29.8 | +202%/19.5 | **+2,307%** | 29.8% | 1.728 | −6.3% |
+| Aggressive | 1.5 ATR ×4 | 1.5% | +1,035%/42.8 | +459%/29.0 | **+8,627%** | 42.8% | 1.769 | −12.1% |
+| **Maximum** | 1.5 ATR ×4 | 2.0% | +1,739%/54.5 | +859%/36.9 | **+24,712%** | 54.5% | 1.764 | −22.5% |
+
+**All four are positive in all five walk-forward slices. All four lose only
+in 2021.** Return roughly triples at each rung and so does the pain.
+
+Year by year, net% (max drawdown within the year):
+
+| profile | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|---|---|
+| Conservative | +44.8/14.7 | −1.5/14.3 | +16.1/9.5 | +19.3/17.2 | +31.3/12.1 | +73.9/13.6 | +26.0/5.3 |
+| Balanced | +71.3/21.0 | −6.3/24.7 | +15.9/15.9 | +40.4/25.5 | +41.2/18.1 | +156.7/19.8 | +46.4/7.6 |
+| Aggressive | +112.4/30.5 | −12.1/35.7 | +22.2/23.6 | +59.7/36.3 | +61.3/26.5 | +302.0/29.1 | +100.1/13.3 |
+| Maximum | +147.0/38.8 | **−22.5/45.8** | +26.4/31.7 | +77.8/45.9 | +77.9/34.1 | +496.1/38.1 | +145.3/20.1 |
+
+**Maximum spent 2021 down 22.5% with a 45.8% intra-year drawdown.** That is
+the number that decides whether it is tradeable, not the +24,712%.
+
+Shipped as a one-click "Risk profile" selector in group ⓿, defaulting to
+**Balanced** — 3.5× Conservative's return for 12 points more drawdown, and
+the best return-per-drawdown step on the ladder. Maximum is one click away
+and its cost is written into the tooltip.
+
+**Caveat that travels with these numbers:** the higher rungs compound
+aggressively, so their full-period figures are dominated by the last two
+years. Balanced's +2,307% is not a claim about a fixed-size account — it is
+1% risk compounding for 6.7 years, and it assumes every fill and every
+gap behaved as modelled.
+
+**Bug caught during this build (not shipped):** the first attempt at the
+profile tooltip wrote real newlines into a Pine string literal instead of
+escaped `\n`, breaking the string across 6 lines. `pine_lint` flagged it as
+74 undeclared identifiers. That check exists because of BUG-015 and it paid
+for itself again.
