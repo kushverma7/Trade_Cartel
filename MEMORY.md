@@ -358,13 +358,24 @@ conversation.
 
 ## Where the project actually stands
 
-**Every result ever produced here is below the noise threshold.** Not close
-to working, not needing another tuning pass. See RESULTS_LEDGER.md: 17 runs,
-zero out-of-sample tests, and a Deflated Sharpe of 0.08 on the best of them
-against a 0.95 bar. The expected best Sharpe from 17 attempts on data with no
-edge is 0.107/trade; the best engine achieved 0.044 — less than half of it.
+**THE CHAMPION IS SHIPPED.** Row #23 in RESULTS_LEDGER.md:
+- `strategies/gold_trend_strategy.pine` on branch `claude/confident-fermi-qku0ic`
+- XAUUSD 15m → 30m auto-scaled, Donchian breakout + Chandelier 4.24 ATR trail
+- OOS test 2023–2026: PF 1.588, +60.9%, DD 5.5%, 275 trades
+- DSR 0.9996 at 1,000 trials (cleared the 0.95 bar — the ONLY engine in this repo to do so)
+- PBO 0.099 (selection beats random on 90.1% of splits)
+- Return/DD ratio 11.07 vs buy-and-hold 3.44
+- Cross-validated: TradingView PF 1.583 matches Python PF 1.588 (0.3% gap)
+- Risk profiles at 0.20pt slippage: Conservative +680%/17%DD, Balanced +1,592%/33.6%DD
+  (Aggressive/Maximum only confirmed at 0.005pt — see EV-1)
 
-**Do not build an 18th engine.** That instinct is what produced the ledger.
+**The entry has no edge.** "Every bar the gate allows" OOS PF 1.914 > real-strategy OOS PF 1.588.
+The exit IS the system. Do not tune entries. Test exit modifications first.
+
+**8 exit mechanics are EXTRACTED-NEVER-BUILT.** See ARCHIVE_SWEEP_PROMPT.md §4.
+These are the highest-value untested candidates in the repo.
+
+**Do not build a new engine from scratch.** Modify the champion's exit layer instead.
 
 ## The bar, concretely
 
@@ -416,6 +427,61 @@ noise, reliably.
 The LSE API key lived in a gitignored `.env` which does NOT survive a new
 container. For persistence set `LSE_API_KEY` in the environment's own
 variable settings — `backtest/lse_client.py` prefers it over `.env`.
+
+## Session 2026-08-02 (continued) — archive sweep and protocol adoption
+
+### Research protocol formally adopted
+- `RESEARCH_PROTOCOL_PROMPT.md` created and committed — the 10-section operating
+  method governing all future research: five pre-belief checks, result reporting
+  standard, three-gate validation battery, bug classes, archive sweep taxonomy,
+  exit-first research priority, security constraint, port-don't-reimplement rule,
+  capture rule.
+- This is now the METHOD. Every result produced here is subject to these rules.
+
+### BUG-017 through BUG-023 added to BUG_REGISTRY.md
+All seven bugs described in the research protocol are now formally committed:
+- BUG-017: level-based targets structurally break R:R (median KL = 0.46 ATR vs 6 ATR stop)
+- BUG-018: gap-fill stop fills at open on gap bars, not at stop price
+- BUG-019: intrabar lookahead — excursion must be updated AFTER stop resolves
+- BUG-020: giveback trail never armed — arm threshold exceeded median winner excursion
+- BUG-021: slippage units 40× error (slippage=0.005 not 0.20 for XAUUSD)
+- BUG-022: edit symmetry — always grep for ALL occurrences before declaring edit done
+- BUG-023: wrong null — null must use identical filter set; differs in exactly ONE thing
+
+### Archive sweep completed — key findings
+Full classification table in `ARCHIVE_SWEEP_PROMPT.md`. Summary:
+1. **All 22 voices: FULLY TRACED → REJECTED.** H73 falsified. PF 0.859/0.960.
+2. **8 exit mechanics: EXTRACTED-NEVER-BUILT.** See ARCHIVE_SWEEP_PROMPT.md §4.
+   These are the highest-value untested candidates because the exit carries the edge.
+3. **22+ display indicators: BUILT-NEVER-MEASURED.** No backtest row for any.
+4. **V3 misclassification:** hima_reddy_gann_engine.pine uses trade-management tool
+   as an entry signal. Source says it is not an entry tool. Design review required.
+5. **Murphy: ARCHIVED-NEVER-EXTRACTED.** 30-word extraction of 700-page text is not an extraction.
+6. **Forex James: DELIBERATELY-EXCLUDED.** Generic content, no repeatable model.
+7. **Champion confirmed:** gold_trend_strategy.pine on claude/confident-fermi-qku0ic.
+   OOS PF 1.588, +60.9%, DD 5.5%, DSR 0.9996, PBO 0.099. No entry edge; exit is the system.
+
+### The eight untested exit mechanics (research priority after EV-1/2/3)
+| # | Mechanic | Source |
+|---|---|---|
+| 1 | Doji-tightens-stop | Hougaard |
+| 2 | Volume-spike-near-S/R tighten/exit | Hougaard |
+| 3 | Scale-out 1/3@~20pts / 1/3@next-high-BE / 1/3 runner | Hougaard (Mark Douglas) |
+| 4 | Scale-in only when P1 stop can go to BE | Hougaard |
+| 5 | Full exit at previous POC | Valentini |
+| 6 | Failed-auction-at-target → secure profit | Valentini |
+| 7 | 3-5-7 scaled stop | Roppel |
+| 8 | Cushion protocol (no cushion = tight) | Roppel |
+
+### Outstanding evidence tasks (EV-1, EV-2, EV-3)
+- **EV-1:** Re-run Aggressive/Maximum risk profiles at 0.20pt slippage — currently
+  unconfirmed (measured at 0.005pt = 40× too low). Requires live data pipeline.
+- **EV-2:** DSR test for slope_both=True on full 7-year 30m data. Currently shipped
+  as toggle OFF, never DSR-tested.
+- **EV-3:** Voice score ≥6 filter on 30m champion — does the 15m predecessor
+  improvement (PF 1.879→1.954) transfer to 30m? Currently unmeasured.
+
+All three require the data pipeline (LSE allowlist or local CSV drop).
 
 ## Session 2026-08-02 — what was done
 
