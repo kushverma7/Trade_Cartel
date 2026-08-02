@@ -610,3 +610,43 @@ by it.**
 - `STRATEGY_EXTRACTION_PROTOCOL.md`, `SKILL_EXPANSION_FRAMEWORK.md` —
   byte-identical to the repo's copies.
 - `TC_Master_Strategy.pine` — uploaded twice, identical.
+
+---
+
+# Reconciliation — every uploaded file accounted for
+
+Asked a second time whether anything was missed, the honest answer was yes:
+the first sweeps covered roughly 40 files while the upload directory held 73.
+Reconciled properly by hashing every upload against every file in the repo.
+
+**73 uploaded → 61 unique, 12 duplicate re-uploads.**
+
+Only three uploads did not byte-match something in the repo:
+
+| file | resolution |
+|---|---|
+| `indicators.zip` | archive container; its 9 `.pine` files are in `indicators/aicartel_2026-08-02/` |
+| `TOP10_PINE_SCRIPTS.zip` | archive container; its 10 `.pine` files are in `indicators/top10_2026-08-02/` |
+| `COGNITIVE_ARCHITECTURE.pdf` | a Kimi.ai rendering of `trader_playbooks/COGNITIVE_ARCHITECTURE.md`, which does byte-match |
+
+Token-diffing the PDF against the markdown returns 37 PDF-only tokens, 36 of
+which are hyphenation artifacts from text extraction (`uncer`+`ainty`,
+`insu`+`ficient`, `unveri-`, `inconsis-`) and one of which is "kimi", the
+generator's own footer. No substantive content differs.
+
+## The one real miss, and what it turned out to be
+
+`17efb035-xau_usd_15m.csv` — 12.7 MB — was never opened during the first
+sweeps. Given that MEMORY.md has recorded "no market data" as this project's
+single blocker, a 12.7 MB XAUUSD file going unread was the most consequential
+possible omission.
+
+It is identical to `data/xauusd_15m.csv.gz`: 157,366 rows,
+2019-12-01 23:00 UTC → 2026-07-30 00:00 UTC, same columns. It is the source
+of the repo's compressed copy. No additional history, no new instrument, no
+new timeframe.
+
+## Standing note
+
+Duplicate uploads are common here — twelve of seventy-three. Hash first,
+read second. Reading a file twice costs time; missing one costs a finding.
