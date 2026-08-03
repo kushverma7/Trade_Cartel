@@ -1386,3 +1386,55 @@ target/stop ratio is stable across trades instead of random. It is the
 same family as the ATR target already in the engine but anchored to
 SESSION range rather than bar range — which is the horizon the trade is
 actually held over.
+
+---
+
+## The edge is an exponent gap, and it belongs to hold time, not to the entry
+
+**Established 2026-08-02**, `backtest/mae_mfe.py`, XAUUSD 15m/30m/60m,
+2019-2026, Donchian-100 breakout entries, no stop, excursions in ATR at entry.
+
+Adopting `MASTER_BLUEPRINT.md`'s MAE/MFE derivation and testing it produced a
+negative result on the method and a positive one on the market.
+
+**The method fails.** The "optimal stop derived from the 80th percentile of
+MAE" is not a market property. It tracks whatever measurement parameter was
+chosen — measurement stop 12/25/50 ATR yields 12.85/25.40/34.33; hold cap
+50/100/400/800 bars yields 6.5/9.1/17.1/26.3 ATR. MAE is right-censored by
+any stop, and uncensored it simply diffuses.
+
+**The market result.** Fitting log(excursion) against log(hold):
+
+| series | exponent | reference |
+|---|---|---|
+| MAE | **0.493** | pure random walk = 0.500 |
+| MFE | **0.558** | |
+| gap | **+0.065** | |
+
+The adverse side of a breakout entry on gold is statistically
+indistinguishable from a random walk. The favourable side compounds faster.
+P80 MFE / P80 MAE by hold: 1.09, 1.10, 1.08, 1.18, 1.32 at 50/100/200/400/800
+bars — no asymmetry at short holds, growing with time.
+
+**Why this matters more than any entry test we have run.** It is the
+quantitative form of this project's oldest finding. The entry contributes an
+exponent of 0.493 — a coin flip on geometry. Hold time contributes 0.065.
+Everything this repo has measured follows from it:
+
+- fixed targets cap the trade in the low-ratio regime and discard the
+  asymmetry, which is why every fixed-target configuration here lost, and why
+  every fixed-TP configuration in the uploaded AU200 archive was negative
+  across the entire sweep (PF 0.85-0.89, all combinations).
+- trailing exits harvest the gap, which is why the exit dominates the entry
+  across all seven entry families tested.
+- early profit-taking is destructive, independently reproduced by the AU200
+  archive: TP1 at an EMA8 pierce gave 14.6% WR and -$427,792 while holding
+  the same signals to end of day gave 83.3% and +$1,170,926.
+
+**Invalidation:** an entry whose MAE exponent is materially below 0.49 — that
+would be an entry with genuine geometric edge, and it would change where
+effort should go. None of the seven families tested here has shown one.
+
+**Caveat:** measured on one entry family (Donchian-100) and one instrument.
+The exponent gap should be re-measured per entry before being assumed. The
+module prints it on every run for exactly that reason.
