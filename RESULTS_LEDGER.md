@@ -1853,3 +1853,79 @@ does not have; Setup 5's "low volume on the false break" cannot be honoured
 because this dataset's volume is broker tick-count, not exchange volume; and
 US30 was not tested because there is no US30 data in `data/`. Three of five
 setups, four of four bias filters, one of two instruments.
+
+---
+
+## Rule book V2 — the three fixes work, and one component SURVIVES A CONTROL
+
+**2026-08-02.** `backtest/rulebook_v2.py`. XAUUSD 30m, 2019-12 to 2026-07.
+V2's changes implemented as written: stop floor of 1.5 x ATR(14) from the
+invalidation point, "Inside Value OR narrow CPR" instead of the V1 triple
+filter, rejection PLUS displacement required before entry, and a trailed
+runner at 1.25 ATR instead of V1's fixed second target.
+
+### V1 vs V2
+
+| | V1 | V2 |
+|---|---|---|
+| combined PF | **0.59** | **1.00** |
+| combined total | −125.9R | +47.9R |
+| n | 395 | 17,425 |
+
+The three fixes moved the rule book from clearly losing to breakeven. The
+stop change is doing most of it, and it was the correct diagnosis: V1's stop
+sat inside the 0.5 ATR band where this repo had already measured the level's
+information to live.
+
+### Per setup (V2)
+
+| setup | n | WR | avg R | PF | max DD | total |
+|---|---|---|---|---|---|---|
+| 3 gap fill to CPR | 19 | — | — | — | — | too few (see note) |
+| 1 confirmed bounce | 96 | 30.2% | −0.251 | 0.66 | 43.2R | −24.1R |
+| 4 failed break/sweep | 8,827 | 35.7% | −0.030 | 0.95 | 513.2R | −266.8R |
+| **2 relaxed expansion** | **8,483** | **40.0%** | **+0.040** | **1.07** | 304.4R | **+336.4R** |
+| combined | 17,425 | 37.8% | +0.003 | 1.00 | 713.4R | +47.9R |
+
+### The control — and Setup 2 passes it
+
+Setup 2 fires 8,483 times, which raised the obvious suspicion that the CPR
+conditions were decorative and a "strong body" momentum filter was doing all
+the work. Tested directly: same stop geometry, same management, strong body
+only, **no CPR gate at all**.
+
+| | n | WR | avg R | PF | total |
+|---|---|---|---|---|---|
+| Setup 2, with CPR gate | 8,483 | 40.0% | **+0.040** | **1.07** | +336.4R |
+| control, no CPR gate | 24,779 | 33.1% | **−0.059** | 0.92 | −1,454.0R |
+| Setup 2 first half | 4,242 | 38.5% | −0.012 | 0.98 | −52.9R |
+| Setup 2 OOS half | 4,241 | 41.5% | +0.092 | 1.17 | +389.4R |
+| control first half | 12,390 | 32.7% | −0.081 | 0.89 | −998.0R |
+| control OOS half | 12,389 | 33.5% | −0.037 | 0.95 | −456.0R |
+
+**The gate adds +0.099R per trade, and it beats its control in BOTH halves**
+(0.98 vs 0.89, and 1.17 vs 0.95). This is the first component tested in this
+session that a control did not kill.
+
+It is coherent with the earlier pivot finding rather than independent of it:
+`BELIEF_REGISTER` already records that pivot-range WIDTH forecasts session
+directionality (t=+3.07 on the LDN/NY overlap, stable, replicates OOS). That
+information could not be monetised as a hold-extender (H-PIVOT-HOLD,
+rejected). Here the same regime information works as an ENTRY GATE on a
+momentum trade. Same signal, different job, and this job it does.
+
+### Honest limits on this result
+
+- **PF 1.07 is not a strategy.** +0.04R per trade at 3.4 trades/day, with a
+  304R maximum drawdown. It is a measured edge component, not something to
+  size.
+- **The halves disagree in level** (−52.9R then +389.4R) even though they
+  agree in direction against the control. That instability is unexplained.
+- **Setup 3's sample collapsed from 115 (V1) to 19 (V2) because of MY
+  implementation**, not the rule: I required the rejection close on the very
+  next bar. That is stricter than "shows early rejection of the gap extreme".
+  The rule book's own top-priority setup therefore remains effectively
+  untested, and that is my error to fix, not a finding about the rule.
+- Setup 4 (failed break/sweep) is negative at −0.030R, consistent with the
+  earlier finding that sweep-and-reclaim is a real pattern whose advantage is
+  eaten by the wider entry-to-stop distance it creates.

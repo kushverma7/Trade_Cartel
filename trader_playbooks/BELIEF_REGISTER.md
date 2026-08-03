@@ -1689,3 +1689,37 @@ confluence, first-touch, 1:2, 1:3, 30m/4H/daily — all either lose or lose to
 their own control. Use the indicator as a map: stop placement, context,
 knowing where the crowd is. The edge must come from the exit engine, which is
 where this repo has measured it all along.
+
+---
+
+## The CPR/value regime works as an ENTRY GATE, not as a level to trade
+
+**Established 2026-08-02**, `backtest/rulebook_v2.py` plus its control.
+XAUUSD 30m, 2019-2026, 8,483 gated trades against a 24,779-trade control.
+
+A momentum entry (strong-bodied candle closing beyond the central pivot
+range) filtered by "Inside Value OR narrow CPR" returns +0.040R per trade at
+PF 1.07. The same entry with the CPR gate REMOVED returns −0.059R at PF 0.92.
+**The gate is worth +0.099R per trade and it beats its control in both halves
+of the sample** (0.98 vs 0.89 first half, 1.17 vs 0.95 out of sample).
+
+**This is the first thing in this investigation that survived a control.**
+Everything else died on one: level bounces, sweep-and-reclaim, confluence,
+untested levels, with-trend level entries, and the pivot-width hold extension.
+
+**It joins up two earlier findings rather than contradicting them.** Pivot
+range width is genuine information about the coming session (t=+3.07 on the
+LDN/NY overlap, parameter-stable, replicates out of sample). It could not be
+converted into P&L by widening a trail. It CAN be converted by using it to
+decide when a momentum entry is worth taking. The information was always
+about REGIME, and a regime signal belongs on the entry gate, not on the price
+you trade or the leash you use.
+
+**What it is not.** PF 1.07 at +0.04R per trade, 3.4 trades/day, with a 304R
+maximum drawdown, is a component and not a system. The two halves agree in
+direction against the control but disagree sharply in level (−52.9R then
++389.4R), and that instability is not yet explained.
+
+**Invalidation:** run it on a second instrument, or on a properly out-of-
+sample period, and find the gate no longer beats its ungated control. That is
+the next test and it has not been run.
