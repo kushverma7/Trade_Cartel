@@ -1741,3 +1741,40 @@ instrument BEFORE it is written up as surviving.
 Closing count for the key-level / pivot / rule-book investigation: eleven
 distinct claims or components tested, zero surviving a properly independent
 control.
+
+---
+
+## B-0xx — The opening range does not carry special information on these two instruments
+
+**Claim tested (2026-08-03):** the first N minutes of a session define a range
+whose break is directionally informative.
+
+**Evidence against.**
+1. On US30 the matched control — an identically sized range built 2 to 16 bars
+   later in the same session, traded by identical rules — pays +0.030R against
+   the opening range's +0.107R in the best cell, a gap of z = +1.47 after
+   ~50 cells were searched. In the full (uncut) versions the later ranges pay
+   MORE than the opening one at 60m (+0.036 at offset 12 vs +0.019 at offset 0).
+2. On gold all twelve base configurations lose, and so does the fade of each.
+   Both directions losing is the signature of no information, only cost.
+
+**What this does NOT claim.** ORB is not shown to be worthless generally. It is
+shown not to clear costs on XAUUSD spot at 377–464 trades/year, and not to beat
+a same-session control on US30 cash at this sample size. Instruments with a
+hard cash open and a genuine overnight gap — single-name equities — are a
+different population and were not tested.
+
+**Invalidation:** an ORB variant that beats the offset control by z > 3 on one
+instrument AND is non-negative on the other.
+
+**Standing consequence for method (this is the durable part).** Twelve
+components across level, pivot, rule-book and ORB families have now been tested
+this session against independent controls. Zero survived. Four of those were
+positive results of mine that the control reversed. The register's operating
+assumption is now: **on XAUUSD 15m–60m, no entry-timing rule tested in this
+repo has beaten a cost-matched control.** The one measured effect that has
+survived every version of scrutiny is the exponent gap — profit accrues to hold
+time, not to entry precision — and it was re-observed again here in Priority 5,
+where expectancy rose monotonically from 1R to 3R targets on both range sizes.
+Future work should be aimed at exits and position holding, not at another
+entry filter.

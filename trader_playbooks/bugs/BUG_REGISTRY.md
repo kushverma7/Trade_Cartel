@@ -800,3 +800,50 @@ Do not leave both names as they are.
 diff the NAMES and their definitions, not just the count. BUG-017's prevention
 step said "count them". That was necessary and insufficient — two engines can
 agree on 36 levels and disagree on what four of them mean.
+
+---
+
+## BUG-029 — an ambiguous bar fell through to the time exit instead of the loss
+
+**Where:** `backtest/orb.py`, first version, the trade-resolution loop.
+
+**The code.**
+
+```python
+for j in range(i + 1, i1 + 1):
+    hit_t = ...; hit_s = ...
+    if hit_t and hit_s:
+        break                  # <-- leaves res = NaN
+    ...
+if not np.isfinite(res):       # "rule book: time exit"
+    res = (d * (c[i1] - entry) - 2 * SLIP) / risk
+```
+
+When one bar's range covers both the target and the stop, the intrabar order is
+unknowable, so the loop broke out. But the fall-through below was written for a
+different case — the trade that never resolved at all — and it marked the
+position out at the SESSION CLOSE. So every ambiguous bar, which is by
+definition a violent bar that ran both ways, got carried to the end of the day
+instead of being charged the stop.
+
+**How it was caught, and why that matters more than the bug.** Not by reading
+the code. By a control: the strategy and its own MIRROR IMAGE were both
+profitable (break +0.069R, fade +0.033R on the same 2,498 bars). Two opposite
+bets on the same entries with mirrored geometry cannot both pay. That is an
+accounting leak by arithmetic, before any inspection.
+
+**Blast radius.** It was the entire result. US30 OR=15m 2R went from PF 1.13 /
++173.3R to PF 0.99 / −12.6R once ambiguous bars resolved to the stop. Every
+Priority-1 cell moved; the headline cell inverted.
+
+**Fix.** Resolve the ambiguous bar as a full stop-out — the conservative branch,
+this repo's standard.
+
+**Prevention:** two rules, and the second is the general one.
+1. A trade-resolution loop needs THREE terminal branches, not two: target,
+   stop, and never-resolved. Ambiguity is a fourth and must be assigned
+   explicitly, never allowed to inherit whichever branch happens to be last.
+2. **Run the mirror.** For any directional strategy, run the same entries with
+   the direction flipped and the geometry mirrored. The two average-R figures
+   should sum to roughly minus two costs. If both are positive, there is a leak
+   in the accounting, and it will be found faster this way than by review.

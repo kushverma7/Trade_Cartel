@@ -2083,3 +2083,69 @@ Every component has now failed a control at some level of scrutiny. The V1→V3
 progression was real and well-reasoned — the stop-floor fix and the two-day
 bias alignment each produced genuine measured improvement — but the surviving
 component did not generalise.
+
+---
+
+## Opening Range Breakout rule book — XAUUSD + US30, tested 2026-08-03
+
+`backtest/orb.py`. US30 15m, 56,165 bars, 2019-12-02 to 2026-07-30. Gold 15m,
+same window. Costs 0.20 pt slippage per side. Session handling: US30 uses the
+data's own first bars per day (session series, DST-proof); gold needs an
+explicit UTC start, and the fixed-hour DST drift is a stated limitation of the
+gold numbers only.
+
+**All figures below are POST-BUG-029.** The first run of this module was
+inflated throughout by ambiguous bars marking out at the session close; the
+pre-fix numbers are void and are not recorded here as results.
+
+### Priority 1 — base ORB, US30, structure stop
+
+| range | 1.5R | 2R |
+|---|---|---|
+| 15m | PF 0.96, avgR −0.019, n=2498 | PF 0.99, avgR −0.005, n=2498 |
+| 30m | PF 1.02, avgR +0.006, n=2182 | PF 1.05, avgR +0.020, n=2182 |
+| 60m | PF 1.03, avgR +0.010, n=1888 | PF 1.06, avgR +0.019, n=1888 |
+
+### Priority 2 — same on gold
+
+Twelve configurations (London 08:00 and NY 13:30 UTC × 15/30/60m × 1.5R/2R).
+**All twelve negative**, PF 0.77 to 0.88, avgR −0.046 to −0.148. The fade is
+also negative (−0.118 to −0.206), which is the signature of no directional
+information at all, only cost and geometry being paid at 377–464 trades/year.
+
+### Priorities 3–5 — US30 only, since gold had nothing to filter
+
+| test | finding |
+|---|---|
+| 3 time cutoff | tighter is better at 60m, worse at 15m |
+| 4 stop | midpoint is worse than full-range everywhere; ATR ≈ structure |
+| 5 target | expectancy rises monotonically with target distance (1R → 3R) at both range sizes; measured-move targets lose to fixed R |
+
+The Priority-5 monotonicity is a re-observation of this repo's exponent gap
+(MFE 0.558 vs MAE 0.493), not new evidence: further targets pay because the
+edge is in hold time.
+
+### The one cell worth chasing, and its control
+
+US30, 60m range, break must occur on the FIRST bar after the range:
+
+| arm | n | WR | avgR | PF |
+|---|---|---|---|---|
+| rule book (opening hour) | 396 | 51.3% | **+0.107** | 1.31 |
+| first half / OOS half | 198/198 | 53.0/49.5% | +0.075 / +0.140 | 1.24 / 1.38 |
+| matched control (same range size, same 1-bar trigger, built 2–16 bars later) | 2330 | — | +0.030 | ~1.08 |
+| fade | 396 | 40.2% | −0.088 | 0.79 |
+| gold, same cell, LDN / NY | 449/493 | — | −0.088 / −0.038 | 0.86 / 0.89 |
+
+Neighbours decay smoothly (cutoff 4/5/6/7 → +0.107/+0.053/+0.054/+0.029), so
+it is a hill, not a spike. The fade being the near-mirror says the effect is
+directional rather than an accounting artifact this time.
+
+**But:** gap over the matched control **+0.077R, z = +1.47**, found after
+searching roughly 50 grid cells. The treatment's own t-stat against zero is
++2.21. Neither clears a threshold appropriate to that much searching. And gold
+is negative, so it fails the stated bar of "positive on both, or strong on one
+with acceptable robustness on the other".
+
+**STATUS: NOT VALID.** Recorded as the twelfth component tested this session
+and the twelfth to fail its control.
