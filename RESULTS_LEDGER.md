@@ -1791,3 +1791,65 @@ broken control; entry-vs-level pricing overturned the sweep result; and now a
 random-entry control overturns this one. Each positive died on its own
 control. Logged because the pattern is the finding: on this desk, an
 uncontrolled positive result has never survived.
+
+---
+
+## "Maximum Accuracy Level-to-Level Model" rule book — backtested as written, LOSES
+
+**2026-08-02.** `backtest/rulebook.py`. XAUUSD 15m and 30m, 2019-12 to
+2026-07. All bias filters (two-day value relationship, CPR width band,
+opening relationship, HTF structure) applied as specified. Entry on break of
+the signal candle extreme, stop beyond the level and the candle plus 0.25 ATR,
+40% scaled at T1 with stop to breakeven, remainder to T2, minimum 1:2 R:R to
+T1 enforced. Cost $0.07/side commission + 0.20 pt/side slippage.
+
+### 30-minute
+
+| setup | n | WR | avg R | PF | max DD | total |
+|---|---|---|---|---|---|---|
+| 1 trend-aligned bounce | 276 | 24.6% | **−0.450** | 0.45 | 124.1R | **−124.3R** |
+| 2 inside value + narrow CPR breakout | **4** | — | — | — | — | too few |
+| 3 gap fill to CPR | 115 | 35.7% | +0.022 | 1.03 | 25.3R | +2.5R |
+| **combined** | **395** | **27.6%** | **−0.319** | **0.59** | **126.3R** | **−125.9R** |
+| first half | 198 | 31.3% | −0.219 | 0.71 | 43.9R | −43.4R |
+| second half (OOS) | 197 | 23.9% | −0.419 | 0.48 | 82.9R | −82.5R |
+
+### 15-minute
+
+| setup | n | WR | avg R | PF | max DD | total |
+|---|---|---|---|---|---|---|
+| 1 trend-aligned bounce | 415 | 23.6% | −0.341 | 0.59 | 147.7R | −141.3R |
+| 2 inside value + narrow CPR breakout | **8** | — | — | — | — | too few |
+| 3 gap fill to CPR | 158 | 34.8% | −0.068 | 0.90 | 24.9R | −10.8R |
+| **combined** | **581** | **26.3%** | **−0.276** | **0.65** | **164.5R** | **−160.2R** |
+| first half | 291 | 24.7% | −0.362 | 0.56 | 104.1R | −105.4R |
+| second half (OOS) | 290 | 27.9% | −0.189 | 0.75 | 66.6R | −54.8R |
+
+### Three findings
+
+**1. Setup 1 is the loss, and its own stop rule causes it.** The rule book
+says "stop beyond the level + signal candle extreme + small buffer". This repo
+has already measured that a level's information is LOCAL — the bounce edge is
+strongest at 0.5 ATR and gone by 3 ATR (see BELIEF_REGISTER). A stop placed
+just beyond the level sits inside exactly the noise band the level generates,
+which is why the win rate is 24% on a setup filtered to a minimum 1:2 payoff.
+The rule that is supposed to define the risk is the rule that produces it.
+
+**2. Setup 2 fires 4 times in seven years on 30m, 8 on 15m.** Inside Value AND
+narrow CPR AND open-out-of-range is a triple filter that essentially never
+resolves true. The rule book calls this its "highest expansion edge"; it
+cannot be validated at any sample size worth the name, and any result quoted
+on it would be noise. Selectivity has a floor below which a rule stops being
+testable.
+
+**3. Setup 3 is the only one near breakeven** — PF 1.03 on 30m, 0.90 on 15m.
+The gap fill toward the CPR is the least level-dependent idea in the book (it
+is a gap-fade with the pivot as a target), and it is the one that does not
+lose. That is consistent with everything else measured here.
+
+**Not tested, and not silently skipped:** Setup 4 (Virgin/Naked POC) and all
+Money-Zone filters (VAH/POC/VAL) require a volume profile that `levels.py`
+does not have; Setup 5's "low volume on the false break" cannot be honoured
+because this dataset's volume is broker tick-count, not exchange volume; and
+US30 was not tested because there is no US30 data in `data/`. Three of five
+setups, four of four bias filters, one of two instruments.
