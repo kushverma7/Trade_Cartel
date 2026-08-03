@@ -1670,3 +1670,22 @@ The parent finding stands and is now sharper: levels carry real information
 (z up to +20 vs matched control) that is not convertible into a trade at any
 distance, hit-rate cohort or payoff ratio tested. They are a map. The edge has
 to come from the exit engine.
+
+**UPDATE 2026-08-02 (final on key levels) — with-trend entries tested, and the
+edge is the bias filter, not the level.** The methodology's own recommended
+form (bias from weekly+monthly open, buy support in an uptrend, stop beyond
+the level, 2R target) beats fading at every timeframe and CLEARS costs at 4H
+(+0.085 ATR) and daily (+0.261), holding out of sample.
+
+But a matched control — same bias, same risk, entry at a RANDOM bar — scores
+HIGHER in all four comparisons (4H +0.135 vs +0.085; daily longs +0.535 vs
++0.490). The levels subtract. On daily, longs are +0.490 and shorts −0.108,
+in a market that rose 182% across the sample.
+
+**Closing position on key levels.** They carry genuine information (z up to
++20 against a matched control) and there is no tested configuration in which
+that information becomes money. Fade, with-trend, sweep-and-reclaim,
+confluence, first-touch, 1:2, 1:3, 30m/4H/daily — all either lose or lose to
+their own control. Use the indicator as a map: stop placement, context,
+knowing where the crowd is. The edge must come from the exit engine, which is
+where this repo has measured it all along.

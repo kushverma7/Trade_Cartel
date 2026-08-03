@@ -1731,3 +1731,63 @@ a real fill. Repricing from the entry turned +0.220 into −0.151.
 whether it wins because of the effect or because of how the measurement is
 anchored. The tell here was that the winning cohort was the one whose entry
 sits furthest from the reference price.
+
+---
+
+## With-trend entries at key levels — the edge is the BIAS FILTER, not the levels
+
+**2026-08-02.** `backtest/level_with_trend.py`. XAUUSD, 2019-12 to 2026-07.
+The methodology's own rule: bias = close above BOTH weekly and monthly open
+(bullish) or below both (bearish); buy support in a bull bias, sell resistance
+in a bear bias; stop 1 ATR beyond the level; target 2R from the entry. Cost
+$0.54 round turn.
+
+This is the version the sources actually recommend, and it had never been
+tested here — `level_reaction.py` and `level_claims.py` both FADE the level.
+
+### Step 1 — with-trend beats fading, and clears on higher timeframes
+
+| timeframe | cost (ATR) | with-trend edge | OOS half | verdict |
+|---|---|---|---|---|
+| 30m | 0.146 | −0.122 | −0.115 | no |
+| 4H | 0.052 | **+0.085** | **+0.081** | clears |
+| 1D | 0.022 | **+0.261** | **+0.323** | clears |
+
+With-trend beat the fade at every timeframe (30m: −0.122 vs the fade's
+−0.187). The sources' directional advice is correct. And the gross edge grows
+about tenfold from 30m to daily (+0.047 → +0.513 ATR on longs), the same shape
+the inside-bar test found independently.
+
+### Step 2 — the control kills it
+
+Same bias, same risk distribution, same 2R target, entry at a RANDOM bar
+instead of at a level:
+
+| | level touch | random bar, same bias |
+|---|---|---|
+| 4H all | +0.085 | **+0.135** |
+| 4H longs | +0.164 | **+0.222** |
+| 1D all | +0.261 | **+0.268** |
+| 1D longs | +0.490 | **+0.535** |
+
+**The control beats the level in all four comparisons.** Every bit of the
+higher-timeframe result comes from the bias filter and from gold rising 182%
+across the sample. Touching a key level contributes nothing, and is if
+anything marginally worse than entering at an arbitrary bar in the same
+regime.
+
+The long/short split says the same thing: on daily, longs +0.490 and shorts
+−0.108. A "close above weekly and monthly open" filter is long almost all the
+time in a market that went from $1,450 to $4,090. That is beta wearing the
+costume of a setup.
+
+**VERDICT.** The complete key-level programme — fade, with-trend, sweep,
+confluence, untested-level, 1:2 and 1:3 targets, three timeframes — produces
+no configuration in which the LEVEL itself adds measurable value. What does
+add value is a trend filter, and it can be had without any levels at all.
+
+**Third control-driven reversal this session.** A 99.94% bounce rate exposed a
+broken control; entry-vs-level pricing overturned the sweep result; and now a
+random-entry control overturns this one. Each positive died on its own
+control. Logged because the pattern is the finding: on this desk, an
+uncontrolled positive result has never survived.
