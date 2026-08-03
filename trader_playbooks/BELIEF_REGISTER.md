@@ -1503,3 +1503,56 @@ likely to run.
 and find no improvement in return or drawdown against the unmodified champion
 on the same window and costs. That is the next measurement, and it is the one
 that decides whether this is tradeable or merely true.
+
+---
+
+## Inside bars: statistically real at every timeframe, economic only from 4H up
+
+**Established 2026-08-02.** Source: an uploaded Nial-Fuller-style price-action
+deck (`sources/price_action_trading_pinbar_insidebar_fakey.pdf`), tested on
+XAUUSD 2019-12 to 2026-07. Inside bar = high <= prior high AND low >= prior
+low; trade the first break of the mother bar within 3 bars; measure the
+ATR-normalised move 5 bars later.
+
+The inside bar was the one setup in that deck with **zero coverage anywhere in
+this repo** — not in a playbook, not in an indicator. Pin bar is already
+covered as hammer/shooting star (2 playbooks), and "fakey" is sweep+reclaim
+under another name (sweep appears in 23 playbooks and 12 indicators).
+
+| timeframe | inside rate | breakout win% | edge (ATR) | t | edge $ | net of cost |
+|---|---|---|---|---|---|---|
+| 15m | 14.9% | 49.4% | 0.033 | 2.65 | 0.09 | **−0.45** |
+| 30m | 15.3% | 50.1% | 0.058 | 3.28 | 0.21 | **−0.33** |
+| 1H | 16.4% | 50.4% | 0.070 | 2.86 | 0.37 | **−0.17** |
+| 4H | 20.7% | 52.6% | 0.156 | 3.69 | 1.61 | **+1.07** |
+| 1D | 21.5% | 55.3% | 0.375 | 4.02 | 9.41 | **+8.87** |
+
+Cost model is this repo's standard: 0.20 pt slippage plus $0.07 commission
+per side, $0.54 per round turn.
+
+**The edge is real and it is monotonic in timeframe** — 0.033 ATR at 15m
+rising eleven-fold to 0.375 at daily, with t between 2.65 and 4.02 throughout.
+It is also, intraday, far too small to trade: at 15m the edge is 9 cents
+against 54 cents of cost.
+
+**The deck's conclusion is right and its stated reason is wrong.** It says
+inside bars "grow too numerous below the daily chart", implying frequency is
+the problem. Frequency as a RATE actually rises with timeframe (14.9% at 15m
+to 21.5% daily); only the absolute count falls (23,442 to 445). The real
+reason low timeframes fail is that the per-signal edge shrinks faster than
+costs do. Right answer, wrong mechanism — worth separating, because the wrong
+mechanism would lead someone to "fix" it by filtering for rarer inside bars,
+which would not help.
+
+**Relevance to this desk is limited and should be stated plainly.**
+`USER_TRADING_PROFILE.md` has the user on 5m/15m/30m. On those timeframes this
+setup loses to costs. It becomes tradeable only at 4H and daily, which is a
+different trading style, not a tweak.
+
+**Where it could still matter:** as a CONFLUENCE input rather than a signal —
+an inside bar on the 4H or daily as a state flag while trading 30m. That is
+untested and is the only version worth testing here.
+
+**Invalidation:** show a 15m/30m inside-bar variant whose per-signal edge
+exceeds 0.21 ATR, which is what it would take to clear costs with margin.
+Nothing in the deck suggests one exists.
