@@ -175,8 +175,8 @@ string riskProf = input.string("Balanced", "Risk profile", options=["Conservativ
 // NOTHING beat it on the criteria that predict live behaviour (zero
 // losing walk-forward slices, one losing year, best return-per-drawdown
 // among the zero-loss options). Two real findings came out of it:
-int   coolDown  = input.int(3, "Cooldown after an exit (bars)", minval=0, maxval=100, group="⓫ Audit Findings",
-     tooltip="After an exit the shipped build could re-enter on the very next bar. Swept 0/3/10/24/48 bars: 3 is the free improvement - full period +2,432% to +2,533% and drawdown 28.55% to 27.72% with no cost anywhere else. 24 bars gives the best out-of-sample profit factor (2.098) but less return; 48 costs a third of the return.")
+int   coolDown  = input.int(24, "Cooldown after an exit (bars)", minval=0, maxval=100, group="⓫ Audit Findings",
+     tooltip="UPDATED 2026-08-03 from 3 to 24 bars (12 hours on 30m). Re-swept 6-48 under entry-ATR add sizing: return/drawdown runs 64/60/72/68/74/78/84/79/58/56/22 for cooldown 6/9/12/16/20/24/28/32/36/40/48, a broad plateau from 12 to 32 with the baseline at 62. 24 is the middle of that plateau, not its peak (28 scores highest). Confirmed on US30: ret/DD 6.73 vs 4.33.\n\nORIGINAL NOTE: after an exit the shipped build could re-enter on the very next bar. Swept 0/3/10/24/48 bars: 3 was the free improvement - full period +2,432% to +2,533% and drawdown 28.55% to 27.72% with no cost anywhere else. 24 bars gives the best out-of-sample profit factor (2.098) but less return; 48 costs a third of the return.")
 bool  longSlope = input.bool(false, "Longs ALSO require a rising EMA", group="⓫ Audit Findings",
      tooltip="AUDIT FINDING, defaulted OFF because it is a genuine trade-off, not a free win. Shorts must have the EMA falling but longs were gated on nothing - an asymmetry that was never tested until now.\n\nWith longs also requiring a RISING EMA: profit factor 1.746 to 1.778, out-of-sample 2.065 to 2.179, and the losing year DISAPPEARS - 0 of 7 years negative instead of 1 of 7.\n\nThe cost: one of the five walk-forward slices turns negative (0/5 becomes 1/5) and drawdown rises 28.55% to 33.78%. It trades a bad year for a bad quarter. Turn it on if a losing calendar year is what you cannot tolerate; leave it off if drawdown is.")
 
@@ -267,7 +267,7 @@ float tfMin      = timeframe.in_seconds() / 60.0
 int   entryLenE  = autoScale ? math.max(5,   int(12.0 * 60.0 / tfMin))        : entryLen
 int   smaLenE    = autoScale ? math.max(50,  int(8.0 * 24.0 * 60.0 / tfMin))  : smaLen
 int   regimeLenE = autoScale ? math.max(20,  int(21.0 * 24.0 * 60.0 / tfMin)) : regimeLen
-int   sma2LenE   = autoScale ? math.max(100, int(21.0 * 24.0 * 60.0 / tfMin)) : sma2Len
+int   sma2LenE   = autoScale ? math.max(100, int(13.0 * 24.0 * 60.0 / tfMin)) : sma2Len
 int   slopeLenE  = autoScale ? math.max(20,  int(2.0 * 24.0 * 60.0 / tfMin))  : slopeLen
 float trailMultE = autoScale ? 6.0 * math.sqrt(15.0 / tfMin)                  : trailMult
 
@@ -319,6 +319,14 @@ var bool  tp1Done   = false
 var bool  tp2Done   = false
 var float lastAdd   = na
 var int   nAdds     = 0
+// ATR AT ENTRY, for add sizing. PRIORITY 2 FINDING (2026-08-03): sizing each
+// add off the CURRENT ATR shrinks it exactly when volatility is expanding,
+// which on this system is precisely when the trade is working. Sizing off the
+// entry ATR - equivalently, every add equals the ORIGINAL position size -
+// scored PF 1.647 vs 1.623, net +1,996% vs +1,617% and drawdown 32.2% vs
+// 36.5%. Against a leverage-matched baseline at the same drawdown it returned
+// +1,996% vs +1,094% with a higher PF, so it is not the risk dial in disguise.
+var float atrEntry  = na
 
 // ═════════════════════════════════════════════════════════════
 // TRAILING STOP
@@ -334,6 +342,7 @@ else if strategy.position_size < 0
 else
     trailStop := na
     lastAdd   := na
+    atrEntry  := na
     nAdds     := 0
 
 // ═════════════════════════════════════════════════════════════
@@ -349,7 +358,8 @@ if usePyr and not tpOn and strategy.position_size != 0 and nAdds < pyrMaxE and n
     float nxt    = isLong ? lastAdd + step : lastAdd - step
     if isLong ? high >= nxt : low <= nxt
         float aRisk = (isLong ? riskE : riskE * shortRisk) * pyrRisk
-        float aQty  = math.floor(math.min(strategy.equity * aRisk / 100.0 / (atr * trailMultE),
+        float aAtr  = na(atrEntry) ? atr : atrEntry          // entry-ATR sizing
+        float aQty  = math.floor(math.min(strategy.equity * aRisk / 100.0 / (aAtr * trailMultE),
              strategy.equity * maxLev / close - math.abs(strategy.position_size)))
         if aQty >= 1
             strategy.entry(isLong ? "L" : "S", isLong ? strategy.long : strategy.short, qty=aQty)
@@ -376,6 +386,7 @@ if longSig and coolOk and strategy.position_size == 0 and qty >= 1
     tp1Done   := false
     tp2Done   := false
     lastAdd   := close
+    atrEntry  := atr
     nAdds     := 0
 
 if shortSig and coolOk and strategy.position_size == 0 and qty >= 1
@@ -388,6 +399,7 @@ if shortSig and coolOk and strategy.position_size == 0 and qty >= 1
     tp1Done   := false
     tp2Done   := false
     lastAdd   := close
+    atrEntry  := atr
     nAdds     := 0
 
 // ═════════════════════════════════════════════════════════════

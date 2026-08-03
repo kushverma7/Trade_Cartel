@@ -105,7 +105,8 @@ def signals(df, lb, long_only=False, long_slope=False):
 
 
 def run(df, mode="bars", tf_min=30.0, trail_atr=TRAIL_ATR, risk_pct=RISK_PCT,
-        pyr=None, cooldown=COOLDOWN, slippage=SLIPPAGE, stop_atr=None, **kw):
+        pyr=None, cooldown=COOLDOWN, slippage=SLIPPAGE, stop_atr=None,
+        lb_over=None, mask=None, **kw):
     """One champion run. Returns (trades, lookbacks_used).
 
     `stop_atr` sets BOTH the initial stop distance and, through it, the
@@ -116,7 +117,12 @@ def run(df, mode="bars", tf_min=30.0, trail_atr=TRAIL_ATR, risk_pct=RISK_PCT,
     and every arm risks the same fraction of equity on the same initial stop.
     """
     lb = lookbacks(df, mode, tf_min)
+    if lb_over:
+        lb = {**lb, **lb_over}          # per-test lookback overrides
     sigL, sigS = signals(df, lb)
+    if mask is not None:                # regime mask applied to BOTH sides
+        sigL = sigL & mask
+        sigS = sigS & mask
     p = PYR if pyr is None else pyr
     tr = exit_lab.run(df, sigL, sigS, trail_mode="chandelier",
                       stop_atr=trail_atr if stop_atr is None else stop_atr,

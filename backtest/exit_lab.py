@@ -64,7 +64,7 @@ EXECUTION MODEL (unchanged from every other engine here so results compare)
 """
 import numpy as np
 
-LEVCAP=[0]; LEVTRY=[0]
+LEVCAP=[0]; LEVTRY=[0]; LASTLOSS=[False]
 import pandas as pd
 
 FIELDS = ("open", "high", "low", "close")
@@ -103,7 +103,7 @@ def run(df, sigL, sigS,
         tp_be=False, be_atr=0.0, tp_shorts_only=False,
         pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
         pyr_mode="current", pyr_budget=1.0, pyr_gate=None, pyr_decay=1.0,
-        long_only=False, short_risk=1.0, cooldown=0, atr_n=14,
+        long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0, atr_n=14,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, frac_qty=False):
     # PYRAMIDING MODES (pyr_mode). All default to "current" so every result
@@ -147,6 +147,7 @@ def run(df, sigL, sigS,
     trades = []
     pos = None
     last_exit = -10 ** 9
+    LASTLOSS[0] = False
 
     def close_part(pos, i, px, qout, why):
         nonlocal eq
@@ -159,6 +160,7 @@ def run(df, sigL, sigS,
             trades.append({"pnl": pos["banked"], "dir": d, "bar": pos["bar"],
                            "bars_held": i - pos["bar"], "why": why,
                            "adds": pos["adds"], "orisk": pos["orisk"]})
+            LASTLOSS[0] = pos["banked"] < 0
             return True
         return False
 
@@ -338,7 +340,8 @@ def run(df, sigL, sigS,
             # excursion updated only now that this bar is fully resolved
             pos["best"] = max(pos["best"], h[i]) if d > 0 else min(pos["best"], l[i])
 
-        if pos is not None or np.isnan(a) or a <= 0 or i - last_exit < cooldown:
+        cd = max(cooldown, cooldown_loss if LASTLOSS[0] else 0)
+        if pos is not None or np.isnan(a) or a <= 0 or i - last_exit < cd:
             continue
         d = 1 if sigL[i] else (-1 if (sigS[i] and not long_only) else 0)
         if d == 0:

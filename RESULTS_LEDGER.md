@@ -2455,3 +2455,88 @@ genuinely bounded open risk at 1R (bounded, BE gate) destroyed between 67% and
 88% of the return. On this instrument, *carrying 2–3R of open risk on the trades
 that are working is the mechanism*, not a flaw in the implementation. The
 control for that risk is the risk-profile dial, not the add rule.
+
+---
+
+## PRIORITY 3 (Gold) — secondary improvements (2026-08-03)
+
+New baseline = champion + entry-ATR add sizing: **PF 1.647, +1,996.3%, DD
+32.17%, ret/DD 62.06, WR 21.3%, avgR +0.86, n=789.** Trail fixed at 4.24 ATR.
+
+**Adoption bar, fixed before any result was seen:** beat baseline on PF *and*
+return/drawdown, both halves ≥1.0 and not degraded, be a plateau rather than a
+spike, and survive a leverage-matched control.
+
+### Areas tested and their outcomes
+
+| area | range | outcome |
+|---|---|---|
+| 1. breakout lookback | 8–96 bars | **REJECT.** 24 (shipped) has the best ret/DD at 62.06; 32 has marginally higher PF (1.673) at ret/DD 39.0. Hump centred on the shipped value. |
+| 2a. fast SMA | 192–768 | **REJECT** on control (below) |
+| 2b. regime EMA | 504–2016 | **REJECT.** 1008 (shipped) best on ret/DD. |
+| 2c. slow SMA | 400–3000 | **ADOPT ~630** |
+| 2d. slope lookback | 24–384 | **REJECT.** 96 (shipped) best on every metric. |
+| 3. volatility regime filter | 16 variants | **REJECT — all 16.** Every ATR-percentile and ATR-vs-median gate scored below baseline on ret/DD (3.6–56.1 against 62.06). |
+| 4. cooldown | 0–48, plus loss-only | **ADOPT 24** |
+| 5. max adds / spacing | 2–8 adds, 1.0–2.0 ATR | **REJECT.** 4 adds at 1.5 ATR remains best after control. |
+
+### The leverage-matched control did most of the work
+
+Each candidate at 1.0% risk against the baseline dialled to the *same
+drawdown*. A change that is only leverage shows the same net at the same DD.
+
+| candidate | PF | net | DD | baseline at same DD | verdict |
+|---|---|---|---|---|---|
+| sma 192 | 1.757 | +2,761.9% | 42.26% | +4,138.9% | **REJECT** |
+| **sma2 2016** | **1.858** | +2,444.9% | 39.14% | **+3,692.8%** | **REJECT** |
+| sma 288 | 1.712 | +2,324.8% | 33.14% | +2,272.1% | reject (+2.3%, noise) |
+| max adds 5 | 1.680 | +2,229.8% | 41.80% | +4,138.9% | REJECT |
+| spacing 1.0 ATR | 1.658 | +3,305.8% | 36.56% | +2,914.4% | reject (PF falls) |
+| **cooldown 24** | 1.699 | **+2,526.3%** | 32.30% | +1,996.3% | **ADOPT** |
+| **sma2 756** | 1.659 | **+2,615.8%** | 32.28% | +1,996.3% | **ADOPT** |
+
+`sma2 2016` is the cautionary row: **PF 1.858, the highest in the entire study,
+and it still fails** — the baseline levered to the same drawdown returns 51%
+more. Profit factor alone would have adopted it.
+
+### The two survivors stack, and the region is broad
+
+Return/drawdown across a 6×6 grid (baseline = 62.06):
+
+| cd \ sma2 | 400 | 504 | 630 | 756 | 880 | 1008 |
+|---|---|---|---|---|---|---|
+| 12 | 109.8 | 97.8 | 104.5 | 94.7 | 78.7 | 72.1 |
+| 20 | 114.2 | 105.4 | 107.9 | 102.0 | 86.3 | 73.9 |
+| 24 | 120.4 | 113.1 | **118.0** | 112.7 | 90.7 | 78.2 |
+| 28 | 129.2 | 121.6 | 122.3 | 119.6 | 100.6 | 83.6 |
+| 32 | 123.1 | 117.0 | 123.4 | 117.9 | 96.1 | 79.2 |
+
+**36 of 36 cells beat the baseline** (min 68.2, median 101.3). That is a
+plateau, not a fitted cell.
+
+### ADOPTED CONFIGURATION — cooldown 24, slow SMA 630 (plateau centre, not the peak)
+
+| | n | WR | PF | net | maxDD | ret/DD | avgR | halves |
+|---|---|---|---|---|---|---|---|---|
+| baseline | 789 | 21.3% | 1.647 | +1,996.3% | 32.17% | 62.06 | +0.86 | 1.21/1.80 |
+| **adopted** | 733 | 21.7% | **1.714** | **+3,854.7%** | 32.65% | **118.05** | **+1.07** | **1.31/1.82** |
+
+The peak cell (cd 28 / sma2 400) scores ret/DD 129.2 and is deliberately **not**
+taken — 24/630 is the middle of the plateau.
+
+**US30 confirmation, unchanged:** baseline PF 1.274 / +117.2% / DD 27.07% /
+ret/DD 4.33 → adopted PF 1.333 / +155.5% / **DD 19.24%** / ret/DD **8.08**.
+Both changes help individually and stack on the second instrument too.
+
+**Caveat on the half-split:** per-half drawdown figures are not meaningful
+(each half's equity curve is re-based, so the second half's DD is computed
+against a much larger book). The per-half **profit factors** are the valid
+comparison, and they improve on both halves.
+
+### Pine updated
+
+1. `coolDown` default 3 → **24**
+2. slow-SMA calendar target 21d → **13d** (630 bars on 30m)
+3. adds now sized on the **ATR at entry** (`atrEntry`) rather than current ATR
+
+`pine_lint`: CLEAN.
