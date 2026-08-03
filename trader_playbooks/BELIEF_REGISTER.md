@@ -1723,3 +1723,21 @@ direction against the control but disagree sharply in level (−52.9R then
 **Invalidation:** run it on a second instrument, or on a properly out-of-
 sample period, and find the gate no longer beats its ungated control. That is
 the next test and it has not been run.
+
+**UPDATE 2026-08-02 (final) — the CPR gate is REJECTED on the second-instrument
+test.** US30 data added; the gate's ungated control beats it on both US30
+timeframes (30m: PF 1.10 control vs 1.04 gated; 60m: 1.04 vs 0.93), and the
+gated arm flips sign between halves on both. The gold result — +0.099R over
+control, monotonic across five "narrow" definitions, positive on four
+timeframes — did not generalise.
+
+**The methodological lesson is the durable output.** Timeframe robustness on a
+single instrument is NOT evidence of generality: resampled bars are not
+independent observations. This belief was raised on within-instrument evidence
+that looked strong by every internal check available, and one genuinely
+independent test overturned it. Any future component should face a second
+instrument BEFORE it is written up as surviving.
+
+Closing count for the key-level / pivot / rule-book investigation: eleven
+distinct claims or components tested, zero surviving a properly independent
+control.

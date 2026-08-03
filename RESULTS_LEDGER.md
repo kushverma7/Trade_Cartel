@@ -2022,3 +2022,64 @@ much stronger in the second half than the first. Something regime-level is
 inflating the recent half for both arms, and until that is understood the OOS
 figures should not be read as forward expectations. The gate's advantage over
 its control is the durable part; the level of either arm is not.
+
+---
+
+## THE SECOND-INSTRUMENT TEST — the CPR gate does NOT replicate on US30
+
+**2026-08-02.** US30 15m data added (`data/us30_15m.csv.gz`, 56,165 bars,
+2019-12-02 to 2026-07-30, same window as the gold series, validated by
+`inspect_csv`: no duplicates, no NaNs, OHLC sane). This is the test named as
+decisive in the V3 write-up, and it comes back negative.
+
+### Setup A (CPR-gated momentum), narrow = bottom 20%
+
+| instrument / tf | arm | n | WR | avg R | PF | total |
+|---|---|---|---|---|---|---|
+| **US30 30m** | **gated** | 1,251 | 34.8% | **+0.026** | **1.04** | +32.6R |
+| US30 30m | control (ungated) | 8,473 | 37.7% | **+0.057** | **1.10** | +484.9R |
+| **US30 60m** | **gated** | 690 | 34.5% | **−0.046** | **0.93** | −31.9R |
+| US30 60m | control (ungated) | 4,647 | 36.1% | **+0.025** | **1.04** | +114.6R |
+
+**The control beats the gate on both US30 timeframes.** On gold the gate beat
+its control by +0.099R and looked parameter-monotonic across five settings and
+positive across four timeframes. None of that survives the move to a second
+instrument.
+
+The gated arm also flips sign between halves on both US30 timeframes
+(30m: +0.123 then −0.071; 60m: +0.109 then −0.201), which the gold version
+did not do.
+
+**Verdict: the CPR gate is rejected.** The gold result was almost certainly
+instrument-specific or an artifact that the within-instrument tests were too
+weak to catch. Timeframe robustness on one instrument is NOT a substitute for
+a second instrument, and this pair of results is the evidence for that
+methodological point.
+
+### Setup B (gap fill) on the instrument it was designed for
+
+| instrument / tf | n | WR | avg R | PF | total |
+|---|---|---|---|---|---|
+| US30 15m | 89 | 47.2% | +0.011 | 1.03 | +1.0R |
+| US30 30m | 69 | 52.2% | −0.030 | 0.87 | −2.1R |
+| XAUUSD 15m | 32 | 34.4% | −0.248 | 0.42 | −7.9R |
+| XAUUSD 30m | 20 | 50.0% | +0.010 | 1.04 | +0.2R |
+
+US30 does produce 3-4x the sample gold does (89 vs 32 on 15m), which confirms
+the structural read — the index gaps, gold does not. But the setup is flat to
+negative even on its home instrument: +1.0R over 89 trades on 15m, −2.1R over
+69 on 30m. Nothing here is tradeable, and the sample is still too small to
+call it either way with confidence.
+
+### Where the rule book stands after three versions
+
+| version | best result | killed by |
+|---|---|---|
+| V1 | PF 0.59 combined | stop inside the level's noise band |
+| V2 | PF 1.00 combined; Setup 2 PF 1.07 beat its control | — |
+| V3 | Setup A PF 1.22 on gold, monotonic, 4 timeframes | **second instrument** |
+
+Every component has now failed a control at some level of scrutiny. The V1→V3
+progression was real and well-reasoned — the stop-floor fix and the two-day
+bias alignment each produced genuine measured improvement — but the surviving
+component did not generalise.
