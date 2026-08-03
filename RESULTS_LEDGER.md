@@ -2238,3 +2238,108 @@ Not a clean pass, and the qualifier is load-bearing:
 **Recommendation: KEEP, unchanged.** No re-fitting to US30 — the instrument
 test was a validation, not an optimisation, and turning it into one would
 destroy what it just established.
+
+---
+
+## PRIORITY 1 (Gold) — trail width, decoupled from position sizing (2026-08-03)
+
+XAUUSD 30m, 78,695 bars, Balanced adds, 0.20 pt slippage. `backtest/champion.py`.
+
+### Harness fix first
+
+`champion.py` was not passing `stop_atr`, so exit_lab's default of 4.0 was
+used while the trail ran at 4.24. The Pine ties them (`stopDist =
+atr * trailMultE` sets the opening stop AND `qty`). Fixed. Fidelity to the
+certificate improved: PF 1.646 vs 1.641, net +1,779.5% vs +1,620%, DD 34.01%
+vs 33.40%. The Priority-1 US30 verdict is unchanged (PF 1.305, halves
+1.415/1.248).
+
+### The premise of this priority was wrong
+
+The brief (and my own synthesis doc) said the existing sweep is confounded
+because a wider trail shrinks the position. **Measured: the leverage cap binds
+on 0.0% of bars at every trail width from 3 to 20 ATR.** Position size is
+purely risk-based throughout. Shrinking size as the stop widens is not a
+distortion — it is what constant-fractional-risk sizing *is*. There was no
+confound to remove. Retracting that claim in `WIZARDS_SYNTHESIS.md`.
+
+### A. Coupled (Pine-faithful: stop_atr = trail_atr, constant % risk)
+
+| trail | n | WR | PF | net | maxDD | ret/DD | avgR | hold | halves |
+|---|---|---|---|---|---|---|---|---|---|
+| 3.0 | 1098 | 16.3% | 1.164 | +176.7% | 66.78% | 2.7 | +0.16 | 22 | 1.022/1.324 |
+| **4.24 (shipped)** | 789 | 21.5% | **1.646** | **+1,779.5%** | 34.01% | **52.3** | **+0.85** | 44 | 1.184/1.814 |
+| 5.0 | 682 | 22.9% | 1.554 | +1,360.6% | 39.73% | 34.2 | +0.66 | 57 | 1.206/1.694 |
+| 6.0 | 575 | 23.7% | 1.429 | +579.1% | 39.18% | 14.8 | +0.43 | 78 | 1.153/1.578 |
+| 8.0 | 412 | 27.4% | 1.463 | +348.2% | 37.77% | 9.2 | +0.42 | 128 | 1.080/1.677 |
+| 12.0 | 240 | 27.1% | 1.460 | +142.6% | 42.16% | 3.4 | +0.38 | 257 | 0.962/1.860 |
+| 16.0 | 153 | 34.0% | 1.616 | +141.0% | 21.03% | 6.7 | +0.45 | 438 | 1.144/1.895 |
+| 20.0 | 104 | 35.6% | 1.619 | +105.0% | 15.78% | 6.7 | +0.45 | 674 | 1.501/1.679 |
+
+### B. Decoupled (stop_atr pinned at 4.24 — identical size and initial risk in every arm)
+
+| trail | n | PF | net | maxDD | ret/DD | avgR | hold |
+|---|---|---|---|---|---|---|---|
+| 3.0 | 1098 | 1.173 | +124.6% | 52.32% | 2.4 | +0.16 | 22 |
+| **4.24** | 789 | **1.646** | +1,779.5% | **34.01%** | **52.3** | +0.85 | 44 |
+| 5.0 | 688 | 1.576 | **+2,129.9%** | 46.36% | 45.9 | +0.82 | 56 |
+| 8.0 | 491 | 1.430 | +795.7% | 58.94% | 13.5 | +0.53 | 100 |
+| 14.0 | 303 | 1.553 | +617.3% | 76.37% | 8.1 | +1.01 | 194 |
+| 16.0 | 273 | 1.576 | +1,034.4% | 65.66% | 15.8 | +1.18 | 221 |
+| 20.0 | 242 | 1.359 | +397.8% | 69.22% | 5.8 | +0.58 | 264 |
+
+### C. Decoupled, adds OFF — the pure exit measurement
+
+| trail | n | PF | net | maxDD | ret/DD | halves |
+|---|---|---|---|---|---|---|
+| 3.0 | 1098 | 1.152 | +47.2% | 15.56% | 3.0 | 1.109/1.191 |
+| 4.24 | 789 | 1.389 | +174.1% | 10.45% | 16.7 | 1.393/1.386 |
+| **5.0** | 688 | **1.429** | **+208.5%** | 11.35% | **18.4** | **1.439/1.423** |
+| 8.0 | 491 | 1.341 | +113.4% | 19.43% | 5.8 | 1.131/1.494 |
+| 14.0 | 303 | 1.397 | +86.1% | 26.15% | 3.3 | 0.861/1.777 |
+| 20.0 | 242 | 1.322 | +63.1% | 26.20% | 2.4 | 0.958/1.595 |
+
+### CORRECTION: the Pine header's trail claim does not reproduce
+
+`gold_trend_strategy.pine:82-84` states *"stop width is the dominant variable:
+2 ATR -> PF 1.05, 6 ATR -> 1.60, 14 ATR -> 1.75"*, i.e. monotonically better as
+it widens. **That is not what the current build measures in any of the three
+panels.** Coupled: 4.24 → 1.646 against 14.0 → 1.525. Decoupled: 4.24 → 1.646
+against 14.0 → 1.553. Pure exit: peak at 5.0 → 1.429, 14.0 → 1.397. PF is
+hump-shaped with a maximum at 4.24–5.0 and it *falls* beyond it.
+
+The header's figures presumably came from an earlier config; whatever produced
+them, **wider is not monotonically better in the shipped system**, and the
+belief that motivated this whole priority is false. Recorded in
+BELIEF_REGISTER.md.
+
+### The stop_atr axis is leverage, not edge
+
+| config | n | PF | net | maxDD |
+|---|---|---|---|---|
+| stop 8.00, risk 1.000% | 788 | 1.585 | +438.5% | 18.12% |
+| stop 4.24, risk 0.530% (leverage-matched) | 789 | 1.585 | +437.3% | 18.40% |
+| stop 3.00, risk 1.000% | 818 | 1.675 | +4,503.1% | 50.85% |
+| stop 4.24, risk 1.413% (leverage-matched) | 789 | 1.677 | +4,650.8% | 47.23% |
+
+Because `qty = risk% / (ATR × stop_atr)`, moving `stop_atr` is arithmetically
+identical to moving `risk%`. The pairs match to 0.002 of PF. **Anything the
+stop axis appears to offer is already available on the risk-profile dial**, and
+presenting it as an improvement would be presenting leverage as edge.
+
+### Verdict: KEEP 4.24 UNCHANGED
+
+- Trail 4.24 is the best or joint-best column at **every** stop width from 3.0
+  to 8.0 — a ridge across five independent rows, not a fitted point.
+- It has the best return/drawdown (52.3) and the highest coupled PF (1.646).
+- The only arm that beats it on any metric is trail 5.0 in the adds-off panel
+  (PF 1.429 vs 1.389, ret/DD 18.4 vs 16.7, and the most stable halves in the
+  entire table at 1.439/1.423) — but that advantage **reverses** once adds are
+  switched on, which is how the system actually ships.
+- Wider trails (12–20 ATR) do raise avgR, exactly as the exponent gap predicts,
+  but they cut the sample 3–8× and push drawdown to 65–76%. The extra R is real
+  and unusable.
+
+**Recommendation: KEEP. Discard the "wider is better" hypothesis. No change to
+the shipped trail width.** Net profitability was not improved by this priority,
+and the honest result is that the parameter was already at its optimum.

@@ -78,8 +78,19 @@
 // median PF of 1.621 against the breakout's 1.588 on the same data. Four
 // months of this project went into entry logic that measurement says
 // contributes nothing. What works, in order:
-//   1. a WIDE trailing stop that lets winners run (stop width is the
-//      dominant variable: 2 ATR -> PF 1.05, 6 ATR -> 1.60, 14 ATR -> 1.75)
+//   1. a WIDE trailing stop that lets winners run. Stop width is the
+//      dominant variable, but NOT monotonically - see the correction below.
+// ⚠ CORRECTED 2026-08-03. The line that stood here claimed "2 ATR -> PF 1.05,
+// 6 ATR -> 1.60, 14 ATR -> 1.75", i.e. ever wider is ever better. A decoupled
+// sweep of 3-20 ATR on the current build does not reproduce it. PF is
+// HUMP-SHAPED with its maximum at 4.24-5.0 and falls beyond:
+//     coupled (stop=trail)   4.24 -> 1.646   6 -> 1.429   14 -> 1.525
+//     trail only (stop 4.24) 4.24 -> 1.646   6 -> 1.417   14 -> 1.553
+//     no adds                4.24 -> 1.389   5 -> 1.429   14 -> 1.397
+// 4.24 is the best or joint-best trail at every initial-stop width from 3.0 to
+// 8.0 ATR - a ridge, not a fitted point. Wider trails (12-20 ATR) do raise
+// average R, as the exponent gap predicts, but cut the sample 3-8x and take
+// drawdown to 65-76%. THE SHIPPED VALUE IS AT ITS OPTIMUM; do not widen it.
 //   2. ADDING to positions that are already working (+192.6% -> +679.9%)
 //   3. filters that skip the chop (drawdown 12.30% -> 9.63%)
 //

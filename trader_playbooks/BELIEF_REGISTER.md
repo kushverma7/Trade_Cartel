@@ -1778,3 +1778,42 @@ time, not to entry precision — and it was re-observed again here in Priority 5
 where expectancy rose monotonically from 1R to 3R targets on both range sizes.
 Future work should be aimed at exits and position holding, not at another
 entry filter.
+
+---
+
+## B-0xx — RETRACTED: "wider trailing stops are monotonically better"
+
+**Was believed because** `gold_trend_strategy.pine` stated it in its own
+"WHAT ACTUALLY MAKES THE MONEY" header: 2 ATR → PF 1.05, 6 ATR → 1.60,
+14 ATR → 1.75. It was the single most-cited number in this repo's exit work and
+it motivated a whole priority of research.
+
+**Measured 2026-08-03, three ways, and it does not reproduce.** PF is
+hump-shaped with a maximum at 4.24–5.0 ATR:
+
+| trail | coupled | trail-only | adds off |
+|---|---|---|---|
+| 3.0 | 1.164 | 1.173 | 1.152 |
+| **4.24** | **1.646** | **1.646** | 1.389 |
+| 5.0 | 1.554 | 1.576 | **1.429** |
+| 6.0 | 1.429 | 1.417 | 1.344 |
+| 14.0 | 1.525 | 1.553 | 1.397 |
+| 20.0 | 1.619 | 1.359 | 1.322 |
+
+**What survives.** The *direction* of the original insight is intact — 3.0 ATR
+is far worse than 4.24 (PF 1.16 vs 1.65), so trails inside the noise band still
+destroy the system, and Eckhardt's argument still holds. What dies is the
+extrapolation: there is an optimum, the shipped value is on it, and past it
+wider trails raise average R while cutting the sample 3–8× and taking drawdown
+to 65–76%.
+
+**Also retracted:** the claim (mine, in `WIZARDS_SYNTHESIS.md`) that the trail
+sweep was *confounded* by risk-based sizing. The leverage cap binds on **0.0%**
+of bars at every width from 3 to 20 ATR. Sizing is purely risk-based; a smaller
+position at a wider stop is what constant-fractional risk means, not an
+artifact.
+
+**Standing consequence.** A number quoted inside a shipped artefact's own
+header is not evidence. This one had been repeated across MEMORY.md, the
+synthesis doc and two sessions of planning without anyone re-running it.
+Re-measure before building on a documented figure.
