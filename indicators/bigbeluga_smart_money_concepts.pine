@@ -301,7 +301,7 @@ invcol = #ffffff00
 
 
 
-float     atr =              (ta.atr(200) / (5/len))
+float     atr =              (ta.atr(200) * len / 5.0)  // PORT FIX BUG-026: was /(5/len); int division zeroed the divisor for len>=6
 
 //}
 _                                                                                                                                                                                                                                        ='  

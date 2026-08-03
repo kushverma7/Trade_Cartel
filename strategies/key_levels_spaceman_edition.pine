@@ -926,6 +926,12 @@ else
 // use the exact same numbers the chart is drawing. Cleared each bar.
 var klPrices = array.new_float(0)
 var klNames  = array.new_string(0)
+// PORT DELTA 5 (BUG-024): yearly H/L are requested for the CURRENT 12M period
+// with lookahead_on, so a historical bar sees the completed year's extreme.
+// Drawing is fine (live has no future); the EXPORT to trade logic is not.
+// Gated off by default -- never enable for a backtest.
+kl_export_yearly = input.bool(false, "KL Export yearly H/L/mid to klPrices (BACKTEST-UNSAFE)", group="KL Levels")
+
 f_klPush(bool on, float px, string nm) =>
     if on and not na(px)
         array.push(klPrices, px)
@@ -950,9 +956,9 @@ f_klPush(is_quarterlyrange_enabled, quarterlyh_open, pqhtext)
 f_klPush(is_quarterlyrange_enabled, quarterlyl_open, pqltext)
 f_klPush(is_quarterly_mid, (quarterlyh_open + quarterlyl_open) / 2, pqmtext)
 f_klPush(is_yearly_enabled, yearly_open, yotext)
-f_klPush(is_yearlyrange_enabled, yearlyh_open, cyhtext)
-f_klPush(is_yearlyrange_enabled, yearlyl_open, cyltext)
-f_klPush(is_yearly_mid, (yearlyh_open + yearlyl_open) / 2, cymtext)
+f_klPush(is_yearlyrange_enabled and kl_export_yearly, yearlyh_open, cyhtext)
+f_klPush(is_yearlyrange_enabled and kl_export_yearly, yearlyl_open, cyltext)
+f_klPush(is_yearly_mid and kl_export_yearly, (yearlyh_open + yearlyl_open) / 2, cymtext)
 f_klPush(is_intra_enabled, intra_open, iotext)
 f_klPush(is_intrarange_enabled, intrah_open, pihtext)
 f_klPush(is_intrarange_enabled, intral_open, piltext)

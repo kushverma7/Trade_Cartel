@@ -4090,7 +4090,7 @@ else if leadingindicator == 'Bull Bear Power Trend'
 
 else if leadingindicator == 'QQE Mod'
     leadinglongcond := isqqeabove
-    leadingshortcond := isqqeabove
+    leadingshortcond := isqqebelow   // PORT FIX BUG-025: was isqqeabove (same as long leg)
 
 
 else if leadingindicator == 'MACD'

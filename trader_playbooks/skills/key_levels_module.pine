@@ -28,6 +28,14 @@
 //   4. Levels additionally exported into klPrices[] / klNames[] so the
 //      host's trade logic can consume them. The ORIGINAL had no such
 //      export; drawing behaviour is untouched by it.
+//   5. (2026-08-02, BUG-024) The yearly high/low/mid EXPORT is gated behind
+//      kl_export_yearly, default false. The original requests them for the
+//      CURRENT 12M period with lookahead_on, which leaks the completed year's
+//      extreme into a backtest. Drawing is unchanged -- only the klPrices[]
+//      export is gated, so the visual the standing directive protects is
+//      identical. The request.security calls themselves are NOT touched:
+//      adding a [1] offset would show the PREVIOUS year's range, a different
+//      level from what the indicator draws.
 //   Everything else -- defaults, colours, text, merge logic, line
 //   geometry, the original's own quirks -- is byte-for-byte the source.
 //
@@ -348,6 +356,15 @@ else
 // use the exact same numbers the chart is drawing. Cleared each bar.
 var klPrices = array.new_float(0)
 var klNames  = array.new_string(0)
+// PORT DELTA 5 (BUG-024): the yearly high/low are requested for the CURRENT
+// 12M period with lookahead_on, so on a historical bar they return the
+// completed year's extreme -- future information. Harmless for DRAWING (live
+// has no future, and these are deliberately the running-year range, unlike
+// every other timeframe which shows the PREVIOUS period). But they must not
+// reach trade logic, so their export is gated OFF by default. Turn it on only
+// for a live/forward run, never for a backtest.
+kl_export_yearly = input.bool(false, "KL Export yearly H/L/mid to klPrices (BACKTEST-UNSAFE)", group="KL Levels")
+
 f_klPush(bool on, float px, string nm) =>
     if on and not na(px)
         array.push(klPrices, px)
@@ -372,9 +389,9 @@ f_klPush(is_quarterlyrange_enabled, quarterlyh_open, pqhtext)
 f_klPush(is_quarterlyrange_enabled, quarterlyl_open, pqltext)
 f_klPush(is_quarterly_mid, (quarterlyh_open + quarterlyl_open) / 2, pqmtext)
 f_klPush(is_yearly_enabled, yearly_open, yotext)
-f_klPush(is_yearlyrange_enabled, yearlyh_open, cyhtext)
-f_klPush(is_yearlyrange_enabled, yearlyl_open, cyltext)
-f_klPush(is_yearly_mid, (yearlyh_open + yearlyl_open) / 2, cymtext)
+f_klPush(is_yearlyrange_enabled and kl_export_yearly, yearlyh_open, cyhtext)
+f_klPush(is_yearlyrange_enabled and kl_export_yearly, yearlyl_open, cyltext)
+f_klPush(is_yearly_mid and kl_export_yearly, (yearlyh_open + yearlyl_open) / 2, cymtext)
 f_klPush(is_intra_enabled, intra_open, iotext)
 f_klPush(is_intrarange_enabled, intrah_open, pihtext)
 f_klPush(is_intrarange_enabled, intral_open, piltext)
