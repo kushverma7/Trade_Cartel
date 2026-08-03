@@ -1566,3 +1566,17 @@ out of sample**, with a non-monotonic response to the multiplier. Rejected.
 The forecasting claim stands; the trading claim does not. That distinction is
 the point — this register now separates "true" from "tradeable", and this
 belief is the former only.
+
+**UPDATE 2026-08-02 — the first of the eight unbuilt exit mechanics has now
+been built and tested.** Dave's 21-EMA structure trail is implemented as
+`exit_lab.trail_mode="structure"`. Result (H-STRUCT-TRAIL in RESULTS_LEDGER):
+rejected as a return improvement — +107.2pp on the full sample, +58.1pp on the
+first half, **−65.5pp out of sample** — but drawdown falls in 9 of 9
+slice x variant combinations (−2.68 to −20.51pp), which is robust and coherent
+with the mechanism (it cycles ~2x faster and trades return for smoothness).
+
+**This updates the parent belief.** "The knowledge layer's exit rules have
+never been tested" is now false for one of the eight. The first one tested
+produced a genuine risk effect and no return effect. That is weak evidence
+that the remaining seven are worth building — and stronger evidence that they
+should be judged on drawdown and ret/DD, not on return alone.

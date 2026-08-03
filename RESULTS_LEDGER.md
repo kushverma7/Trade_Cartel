@@ -1595,3 +1595,57 @@ pivot ranges really do precede more directional sessions (t=+3.07, stable,
 replicates OOS). What is now measured is that this does **not** convert into
 P&L through trail-widening. Forecasting directionality and making money from
 it are different claims, and only the first is supported.
+
+---
+
+## H-STRUCT-TRAIL — Dave's 21-EMA confirmed structure trail — **REJECTED as a replacement, one real effect kept**
+
+**2026-08-02.** `backtest/exit_lab.py` `trail_mode="structure"` (built this
+session; the mechanic had sat correctly extracted in
+`dave_market_structure.md:107-111` and implemented in zero engines since July).
+XAUUSD 30m, 2019-12 to 2026-07, Donchian-50 entry, stop 6 ATR, pyramiding
+1.5 ATR / max 4, risk 1.0% / short 0.75, cooldown 3, $0.07 commission and
+0.20 pt slippage per side. Baseline is the chandelier at 8.49 ATR.
+
+| slice | exit | n | PF | net | maxDD | ret/DD |
+|---|---|---|---|---|---|---|
+| FULL | chandelier | 466 | 1.218 | +172.0% | 70.22% | 2.45 |
+| FULL | structure aggr@3 | 852 | 1.221 | +260.8% | 59.69% | 4.37 |
+| FULL | structure aggr@4 | 817 | 1.234 | +279.2% | **49.71%** | **5.62** |
+| FULL | structure no-aggr | 800 | 1.170 | +169.3% | 57.23% | 2.96 |
+| 1st half | chandelier | 244 | 0.968 | −14.8% | 61.57% | −0.24 |
+| 1st half | structure aggr@4 | 410 | 1.078 | +43.3% | 49.71% | 0.87 |
+| **OOS** | **chandelier** | **220** | **1.615** | **+238.5%** | **28.35%** | **8.41** |
+| **OOS** | **structure aggr@3** | **420** | **1.417** | **+184.3%** | **24.54%** | **7.51** |
+| **OOS** | **structure aggr@4** | **401** | **1.403** | **+173.0%** | **25.67%** | **6.74** |
+| **OOS** | **structure no-aggr** | **392** | **1.340** | **+124.8%** | **24.76%** | **5.04** |
+
+**VERDICT on return: REJECTED.** The full-sample gain (+107.2pp at aggr@4)
+comes from the first half (+58.1pp) and reverses out of sample (−65.5pp,
+PF −0.212). Risk-adjusted it also loses OOS: ret/DD 6.74 against the
+chandelier's 8.41. It is not a replacement for the champion's exit.
+
+**One effect IS robust and should be recorded rather than discarded.**
+Drawdown falls in **9 of 9** slice x variant combinations, by 2.68 to 20.51
+percentage points, with no exception and no sign flip:
+
+| | aggr@3 | aggr@4 | no-aggr |
+|---|---|---|---|
+| FULL | −10.53 | −20.51 | −12.99 |
+| 1st half | −2.71 | −11.85 | −4.73 |
+| OOS | −3.81 | −2.68 | −3.59 |
+
+Unlike H-PIVOT-HOLD, the response here is also coherent: the structure trail
+roughly doubles trade count (466 -> ~820) because it cycles faster, and it
+gives up return for a materially smoother equity curve. That is a real
+trade-off, not noise.
+
+**Where it may belong.** The champion ships a Conservative profile precisely
+for drawdown-averse use (+680% at 17.0% DD). A lower-return, lower-drawdown
+exit is exactly that profile's shape. Testing `trail_mode="structure"` inside
+Conservative — rather than as a Balanced replacement — is the follow-up this
+result justifies. It has NOT been run.
+
+**Same limitation as H-PIVOT-HOLD:** the base is a simplified proxy of the
+champion (PF 1.218 / 466 entries vs 1.583 / 2,370), missing the EMA regime
+gate, the 750/2000 SMA confluence, the slope gate and TP1/TP2.

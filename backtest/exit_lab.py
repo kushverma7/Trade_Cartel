@@ -30,6 +30,25 @@ TRAILING MODES
                   trade is given room early and protected late
     "giveback"    give back a fixed FRACTION of the best excursion, which
                   scales the leash to how far the trade has already run
+    "structure"   Dave's 21-EMA confirmed structure trail (voice #7,
+                  dave_market_structure.md:107-111, source transcript
+                  raw_transcripts/line1200). Verbatim rule: "Trail stop ONLY
+                  to lows that closed below the 21 EMA and were then
+                  reclaimed. BE when the high that made your low is taken.
+                  After swing 3-4 of the run, switch to aggressive candle-low
+                  trailing."
+
+                  This was the highest-value UNBUILT exit in the archive --
+                  extracted correctly into a playbook in July and implemented
+                  in zero engines until now (BELIEF_REGISTER: "the knowledge
+                  layer's EXIT rules have never been tested, only its
+                  entries", 8 mechanics, 8 unbuilt).
+
+                  It is structurally unlike the other five: it tightens on
+                  SWING COUNT, where "step" tightens on ATR progress and
+                  "giveback" on a fraction of excursion. Ordinary noise lows
+                  never move the stop -- only lows that closed through the EMA
+                  and were then reclaimed by a higher high qualify.
 
 PROFIT TAKING
     tp1/tp2 each have a mode ("atr", "pct", "points", "rr") and a fraction of
@@ -75,6 +94,7 @@ def run(df, sigL, sigS,
         trail_atr_series=None,
         step_from=3.0, step_to=1.5, step_span=10.0, giveback_frac=0.35,
         giveback_arm=2.0,
+        struct_ema=21, struct_swings=3, struct_aggr=True,
         trail_only_after_tp1=False,
         tp1_mode=None, tp1_val=0.0, tp1_pct=0.5,
         tp2_mode=None, tp2_val=0.0, tp2_pct=0.3,
@@ -90,6 +110,7 @@ def run(df, sigL, sigS,
     highN = pd.Series(h).rolling(trail_n).max().shift(1).to_numpy()
     ema = (pd.Series(c).ewm(span=trail_ema, adjust=False).mean().to_numpy()
            if trail_ema else None)
+    ema_s = pd.Series(c).ewm(span=struct_ema, adjust=False).mean().to_numpy()
 
     eq = equity0
     trades = []
@@ -159,6 +180,37 @@ def run(df, sigL, sigS,
                     frac = min(1.0, prog / max(step_span, 1e-9))
                     mult = step_from + (step_to - step_from) * frac
                     cand = pos["best"] - d * a * mult
+                elif trail_mode == "structure":
+                    # a low only QUALIFIES once its bar has closed through the
+                    # EMA; it only ARMS once a later bar reclaims the high that
+                    # preceded it. Both conditions use bar i-1 or earlier, so
+                    # nothing here can see the bar it is about to be tested on.
+                    e = ema_s[i - 1]
+                    if d > 0:
+                        if c[i - 1] < e:                  # closed below the EMA
+                            pos["cand"] = (l[i - 1] if np.isnan(pos["cand"])
+                                           else min(pos["cand"], l[i - 1]))
+                            if np.isnan(pos["ref"]):
+                                pos["ref"] = h[i - 1]
+                        elif not np.isnan(pos["cand"]) and h[i - 1] > pos["ref"]:
+                            cand = pos["cand"]            # reclaimed -> arm it
+                            pos["cand"] = np.nan; pos["ref"] = np.nan
+                            pos["swings"] += 1
+                    else:
+                        if c[i - 1] > e:
+                            pos["cand"] = (h[i - 1] if np.isnan(pos["cand"])
+                                           else max(pos["cand"], h[i - 1]))
+                            if np.isnan(pos["ref"]):
+                                pos["ref"] = l[i - 1]
+                        elif not np.isnan(pos["cand"]) and l[i - 1] < pos["ref"]:
+                            cand = pos["cand"]
+                            pos["cand"] = np.nan; pos["ref"] = np.nan
+                            pos["swings"] += 1
+                    # "after swing 3-4, switch to aggressive candle-low trailing"
+                    if struct_aggr and pos["swings"] >= struct_swings:
+                        agg = (l[i - 1] if d > 0 else h[i - 1])
+                        cand = agg if np.isnan(cand) else (
+                            max(cand, agg) if d > 0 else min(cand, agg))
                 elif trail_mode == "giveback":
                     # BUG FOUND 2026-07-31: without the arming threshold the
                     # excursion is zero at entry, so the stop snapped to the
@@ -228,6 +280,7 @@ def run(df, sigL, sigS,
         if qty < 1:
             continue
         pos = {"dir": d, "entry": entry, "qty": qty, "q0": qty, "bar": i,
+               "cand": np.nan, "ref": np.nan, "swings": 0,
                "stop": entry - d * sdist, "best": entry, "banked": 0.0,
                "tp1": _target(entry, d, a, tp1_mode, tp1_val, sdist),
                "tp2": _target(entry, d, a, tp2_mode, tp2_val, sdist),
