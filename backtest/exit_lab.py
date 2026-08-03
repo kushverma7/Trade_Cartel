@@ -163,7 +163,14 @@ def run(df, sigL, sigS,
         if pos["qty"] < (1e-8 if frac_qty else 1):
             trades.append({"pnl": pos["banked"], "dir": d, "bar": pos["bar"],
                            "bars_held": i - pos["bar"], "why": why,
-                           "adds": pos["adds"], "orisk": pos["orisk"]})
+                           "adds": pos["adds"], "orisk": pos["orisk"],
+                           # PRICE-SPACE record, for reporting in POINTS rather
+                           # than dollars: blended entry, final exit, the signed
+                           # move in points, and the size that carried it.
+                           "entry_px": pos["entry"], "exit_px": px,
+                           "points": d * (px - pos["entry"]),
+                           "qty": pos["q0"], "atr0": pos["a0"],
+                           "exit_bar": i})
             LASTLOSS[0] = pos["banked"] < 0
             STREAK[0] = 0 if pos["banked"] < 0 else STREAK[0] + 1
             return True
