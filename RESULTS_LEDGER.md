@@ -1929,3 +1929,96 @@ momentum trade. Same signal, different job, and this job it does.
 - Setup 4 (failed break/sweep) is negative at −0.030R, consistent with the
   earlier finding that sweep-and-reclaim is a real pattern whose advantage is
   eaten by the wider entry-to-stop distance it creates.
+
+---
+
+## Rule book V3 — Setup A confirmed robust; Setup B is structurally wrong for gold
+
+**2026-08-02.** `backtest/rulebook_v3.py`. XAUUSD, 2019-12 to 2026-07. V3's
+stated testing priorities, run in order.
+
+### Priority 1 — Setup B (gap fill), rejection window restored
+
+| rejection window | n | WR | avg R | PF |
+|---|---|---|---|---|
+| 1 bar (V2's crippled version) | 18 | — | — | — |
+| 3 bars | 19 | — | — | — |
+| **6 bars (V3's fix)** | **20** | 50.0% | +0.010 | 1.04 |
+| 10 bars | 20 | 50.0% | +0.010 | 1.04 |
+
+**Loosening the window did NOT restore the sample.** 18 → 20 trades. So my V2
+implementation was not the cause, and my earlier apology for it was aimed at
+the wrong thing.
+
+The real cause is structural: **gold barely gaps.** XAUUSD trades nearly 24
+hours, so a "moderate overnight gap" of 0.5–3.0 ATR that also leaves the CPR
+as a magnet occurs about 20 times in seven years. Setup B is an *index*
+setup — it assumes a cash close and a real overnight session, which US30 has
+and gold does not. It is not testable on this instrument at any window, and it
+should be tested on US30 or dropped.
+
+### Priority 2a — does the CPR gate hold across timeframes?
+
+| timeframe | n | WR | avg R | PF | total |
+|---|---|---|---|---|---|
+| 15m | 10,379 | 42.6% | +0.044 | 1.09 | +458.7R |
+| **30m** | **4,986** | **41.9%** | **+0.080** | **1.15** | **+398.8R** |
+| 60m | 2,500 | 38.7% | +0.017 | 1.03 | +43.7R |
+| 4H | 667 | 38.5% | +0.077 | 1.13 | +51.4R |
+
+Positive on all four. Weaker evidence than a second instrument would be —
+the bars overlap, so these are not independent — but real.
+
+**V3's two-day bias alignment doubled the edge.** V2's Setup 2 returned
++0.040R at PF 1.07 on 30m; adding V3's requirement that direction agree with
+the two-day relationship gives **+0.080R at PF 1.15** on the same data.
+
+### Priority 2b — session restriction CONTRADICTS the rule book
+
+| session | n | avg R | PF | total |
+|---|---|---|---|---|
+| all hours | 4,986 | +0.080 | 1.15 | **+398.8R** |
+| LDN/NY overlap 13:30–16:30 | 643 | +0.024 | 1.05 | +15.4R |
+| NY first 90m | 326 | +0.029 | 1.06 | +9.3R |
+| London 08:00–12:00 | 839 | +0.111 | 1.20 | +92.7R |
+
+V3 says "prefer London–New York overlap and first 90 minutes of New York."
+On this instrument **both make it worse** — the overlap cuts per-trade edge
+from +0.080 to +0.024. London alone is the best per-trade (+0.111) but that is
+a 1-of-4 pick and should be treated as a hypothesis, not a setting. Every
+session restriction cuts total return by 75–95% by discarding trades.
+
+### Priority 2c — "narrow" is parameter-stable and MONOTONIC
+
+| narrow definition | n | avg R | PF | total |
+|---|---|---|---|---|
+| bottom 20% | 3,485 | **+0.115** | **1.22** | +399.5R |
+| bottom 25% | 4,033 | +0.082 | 1.15 | +330.0R |
+| bottom 33% | 4,986 | +0.080 | 1.15 | +398.8R |
+| bottom 40% | 5,580 | +0.058 | 1.10 | +322.7R |
+| bottom 50% | 6,611 | +0.042 | 1.07 | +279.1R |
+
+Monotonic: the narrower the CPR, the stronger the edge. That is what a real
+mechanism looks like, not a spike. Total R is flat from 20% to 33%, so the
+tighter definition is free.
+
+### Best stable configuration, and its control
+
+| | n | WR | avg R | PF | total |
+|---|---|---|---|---|---|
+| Setup A, narrow 20%, all hours | 3,485 | 42.6% | +0.115 | 1.22 | +399.5R |
+| first half | 1,743 | 40.5% | +0.046 | 1.08 | +80.5R |
+| OOS half | 1,742 | 44.7% | +0.183 | 1.36 | +319.0R |
+| **control: no gate, no bias** | 21,726 | 39.2% | +0.014 | 1.02 | +306.2R |
+| control first half | 10,863 | 38.3% | −0.011 | 0.98 | −121.5R |
+| control OOS half | 10,863 | 40.1% | +0.039 | 1.07 | +427.7R |
+
+The gate beats its control on per-trade edge in both halves (+0.046 vs −0.011,
+and +0.183 vs +0.039) while using one sixth of the trades and one seventh of
+the drawdown.
+
+**The caution that must travel with this.** Both the gate and its control are
+much stronger in the second half than the first. Something regime-level is
+inflating the recent half for both arms, and until that is understood the OOS
+figures should not be read as forward expectations. The gate's advantage over
+its control is the durable part; the level of either arm is not.
