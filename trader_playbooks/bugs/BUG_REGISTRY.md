@@ -533,9 +533,14 @@ A period's high and low are not known until the period closes. With
 `lookahead_on` and no `[1]`, a historical bar receives the COMPLETED period's
 extreme — future information.
 
-Note the asymmetry that identifies it as a slip rather than a design: every
-other timeframe (D, W, M, 3M, 240) uses `[time[1], high[1]]` for its
-high/low. Only the yearly pair omits the offset.
+**CORRECTION (2026-08-02, same day).** An earlier draft of this entry read
+the asymmetry — every other timeframe uses `[time[1], high[1]]`, only yearly
+omits it — as a copy-paste slip. It is not. The module's own labels settle it:
+`pdhtext` is "Prev Day High", `pwhtext` is "Prev Week High", and `cyhtext` is
+"**Current** Year High". The yearly pair is deliberately the running year, is
+correctly named, and is correct for DRAWING. The only defect is that a
+backtest reading it through `klPrices[]` sees the completed year. Read the
+labels before calling something a typo.
 
 **Blast radius.** `cdailyh_open`/`cdailyl_open` are drawn on the chart but
 never reach `f_klPush`, so they do not enter `klPrices[]` and cannot affect
@@ -739,3 +744,59 @@ what is target/stop in ATR? Both were available before writing any Pine.
 **Related:** BUG-017, and the standing finding that level- and grid-based
 targets fail structurally because their distance is set by where a line
 happens to sit rather than by what the trade needs.
+
+
+---
+
+## BUG-028 — `levels.py` calls a level "current year" and computes previous year
+
+**Found:** 2026-08-02, during the pivot/key-level sweep, comparing the research
+engine's level set against the Pine module's.
+**Severity:** research and live were never measuring the same level. Silent.
+
+**Symptom:** none. Both engines produce a number called `CYH`; they are
+different numbers, in different years, with different dynamics.
+
+**Root cause.** `backtest/levels.py` builds every period level through one
+helper:
+
+```
+def _period_levels(df, key, open_col, prev_hi, prev_lo):
+    """Aggregate by a period key; current-period open + PREVIOUS period H/L."""
+    g    = df.groupby(key).agg(OHLC)
+    prev = g.shift(1)
+```
+
+and calls it for the yearly with `("YO", "CYH", "CYL")`. The `shift(1)` is
+correct and non-lookahead for PDH/PWH/PMH/PQH, which ARE previous-period
+levels. But `CYH`/`CYL` mean **Current** Year High/Low — that is what the
+supplied indicator names them and draws. So the Python emits the PREVIOUS
+year's high under a name that means the current year's.
+
+The two are not similar quantities:
+
+| | research (`levels.py`) | live (Pine module) |
+|---|---|---|
+| value | previous year's high | current year's running high |
+| behaviour | static for 12 months | ratchets upward through the year |
+| distance from price | can be enormous | often near price |
+
+**Blast radius.** Any key-level result that included the yearly levels
+compared a static year-old level against a live ratcheting one. This is a
+third independent contributor to the research-vs-live gap that BUG-017
+recorded (PF 1.385 research against PF 0.702 live), alongside the level-count
+mismatch (18 modelled vs 36 drawn) and the target-distance problem.
+
+**Fix.** Decide which level is wanted and make both engines agree, then say so
+in the ledger row:
+- to match the indicator: build `CYH`/`CYL` as an expanding max/min WITHIN the
+  current year (`g.expanding().max()` grouped by year), no shift.
+- or keep the previous-year level and RENAME it `PYH`/`PYL`, and drop the
+  yearly from the Pine export (already gated by BUG-024).
+
+Do not leave both names as they are.
+
+**Prevention:** when a research engine ports a level set from an indicator,
+diff the NAMES and their definitions, not just the count. BUG-017's prevention
+step said "count them". That was necessary and insufficient — two engines can
+agree on 36 levels and disagree on what four of them mean.
