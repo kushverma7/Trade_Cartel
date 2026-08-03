@@ -224,6 +224,9 @@ float pyrRisk   = input.float(1.0, "Each add sized at (x original risk)", minval
 // ── ④ Trailing algorithm ────────────────────────────────────────
 string trailMode= input.string("Chandelier (ATR)", "Trailing logic", options=["Chandelier (ATR)", "Donchian low"], group="④ Trailing Algorithm",
      tooltip="Six algorithms were built and measured: chandelier, Donchian low, EMA, a multiple that tightens with profit, a give-back-a-fraction trail, and none. Two are worth offering.\n\nCHANDELIER (default): PF 1.635, +679.9%, drawdown 17.01%, positive in ALL FIVE walk-forward slices.\nDONCHIAN LOW: PF 1.624, +935.9%, drawdown 23.45%, NEGATIVE in one of five (-6.0%).\n\nDonchian returns 38% more, but return per drawdown is a dead heat (39.9 vs 40.0) - the same efficiency at larger size, with one losing period to sit through.\n\nRejected: EMA trail (best PF 1.383 at 33.7% drawdown), give-back trail (1.061), stepping trail (1.597, behind both).")
+float tightAfter= input.float(20.0, "Tighten the trail after this much favourable move (x ATR at entry)", minval=0, step=1.0, group="④ Trailing Algorithm",
+     tooltip="0 disables. PRIORITY 4 FINDING (2026-08-03). Once a trade has run this far in its favour, the leash tightens to the value below. This is NOT a tight stop and NOT a profit target: it only ever engages on trades already deep in profit, and the trade still exits on a trail.\n\nAt 20 ATR -> 2.0: profit factor 1.714 -> 1.834, net +3,855% -> +5,922%, drawdown 32.65% -> 33.80%. Against a leverage-matched baseline at the same drawdown it returns +5,922% vs about +4,500% with a higher profit factor, so it is not the risk dial in disguise. Improves the profit factor in 5 of 8 calendar years. Confirmed on US30: PF 1.469 vs 1.351 at identical drawdown.\n\nSwept 10-30 ATR x 1.5-3.0: 21 of 28 combinations beat the baseline and everything from 18 ATR up is a plateau. 20 is inside it, not its peak.")
+float tightTo   = input.float(2.0, "...tighten it to (x ATR)", minval=0.5, step=0.25, group="④ Trailing Algorithm")
 int   donchN    = input.int(45, "Donchian trail lookback (bars)", minval=5, group="④ Trailing Algorithm",
      tooltip="The stop rides the lowest low of the last N bars for longs. Do NOT read the training peak at 40 as meaningful: out of sample the whole 30-50 range performs and the ordering reverses, which is what a fitted spike looks like once you test it. 45 is the middle of the out-of-sample plateau, not the training maximum.")
 
@@ -327,22 +330,32 @@ var int   nAdds     = 0
 // 36.5%. Against a leverage-matched baseline at the same drawdown it returned
 // +1,996% vs +1,094% with a higher PF, so it is not the risk dial in disguise.
 var float atrEntry  = na
+var float bestPx    = na   // best excursion THROUGH THE PREVIOUS BAR (see below)
 
 // ═════════════════════════════════════════════════════════════
 // TRAILING STOP
 // Ratchets in the trade's favour only, anchored to the PREVIOUS bar's
 // extreme so the current bar can never move its own stop and then hit it.
 // ═════════════════════════════════════════════════════════════
+// Excursion is measured off bestPx, which holds the extreme through the
+// PREVIOUS bar only. Using this bar's own high would let the bar tighten its
+// own stop and then hit it -- the intrabar-lookahead defect of BUG-019.
+float excAtr = strategy.position_size == 0 or na(atrEntry) or na(bestPx) or atrEntry <= 0 ? 0.0 :
+     (strategy.position_size > 0 ? bestPx - strategy.position_avg_price
+                                 : strategy.position_avg_price - bestPx) / atrEntry
+float effTrail = tightAfter > 0 and excAtr >= tightAfter ? tightTo : trailMultE
+
 if strategy.position_size > 0
-    float cand = trailMode == "Donchian low" ? donLoTrail : high[1] - atr * trailMultE
+    float cand = trailMode == "Donchian low" ? donLoTrail : high[1] - atr * effTrail
     trailStop := na(trailStop) ? cand : math.max(trailStop, cand)
 else if strategy.position_size < 0
-    float cand = trailMode == "Donchian low" ? donHiTrail : low[1] + atr * trailMultE
+    float cand = trailMode == "Donchian low" ? donHiTrail : low[1] + atr * effTrail
     trailStop := na(trailStop) ? cand : math.min(trailStop, cand)
 else
     trailStop := na
     lastAdd   := na
     atrEntry  := na
+    bestPx    := na
     nAdds     := 0
 
 // ═════════════════════════════════════════════════════════════
@@ -387,6 +400,7 @@ if longSig and coolOk and strategy.position_size == 0 and qty >= 1
     tp2Done   := false
     lastAdd   := close
     atrEntry  := atr
+    bestPx    := close
     nAdds     := 0
 
 if shortSig and coolOk and strategy.position_size == 0 and qty >= 1
@@ -400,6 +414,7 @@ if shortSig and coolOk and strategy.position_size == 0 and qty >= 1
     tp2Done   := false
     lastAdd   := close
     atrEntry  := atr
+    bestPx    := close
     nAdds     := 0
 
 // ═════════════════════════════════════════════════════════════
@@ -438,6 +453,12 @@ else
         strategy.exit("L-exit", "L", stop=trailStop)
     if strategy.position_size < 0 and not na(trailStop)
         strategy.exit("S-exit", "S", stop=trailStop)
+
+// Roll bestPx forward only now that this bar's stop and exits are resolved,
+// so the value the next bar reads is the extreme through THIS bar and no
+// bar can ever act on its own high.
+if strategy.position_size != 0
+    bestPx := na(bestPx) ? close : (strategy.position_size > 0 ? math.max(bestPx, high) : math.min(bestPx, low))
 
 // ═════════════════════════════════════════════════════════════
 // VISUALS

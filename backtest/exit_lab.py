@@ -103,7 +103,9 @@ def run(df, sigL, sigS,
         tp_be=False, be_atr=0.0, tp_shorts_only=False,
         pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
         pyr_mode="current", pyr_budget=1.0, pyr_gate=None, pyr_decay=1.0,
-        long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0, atr_n=14,
+        long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0,
+        cooldown_win=0, risk_series=None, tighten_after=0.0, tighten_to=0.0,
+        atr_n=14,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, frac_qty=False):
     # PYRAMIDING MODES (pyr_mode). All default to "current" so every result
@@ -238,6 +240,14 @@ def run(df, sigL, sigS,
                     # trend.py does, so the two engines agree
                     ta_ = (trail_atr if trail_atr_series is None
                            else float(trail_atr_series[i]))
+                    if tighten_after > 0:
+                        # once the trade has run `tighten_after` ATR in its
+                        # favour, tighten the leash to `tighten_to`. Measured
+                        # off pos["best"], which holds the excursion through
+                        # bar i-1 -- never the current bar (see the note above).
+                        exc = d * (pos["best"] - pos["entry"]) / max(pos["a0"], 1e-9)
+                        if exc >= tighten_after:
+                            ta_ = tighten_to
                     cand = (h[i - 1] - a * ta_ if d > 0
                             else l[i - 1] + a * ta_)
                 elif trail_mode == "donchian":
@@ -340,7 +350,7 @@ def run(df, sigL, sigS,
             # excursion updated only now that this bar is fully resolved
             pos["best"] = max(pos["best"], h[i]) if d > 0 else min(pos["best"], l[i])
 
-        cd = max(cooldown, cooldown_loss if LASTLOSS[0] else 0)
+        cd = max(cooldown, cooldown_loss if LASTLOSS[0] else cooldown_win)
         if pos is not None or np.isnan(a) or a <= 0 or i - last_exit < cd:
             continue
         d = 1 if sigL[i] else (-1 if (sigS[i] and not long_only) else 0)
@@ -349,6 +359,12 @@ def run(df, sigL, sigS,
         sdist = a * stop_atr
         entry = c[i] + d * slippage
         eff = risk_pct if d > 0 else risk_pct * short_risk
+        if risk_series is not None:
+            # per-bar risk MULTIPLIER (1.0 = unchanged). Applied only at entry,
+            # so a position's size is fixed by the regime at the moment it was
+            # opened and never re-scaled mid-trade.
+            rm = float(risk_series[i])
+            eff *= rm if np.isfinite(rm) else 1.0
         qty = float(max(min(eq * eff / 100.0 / sdist, eq * max_lev / c[i]), 0))
         qty = qty if frac_qty else float(np.floor(qty))
         if qty < (1e-8 if frac_qty else 1):

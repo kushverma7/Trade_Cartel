@@ -2540,3 +2540,107 @@ comparison, and they improve on both halves.
 3. adds now sized on the **ATR at entry** (`atrEntry`) rather than current ATR
 
 `pine_lint`: CLEAN.
+
+---
+
+## PRIORITY 4 (Gold) — aggressive exploration (2026-08-03)
+
+Baseline: PF 1.714, +3,854.7%, DD 32.65%, ret/DD 118.05, n=733.
+
+### A METRIC WARNING THAT CHANGES HOW THESE ARE READ
+
+**Return/drawdown is not scale-invariant under compounding.** Dialling the
+baseline's risk from 0.85% to 1.60% — changing nothing else — moves it:
+
+| risk | net | CAGR | maxDD | ret/DD | **MAR (CAGR/DD)** |
+|---|---|---|---|---|---|
+| 0.85% | +2,364.7% | 61.8% | 28.33% | 83 | 2.18 |
+| 1.00% | +3,854.7% | 73.7% | 32.65% | **118** | 2.26 |
+| 1.15% | +6,086.0% | 85.8% | 36.79% | 165 | 2.33 |
+| 1.30% | +9,311.6% | 97.9% | 40.73% | 229 | 2.40 |
+| 1.60% | +19,429.0% | 120.8% | 48.09% | **404** | 2.51 |
+
+The target of "ret/DD materially above 118" is reachable by turning one dial
+and adding no edge at all. Everything below is therefore judged on **MAR at
+matched drawdown**, and the raw ret/DD is reported only for continuity.
+
+### ADOPTED — tighten the trail after a large favourable excursion
+
+Once a trade has run 20 ATR (measured on the ATR at entry) in its favour, the
+chandelier tightens from 4.24 ATR to 2.0. It is not a target and not a tight
+stop: it engages only on trades already deep in profit and the exit is still a
+trail.
+
+| | PF | net | CAGR | maxDD | MAR | halves |
+|---|---|---|---|---|---|---|
+| baseline (risk 1.0%) | 1.714 | +3,854.7% | 73.7% | 32.65% | 2.26 | 1.31/1.82 |
+| **tightened (risk 1.0%)** | **1.834** | **+5,921.9%** | 85.1% | 33.80% | **2.52** | **1.35/1.94** |
+| baseline levered to the same DD | ~1.716 | ~+4,500% | ~78% | ~33.8% | ~2.28 | — |
+
+**Evidence it is real, not a fit:**
+- Swept 10–30 ATR × 1.5–3.0 tightening: **21 of 28 cells beat baseline**, and
+  everything from 18 ATR upward is a plateau (ret/DD 140–185). 20→2.0 is inside
+  the plateau, not its peak.
+- Beats the leverage-matched baseline on net, PF and MAR simultaneously.
+- **Improves the profit factor in 5 of 8 calendar years** (2021 0.90→0.98,
+  2022 1.17→1.20, 2023 1.43→1.57, 2025 1.99→2.11, 2026 1.86→2.00), roughly
+  neutral in the other three. The gain is not one trade.
+- **US30, unchanged:** PF 1.469 vs 1.351, net +247.0% vs +168.4%, at an
+  identical 19.32% drawdown.
+
+### REJECTED — volatility-targeted sizing (risk ∝ median ATR% / current ATR%)
+
+Looked strong on gold (+4,783.2%, ret/DD 141.6) and fails on inspection:
+- **Profit factor is unchanged: 1.715 against the baseline's 1.714.** An
+  unchanged PF with a higher return is the signature of leverage, not edge.
+- MAR 2.35 at 33.79% DD against a matched baseline's ~2.28 — a rounding error.
+- **It is negative on US30:** PF 1.296 vs 1.351, net +146.0% vs +168.4%.
+
+Stacked with the tightening it does add return (+7,308.1%, MAR 2.60), but the
+increment over the tightening alone is what the risk dial would have given.
+**Not adopted.**
+
+### Everything else tested
+
+| idea | result | verdict |
+|---|---|---|
+| inverse vol-targeting (risk up when vol is high) | ret/DD 97–104 | REJECT |
+| step risk by ATR percentile (6 variants) | MAR ≤ 2.35, PF falls | REJECT |
+| separate cooldown after wins vs losses (9 variants) | all below baseline | REJECT |
+| Donchian-low trail | PF 1.573, DD 45.27% | REJECT |
+| continuous step trail 4.24→2.0 over 20 ATR | PF 1.425, DD 44.50% | REJECT — the *threshold* works, the gradient does not |
+| asymmetric adds, pyr_risk 1.25 / 0.75 | 1.25 is leverage; 0.75 is de-risking | REJECT |
+| long-only | PF 1.816 but DD 38.26%, net +2,599.8% | REJECT — a regime bet |
+| tighten after 6–12 ATR | PF 1.36–1.75, below baseline | REJECT — too early is a tight stop |
+
+### Optional secondary — short risk 0.75 → 0.50, only in combination
+
+With the tightening adopted, cutting short size improves everything:
+PF **1.866**, net +5,212.0%, DD **31.87%**, MAR **2.56**, halves **1.39/1.97** —
+the best half-stability in the entire project. At risk 1.15% it gives net
+**+8,586.8%** at 35.88% DD, MAR **2.66**.
+
+**Flagged, not adopted by default.** Shrinking the short side is a partial
+version of the long-only regime bet the Pine's own header warns about, the
+optimum moved (0.75 → 0.50) only *after* the tightening was added, and gold
+rose 1450→4100 across this sample. It is offered as a dial with that caveat
+attached.
+
+### The risk that no configuration removes
+
+Profit is extremely concentrated: **the top 10 trades are 95.2% of net profit**
+(baseline 91.2%), and the largest single trade doubles from $59,828 to
+$117,991 under the tightening. This is inherent to trend following with
+compounding, but it means live results will diverge from the backtest far more
+than the trade count of 733 suggests.
+
+### Final recommendation
+
+| rank | configuration | PF | net | maxDD | MAR |
+|---|---|---|---|---|---|
+| **1** | baseline + tighten 20→2.0 | **1.834** | **+5,921.9%** | 33.80% | **2.52** |
+| 2 | + short risk 0.50 (regime caveat) | 1.866 | +5,212.0% | 31.87% | 2.56 |
+| 3 | + short risk 0.50 at risk 1.15% | 1.868 | +8,586.8% | 35.88% | 2.66 |
+
+**#1 is what is shipped in the Pine** (`tightAfter=20`, `tightTo=2.0`).
+#2 and #3 are left as dials.

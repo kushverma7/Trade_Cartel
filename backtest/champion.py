@@ -106,7 +106,8 @@ def signals(df, lb, long_only=False, long_slope=False):
 
 def run(df, mode="bars", tf_min=30.0, trail_atr=TRAIL_ATR, risk_pct=RISK_PCT,
         pyr=None, cooldown=COOLDOWN, slippage=SLIPPAGE, stop_atr=None,
-        lb_over=None, mask=None, **kw):
+        lb_over=None, mask=None, trail_mode="chandelier",
+        short_risk=SHORT_RISK, **kw):
     """One champion run. Returns (trades, lookbacks_used).
 
     `stop_atr` sets BOTH the initial stop distance and, through it, the
@@ -124,10 +125,10 @@ def run(df, mode="bars", tf_min=30.0, trail_atr=TRAIL_ATR, risk_pct=RISK_PCT,
         sigL = sigL & mask
         sigS = sigS & mask
     p = PYR if pyr is None else pyr
-    tr = exit_lab.run(df, sigL, sigS, trail_mode="chandelier",
+    tr = exit_lab.run(df, sigL, sigS, trail_mode=trail_mode,
                       stop_atr=trail_atr if stop_atr is None else stop_atr,
                       trail_atr=trail_atr, risk_pct=risk_pct,
-                      short_risk=SHORT_RISK, cooldown=cooldown, atr_n=ATR_N,
+                      short_risk=short_risk, cooldown=cooldown, atr_n=ATR_N,
                       commission=COMMISSION, slippage=slippage, **p, **kw)
     return tr, lb
 
