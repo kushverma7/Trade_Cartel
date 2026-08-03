@@ -2800,3 +2800,86 @@ essentially always show a mediocre Sharpe.
 the current build to within 2.1% on profit factor and 0.7% on order count.**
 The August 2 validation was the first time this project reached that standard;
 this is the second, on a build carrying four subsequent changes.
+
+---
+
+## PRE-LIVE VALIDATION CHECKLIST — run against the research engine (2026-08-03)
+
+A checklist supplied by the user (from another session). Items answerable from
+the research engine were run rather than left as manual TradingView steps.
+
+| # | check | result |
+|---|---|---|
+| 1 | buy & hold | **PASS** — +5,921.9% at 33.80% DD against gold's +179.1% at 29.08%. 33x. |
+| 2 | long vs short | **PASS** — shorts are the *better* book: PF **1.891** vs longs' 1.806, 35.1% of net profit. Not dead weight. |
+| 3 | per-year / OOS split | **PASS** — train 2020-01→2023-12 PF 1.351 / +365.2%; **OOS 2024-01→2026-07 PF 1.976 / +739.4% at 20.80% DD**. OOS is the stronger half. Caveat below. |
+| 4 | parameter robustness | **MIXED — see below** |
+| 5 | fill realism | **ALREADY SET IN CODE** — `process_orders_on_close=true`, `calc_on_every_tick=false`. Bar magnifier is a TradingView-side toggle; recommended ON. |
+| 6 | repaint | **PASS** — audited structurally, not by eye |
+| 7 | sanity (capital/leverage) | see the account-size row; $25,000 minimum at current gold prices |
+| + | Monte Carlo | **run — and it is the most useful item on the list** |
+
+### 3 — the honest caveat on out-of-sample
+
+The OOS half is the *better* half (PF 1.976 vs 1.351), which is the right
+direction. But **every parameter in this build was selected with knowledge of
+the full sample**, so 2024-26 is not virgin data. DSR 0.9996 and PBO 0.099 are
+the defences against that and they pass; a genuinely fresh sample would still
+be better than either. Forward performance from 2026-08-03 is the only true
+out-of-sample this project will ever get.
+
+### 4 — robustness is asymmetric, and this is worth knowing
+
+Donchian ±20% and trail ±0.5, 15 cells. **All 15 stay profitable; none inverts.**
+But the two dimensions behave very differently:
+
+| | range tested | PF range | verdict |
+|---|---|---|---|
+| Donchian length | 19 – 29 (24 ±20%) | 1.781 – 1.859 | **flat, ±3%** |
+| trail multiple | 3.74 – 4.74 (4.24 ±0.5) | 1.418 – 1.859 | **sharp, −19% / −12%** |
+
+Fine sweep of the trail, coupled and with position size pinned:
+
+| trail | 3.50 | 3.74 | 4.00 | **4.24** | 4.50 | 4.74 | 5.00 |
+|---|---|---|---|---|---|---|---|
+| PF (coupled) | 1.409 | 1.487 | 1.548 | **1.834** | 1.755 | 1.607 | 1.610 |
+| PF (size pinned) | 1.411 | 1.498 | 1.549 | **1.834** | 1.768 | 1.631 | 1.618 |
+
+Both columns dip either side of 4.24, so **it is a genuine ridge, not an
+artifact of trail width also setting position size.** The entry length can be
+mis-set by 20% with no consequence; the trail cannot. This does not invalidate
+the build — Priority 1 swept 3–20 ATR and 4.24 won on a hill — but it is the
+one parameter that must be got right, and it is the one most exposed to a
+broker whose ATR differs from OANDA's.
+
+### Monte Carlo — the actual drawdown is on the LUCKY side
+
+Resampling per-trade **equity-relative returns** (shuffling raw dollars would be
+wrong under compounding — late trades are 40x larger than early ones):
+
+| | actual | median | 95th pct | worst |
+|---|---|---|---|---|
+| max drawdown, order shuffled | **33.80%** | 35.5% | 49.1% | 71.2% |
+| max drawdown, bootstrapped | **33.80%** | 35.5% | 52.5% | 83.1% |
+
+- **3.8%** of reorderings of the *same trades* exceed a 50% drawdown; 0.3% exceed 60%.
+- Bootstrap net return: 5th percentile **+721%**, median +5,913%, 95th +45,625%.
+- Runs ending negative: **1 in 3,000**.
+
+**Read: 33.80% is a fortunate ordering, not a ceiling.** The trade distribution
+supports drawdowns near 50% without anything being wrong. Size the account for
+that, not for the backtest's headline number.
+
+### 6 — repaint audit (structural, not visual)
+
+| construct | count | note |
+|---|---|---|
+| `request.security` | 0 | no HTF calls, so no lookahead vector |
+| `barstate.isrealtime` / `varip` / `timenow` | 0 | no realtime-only branches |
+| `ta.highest` / `ta.lowest` | 4, **all `[1]`-offset** | a bar cannot set its own trigger |
+| chandelier anchor | `high[1]` / `low[1]` | cannot move its own stop then hit it |
+| `bestPx` update | line 505, **after** all `strategy.exit` calls | excursion always reads through bar i−1 |
+
+The only textual match for "lookahead" is a comment recording BUG-019. Nothing
+in this script can repaint; the reload test on TradingView should confirm it,
+and if it does not, the cause is data revision on the broker feed, not the code.
