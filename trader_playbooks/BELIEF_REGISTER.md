@@ -1438,3 +1438,68 @@ effort should go. None of the seven families tested here has shown one.
 **Caveat:** measured on one entry family (Donchian-100) and one instrument.
 The exponent gap should be re-measured per entry before being assumed. The
 module prints it on every run for exactly that reason.
+
+---
+
+## Pivot-range WIDTH forecasts next-session directionality — on the London/NY overlap only
+
+**Established 2026-08-02.** `backtest/pivots.py`, XAUUSD 15m aggregated to
+sessions, 2019-12 to 2026-07, 1,659 sessions. Source: Frank Ochoa (PivotBoss),
+"Profiting with Pivot-Based Concepts", archived in `sources/`.
+
+**The source deserves no credit for evidence.** It is a 48-slide sales deck
+ending on a $69.96 book offer and three testimonials. Zero statistics, zero
+sample sizes, and every claim illustrated with a hand-annotated chart marked
+"Buy Here". Same category as voice #11 (FX Master Pattern), which this
+register already rejected for hindsight annotation. It was tested anyway
+because its central mechanism is mechanical and because it fills the one gap
+this repo had — floor pivots existed nowhere before this.
+
+**Three of its four testable claims FAIL on XAUUSD:**
+
+| claim | result |
+|---|---|
+| narrow width -> trending, on a 24h day | +0.026 efficiency, t=+1.41 — noise |
+| "Inside Value is the MOST explosive relationship" | ranks **4th of 6**; inside minus rest = −0.016, t=−0.25 |
+| the 7 two-day relationships discriminate | next-range 1.016–1.059, next-efficiency 0.446–0.485 — all inside noise |
+| pivot width beats simply using yesterday's range | corr with next range +0.045 vs +0.037, and the two are 0.754 correlated — the construction adds ~nothing |
+
+**One claim survives, and only on one session.** Session definition decides it:
+
+| session | corr(width, next efficiency) | narrow − wide | t |
+|---|---|---|---|
+| 24h UTC day | −0.042 | +0.026 | +1.41 |
+| NY RTH 13:30–20:00 | −0.018 | +0.005 | +0.29 |
+| London 08:00–16:30 | −0.042 | +0.041 | +2.28 |
+| **LDN/NY overlap 13:30–16:30** | **−0.075** | **+0.055** | **+3.07** |
+
+**It survives the checks that matter:**
+- **Parameter stability** (blueprint Stage 6.5): 30 combinations, 6 lookbacks
+  × 5 quantile pairs. Every t-stat positive, range +2.20 to +3.80. A broad
+  hill, not a spike.
+- **Out of sample**: first half +0.0504 (t=+2.00), second half +0.0526
+  (t=+2.06). Near-identical halves.
+
+**Disclosure of search.** Four session definitions were tested and the best
+reported. Bonferroni at 4 trials still clears p<0.01. The quantile pair and
+lookback were NOT searched for significance — the stability grid above shows
+the result is insensitive to both.
+
+**What this is and is not.** It is a REGIME FORECASTER: a narrow prior pivot
+range precedes a more directional session. Effect is ~+0.05 of efficiency on
+a base of ~0.45, about 11% relative. It is **not** an entry, **not** a target,
+and **has not been shown to make money** — directional efficiency is not
+profit.
+
+**Why it matters anyway.** It is the first level-derived quantity in this repo
+that survives a real test, and it lands in exactly the category the levels
+inventory identified as the only viable one. Combined with the exponent-gap
+finding (MAE diffuses at 0.493; the edge is +0.065 and accrues to HOLD TIME),
+a narrow prior pivot range is a candidate **hold-extension trigger**: on those
+sessions, widen the trail or suppress the partial, because the session is more
+likely to run.
+
+**Invalidation:** apply it as a hold-extender to `gold_trend_strategy.pine`
+and find no improvement in return or drawdown against the unmodified champion
+on the same window and costs. That is the next measurement, and it is the one
+that decides whether this is tradeable or merely true.
