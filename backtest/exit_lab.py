@@ -64,7 +64,7 @@ EXECUTION MODEL (unchanged from every other engine here so results compare)
 """
 import numpy as np
 
-LEVCAP=[0]; LEVTRY=[0]; LASTLOSS=[False]
+LEVCAP=[0]; LEVTRY=[0]; LASTLOSS=[False]; STREAK=[0]
 import pandas as pd
 
 FIELDS = ("open", "high", "low", "close")
@@ -105,7 +105,8 @@ def run(df, sigL, sigS,
         pyr_mode="current", pyr_budget=1.0, pyr_gate=None, pyr_decay=1.0,
         long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0,
         cooldown_win=0, risk_series=None, tighten_after=0.0, tighten_to=0.0,
-        atr_n=14,
+        tighten_sched=None, streak_step=0.0, streak_cap=1.0, reentry=False,
+        pyr_trail_gate=0.0, atr_n=14,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, frac_qty=False):
     # PYRAMIDING MODES (pyr_mode). All default to "current" so every result
@@ -150,6 +151,7 @@ def run(df, sigL, sigS,
     pos = None
     last_exit = -10 ** 9
     LASTLOSS[0] = False
+    STREAK[0] = 0
 
     def close_part(pos, i, px, qout, why):
         nonlocal eq
@@ -163,6 +165,7 @@ def run(df, sigL, sigS,
                            "bars_held": i - pos["bar"], "why": why,
                            "adds": pos["adds"], "orisk": pos["orisk"]})
             LASTLOSS[0] = pos["banked"] < 0
+            STREAK[0] = 0 if pos["banked"] < 0 else STREAK[0] + 1
             return True
         return False
 
@@ -183,6 +186,11 @@ def run(df, sigL, sigS,
                 gate_ok = True
                 if pyr_gate == "breakeven":
                     gate_ok = (pos["stop"] - pos["entry"]) * d > 0
+                if pyr_trail_gate > 0:
+                    # require the STOP itself to have ratcheted this many ATR
+                    # from where it started before any add is allowed
+                    moved = d * (pos["stop"] - pos["stop0"]) / max(pos["a0"], 1e-9)
+                    gate_ok = gate_ok and moved >= pyr_trail_gate
                 if gate_ok and ((h[i] >= nxt) if d > 0 else (l[i] <= nxt)):
                     ar = (risk_pct if d > 0 else risk_pct * short_risk) * pyr_risk
                     # GAP-AWARE ADD FILL (BUG-030). Filling at `nxt` assumes the
@@ -240,13 +248,20 @@ def run(df, sigL, sigS,
                     # trend.py does, so the two engines agree
                     ta_ = (trail_atr if trail_atr_series is None
                            else float(trail_atr_series[i]))
-                    if tighten_after > 0:
-                        # once the trade has run `tighten_after` ATR in its
-                        # favour, tighten the leash to `tighten_to`. Measured
-                        # off pos["best"], which holds the excursion through
-                        # bar i-1 -- never the current bar (see the note above).
+                    if tighten_after > 0 or tighten_sched:
+                        # Once the trade has run far enough in its favour,
+                        # tighten the leash. Measured off pos["best"], which
+                        # holds the excursion through bar i-1 -- never the
+                        # current bar (see the note above).
+                        # tighten_sched is a list of (threshold_atr, trail_atr)
+                        # applied in order, so the leash can step in several
+                        # stages as the trade grows.
                         exc = d * (pos["best"] - pos["entry"]) / max(pos["a0"], 1e-9)
-                        if exc >= tighten_after:
+                        if tighten_sched:
+                            for thr, tv in tighten_sched:
+                                if exc >= thr:
+                                    ta_ = tv
+                        elif exc >= tighten_after:
                             ta_ = tighten_to
                     cand = (h[i - 1] - a * ta_ if d > 0
                             else l[i - 1] + a * ta_)
@@ -351,6 +366,14 @@ def run(df, sigL, sigS,
             pos["best"] = max(pos["best"], h[i]) if d > 0 else min(pos["best"], l[i])
 
         cd = max(cooldown, cooldown_loss if LASTLOSS[0] else cooldown_win)
+        if reentry and not LASTLOSS[0]:
+            # TREND-CONTINUATION RE-ENTRY. The cooldown exists to stop the
+            # system re-buying the same chop it was just stopped out of. That
+            # reasoning does not apply when the previous trade was a WINNER and
+            # the direction filters still agree -- there the trail simply caught
+            # a pullback in a trend that is still standing. Waive the cooldown
+            # in exactly that case; a losing exit still serves the full wait.
+            cd = 0
         if pos is not None or np.isnan(a) or a <= 0 or i - last_exit < cd:
             continue
         d = 1 if sigL[i] else (-1 if (sigS[i] and not long_only) else 0)
@@ -359,6 +382,10 @@ def run(df, sigL, sigS,
         sdist = a * stop_atr
         entry = c[i] + d * slippage
         eff = risk_pct if d > 0 else risk_pct * short_risk
+        if streak_step > 0:
+            # Progressive risk after consecutive wins, capped. STREAK[0] counts
+            # consecutive winning closes and resets on any loss.
+            eff *= min(1.0 + streak_step * STREAK[0], streak_cap)
         if risk_series is not None:
             # per-bar risk MULTIPLIER (1.0 = unchanged). Applied only at entry,
             # so a position's size is fixed by the regime at the moment it was
@@ -372,7 +399,8 @@ def run(df, sigL, sigS,
         pos = {"dir": d, "entry": entry, "qty": qty, "q0": qty, "bar": i,
                "a0": a, "r0": qty * sdist, "orisk": 1.0,
                "cand": np.nan, "ref": np.nan, "swings": 0,
-               "stop": entry - d * sdist, "best": entry, "banked": 0.0,
+               "stop": entry - d * sdist, "stop0": entry - d * sdist,
+               "best": entry, "banked": 0.0,
                "tp1": _target(entry, d, a, tp1_mode, tp1_val, sdist),
                "tp2": _target(entry, d, a, tp2_mode, tp2_val, sdist),
                "tp1_done": False, "tp2_done": False, "be": False,

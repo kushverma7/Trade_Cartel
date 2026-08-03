@@ -2644,3 +2644,93 @@ than the trade count of 733 suggests.
 
 **#1 is what is shipped in the Pine** (`tightAfter=20`, `tightTo=2.0`).
 #2 and #3 are left as dials.
+
+---
+
+## PRIORITY 5 (Gold) — maximum-performance push: NOTHING ADOPTED (2026-08-03)
+
+Baseline: PF 1.834, +5,921.9%, DD 33.80%, CAGR 85.1%, **MAR 2.52**.
+Roughly 50 configurations tested across five directions. **None produced
+meaningful excess. The recommendation is to ship the Priority-4 build
+unchanged.**
+
+### The measurement that makes this readable — and that invalidates MAR too
+
+Priority 4 noted that return/drawdown inflates with leverage. **MAR does the
+same, just more slowly.** Dialling only `risk_pct`:
+
+| risk | maxDD | MAR |
+|---|---|---|
+| 0.70% | 24.74% | 2.32 |
+| 1.00% | 33.80% | **2.52** |
+| 1.15% | 38.02% | 2.61 |
+| 1.30% | 42.02% | 2.71 |
+| 1.60% | 49.45% | 2.86 |
+
+So every candidate is scored on **EXCESS = its MAR − the baseline's MAR at the
+same drawdown**. Only positive excess is edge. Without this, six of the
+configurations below "beat the baseline" and every one of them is leverage.
+
+### Results, by excess
+
+| direction | best variant | net | maxDD | MAR | **EXCESS** |
+|---|---|---|---|---|---|
+| tighten amount | 20 → 1.5 (vs 2.0) | +6,241.8% | 33.79% | 2.56 | **+0.044** |
+| multi-stage tightening | 20→2.0, 50→1.0 | +6,030.3% | 33.80% | 2.53 | +0.015 |
+| streak-progressive risk | +0.2/win, cap 1.5 | +6,174.9% | 34.30% | 2.51 | −0.014 |
+| tighten threshold | 25 ATR | +5,836.5% | 33.82% | 2.50 | −0.013 |
+| pyramid trail-gate | stop moved 1.0 ATR | +5,272.3% | 34.80% | 2.35 | −0.17 |
+| more adds | max 5 | +6,401.2% | 39.17% | 2.23 | −0.415 |
+| trend-continuation re-entry | waive cooldown after wins | +4,796.3% | 35.94% | 2.21 | −0.356 |
+| Donchian / hybrid trail | n=30 | +2,864.7% | 42.47% | 1.56 | −1.155 |
+| volatility-adaptive trail | any of 6 | ≤+2,779% | — | ≤2.03 | −0.45 to −1.68 |
+
+**The single best result in the entire push is +0.044 MAR — a 1.7% improvement
+found after ~50 configurations.** It is a genuine local hill (0.75 → −0.023,
+1.0 → −0.019, 1.25 → +0.034, **1.5 → +0.044**, 1.75 → +0.012, 2.0 → 0.000) but
+US30 is indifferent to it (MAR 1.07 vs 1.06). At that effect size and that
+search count it is not distinguishable from noise. **Not adopted; recorded so
+it is not re-searched.**
+
+### The one candidate that looked real, and why it was rejected
+
+`short_risk` 0.75 → 0.50 was the only variant with clearly positive excess
+(+0.088, rising to +0.121 when levered). It was flagged in Priority 4 as a
+possible regime bet. Three tests settled it:
+
+1. **The short side is the BETTER side.** Standalone on gold: longs n=484,
+   PF 1.806, +$384,477. **Shorts n=253, PF 1.891, +$207,712.** Shorts have a
+   higher profit factor than longs and contribute 35% of net profit. Cutting
+   them is cutting the more efficient book.
+2. **It degrades exactly the years the strategy exists for.** Profit factor by
+   year, short 0.75 → 0.50: 2021 **0.98 → 0.92**, 2026 **2.00 → 1.93** — gold's
+   only two down years (−4.3% and −6.0%). Every year it improves is a rising
+   year (2020, 2023, 2024, 2025).
+3. **It reverses on US30**: MAR 1.14 → 1.06 → 0.98 → 0.88 as short risk falls
+   from 1.0 to 0.25. Monotonically harmful.
+
+**REJECTED.** It buys +0.088 MAR on a sample where gold went 1450 → 4100, and
+pays for it in the falling markets the long+short design exists to handle.
+
+### Honest assessment
+
+- **Robustness of the shipped build is unchanged and good:** profit factor
+  improves in 5 of 8 calendar years versus the pre-tightening version, both
+  halves are strongly positive (1.35 / 1.94), and the tightening confirms on
+  US30 at identical drawdown.
+- **Concentration is the unfixed risk:** the top 10 trades remain ~95% of net
+  profit. Nothing tested changed that, and nothing can without destroying the
+  edge — it is the same structural fact recorded in Priority 2, where the
+  4-add cohort carried 100% of the profit.
+- **The system is at a local optimum.** Trail width (P1), add sizing (P2),
+  cooldown and slow SMA (P3), tightening threshold (P4) have each now been
+  swept and each sits on a plateau. Two consecutive priorities of aggressive
+  search have returned one adoption and then none.
+
+### Recommendation
+
+**Adopt nothing. Ship the Priority-4 configuration.** The remaining levers on
+gold are the risk dial — which is a decision about tolerable drawdown, not a
+research finding — and time. Further parameter search on this instrument has
+negative expected value: the search count is now high enough that a +0.04 MAR
+result is the expected best outcome of pure noise.

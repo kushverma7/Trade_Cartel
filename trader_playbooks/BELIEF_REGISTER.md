@@ -1817,3 +1817,33 @@ artifact.
 header is not evidence. This one had been repeated across MEMORY.md, the
 synthesis doc and two sessions of planning without anyone re-running it.
 Re-measure before building on a documented figure.
+
+---
+
+## B-0xx — Cutting the short side on gold is a bull-market artifact, not an edge
+
+**Tempting because** with the trail-tightening adopted, `short_risk` 0.75 → 0.50
+gave the best risk-adjusted numbers in the project: PF 1.866, MAR 2.56 at
+31.87% drawdown, halves 1.39/1.97, and clearly positive excess over the
+leverage curve (+0.088).
+
+**Rejected on three measurements (2026-08-03):**
+1. Standalone by direction on gold, shorts are the BETTER book —
+   **PF 1.891 against longs' 1.806** — and supply 35% of net profit.
+2. Cutting shorts degrades profit factor in **precisely gold's two down years**
+   (2021 0.98→0.92, 2026 2.00→1.93) and improves only rising ones.
+3. On US30 it is monotonically harmful: MAR 1.14 / 1.06 / 0.98 / 0.88 as short
+   risk falls 1.0 / 0.75 / 0.5 / 0.25.
+
+**The general rule this is an instance of.** Gold rose 1450 → 4100 across this
+sample. Any parameter that reduces short exposure will therefore test well, and
+will test well *for a reason that has nothing to do with edge*. Before adopting
+any change that shifts directional balance, check it against the down years in
+isolation and against a second instrument. A whole-sample metric cannot see
+this failure mode.
+
+**Standing consequence.** MAR is not scale-invariant either: dialling risk
+0.70% → 1.60% moves the baseline's MAR 2.32 → 2.86 with no change in edge. Any
+future candidate must be scored as EXCESS over the baseline's own MAR-vs-
+drawdown curve at the candidate's drawdown. Six configurations in this session
+"beat the baseline" on MAR and every one was leverage.
