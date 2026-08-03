@@ -1654,3 +1654,19 @@ uploaded archive lost.
 whose bounce rate exceeds breakeven at any R. The per-type breakdown has not
 been run and is the obvious next test — the aggregate could be hiding a
 strong minority.
+
+**UPDATE 2026-08-02 — the four standard key-level claims all fail on XAUUSD.**
+Tested in `backtest/level_claims.py` over 81,396 touches (see RESULTS_LEDGER):
+untested-beats-retested is false; confluence-is-stronger is false and slightly
+backwards; 1:2 and 1:3 targets do not rescue a level fade; and sweep-and-
+reclaim, while a REAL phenomenon (33.13% vs 27.99% hit rate), loses its whole
+advantage to the wider entry-to-stop distance a sweep bar creates.
+
+This kills the "confluence count as a regime variable" idea proposed in the
+levels inventory two entries above. It was speculation and it is now measured
+and negative.
+
+The parent finding stands and is now sharper: levels carry real information
+(z up to +20 vs matched control) that is not convertible into a trade at any
+distance, hit-rate cohort or payoff ratio tested. They are a map. The edge has
+to come from the exit engine.

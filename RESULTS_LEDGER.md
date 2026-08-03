@@ -1677,3 +1677,57 @@ whichever side was nearer. Fixed by drawing the control uniformly from inside
 the touched bar's range. Recorded because an implausible control number is a
 bug signature and this one was caught by looking at it rather than by
 reporting it.
+
+---
+
+## The four key-level methodology claims, priced from the actual entry — ALL FOUR FAIL
+
+**2026-08-02.** `backtest/level_claims.py`. XAUUSD 30m, 2019-12 to 2026-07,
+33 level types, 81,396 touches. Fade the level: enter at the touch bar's
+close, stop `stop_atr` ATR beyond the level, target `rr` x the resulting risk.
+Cost $0.54 round turn = 0.146 ATR.
+
+| stop / target | cohort | n | hit | risk (ATR) | breakeven | edge (ATR) |
+|---|---|---|---|---|---|---|
+| 0.5 / 2R | ALL touches | 69,959 | 30.54% | 0.76 | 39.70% | −0.210 |
+| 0.5 / 2R | C1 first touch | 40,962 | 30.41% | 0.80 | 39.38% | −0.216 |
+| 0.5 / 2R | C1 retest | 28,997 | 30.73% | 0.71 | 40.21% | −0.201 |
+| 0.5 / 2R | **C2 swept + reclaimed** | 34,762 | **33.13%** | 0.90 | 38.72% | **−0.151** |
+| 0.5 / 2R | C2 plain touch | 35,197 | 27.99% | 0.63 | 41.10% | −0.246 |
+| 0.5 / 2R | C3 confluence ≥2 | 22,476 | 30.77% | 0.75 | 39.79% | −0.204 |
+| 0.5 / 2R | C3 isolated | 23,396 | 31.14% | 0.78 | 39.57% | −0.197 |
+| 1.0 / 2R | ALL | 75,625 | 32.12% | 1.13 | 37.62% | −0.187 |
+| 1.0 / 3R | ALL | 74,780 | 23.40% | 1.11 | 28.29% | −0.217 |
+
+**Every cohort at every geometry is negative.** 21 of 21 rows.
+
+- **C1 "untested levels are higher probability" — FALSE.** First touch 30.41%
+  against retest 30.73%. No difference at any geometry.
+- **C2 "sweep then reclaim → reversal" — the phenomenon is REAL, the trade is
+  not.** Swept touches do reverse more often than plain ones (33.13% vs
+  27.99%) — the pattern is genuinely there. But a sweep bar closes far from
+  the level, so the stop-beyond-the-level is 0.90 ATR away instead of 0.63.
+  You pay for the better hit rate in wider risk, and the two cancel: −0.151
+  against the plain touch's −0.246. Better, still losing.
+- **C3 "confluence is stronger" — FALSE, and marginally backwards.** Stacked
+  levels 30.77%, isolated 31.14%. This also kills my own earlier speculation
+  that confluence COUNT was the promising untested use of levels.
+- **C4 "target at least 1:2 or the next level" — FALSE.** 1:2 and 1:3 are both
+  negative. Asymmetric payoffs do not rescue it.
+
+### METHOD CORRECTION — the first run reported a false positive
+
+The first version measured target and stop as distances from the LEVEL rather
+than from the ENTRY. On that basis C2 appeared to CLEAR at all three
+geometries, with edges of +0.243, +0.220 and +0.248 ATR on ~35,000 samples —
+a large, consistent, entirely spurious result that was one step from being
+reported as a tradeable ICT edge.
+
+The flaw: a sweep-and-reclaim bar closes furthest from the level, so pricing
+from the level handed exactly that cohort a free head start it does not get in
+a real fill. Repricing from the entry turned +0.220 into −0.151.
+
+**The lesson, worth more than the result:** when a subgroup wins, check
+whether it wins because of the effect or because of how the measurement is
+anchored. The tell here was that the winning cohort was the one whose entry
+sits furthest from the reference price.
