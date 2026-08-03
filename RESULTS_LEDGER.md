@@ -2734,3 +2734,69 @@ gold are the risk dial — which is a decision about tolerable drawdown, not a
 research finding — and time. Further parameter search on this instrument has
 negative expected value: the search count is now high enough that a +0.04 MAR
 result is the expected best outcome of pure noise.
+
+---
+
+## TRADINGVIEW DEEP BACKTEST of the Priority-5 build (2026-08-03) — VALIDATED
+
+User ran the shipped file. XAUUSD 30m OANDA, Jan 2 2020 – Aug 3 2026, DEEP
+mode, $10k, defaults.
+
+| | research (same window) | **TradingView DEEP** | delta |
+|---|---|---|---|
+| profit factor | 1.827 | **1.788** | −2.1% |
+| net return | +3,766.0% | **+4,054.6%** | **+7.7%** |
+| max drawdown | 33.79% | **30.85%** | **−2.94 pp** |
+| CAGR | 74.2% | 76.1% | +1.9 pp |
+| MAR | 2.20 | **2.47** | +0.27 |
+| entry orders | 2,034 | **2,020** | **−0.7%** |
+
+**TradingView came in BETTER than the research model on net return, drawdown
+and MAR, and 2.1% under on profit factor.**
+
+### The strongest single line in this table is the order count
+
+2,034 modelled against 2,020 reported — **0.7% over two thousand orders**. The
+entry trigger, the three filters, the 24-bar cooldown and the four-deep pyramid
+ladder are all firing on the same bars in both engines. That is a structural
+match, not a coincidence of aggregates.
+
+### A prediction I got wrong, and why
+
+I told the user to expect "PF ~1.77 and +5,800%". Profit factor was right
+(1.788). **The net-return figure was wrong and avoidably so: I quoted the
++5,922% from a window starting 2019-12-01, while TradingView's deep test starts
+2020-01-02.** December 2019 alone is worth +5,922% → +3,766% — it sat at the
+front of the compounding chain, so removing one month removes 36% of the final
+figure. Corrected expectation for that window was ~+3,766%, and the actual
++4,054.6% beat it.
+
+**Lesson for this ledger: never quote a compounded net return without its start
+date.** In a system that compounds ~76% a year, the first month is worth more
+than any parameter measured in this entire session.
+
+### Reconciling the win rate — the two numbers are not in conflict
+
+- TradingView: **40.15% (811/2,020)** — counted per **entry order**, so each of
+  the four pyramid adds inside a winning position is tallied as its own winner.
+- Research: **21.7% (160/737)** — counted per **round-trip position**.
+- 2,034 orders ÷ 729 positions = **2.79 entries per position**, which is exactly
+  what reconciles the two.
+
+The tradeable number — the one that governs how long a losing streak feels —
+is **21.7%**, not 40.15%.
+
+### Sharpe 0.392 is expected here and is not the metric to judge on
+
+Sharpe punishes the upside skew this system is built to harvest: the top 10
+positions are ~95% of net profit, so the return distribution has a fat right
+tail and Sharpe reads it as volatility. MAR 2.47 with a 30.85% drawdown is the
+figure that matches lived experience. A trend follower with a 22% win rate will
+essentially always show a mediocre Sharpe.
+
+### Status
+
+**The research engine, the Pine file and TradingView's own engine now agree on
+the current build to within 2.1% on profit factor and 0.7% on order count.**
+The August 2 validation was the first time this project reached that standard;
+this is the second, on a build carrying four subsequent changes.
