@@ -708,3 +708,57 @@ literate file in the upload set — it independently found BUG-027's units
 problem and documents the lookahead idiom correctly. Its $5 and $10 gold
 grids clear the BUG-017 gate (1.29 and 2.58); its $2.5 minor grid does not
 (0.646) and should be dropped from targeting. It has never been backtested.
+
+---
+
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-03, supersedes the 08-02 block)
+
+## What happened this session
+
+Four rule books were tested end to end: the Level-to-Level Model V1, V2 and V3,
+then the ORB rule book. Twelve distinct components across them. **Zero survived
+an independent control.** Four of the twelve were positive results of mine that
+the control then reversed.
+
+- V1 PF 0.59 → V2 PF 1.00 → V3 Setup A PF 1.22 on gold, monotonic across five
+  settings and positive on four timeframes — then killed by the **second
+  instrument**. On US30 the ungated control beat the CPR gate on both
+  timeframes and the gated arm flipped sign between halves.
+- ORB: gold negative in all twelve base configurations AND negative when faded.
+  US30 marginally positive. Best cell beats its matched control by z = +1.47
+  after ~50 cells searched. Not valid. Full numbers in RESULTS_LEDGER.md.
+
+## Two rules that came out of it, both now standing
+
+1. **Timeframe robustness is not generality.** Resampled bars are not
+   independent observations. A result that holds on 15m/30m/60m/4H of one
+   symbol has been tested once, not four times. Only a second instrument counts.
+   (This is what V3 tripped over.)
+2. **Run the mirror.** For any directional strategy, run the same entries with
+   direction flipped and geometry mirrored. The two avgR figures should sum to
+   about minus two costs. Both positive = an accounting leak. This is how
+   BUG-029 was found, and it found it faster than reading the code would have.
+
+## The one thing that keeps surviving
+
+The exponent gap — MAE diffusion 0.493 vs MFE 0.558 on XAUUSD, against 0.500
+for a pure random walk. It was re-observed independently again in ORB Priority
+5: expectancy rose monotonically from 1R to 3R targets at both range sizes.
+Every entry-timing rule tested in this repo has failed a cost-matched control;
+the hold-time asymmetry has not.
+
+## NEXT ACTION — stop testing entries
+
+The evidence says the next session should work on **exits and position holding
+applied to the already-validated engine**, not on a thirteenth entry filter.
+The champion `strategies/gold_trend_strategy.pine` (PF 1.583, +1,591.7%,
+33.63% DD) is untouched by any of this work and embeds no key levels, so it is
+unaffected by BUG-024. `backtest/exit_lab.py` already has the two tools needed:
+a per-bar ATR trail override and the structure trail.
+
+Still open from before, in priority order:
+1. Re-run the eight key-level strategies now that BUG-024's yearly export is gated.
+2. Resolve BUG-028 — decide whether CYH/CYL means current-year running or
+   previous-year static, and make `levels.py` and the Pine module agree.
+3. Add volume-profile levels (POC/VAH/VAL) to `levels.py`; reconcile the
+   18/33/36 level-count mismatch.
