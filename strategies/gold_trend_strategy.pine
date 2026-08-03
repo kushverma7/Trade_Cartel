@@ -28,12 +28,56 @@
 // TradingView all describe the same system at realistic costs. Nothing in
 // this project has ever been validated to that standard before.
 //
+//   The table above is the AUGUST 2 build. FOUR CHANGES HAVE LANDED SINCE;
+//   the numbers to expect from THIS file are below.
+//
+// ── CURRENT BUILD (2026-08-03) ──────────────────────────────────────
+// Four changes, each of which beat a leverage-matched control (i.e. beat the
+// previous build dialled up to the SAME drawdown, not merely beat it):
+//   1. adds sized on the ATR AT ENTRY, not the current ATR      (Priority 2)
+//   2. cooldown 3 -> 24 bars                                     (Priority 3)
+//   3. slow SMA 21 days -> 13 days                               (Priority 3)
+//   4. trail tightens 4.24 -> 2.0 ATR after a 20 ATR run         (Priority 4)
+//
 //   RESEARCH FIGURES, XAUUSD 30m, Dec 2019 - Jul 2026, 0.20 pt slippage
-//     Balanced      profit factor 1.641 | net +1,620% | drawdown 33.40%
-//     Conservative  profit factor 1.635 | net   +680% | drawdown 17.01%
-//     buy & hold over the same period: +179.1% at 29.08% drawdown
-//   Out-of-sample half only: PF 1.930, +83.4%, drawdown 12.79%
-//   Positive in all five consecutive walk-forward slices.
+//                      Aug 2 build      THIS build
+//     profit factor        1.623           1.834
+//     net return         +1,617%         +5,922%
+//     max drawdown        36.52%          33.80%
+//     CAGR                  ~63%           85.1%
+//     MAR (CAGR/DD)         1.73            2.52
+//     trades                 733             737
+//     win rate             21.5%           21.7%
+//     half-split PF     1.17/1.80       1.35/1.94
+//   buy & hold over the same period: +179.1% at 29.08% drawdown
+//
+//   EXPECT TRADINGVIEW TO READ SOMEWHAT LOWER. The Aug 2 deep backtest came
+//   in 3.6% under the research model on profit factor and 1.8% under on net
+//   return. Applying the same haircut, a deep backtest of this build should
+//   land near PF 1.77 and +5,800%, not exactly the figures above. If it
+//   comes in FAR below, the cause is almost certainly your broker's gold
+//   spread - see the slippage block below.
+//
+//   SECOND INSTRUMENT (US30 cash 30m, same window, settings UNCHANGED):
+//     PF 1.469 | net +247.0% | drawdown 19.32% | halves 1.56/1.43
+//   Weaker than gold and it should be - but positive, both halves positive,
+//   and it beats US30 buy-and-hold (+85.0%). This is the only strategy in
+//   this project that has ever survived a second instrument.
+//
+// ── WHAT WAS TESTED AFTER THIS AND REJECTED ─────────────────────────
+// About 50 further configurations (multi-stage tightening, streak-scaled
+// risk, trend-continuation re-entry, pyramid trail-gates, volatility-adaptive
+// trails, hybrid Donchian exits). Best excess over a leverage-matched control
+// was +0.044 MAR - noise at that search count. NOTHING was adopted. Cutting
+// short size looked like the best result in the project and was rejected:
+// shorts are the BETTER book on gold standalone (PF 1.891 vs longs' 1.806)
+// and cutting them degrades exactly the two years gold FELL.
+//
+// TWO THINGS TO KNOW BEFORE TRUSTING ANY OF IT:
+//   - The top 10 trades are ~95% of net profit. Live results will diverge
+//     from any backtest far more than a 737-trade sample suggests.
+//   - Win rate is ~22%. Losing runs of 12-18 in a row are NORMAL here and
+//     are not a sign the system has broken.
 //
 // ── VALIDATION CERTIFICATE (run 2026-07-31, all four tests) ─────────
 // This is the part every earlier build in this project skipped.
