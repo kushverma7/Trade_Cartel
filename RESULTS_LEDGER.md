@@ -2149,3 +2149,92 @@ with acceptable robustness on the other".
 
 **STATUS: NOT VALID.** Recorded as the twelfth component tested this session
 and the twelfth to fail its control.
+
+---
+
+## PRIORITY 1 — the champion on a second instrument (2026-08-03)
+
+`backtest/champion.py` (new harness: the Pine's signal stack + exit_lab's
+gap-aware fills, cooldown and pyramiding). Gold 30m 78,695 bars, US30 30m
+28,591 bars, same window 2019-12 to 2026-07. Costs 0.07 commission + 0.20 pt
+slippage per side.
+
+**Harness fidelity:** reproduces the certificate to n=789 vs 799, Balanced PF
+1.658 vs 1.641, Conservative PF 1.575 vs 1.626, average hold 44 bars vs 44.
+Close enough to test with; not identical, and the residual is fill detail.
+
+### Two defects found before any result was valid
+
+1. **`np.floor` on position size silently rejected 788 of 789 US30 entries.**
+   At $10k equity and 1% risk, one gold contract near $2,000 is affordable and
+   one US30 contract near $35,000 is not, so the run reported **"n=1"** rather
+   than an error. BUG-012 family. Fixed with an opt-in `frac_qty` flag; it
+   defaults OFF so every prior ledger row reproduces unchanged, and both
+   instruments run with it ON so the comparison is like-for-like. On gold it
+   moves PF by 0.002.
+2. **"Unchanged settings" is ambiguous across these two instruments.** Every
+   lookback is in BARS and the Pine's auto-scale converts calendar targets to
+   bars assuming continuous trading — true for gold (46 bars/day at 30m),
+   false for US30 cash (13 bars/day). Both readings are reported.
+
+### Result — Balanced profile
+
+| | n | WR | PF | net | maxDD | ret/DD | avgR | hold | halves (PF) |
+|---|---|---|---|---|---|---|---|---|---|
+| **GOLD 30m** | 789 | 21.5% | **1.658** | +2,114.5% | 35.67% | 59.3 | +0.91 | 44 | 1.181 / 1.819 |
+| **US30 30m BARS** (literal unchanged integers) | 316 | 21.8% | **1.304** | +163.5% | 18.31% | 8.9 | +0.28 | 38 | **1.415 / 1.248** |
+| **US30 30m CLOCK** (same calendar horizons) | 529 | 20.2% | 1.008 | +4.9% | 50.59% | 0.1 | +0.01 | 36 | 1.219 / **0.860** |
+
+Conservative profile agrees: US30 BARS PF 1.354, both halves positive
+(1.376 / 1.339); US30 CLOCK PF 1.001 with a negative second half (0.856).
+Core engine with adds switched off: gold PF 1.397, US30 BARS 1.336, US30 CLOCK
+1.019.
+
+### Is BARS-mode a lucky point? No — it sits on a monotone hill
+
+Sweeping every filter horizon by a common multiple *k* of the clock-matched
+value (US30 BARS-mode is k≈3.7):
+
+| k | US30 PF | US30 DD | US30 halves | GOLD PF |
+|---|---|---|---|---|
+| 0.5 | 1.020 | 55.8% | 1.261 / 0.847 | 1.378 |
+| 1.0 | 1.008 | 50.6% | 1.219 / 0.860 | 1.627 |
+| 2.0 | 1.193 | 28.0% | 1.526 / 1.042 | 1.643 |
+| 3.0 | 1.258 | 22.9% | 1.480 / 1.151 | 1.552 |
+| **3.7** | **1.310** | 21.1% | 1.394 / 1.270 | 1.461 |
+| 5.0 | 1.340 | 15.5% | 1.417 / 1.304 | 1.557 |
+| 7.0 | 1.242 | 24.3% | 1.298 / 1.208 | 1.975 |
+
+US30 rises monotonically to k=5 and falls after — a broad hill, with both
+halves positive across k=2 through 7. Gold peaks near its native k=1–2. **The
+two instruments have genuinely different natural filter horizons**, and the
+unchanged integers land US30 on its hill by coincidence rather than by fitting.
+
+### Random-timing null (30 seeds, entry replaced by a coin flip on the same filtered bars)
+
+| | champion PF | random median PF | random range | percentile |
+|---|---|---|---|---|
+| GOLD | 1.658 | 1.535 | 1.368 – 1.774 | 83.3% (25/30) |
+| **US30** | **1.304** | **1.079** | 0.970 – 1.186 | **100.0% (30/30)** |
+
+**The Donchian entry carries real information on US30 and almost none on
+gold.** On US30 the champion beats every one of 30 random-entry seeds and the
+random median (+42.3%) barely beats buy-and-hold (+85.0% — it does not). On
+gold the random median already returns +1,795%.
+
+### Verdict: PASS — the first cross-instrument survival in this repo
+
+Not a clean pass, and the qualifier is load-bearing:
+
+- **What transferred:** the architecture. Low win rate (21.8% vs 21.5%), long
+  holds (38 bars vs 44), positive expectancy, both halves positive, lower
+  drawdown than gold, and it beats US30 buy-and-hold (+163.5% vs +85.0%).
+- **What did not:** the calendar horizon. Clock-matched filters give PF 1.008
+  with a losing second half. US30 needs filters ~3–5× slower in real time.
+- **Honest read on magnitude:** US30's PF 1.304 and avgR +0.28 are materially
+  weaker than gold's 1.658 / +0.91. This is not a second gold. It is evidence
+  the *design* generalises, not that the *numbers* do.
+
+**Recommendation: KEEP, unchanged.** No re-fitting to US30 — the instrument
+test was a validation, not an optimisation, and turning it into one would
+destroy what it just established.

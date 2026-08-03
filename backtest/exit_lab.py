@@ -102,7 +102,15 @@ def run(df, sigL, sigS,
         pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
         long_only=False, short_risk=1.0, cooldown=0, atr_n=14,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
-        max_lev=20):
+        max_lev=20, frac_qty=False):
+    # frac_qty: size in FRACTIONAL units instead of whole contracts.
+    # Whole-contract sizing is a units artifact, not a strategy property: at
+    # $10k equity and 1% risk, one gold contract near $2,000 is affordable but
+    # one US30 contract near $35,000 is not, so np.floor() silently rejected
+    # 788 of 789 US30 entries and reported "n=1" rather than an error. That is
+    # the BUG-012 family. Defaults to False so every result already in the
+    # ledger reproduces byte-for-byte; the cross-instrument tests pass True on
+    # BOTH instruments so the comparison stays like-for-like.
     o, h, l, c = (df[k].to_numpy(float) for k in FIELDS)
     n = len(c)
     A = _atr(h, l, c, atr_n)
@@ -124,7 +132,7 @@ def run(df, sigL, sigS,
         eq += pnl
         pos["banked"] += pnl
         pos["qty"] -= qout
-        if pos["qty"] < 1:
+        if pos["qty"] < (1e-8 if frac_qty else 1):
             trades.append({"pnl": pos["banked"], "dir": d, "bar": pos["bar"],
                            "bars_held": i - pos["bar"], "why": why,
                            "adds": pos["adds"]})
@@ -147,9 +155,10 @@ def run(df, sigL, sigS,
                 nxt = pos["last_add"] + d * a * pyr_atr
                 if (h[i] >= nxt) if d > 0 else (l[i] <= nxt):
                     ar = (risk_pct if d > 0 else risk_pct * short_risk) * pyr_risk
-                    aq = np.floor(max(min(eq * ar / 100.0 / (a * stop_atr),
-                                          eq * max_lev / c[i] - pos["qty"]), 0))
-                    if aq >= 1:
+                    aq = max(min(eq * ar / 100.0 / (a * stop_atr),
+                                 eq * max_lev / c[i] - pos["qty"]), 0)
+                    aq = aq if frac_qty else np.floor(aq)
+                    if aq >= (1e-8 if frac_qty else 1):
                         px = nxt + d * slippage
                         tot = pos["qty"] + aq
                         pos["entry"] = (pos["entry"] * pos["qty"] + px * aq) / tot
@@ -252,8 +261,10 @@ def run(df, sigL, sigS,
                 if not reached:
                     continue
                 pos[key] = True
-                qout = float(np.floor(pos["q0"] * frac))
-                qout = min(qout, pos["qty"]) if qout >= 1 else pos["qty"]
+                qout = pos["q0"] * frac
+                qout = qout if frac_qty else float(np.floor(qout))
+                lim = 1e-8 if frac_qty else 1
+                qout = min(qout, pos["qty"]) if qout >= lim else pos["qty"]
                 if close_part(pos, i, tgt - d * slippage, qout,
                               "tp1" if key == "tp1_done" else "tp2"):
                     pos = None; last_exit = i
@@ -275,9 +286,9 @@ def run(df, sigL, sigS,
         sdist = a * stop_atr
         entry = c[i] + d * slippage
         eff = risk_pct if d > 0 else risk_pct * short_risk
-        qty = float(np.floor(max(min(eq * eff / 100.0 / sdist,
-                                     eq * max_lev / c[i]), 0)))
-        if qty < 1:
+        qty = float(max(min(eq * eff / 100.0 / sdist, eq * max_lev / c[i]), 0))
+        qty = qty if frac_qty else float(np.floor(qty))
+        if qty < (1e-8 if frac_qty else 1):
             continue
         pos = {"dir": d, "entry": entry, "qty": qty, "q0": qty, "bar": i,
                "cand": np.nan, "ref": np.nan, "swings": 0,
