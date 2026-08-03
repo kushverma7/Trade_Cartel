@@ -1580,3 +1580,77 @@ never been tested" is now false for one of the eight. The first one tested
 produced a genuine risk effect and no return effect. That is weak evidence
 that the remaining seven are worth building — and stronger evidence that they
 should be judged on drawdown and ret/DD, not on return alone.
+
+---
+
+## Key levels DO carry information — and it lives where you cannot monetise it
+
+**Established 2026-08-02.** `backtest/level_reaction.py`. XAUUSD 30m,
+2019-12 to 2026-07, 33 level types from `levels.py` (dense), 73,000-80,000
+touches per configuration. First-passage test: from a level touch, does price
+travel R ATR back the way it came (bounce) or R ATR through (break) first?
+Every real touch matched against a control price drawn uniformly from the
+SAME bar's range — same volatility, same trend, genuinely touched, differing
+only in whether it is a real level.
+
+| R (ATR) | n | real bounce | control | z | breakeven needed | clears cost? |
+|---|---|---|---|---|---|---|
+| 0.5 | 73,579 | **54.28%** | 49.06% | **+20.08** | 64.59% | no |
+| 1.0 | 80,067 | **52.79%** | 49.18% | **+14.47** | 57.29% | no |
+| 1.5 | 80,675 | **52.01%** | 49.55% | **+9.87** | 54.86% | no |
+| 2.0 | 79,902 | **51.33%** | 49.56% | **+7.06** | 53.65% | no |
+| 3.0 | 73,114 | **50.91%** | 49.52% | **+5.31** | 52.43% | no |
+
+Breakeven assumes a symmetric R-for-R trade at this repo's standard cost
+($0.54 round turn = 0.146 ATR at the median 30m ATR of $3.70).
+
+**The levels are real.** Every configuration beats its matched control, with
+z from +5.31 to +20.08 on 73k-80k samples. This is the first positive,
+properly-controlled measurement of key levels in this project, and it
+contradicts the loose reading of BUG-017 that "levels don't work". They do.
+Price genuinely holds at them more often than at an arbitrary price in the
+same bar.
+
+**And it is uniformly uneconomic as a bounce trade.** The gap to breakeven is
+10.31pp at R=0.5, narrowing to 1.52pp at R=3.0, and never closes.
+
+**The reason is the important part.** Two decay curves run in opposite
+directions:
+
+- The LEVEL edge is strongest close in (54.28% at 0.5 ATR) and decays with
+  distance (50.91% at 3.0). Support and resistance grip locally and lose hold
+  as price travels — exactly what a real S/R effect should look like.
+- The COST bar behaves the other way: it is punishing at small R (64.59%
+  needed) and mild at large R (52.43%).
+
+So the information sits precisely where the spread eats it, and the money
+sits precisely where the levels stop working. That is a structural mismatch,
+not a tuning problem, and no choice of R resolves it.
+
+**This explains BUG-017 mechanically.** The key-level target build did not
+fail because levels are meaningless. It failed because a level's information
+lives at a distance too short to pay for the round turn — a median target of
+0.46 ATR against a 6 ATR stop was trading exactly the region where the edge
+is real and the costs are fatal.
+
+**It also sits in direct opposition to the exponent-gap finding.** That says
+profit accrues to HOLD TIME and long distances (MFE exponent 0.558 vs MAE
+0.493). Levels say information accrues to SHORT distances. A strategy cannot
+serve both, which is why every level-target build in this repo and in the
+uploaded archive lost.
+
+**What this licenses, and what it does not.**
+- NOT a signal generator. A level touch is not a trade at any R tested.
+- IS a map. It is genuine information about where price is more likely to
+  pause, which is legitimately useful for stop PLACEMENT (do not park a stop
+  just beyond a level), for position sizing into confluence, and for deciding
+  not to enter into a wall of stacked levels.
+- The one untested use consistent with both findings: levels as a
+  CONFLUENCE-COUNT regime variable rather than a price. How many levels sit
+  within X ATR of price is a different quantity from where any single one is,
+  and it has never been measured here.
+
+**Invalidation:** a level subset (single type, or a confluence threshold)
+whose bounce rate exceeds breakeven at any R. The per-type breakdown has not
+been run and is the obvious next test — the aggregate could be hiding a
+strong minority.

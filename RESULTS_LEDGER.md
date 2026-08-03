@@ -1649,3 +1649,31 @@ result justifies. It has NOT been run.
 **Same limitation as H-PIVOT-HOLD:** the base is a simplified proxy of the
 champion (PF 1.218 / 466 entries vs 1.583 / 2,370), missing the EMA regime
 gate, the 750/2000 SMA confluence, the slope gate and TP1/TP2.
+
+---
+
+## Key-level first-passage test vs matched control — levels REAL, not TRADEABLE
+
+**2026-08-02.** `backtest/level_reaction.py`, XAUUSD 30m, 2019-12 to 2026-07,
+33 level types, 73k-80k touches per row. Control = uniform random price inside
+the same bar's range. Cost $0.54/round turn = 0.146 ATR at median ATR $3.70.
+
+| R (ATR) | n | real | control | z | breakeven | clears |
+|---|---|---|---|---|---|---|
+| 0.5 | 73,579 | 54.28% | 49.06% | +20.08 | 64.59% | no |
+| 1.0 | 80,067 | 52.79% | 49.18% | +14.47 | 57.29% | no |
+| 1.5 | 80,675 | 52.01% | 49.55% | +9.87 | 54.86% | no |
+| 2.0 | 79,902 | 51.33% | 49.56% | +7.06 | 53.65% | no |
+| 3.0 | 73,114 | 50.91% | 49.52% | +5.31 | 52.43% | no |
+
+Levels beat their control at every R (z +5.31 to +20.08). None clears cost.
+Edge decays with distance; the cost bar decays the other way. See
+BELIEF_REGISTER for the full reading.
+
+**Method note.** The first version of this test scored the control at a 99.94%
+bounce rate — impossible, and the tell that it was broken. The control had
+been placed 2-6 ATR from price, so it was never touched and resolved on
+whichever side was nearer. Fixed by drawing the control uniformly from inside
+the touched bar's range. Recorded because an implausible control number is a
+bug signature and this one was caught by looking at it rather than by
+reporting it.
