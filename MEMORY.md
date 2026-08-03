@@ -626,3 +626,85 @@ had loaded (Feb-Jul 2026, or Jan 2025-Jul 2026), never the 6.7 years the
 research uses. Ask for a deep backtest over the full range before trusting
 or doubting any Pine-vs-Python gap. Premium also raises intraday history to
 20k bars and allows 400 alerts.
+
+---
+
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-02, supersedes the 07-31 block)
+
+## Where the project stands
+
+`strategies/gold_trend_strategy.pine` is the validated champion and is
+UNCHANGED by this session's work. XAUUSD 30m, Balanced, 0.20 pt slippage:
+**PF 1.583 / +1,591.7% / 33.63% DD over 2,370 orders, Aug 2019 – Aug 2026**,
+confirmed live on TradingView Premium against an independent research engine
+(net return agreed to 98.2%, drawdown to 0.23pp). DSR 0.9996, PBO 0.099.
+It embeds no key levels, uses no price grid, and tests stops against low/high
+— so none of the defects below touch it.
+
+## What this session did
+
+**1. Wrote four prompts** (repo root, all copy-pastable and self-contained):
+`SESSION_HANDOFF_PROMPT.md` (which strategy is best),
+`ARCHIVE_SWEEP_PROMPT.md` (what got dropped between source and code),
+`RESEARCH_PROTOCOL_PROMPT.md` (how not to produce a wrong number),
+`RECOVERY_PUSH_PROMPT.md` (push before the container is reclaimed).
+
+**2. Audited 73 uploaded files** — reconciled by hash: 61 unique, 12
+duplicates, everything archived. Full writeup in
+`trader_playbooks/AU200_UPLOAD_AUDIT_2026-08-02.md`. Headline: the entire
+AU200 programme is unsafe. Nine documents describe one system at PF 1.74 to
+5.41 while its own internal baseline is PF 1.116 on 980 trades; drawdown is
+understated ~5x; 75% of seven years' profit comes from five months and ten
+trades; and with flips disabled the base system returns PF 0.79 and
+−$369,270. Do not trade any configuration from it.
+
+**3. Registered BUG-019 … BUG-027.** 019-023 were this project's own
+fixed-but-never-logged findings. 024-027 came from the uploads:
+
+| id | where | defect |
+|---|---|---|
+| 024 | `skills/key_levels_module.pine` | yearly H/L leak future data into `klPrices[]` |
+| 025 | `victor_aimstar_past_strategy_v1.pine` | long and short conditions were the same expression |
+| 026 | `bigbeluga_smart_money_concepts.pine` | `5/len` int-divides to zero for len>=6 |
+| 027 | uploaded Quarter Theory module | filter is a constant on 79.8% of bars; target/stop 0.065 |
+
+**4. Fixed 024, 025, 026** and propagated the 024 gate to all eight
+strategies that embed the module. pine_lint clean on all nine files.
+
+## Standing corrections earned this session
+
+- **Verify a third-party audit before acting on it.** The uploaded blueprint
+  called all 20 `request.security()` calls in the key-levels module
+  repainting. Ten use the correct `[1]`-offset idiom; stripping `lookahead_on`
+  as advised would have BROKEN them. Only four leak, and only two reach trade
+  logic.
+- **A misleading comment is not evidence.** The AU200 flip stop is labelled
+  "profit side" and commented "inverted" while the arithmetic is correct. An
+  earlier claim in this session that the flip booked guaranteed wins was
+  wrong and was retracted. Read the code, not the label.
+- **Hash before reading.** 12 of 73 uploads were duplicates.
+
+## Next actions, in order
+
+1. **Re-run the eight key-level strategies** now that BUG-024 is gated. Any
+   prior ledger row for them was computed with the yearly leak live and is
+   optimistic. `gold_trend_trailing.pine` has a ledger row and needs one.
+2. **Build the two methods worth adopting** from `MASTER_BLUEPRINT.md`:
+   (a) bar-permutation Monte Carlo that RE-OPTIMISES on each permutation —
+   stronger than our corrected null because it prices in data-mining bias;
+   into `backtest/overfit.py`. (b) MAE/MFE 80th-percentile derivation of stop
+   and TP1 — the correct structural answer to BUG-017; into `exit_lab.py`.
+3. **Test the two unbuilt exit rules already logged in BELIEF_REGISTER.md**:
+   Dave's 21-EMA confirmed structure trail, and Valentini's ADR-anchored
+   partial. Both are exits, which is where this repo has measured the edge.
+4. **A-grade-only filtering** is the one directly actionable finding from the
+   uploads: in the AICartel CLC backtest, 3/3 signals returned +4.08R while
+   2/3 returned −4.61R. Worth testing as a general confluence-threshold rule.
+
+## Unfinished
+
+`gold_confluence_engine_1.pine` (uploaded, archived) is the most technically
+literate file in the upload set — it independently found BUG-027's units
+problem and documents the lookahead idiom correctly. Its $5 and $10 gold
+grids clear the BUG-017 gate (1.29 and 2.58); its $2.5 minor grid does not
+(0.646) and should be dropped from targeting. It has never been backtested.
