@@ -847,3 +847,55 @@ this repo's standard.
    the direction flipped and the geometry mirrored. The two average-R figures
    should sum to roughly minus two costs. If both are positive, there is a leak
    in the accounting, and it will be found faster this way than by review.
+
+---
+
+## BUG-030 — adds filled at a stale trigger price the market had already left
+
+**Where:** `backtest/exit_lab.py`, the pyramiding block.
+
+**The code.**
+
+```python
+nxt = pos["last_add"] + d * a * pyr_atr
+if (h[i] >= nxt) if d > 0 else (l[i] <= nxt):
+    px = nxt + d * slippage          # <-- fills AT the trigger level
+```
+
+Filling at `nxt` assumes the level is crossed *during* bar i. That holds when
+the bar opens on the near side of it. It fails when the bar opens already
+beyond it — on a gap, and **systematically** whenever any gate suppresses adds
+for a while, because `last_add` stays stranded behind the market and `nxt`
+becomes a price that stopped existing long ago.
+
+**How it was caught.** A "only add once the stop is in profit" variant returned
+**PF 3.557 and +35,152%**, and stacking it with risk-bounded sizing returned
+**+5,400,440,414,060%**. A five-trillion-percent return is not a result to
+investigate, it is an arithmetic tell. The leverage cap was checked first and
+cleared the baseline (0.0% of adds capped), which ruled out the obvious
+explanation and pointed at the fill price.
+
+**Blast radius.** It inflated the **champion's own baseline**, not just the
+experimental arms: PF 1.646 → 1.623 and net +1,779.5% → +1,616.7% once fixed.
+The corrected figure is *closer* to the TradingView deep backtest (+1,620.2%)
+than the pre-fix one, which is the independent confirmation that the fix is
+right rather than merely conservative.
+
+**Fix.** `px = (max(nxt, o[i]) if d > 0 else min(nxt, o[i])) + d * slippage` —
+if the bar opened past the level, fill at the open.
+
+**Second defect found in the same pass.** Risk-bounded sizing computes
+`aq = budget / |px - stop| - qty`. A ratcheted stop can sit arbitrarily close
+to the add price, so the denominator vanishes and the requested size diverges;
+it was then clipped by the 20x leverage cap on 7.1% of adds, which is what
+produced the trillion-percent figure. Floored the denominator at a quarter of
+the initial stop distance.
+
+**Prevention:** two rules.
+1. **Any simulated fill at a computed level must be reconciled against the
+   bar's open.** A level that the bar opened beyond is not a fill, it is a
+   memory.
+2. **Check the leverage cap before believing a large result.** If a strategy's
+   requested size is being clipped, the engine is reporting the cap's
+   behaviour, not the strategy's. Instrumented permanently as
+   `exit_lab.LEVCAP` / `LEVTRY`.

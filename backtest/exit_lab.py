@@ -63,6 +63,8 @@ EXECUTION MODEL (unchanged from every other engine here so results compare)
   - costs per contract per side, notional capped at equity * max_lev
 """
 import numpy as np
+
+LEVCAP=[0]; LEVTRY=[0]
 import pandas as pd
 
 FIELDS = ("open", "high", "low", "close")
@@ -100,9 +102,30 @@ def run(df, sigL, sigS,
         tp2_mode=None, tp2_val=0.0, tp2_pct=0.3,
         tp_be=False, be_atr=0.0, tp_shorts_only=False,
         pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
+        pyr_mode="current", pyr_budget=1.0, pyr_gate=None, pyr_decay=1.0,
         long_only=False, short_risk=1.0, cooldown=0, atr_n=14,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, frac_qty=False):
+    # PYRAMIDING MODES (pyr_mode). All default to "current" so every result
+    # already in the ledger reproduces unchanged.
+    #   current    each add risks another `risk_pct * pyr_risk` of equity,
+    #              sized on the CURRENT ATR. Total NOMINAL risk grows linearly
+    #              with the number of adds; realised open risk depends on where
+    #              the ratcheting stop has got to, which is why it is measured
+    #              rather than assumed.
+    #   bounded    Turtle-style. Size the add so TOTAL open risk across the
+    #              whole stack -- qty_total * |blended entry - current stop| --
+    #              equals `pyr_budget` x the initial risk budget. pyr_budget=1
+    #              holds open risk constant; 1.5 lets it grow modestly.
+    #   fixed_frac each add is `pyr_risk` x the ORIGINAL position size (q0),
+    #              independent of ATR and of the stop.
+    #   vol_entry  like current, but sized on the ATR AT ENTRY rather than the
+    #              current ATR -- isolates whether re-reading volatility at
+    #              each add helps or hurts.
+    #   decay      like current, but each successive add is scaled by
+    #              pyr_decay ** add_index (0.5 = halve each time).
+    # pyr_gate="breakeven" additionally requires the trailing stop to have
+    # ratcheted past the blended entry before any add is allowed.
     # frac_qty: size in FRACTIONAL units instead of whole contracts.
     # Whole-contract sizing is a units artifact, not a strategy property: at
     # $10k equity and 1% risk, one gold contract near $2,000 is affordable but
@@ -135,7 +158,7 @@ def run(df, sigL, sigS,
         if pos["qty"] < (1e-8 if frac_qty else 1):
             trades.append({"pnl": pos["banked"], "dir": d, "bar": pos["bar"],
                            "bars_held": i - pos["bar"], "why": why,
-                           "adds": pos["adds"]})
+                           "adds": pos["adds"], "orisk": pos["orisk"]})
             return True
         return False
 
@@ -153,19 +176,56 @@ def run(df, sigL, sigS,
             # ---------- add to a winner -------------------------------
             if pyr_atr > 0 and pos["adds"] < pyr_max:
                 nxt = pos["last_add"] + d * a * pyr_atr
-                if (h[i] >= nxt) if d > 0 else (l[i] <= nxt):
+                gate_ok = True
+                if pyr_gate == "breakeven":
+                    gate_ok = (pos["stop"] - pos["entry"]) * d > 0
+                if gate_ok and ((h[i] >= nxt) if d > 0 else (l[i] <= nxt)):
                     ar = (risk_pct if d > 0 else risk_pct * short_risk) * pyr_risk
-                    aq = max(min(eq * ar / 100.0 / (a * stop_atr),
-                                 eq * max_lev / c[i] - pos["qty"]), 0)
+                    # GAP-AWARE ADD FILL (BUG-030). Filling at `nxt` assumes the
+                    # add level is crossed DURING this bar. If the bar already
+                    # opened beyond it -- which happens on a gap, and happens
+                    # systematically whenever a gate has suppressed earlier adds
+                    # and left `last_add` stranded behind the market -- then the
+                    # level is stale and filling there buys at a price that was
+                    # never available. Fill at the open in that case.
+                    px = (max(nxt, o[i]) if d > 0 else min(nxt, o[i])) + d * slippage
+                    if pyr_mode == "bounded":
+                        # total open risk of the WHOLE stack, not the new unit
+                        # A ratcheted stop can sit arbitrarily close to the add
+                        # price, so budget/risk_per diverges. Floor the
+                        # denominator at a quarter of the initial stop distance:
+                        # below that the "risk" is an artifact of the stop
+                        # having caught up, not room the trade actually has.
+                        risk_per = max(abs(px - pos["stop"]), 0.25 * pos["a0"] * stop_atr)
+                        budget = eq * (risk_pct if d > 0 else
+                                       risk_pct * short_risk) / 100.0 * pyr_budget
+                        aq = budget / risk_per - pos["qty"]
+                    elif pyr_mode == "fixed_frac":
+                        aq = pos["q0"] * pyr_risk
+                    elif pyr_mode == "vol_entry":
+                        aq = eq * ar / 100.0 / (pos["a0"] * stop_atr)
+                    elif pyr_mode == "decay":
+                        aq = (eq * ar / 100.0 / (a * stop_atr)) * (pyr_decay ** pos["adds"])
+                    else:
+                        aq = eq * ar / 100.0 / (a * stop_atr)
+                    want = aq
+                    aq = max(min(aq, eq * max_lev / c[i] - pos["qty"]), 0)
+                    if want > aq + 1e-9:
+                        LEVCAP[0] += 1
+                    LEVTRY[0] += 1
                     aq = aq if frac_qty else np.floor(aq)
                     if aq >= (1e-8 if frac_qty else 1):
-                        px = nxt + d * slippage
                         tot = pos["qty"] + aq
                         pos["entry"] = (pos["entry"] * pos["qty"] + px * aq) / tot
                         pos["qty"] = tot
                         pos["banked"] -= commission * aq
                         pos["adds"] += 1
                         pos["last_add"] = nxt
+                        # instrumentation: open risk of the stack right after
+                        # the add, as a multiple of the initial risk budget
+                        orisk = tot * abs(pos["entry"] - pos["stop"])
+                        pos["orisk"] = max(pos["orisk"], orisk / pos["r0"]
+                                           if pos["r0"] > 0 else 0.0)
 
             # ---------- move the stop ---------------------------------
             active = (not trail_only_after_tp1) or pos["tp1_done"]
@@ -291,6 +351,7 @@ def run(df, sigL, sigS,
         if qty < (1e-8 if frac_qty else 1):
             continue
         pos = {"dir": d, "entry": entry, "qty": qty, "q0": qty, "bar": i,
+               "a0": a, "r0": qty * sdist, "orisk": 1.0,
                "cand": np.nan, "ref": np.nan, "swings": 0,
                "stop": entry - d * sdist, "best": entry, "banked": 0.0,
                "tp1": _target(entry, d, a, tp1_mode, tp1_val, sdist),

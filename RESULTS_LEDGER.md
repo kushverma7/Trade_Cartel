@@ -2343,3 +2343,115 @@ presenting it as an improvement would be presenting leverage as edge.
 **Recommendation: KEEP. Discard the "wider is better" hypothesis. No change to
 the shipped trail width.** Net profitability was not improved by this priority,
 and the honest result is that the parameter was already at its optimum.
+
+---
+
+## PRIORITY 2 (Gold) — pyramiding rework (2026-08-03)
+
+XAUUSD 30m, 789 trades, trail fixed at 4.24 ATR throughout. **All figures
+post-BUG-030**; the pre-fix numbers (including the champion's own baseline at
+PF 1.646 / +1,779.5%) are void.
+
+### Current behaviour, measured
+
+| adds | n | share | WR | mean P&L | total P&L |
+|---|---|---|---|---|---|
+| 0 | 229 | 29.0% | 0.0% | −$340 | −$77,802 |
+| 1 | 167 | 21.2% | 0.0% | −$525 | −$87,728 |
+| 2 | 111 | 14.1% | 0.9% | −$554 | −$61,461 |
+| 3 | 72 | 9.1% | 1.4% | −$429 | −$30,913 |
+| **4** | **210** | **26.6%** | **80.0%** | **+$2,075** | **+$435,851** |
+
+**Every profitable dollar comes from the 4-add cohort.** The other 71% of
+trades lose $257,904 between them. Adds are not an amplifier bolted onto the
+edge — the fully-pyramided trade *is* the edge, and everything else is the cost
+of finding it.
+
+Open risk, peak per trade as a multiple of the initial budget: median **2.16R**,
+p90 4.19R, max 5.50R. **71.0% of trades exceed 1R and 54.6% exceed 2R.** The
+brief's premise is confirmed.
+
+### Results
+
+| method | n | WR | PF | net | maxDD | ret/DD | avgR | adds/win | med open risk |
+|---|---|---|---|---|---|---|---|---|---|
+| **fixed 100% of q0 / entry-ATR** | 789 | 21.3% | **1.647** | **+1,996.3%** | **32.17%** | **62.06** | +0.86 | 3.99 | 2.07R |
+| fixed 75% of q0 | 789 | 21.9% | 1.608 | +1,232.0% | 25.47% | 48.36 | +0.70 | 3.97 | 1.73R |
+| **CURRENT (baseline)** | 789 | 21.5% | 1.623 | +1,616.7% | 36.52% | 44.27 | +0.79 | 3.98 | 2.16R |
+| decay 0.85/add | 789 | 22.6% | 1.581 | +1,196.6% | 29.63% | 40.38 | +0.68 | 3.97 | 2.04R |
+| fixed 50% of q0 | 789 | 22.9% | 1.562 | +716.3% | 20.64% | 34.70 | +0.54 | 3.96 | 1.37R |
+| Conservative 3.0×2 | 789 | 22.9% | 1.561 | +550.8% | 18.77% | 29.35 | +0.53 | 1.94 | 1.26R |
+| bounded ≤3.0R | 789 | 27.4% | 1.447 | +790.4% | 32.47% | 24.34 | +0.47 | 3.70 | 2.60R |
+| bounded ≤2.0R | 789 | 28.8% | 1.418 | +391.9% | 20.36% | 19.25 | +0.35 | 3.66 | 1.60R |
+| no adds | 789 | 37.1% | 1.389 | +174.1% | 10.45% | 16.66 | +0.26 | 0 | 1.00R |
+| **bounded ≤1.0R (Turtle)** | 789 | 33.2% | 1.391 | **+195.7%** | 14.12% | 13.86 | +0.28 | 3.38 | 1.00R |
+| current + breakeven gate | 789 | 14.2% | 1.577 | +525.2% | 33.77% | 15.55 | +0.56 | 3.92 | 1.00R |
+
+### The Turtle-style fix fails, and it fails for a structural reason
+
+Bounding total open risk at 1R returns **+195.7% against the no-adds +174.1%**.
+Holding open risk constant is arithmetically almost the same thing as not
+adding: the trail sits ~4.24 ATR below price, so each add's marginal risk is
+roughly a full unit, and "keep the total at 1R" leaves nothing to add with.
+Every budget level from 1.0R to 3.0R is worse than the baseline on return per
+unit of drawdown (13.86–24.34 against 44.27).
+
+**This kills the recommendation I ranked #3 in `WIZARDS_SYNTHESIS.md`**, which
+cited the Turtles' bounded-risk rule. The principle is sound for a diversified
+100-market portfolio where each position is one of many; on a single instrument
+where 26.6% of trades carry 100% of the profit, capping the winner's size caps
+the strategy. Logged in BELIEF_REGISTER.md.
+
+### The one improvement, and its control
+
+**Size each add at the original position size (equivalently: on the ATR at
+entry) instead of on the current ATR.** Identical results either way, because
+`q0 = equity·risk/(ATR_entry·stop_atr)`.
+
+| | PF | net | maxDD | ret/DD |
+|---|---|---|---|---|
+| CURRENT | 1.623 | +1,616.7% | 36.52% | 44.27 |
+| **candidate** | **1.647** | **+1,996.3%** | **32.17%** | **62.06** |
+
+Better on all four. Why it works: ATR *expands* during the trends this system
+lives on, so current-ATR sizing shrinks each add exactly where the trade is
+working hardest. Entry-ATR sizing does not.
+
+**Control — is it just leverage?** This is the trap Priority 1 caught on the
+stop axis, where leverage-matched pairs agreed to 0.002 of PF.
+
+| | PF | net | maxDD |
+|---|---|---|---|
+| baseline, risk 0.85% | 1.607 | +1,094.2% | 31.27% |
+| **candidate, risk 1.00%** | **1.647** | **+1,996.3%** | 32.17% |
+
+At matched drawdown the candidate returns **+1,996% against +1,094%** with a
+higher profit factor. Pure leverage does not move PF; this does. **Not
+leverage.**
+
+**Control — second instrument.** US30 bars-mode: PF 1.274 vs baseline 1.243,
+net +117.2% vs +104.0%, ret/DD 4.33 vs 4.12, both halves stable. Small, same
+sign, no contradiction.
+
+**Caveat, stated:** the fraction keeps paying past 100% (125% → PF 1.678,
+200% → 1.727) with drawdown rising to 59.7%. Beyond 100% it *is* mostly the
+risk dial. 100% is recommended as the principled point — one add equals one
+original unit — not as a swept optimum.
+
+### Verdict
+
+| method | recommendation |
+|---|---|
+| **fixed 100% of q0 (entry-ATR sizing)** | **ADOPT** — beats baseline on PF, net, drawdown and ret/DD at matched risk, holds on US30 |
+| current (current-ATR sizing) | REPLACE |
+| risk-bounded / Turtle | **DISCARD** — collapses to no-adds on gold |
+| breakeven gate | DISCARD — ret/DD 15.55 vs 44.27 |
+| decay per add | DISCARD — strictly worse than flat |
+| spacing 1.5 ATR, max 4 | KEEP — best of 16 spacing × max-adds combinations |
+
+**Open risk is NOT fixed by this, and the honest finding is that it cannot be.**
+The candidate cuts median peak open risk only 2.16R → 2.07R. Every variant that
+genuinely bounded open risk at 1R (bounded, BE gate) destroyed between 67% and
+88% of the return. On this instrument, *carrying 2–3R of open risk on the trades
+that are working is the mechanism*, not a flaw in the implementation. The
+control for that risk is the risk-profile dial, not the add rule.
