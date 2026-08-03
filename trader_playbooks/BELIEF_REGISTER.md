@@ -1556,3 +1556,13 @@ untested and is the only version worth testing here.
 **Invalidation:** show a 15m/30m inside-bar variant whose per-signal edge
 exceeds 0.21 ATR, which is what it would take to clear costs with margin.
 Nothing in the deck suggests one exists.
+
+**UPDATE 2026-08-02 — the pivot-width regime does NOT convert into P&L via
+trail-widening.** Tested as H-PIVOT-HOLD (see RESULTS_LEDGER). Widening the
+chandelier trail by 1.25x / 1.5x / 2.0x on narrow-pivot sessions gained
++46.8pp net on the full sample, +18.0pp on the first half, and **lost 18.4pp
+out of sample**, with a non-monotonic response to the multiplier. Rejected.
+
+The forecasting claim stands; the trading claim does not. That distinction is
+the point — this register now separates "true" from "tradeable", and this
+belief is the former only.

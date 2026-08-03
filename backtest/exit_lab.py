@@ -15,6 +15,13 @@ existing ledger rows stay comparable:
     trail_mode="none", tp1 at 4% taking 100%          -> take_profit.py's
 
 TRAILING MODES
+    trail_atr_series  OPTIONAL per-bar override of trail_atr (a numpy array the
+                  length of df). Added 2026-08-02 to test whether a REGIME
+                  signal should widen or tighten the leash, rather than
+                  changing the entry. The exponent-gap finding says the edge
+                  accrues to hold time, so anything that legitimately extends a
+                  hold should be applied HERE, not at the entry.
+
     "none"        static stop only
     "chandelier"  highest-high-since-entry minus N x ATR (the current build)
     "donchian"    lowest low of the last N bars (price structure, not ATR)
@@ -65,6 +72,7 @@ def _target(entry, d, a, mode, val, stop_dist):
 def run(df, sigL, sigS,
         stop_atr=4.0,
         trail_mode="chandelier", trail_atr=4.24, trail_n=20, trail_ema=0,
+        trail_atr_series=None,
         step_from=3.0, step_to=1.5, step_span=10.0, giveback_frac=0.35,
         giveback_arm=2.0,
         trail_only_after_tp1=False,
@@ -136,8 +144,10 @@ def run(df, sigL, sigS,
                 if trail_mode == "chandelier":
                     # anchored to the PREVIOUS bar's extreme, exactly as
                     # trend.py does, so the two engines agree
-                    cand = (h[i - 1] - a * trail_atr if d > 0
-                            else l[i - 1] + a * trail_atr)
+                    ta_ = (trail_atr if trail_atr_series is None
+                           else float(trail_atr_series[i]))
+                    cand = (h[i - 1] - a * ta_ if d > 0
+                            else l[i - 1] + a * ta_)
                 elif trail_mode == "donchian":
                     cand = lowN[i] if d > 0 else highN[i]
                 elif trail_mode == "ema" and ema is not None:

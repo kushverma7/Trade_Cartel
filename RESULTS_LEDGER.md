@@ -1545,3 +1545,53 @@ XAUUSD 30m, 0.20 pt slippage, $0.07/contract commission, 7 years:
 retracted in July for resting on 117 trades and $34 of profit is now
 validated on 2,370 orders across seven years, at realistic fills, by an
 independent engine, with a deflated Sharpe of 0.9996 and a PBO of 0.099.
+
+---
+
+## H-PIVOT-HOLD — widen the trail on narrow-pivot sessions — **REJECTED**
+
+**2026-08-02.** `backtest/test_pivot_hold.py`. XAUUSD 30m, 2019-12 to 2026-07,
+Donchian-50 entry, chandelier trail 8.49 ATR (6.0 scaled by sqrt(30/15)),
+pyramiding 1.5 ATR / max 4, risk 1.0% / short 0.75, cooldown 3,
+commission $0.07 and slippage 0.20 pt per side. Narrow = prior LDN/NY-overlap
+pivot width in the bottom quartile of a rolling 60 sessions (23.0% of bars).
+
+| slice | config | n | PF | net | maxDD | ret/DD |
+|---|---|---|---|---|---|---|
+| FULL | base (fixed trail) | 466 | 1.218 | +172.0% | 70.22% | 2.45 |
+| FULL | widen x1.25 on narrow | 455 | 1.166 | +120.7% | 68.91% | 1.75 |
+| FULL | widen x1.5 on narrow | 449 | 1.239 | +218.9% | 71.61% | 3.06 |
+| FULL | widen x2.0 on narrow | 448 | 1.241 | +217.7% | 72.39% | 3.01 |
+| 1st half | base | 244 | 0.968 | −14.8% | 61.57% | −0.24 |
+| 1st half | widen x1.5 | 232 | 1.006 | +3.2% | 61.83% | 0.05 |
+| **2nd half (OOS)** | **base** | **220** | **1.615** | **+238.5%** | **28.35%** | **8.41** |
+| **2nd half (OOS)** | **widen x1.5** | **215** | **1.569** | **+220.1%** | **29.68%** | **7.42** |
+| **2nd half (OOS)** | **widen x2.0** | **215** | **1.569** | **+220.0%** | **29.75%** | **7.40** |
+
+**VERDICT: REJECTED.** The full-sample gain (+46.8pp net at x1.5) comes
+entirely from the first half (+18.0pp) and **reverses out of sample**
+(−18.4pp net, −0.046 PF, +1.33pp drawdown). Every widening multiple is worse
+than the fixed trail on the OOS half.
+
+**A second tell, independent of the split.** The response is not monotonic in
+the multiplier: x1.25 is far WORSE than base everywhere (−51.4pp full,
+−61.2pp OOS) while x1.5 and x2.0 land on top of each other. A real mechanism
+would strengthen with the multiplier. This is noise.
+
+**IMPORTANT LIMITATION, stated up front.** The base here is NOT the validated
+champion. It reproduces at PF 1.218 / +172.0% / 70.22% DD on 466 entries,
+against the champion's PF 1.583 / +1,591.7% / 33.63% on 2,370. It omits the
+EMA regime gate, the 750/2000 SMA confluence layer, the slope gate and
+TP1/TP2. So this rejects the hypothesis **on a simplified proxy of the
+champion**, not on the champion itself.
+
+That caveat does not rescue the result. The hypothesis predicted a directional
+improvement from a regime signal; on the OOS half the sign is wrong at every
+multiple tested. A better base would have to reverse the sign, not merely
+raise the level.
+
+**What survives.** The pivot-width finding itself is unaffected — narrow
+pivot ranges really do precede more directional sessions (t=+3.07, stable,
+replicates OOS). What is now measured is that this does **not** convert into
+P&L through trail-widening. Forecasting directionality and making money from
+it are different claims, and only the first is supported.
