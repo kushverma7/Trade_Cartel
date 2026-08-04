@@ -3159,3 +3159,92 @@ The single most useful positive finding is diagnostic rather than tradeable:
 gold's forward drift over 48 bars is large enough (+0.46 to +0.52 ATR) that
 **any** long-biased filter will appear profitable on this sample. That is the
 mechanism that has made level studies look promising here for months.
+
+---
+
+## MAXIMUM PUSH ON THE REMAINING DEGREES OF FREEDOM (2026-08-04)
+
+~85 configurations, each re-solved to BOTH a 25% and 20% drawdown budget, with
+2,000-path Monte Carlo and a pre-2025 profit factor as the regime control.
+Baseline config E: PF 1.945 / MAR 2.26 / MC median 25.3% / P(DD>30%) 21.5% /
+pre-2025 PF 1.459.
+
+### What failed
+
+| direction | best result | verdict |
+|---|---|---|
+| Volatility regime filter on ENTRIES | vol rank >0.67: PF 2.018 but MAR 1.16, n cut to 373, pre-2025 PF 1.309 | REJECT — buys PF by trading half as often |
+| Path-dependent trail (different width after first add) | 4.24 is optimal; 3.0 gives PF 1.335, 6.0 gives 1.569 | REJECT |
+| Time-based trail tightening | best equals baseline; 48-bar version MC median 31.2% | REJECT |
+| Re-entry / continuation | reentry on: PF 1.825, MAR 2.02, MC 26.5% | REJECT |
+| Win-specific cooldown | identical to baseline (cooldown 30 already dominates) | no effect |
+| Long/short asymmetric TRAIL width | shorts 3.5: PF 1.885 at MAR 1.49; every variant below E | REJECT |
+
+### What worked — one effect, found three independent ways
+
+**Scale risk UP when the market is trending hard or volatility is expanding,
+DOWN otherwise.** Three unrelated definitions agree:
+
+| definition | PF (25% budget) | vs E |
+|---|---|---|
+| trend strength \|close−EMA\| > 6 ATR → ×1.4 else ×0.8 (**F1**) | 2.044 | +0.099 |
+| ATR(20)/ATR(200) > 1.05 → ×1.4 else ×0.6 (**F2**) | 1.974 | +0.029 |
+| ATR percentile > 0.5 → ×1.3 else ×0.7 (**F3**) | 1.989 | +0.044 |
+| adds allowed only when vol rank > 0.33 (**F4**) | 1.953 | +0.008 |
+
+F1 is a **plateau, not a spike**: thresholds 3/4/5/6/7/8/10 ATR give PF 1.954,
+1.954, 2.002, 2.044, 2.038, 2.046, 2.054 — every one above baseline. Scale
+factors 1.2/0.9 → 1.6/0.7 give 1.996 → 2.089 monotonically.
+
+### Candidates at both budgets
+
+| config | budget | PF | net | MAR | MC med | P(>30%) | pre-2025 PF | years+ |
+|---|---|---|---|---|---|---|---|---|
+| **E** | 25% | 1.945 | +1,875% | 2.26 | 25.3% | 21.5% | 1.459 | 7/8 |
+| **G1** F1×F2 | 25% | **2.005** | +2,457% | **2.51** | **24.8%** | **19.0%** | **1.513** | 7/8 |
+| G2 F1×F3 | 25% | 2.086 | +2,519% | 2.53 | 25.7% | 24.0% | 1.460 | 7/8 |
+| G4 F1+gated adds | 25% | 2.049 | +4,146% | **3.03** | 26.7% | 29.0% | 1.600 | 7/8 |
+| G5 F1×F2+gated | 25% | 2.009 | +3,732% | 2.92 | 25.9% | 24.0% | **1.631** | 7/8 |
+| **E** | 20% | 1.906 | +997% | 2.17 | 20.4% | 5.0% | 1.472 | 7/8 |
+| **G1** | 20% | **1.967** | +1,250% | **2.39** | **20.0%** | 5.0% | **1.528** | 7/8 |
+| G4 | 20% | **2.023** | +1,938% | **2.86** | 21.4% | 7.0% | 1.612 | **8/8** |
+| G5 | 20% | 1.992 | +1,765% | 2.76 | 20.8% | 5.0% | **1.647** | 7/8 |
+
+**G1 strictly dominates E on gold at both budgets** — higher PF, higher MAR,
+*lower* Monte Carlo median and tail, better pre-2025 profit factor.
+
+### The control that limits the claim
+
+**US30, 25% budget:**
+
+| config | PF | net | MAR |
+|---|---|---|---|
+| E | 1.469 | +320.2% | 0.96 |
+| **G1** | **1.472** | +344.3% | **1.00** |
+| G4 | 1.407 | +168.0% | 0.64 |
+
+**G1 is neutral on the second instrument (+0.003 PF) and G4 is harmful
+(−0.062).** Every previously adopted change — entry-ATR add sizing, cooldown 30
+— showed a clear same-sign gain on US30. This one does not.
+
+Year by year at the 20% budget, worst year: E 0.94, **G1 0.89**, G4 1.00,
+G5 0.94. G1 makes 2021 slightly worse; G4 is the only config with no losing year.
+
+### Recommendation
+
+**G1 — ADOPT WITH A QUALIFIER.** On gold it improves every metric asked for,
+including the Monte Carlo distribution, and the underlying effect is a plateau
+across three independent definitions rather than one tuned cell. But it is
+**neutral, not confirmed, on the second instrument**, and it slightly worsens
+the worst year. That is weaker evidence than the previous two adoptions carried.
+
+**G4 — REJECT.** The best MAR (3.03) and the only 8/8-year record, but its Monte
+Carlo is worse (26.7% median, 29% tail) and it is the worst of the three on
+US30. It buys return with concentration.
+
+**Honest summary: the frontier moved a little and the evidence is thinner than
+last time.** PF 1.945 → 2.005 at 25%, 1.906 → 1.967 at 20%, with a genuinely
+better drawdown distribution. Roughly 85 configurations were searched to find a
+3% profit-factor gain, which is close to what noise alone would produce at that
+search count; the plateau structure and the pre-2025 improvement are the reasons
+to believe it anyway.

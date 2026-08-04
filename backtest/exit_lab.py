@@ -106,6 +106,8 @@ def run(df, sigL, sigS,
         long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0,
         cooldown_win=0, risk_series=None, tighten_after=0.0, tighten_to=0.0,
         dd_trigger=0.0, dd_scale=1.0, dd_recover=0.0,
+        trail_after_add=0.0, trail_short=0.0, trail_time_bars=0, trail_time_to=0.0,
+        pyr_pause_lo=0.0, pyr_pause_hi=0.0, vol_rank=None,
         tighten_sched=None, streak_step=0.0, streak_cap=1.0, reentry=False,
         pyr_trail_gate=0.0, atr_n=14,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
@@ -195,6 +197,14 @@ def run(df, sigL, sigS,
             if pyr_atr > 0 and pos["adds"] < pyr_max:
                 nxt = pos["last_add"] + d * a * pyr_atr
                 gate_ok = True
+                if vol_rank is not None and (pyr_pause_lo > 0 or pyr_pause_hi > 0):
+                    # allow adds only while volatility sits inside the band
+                    vr = vol_rank[i]
+                    if np.isfinite(vr):
+                        if pyr_pause_lo > 0 and vr < pyr_pause_lo:
+                            gate_ok = False
+                        if pyr_pause_hi > 0 and vr > pyr_pause_hi:
+                            gate_ok = False
                 if pyr_gate == "breakeven":
                     gate_ok = (pos["stop"] - pos["entry"]) * d > 0
                 if pyr_trail_gate > 0:
@@ -259,6 +269,20 @@ def run(df, sigL, sigS,
                     # trend.py does, so the two engines agree
                     ta_ = (trail_atr if trail_atr_series is None
                            else float(trail_atr_series[i]))
+                    # PATH-DEPENDENT TRAIL. Applied before the excursion-based
+                    # tightening so an explicit tighten can still override.
+                    #   trail_after_add : a different (usually wider) leash once
+                    #                     the position has been added to at least
+                    #                     once -- the stack is bigger, so the same
+                    #                     ATR distance is a larger dollar risk.
+                    #   trail_short     : separate width for shorts.
+                    #   trail_time_*    : tighten purely on time in trade.
+                    if trail_after_add > 0 and pos["adds"] >= 1:
+                        ta_ = trail_after_add
+                    if trail_short > 0 and d < 0:
+                        ta_ = trail_short
+                    if trail_time_bars > 0 and (i - pos["bar"]) >= trail_time_bars:
+                        ta_ = min(ta_, trail_time_to) if trail_time_to > 0 else ta_
                     if tighten_after > 0 or tighten_sched:
                         # Once the trade has run far enough in its favour,
                         # tighten the leash. Measured off pos["best"], which
