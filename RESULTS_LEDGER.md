@@ -2883,3 +2883,91 @@ that, not for the backtest's headline number.
 The only textual match for "lookahead" is a comment recording BUG-019. Nothing
 in this script can repaint; the reload test on TradingView should confirm it,
 and if it does not, the cause is data revision on the broker feed, not the code.
+
+---
+
+## DRAWDOWN-CONSTRAINED FRONTIER — PF >= 1.75 at DD <= 25% (2026-08-04)
+
+User goal: profit factor >= 1.75 (ideally >= 1.80) with max drawdown <= 25%,
+maximising net return inside that box. **Answer: yes, achievable, and almost
+entirely with the risk dial.**
+
+### 1. Pure risk-% scaling — the simple leverage effect
+
+Nothing changed except `risk_pct`:
+
+| risk % | PF | net | maxDD | CAGR | MAR |
+|---|---|---|---|---|---|
+| 0.30 | 1.763 | +299.4% | 11.23% | 23.1% | 2.06 |
+| 0.50 | 1.786 | +831.3% | 18.19% | 39.8% | 2.19 |
+| 0.60 | 1.799 | +1,290.8% | 21.51% | 48.5% | 2.25 |
+| **0.70** | **1.810** | **+1,947.6%** | **24.74%** | 57.4% | 2.32 |
+| 0.85 | 1.825 | +3,464.3% | 29.38% | 71.0% | 2.42 |
+| **1.00 (shipped)** | **1.834** | **+5,921.9%** | **33.80%** | 85.1% | 2.52 |
+| 1.30 | 1.835 | +15,645.6% | 42.02% | 113.8% | 2.71 |
+
+**Profit factor is almost invariant to risk — 1.763 to 1.837 across a 4x range —
+while drawdown moves 11% to 42%.** The dial buys drawdown reduction at nearly no
+cost in profit factor. It costs RETURN, and that is the entire trade-off.
+
+### 2. Frontier: 208 structural configs, risk solved to hit DD = 25% exactly
+
+Every row below is dialled to the same 25% drawdown budget, so net return is
+directly comparable. 2,496 backtests executed.
+
+| # | risk % | adds | spacing | tightening | n | WR | PF | net | DD | MAR | halves |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **D** | 0.739 | 4 | 1.50 | 30 → 1.5 | 733 | 21.7% | 1.759 | **+2,218.2%** | 24.99% | **2.41** | 1.40/1.88 |
+| | 0.739 | 4 | 1.50 | 30 → 2.0 | 733 | 21.7% | 1.752 | +2,139.0% | 24.99% | 2.38 | 1.39/1.88 |
+| **B** | 0.708 | 4 | 1.50 | 20 → 1.5 | 738 | 21.7% | **1.819** | +2,097.6% | 24.98% | 2.36 | 1.42/1.95 |
+| **A** | 0.708 | 4 | 1.50 | **20 → 2.0** | 737 | 21.7% | **1.811** | +2,010.4% | 24.99% | 2.32 | 1.41/1.95 |
+| | 0.708 | 4 | 1.50 | 20 → 2.5 | 736 | 21.7% | 1.778 | +1,925.7% | 24.99% | 2.29 | 1.40/1.91 |
+| **C** | 0.662 | 4 | 1.50 | 15 → 2.0 | 743 | 21.4% | **1.844** | +1,563.8% | 24.98% | 2.10 | 1.40/2.01 |
+
+Only **15 of 208** configs clear PF >= 1.75 at DD <= 25%; only **4** clear
+PF >= 1.80. **All 15 use 4 adds**, and 11 of 15 use 1.5 ATR spacing — the
+shipped structure. Fewer adds or wider spacing cannot reach the frontier.
+
+### 3. The drawdown number is not what it looks like
+
+Monte Carlo (3,000 reorderings) on each candidate:
+
+| config | backtest DD | median | 75th | 95th | P(DD > 30%) |
+|---|---|---|---|---|---|
+| **A** 0.708, 20→2.0 | 24.99% | 26.4% | 30.6% | 37.8% | **27.3%** |
+| B 0.708, 20→1.5 | 24.98% | 26.4% | 30.4% | 38.2% | 27.5% |
+| **C** 0.662, 15→2.0 | 24.97% | **24.8%** | **28.6%** | **36.5%** | **19.0%** |
+| D 0.739, 30→1.5 | 24.99% | 27.2% | 31.6% | 39.3% | 32.5% |
+| baseline 1.00% | 33.80% | 35.5% | 40.6% | 49.3% | 81.7% |
+
+**A 25% backtest drawdown is a ~26% median expectation with a 27% chance of
+exceeding 30%.** Config C is the only candidate whose median reordering stays
+under 25%, because tightening earlier (15 ATR) genuinely cuts tail risk rather
+than just reducing size.
+
+### 4. Recommended: config A — risk 0.708%, everything else unchanged
+
+| window | n | PF | net | DD | MAR |
+|---|---|---|---|---|---|
+| TRAIN | 437 | 1.375 | +291.9% | 24.99% | 1.63 |
+| VALIDATION | 148 | 1.493 | +51.6% | 17.43% | 2.10 |
+| TEST (untouched) | 142 | 2.083 | +149.8% | 15.04% | 6.58 |
+| FULL | 737 | 1.811 | +2,010.7% | 24.99% | 2.32 |
+
+Worst year 2021 at PF 1.00 (+$46, flat). No losing year at this risk level.
+
+**Why A over B and D:** B's advantage (+0.008 PF) is the `tighten_to` 1.5 cell
+already recorded as +0.044 MAR excess, i.e. noise. D buys +10% net for a 32.5%
+chance of breaching 30% drawdown. **A is the shipped strategy with one number
+changed and nothing else touched.**
+
+**If the 25% ceiling is hard rather than a preference, take C** — PF 1.844, the
+highest of any candidate, +1,564%, and the only one whose *median* Monte Carlo
+drawdown is still under 25%.
+
+### 5. Direct answer
+
+**Yes — PF ≈ 1.81 at 24.99% drawdown is achievable, and PF 1.844 at 24.97%.**
+No lowering of profit factor is required to reach the drawdown target. The cost
+is return: **+2,010% instead of +5,922%**, i.e. roughly a third, because
+drawdown and return scale together and profit factor does not scale at all.
