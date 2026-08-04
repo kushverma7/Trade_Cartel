@@ -105,6 +105,7 @@ def run(df, sigL, sigS,
         pyr_mode="current", pyr_budget=1.0, pyr_gate=None, pyr_decay=1.0,
         long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0,
         cooldown_win=0, risk_series=None, tighten_after=0.0, tighten_to=0.0,
+        dd_trigger=0.0, dd_scale=1.0, dd_recover=0.0,
         tighten_sched=None, streak_step=0.0, streak_cap=1.0, reentry=False,
         pyr_trail_gate=0.0, atr_n=14,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
@@ -147,6 +148,8 @@ def run(df, sigL, sigS,
     ema_s = pd.Series(c).ewm(span=struct_ema, adjust=False).mean().to_numpy()
 
     eq = equity0
+    peak_eq = equity0
+    derisked = [False]
     trades = []
     pos = None
     last_exit = -10 ** 9
@@ -154,10 +157,11 @@ def run(df, sigL, sigS,
     STREAK[0] = 0
 
     def close_part(pos, i, px, qout, why):
-        nonlocal eq
+        nonlocal eq, peak_eq
         d = pos["dir"]
         pnl = d * (px - pos["entry"]) * qout - 2 * commission * qout
         eq += pnl
+        peak_eq = max(peak_eq, eq)
         pos["banked"] += pnl
         pos["qty"] -= qout
         if pos["qty"] < (1e-8 if frac_qty else 1):
@@ -389,6 +393,19 @@ def run(df, sigL, sigS,
         sdist = a * stop_atr
         entry = c[i] + d * slippage
         eff = risk_pct if d > 0 else risk_pct * short_risk
+        if dd_trigger > 0:
+            # DRAWDOWN-RESPONSIVE SIZING (Randy McKay / Michael Platt / Turtle
+            # unit reduction). While equity is more than `dd_trigger` below its
+            # own running peak, cut risk to `dd_scale` of normal. Restored once
+            # the drawdown recovers inside `dd_recover`. Uses only realised
+            # equity to date -- no lookahead.
+            ddnow = (peak_eq - eq) / peak_eq if peak_eq > 0 else 0.0
+            if ddnow >= dd_trigger:
+                derisked[0] = True
+            elif ddnow <= dd_recover:
+                derisked[0] = False
+            if derisked[0]:
+                eff *= dd_scale
         if streak_step > 0:
             # Progressive risk after consecutive wins, capped. STREAK[0] counts
             # consecutive winning closes and resets on any loss.

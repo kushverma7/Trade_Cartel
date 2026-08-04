@@ -2971,3 +2971,72 @@ drawdown is still under 25%.
 No lowering of profit factor is required to reach the drawdown target. The cost
 is return: **+2,010% instead of +5,922%**, i.e. roughly a third, because
 drawdown and return scale together and profit factor does not scale at all.
+
+---
+
+## PUSHING THE 25% DRAWDOWN FRONTIER — one genuine gain, several rejections (2026-08-04)
+
+Starting point: config A (PF 1.811) and C (PF 1.844), both at ~25% drawdown.
+Target: beat PF 1.844 without degrading the Monte Carlo drawdown distribution.
+
+### Rejected — measured, not assumed
+
+| idea | result | verdict |
+|---|---|---|
+| **Size shorts UP** (they have the higher PF: 1.891 vs longs' 1.806) | short_risk 0.75→0.9→1.0→1.25→1.5 gives PF 1.844→1.828→1.818→1.790→1.762, **monotonically worse** | REJECT |
+| **Drawdown-responsive sizing** (cut risk while underwater — the McKay/Platt rule) | 12 variants; best is −20%→×0.5 at PF 1.845 against C's 1.844. A rounding difference. | REJECT |
+| **Earlier/harder tightening** (8–12 ATR) | 12→2.0 gives PF 1.788, 10→2.0 gives 1.737, 8→2.0 gives 1.556 | REJECT |
+| Cooldown 34+ | PF 1.922 but Monte Carlo median jumps 25.3%→27.7% and P(DD>30%) 21%→35% | REJECT |
+
+The short-sizing result is worth stating plainly: **the short book has the
+higher profit factor and sizing it up still makes the system worse.** Position
+sizing and per-trade quality are not the same lever.
+
+### ADOPTED — cooldown 24 → 30 (config E)
+
+Cooldown was previously optimised at risk 1.0% on return/drawdown (Priority 3
+chose 24). Under a **drawdown budget** the optimum moves, because a longer
+cooldown removes below-average trades rather than merely reducing size.
+
+Risk re-solved to 25% drawdown at every setting, so all rows are comparable:
+
+| cooldown | risk % | n | PF | net | MAR | MC median | MC p95 | P(DD>30%) | years+ |
+|---|---|---|---|---|---|---|---|---|---|
+| 24 (C) | 0.662 | 743 | 1.844 | +1,563.8% | 2.10 | 24.8% | 35.8% | 20.6% | 8/8 |
+| 26 | 0.662 | 735 | 1.857 | +1,551.0% | 2.10 | 25.0% | 36.3% | 20.2% | 8/8 |
+| 28 | 0.677 | 723 | 1.877 | +1,676.7% | 2.16 | 25.2% | 36.5% | 21.0% | 8/8 |
+| **30 (E)** | **0.705** | **711** | **1.945** | **+1,874.2%** | **2.26** | **25.3%** | **36.8%** | **21.4%** | 7/8 |
+| 32 | 0.718 | 699 | 1.963 | +2,079.2% | 2.36 | 25.3% | 36.3% | 22.3% | 7/8 |
+| 34 | 0.777 | 690 | 1.922 | +2,240.9% | 2.42 | **27.7%** | 39.3% | **35.3%** | 7/8 |
+
+**26–32 is a plateau; 34 breaks it.** 30 is taken as the interior of the
+plateau, not the peak (32 scores higher and is deliberately not chosen).
+
+### Config E against A and C
+
+| | risk % | n | WR | PF | net | DD | MAR | MC med | P(>30%) | years+ |
+|---|---|---|---|---|---|---|---|---|---|---|
+| A | 0.708 | 737 | 21.7% | 1.811 | +2,010.4% | 24.99% | 2.32 | 26.2% | 26.3% | 8/8 |
+| C | 0.662 | 743 | 21.4% | 1.844 | +1,563.8% | 24.98% | 2.10 | 24.8% | 20.6% | 8/8 |
+| **E** | 0.705 | 711 | 21.7% | **1.945** | +1,874.2% | 24.98% | 2.26 | 25.3% | 21.4% | **7/8** |
+| E' (22% budget) | 0.613 | 711 | 21.7% | 1.922 | +1,288.5% | 21.99% | 2.20 | **22.4%** | **9.7%** | 7/8 |
+| E'' (20% budget) | 0.553 | 711 | 21.7% | 1.906 | +998.3% | 20.00% | **20.4%** | **5.0%** | 7/8 |
+
+Splits at solved risk: E gives TRAIN 1.326 / VALID 1.623 / **TEST 2.306**
+against C's 1.336 / 1.527 / 2.171 — better on both out-of-sample windows.
+US30 control: cooldown 30 gives PF 1.469 against cooldown 24's 1.422.
+
+### The cost, stated
+
+**E turns 2021 from flat (+$46) into a small loss (−$1,296), so years-positive
+falls from 8/8 to 7/8.** That is the price of +0.10 profit factor. It is a real
+trade-off, not a free win.
+
+### Recommendation
+
+**Adopt E (cooldown 30) if the objective is profit factor; keep C if an
+unbroken record of positive years matters more.** For the 20–22% drawdown zone
+the user preferred, **E'' is the strongest result in this entire project on a
+risk-adjusted basis**: PF 1.906 at a 20.00% drawdown, with a Monte Carlo median
+of 20.4% and only a 5.0% chance of exceeding 30%. It returns +998% rather than
++5,922%, which is the honest price of that safety.
