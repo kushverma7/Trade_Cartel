@@ -1,0 +1,20 @@
+{
+ "frozen": {
+  "entry": 24,
+  "ema": 1512,
+  "sma": 192,
+  "sma2": 630,
+  "slope": 48,
+  "trail": 4.24,
+  "cooldown": 24
+ },
+ "shipped": {
+  "entry": 24,
+  "ema": 1008,
+  "sma": 384,
+  "sma2": 630,
+  "slope": 96,
+  "trail": 4.24,
+  "cooldown": 24
+ }
+}
