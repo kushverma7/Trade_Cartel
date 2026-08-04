@@ -3040,3 +3040,122 @@ the user preferred, **E'' is the strongest result in this entire project on a
 risk-adjusted basis**: PF 1.906 at a 20.00% drawdown, with a Monte Carlo median
 of 20.4% and only a 5.0% chance of exceeding 30%. It returns +998% rather than
 +5,922%, which is the honest price of that safety.
+
+---
+
+## LEVELS, QUARTERLY THEORY AND THE $25 GRID — full examination (2026-08-04)
+
+**Rules and configurations executed: 51 distinct** (24 level types, 3 quarter
+grids, 16 combined phase×level rules, 8 champion overlays) plus controls
+(6 regime splits, 5 half-sample splits, 3 corrected nulls at 200 simulations
+each, 30-seed direction randomisation). Data: XAUUSD 30m, 78,695 bars.
+All levels built strictly from prior information; entries at the next bar's
+open; conservative same-bar handling throughout.
+
+### Part 1 — Level strength: no level type carries information
+
+24 level types ranked by forward MFE/MAE after first touch (48-bar window):
+
+| level | touches | MFE | MAE | MFE/MAE | hold% | sweep% |
+|---|---|---|---|---|---|---|
+| NYL | 2,593 | 3.10 | 2.79 | 1.110 | 50.6% | 50.4% |
+| ASIAL | 2,577 | 3.76 | 3.42 | 1.100 | 51.5% | 51.1% |
+| PDL | 2,443 | 3.07 | 2.94 | 1.045 | 52.4% | 52.1% |
+| PDH | 2,817 | 2.98 | 3.26 | 0.914 | 50.5% | 50.3% |
+| **Q25** | 6,274 | 2.93 | 3.13 | **0.938** | 54.8% | 54.6% |
+| **Q50** | 3,221 | 2.84 | 3.20 | **0.888** | 51.9% | 51.8% |
+| **Q100** | 1,692 | 2.82 | 3.21 | **0.879** | 51.3% | 51.2% |
+
+**Median MFE/MAE across all 24 types: 0.963. Only 1 of 24 exceeds 1.10.**
+Hold rates are 47–54% everywhere — coin flips. **The quarter grids are the
+worst three level types tested**, all below 0.94.
+
+**The one apparent signal is a regime artifact.** Lows outscored highs
+throughout, which looked like "support holds". Split by regime:
+
+| | UP years (2020/23/24/25) | DOWN years (2021/22/26) |
+|---|---|---|
+| lows (support) | **1.135** | 0.981 |
+| highs (resistance) | 0.847 | 0.996 |
+
+Support "holding" is gold's uptrend. In falling years both converge on 1.00.
+
+### Part 2 — Quarterly Theory: the central claims do not hold
+
+| claim | measured | verdict |
+|---|---|---|
+| Q3 produces the largest expansion | session **12.4%** (smallest of four); daily 14.5%; weekly 23.6% — random is 25% | **FALSE** |
+| Q2 Judas sweep predicts Q3 direction | Q3 closes down 48.9% (session), 46.7% (daily) after a Q2 high sweep | **coin flip** |
+| Q4 continuation | continues Q3's direction 46.6–48.9% | **coin flip** |
+| Q2 sweeps Q1's extreme | 50.1% high / 45.8% low (session); 62.5% / 57.3% (daily) | true but uninformative |
+
+The one strong pattern — daily Q4 holding 35.9% of the day's range, largest
+68.9% of the time — is **12:00–18:00 UTC, i.e. the New York session.** It is
+session volatility relabelled, not a time-cycle discovery.
+
+### Part 3 — Quarter numbers: sweep-and-reclaim loses after costs
+
+| grid | n | /yr | MFE/MAE | sweep depth | 48-bar return | **net of cost** | win% |
+|---|---|---|---|---|---|---|---|
+| $25 | 7,120 | 1,069 | 1.030 | 0.50 ATR | +0.098 | **−0.048** | 49.9% |
+| $50 | 3,533 | 530 | 1.027 | 0.54 ATR | +0.135 | **−0.011** | 50.6% |
+| $100 | 1,774 | 266 | 1.009 | 0.56 ATR | +0.126 | **−0.020** | 49.8% |
+
+All three negative after costs. Consistent with BUG-027, which found the same
+family's filter to be a constant on 79.8% of bars.
+
+### Part 4 — Combined patterns: they are a long-bias filter, not an edge
+
+9 of 14 phase×level rules appeared to clear costs — and **every positive one was
+a reclaim of a HIGH, every negative one a LOW.** Composition check:
+**98.3% of the "session ASIAH" signals are LONGS** (1.7% short).
+
+Against the corrected null (long at a random bar in the same Q2 window — the
+level removed and nothing else changed):
+
+| pattern | treatment | control median | percentile |
+|---|---|---|---|
+| session ASIAH | +0.765 | +0.305 | 100% |
+| daily ASIAH | +0.748 | +0.383 | 100% |
+| session NYH | +0.623 | +0.296 | 96% (inside noise) |
+
+Two clear the null on a 48-bar hold. **But the sanity row governs the reading:
+an unconditional long in ANY Q2 window returns +0.459 to +0.520 ATR.** The whole
+family is measuring gold's drift, filtered to be long.
+
+### Part 5 — VERDICT: not one overlay improves the champion
+
+All re-solved to a 25% drawdown budget so they are directly comparable to E:
+
+| overlay | coverage | n | PF | net | MAR | MC median | P(DD>30%) |
+|---|---|---|---|---|---|---|---|
+| **E (no overlay)** | 100% | 711 | **1.945** | +1,877% | **2.26** | 25.4% | 21.8% |
+| ASIAH reclaim, any time | 17.5% | 322 | 1.894 | +245% | 0.82 | 13.2% | 0.0% |
+| ASIAH reclaim in daily Q2 | 14.9% | 283 | 1.934 | +176% | 0.66 | 11.8% | 0.0% |
+| NYH reclaim | 16.5% | 411 | 1.729 | +478% | 1.21 | 23.0% | 13.1% |
+| PDH reclaim | 15.6% | 397 | 1.730 | +170% | 0.64 | 13.4% | 0.1% |
+| Q50 reclaim | 15.2% | 288 | 1.945 | +2,806% | 2.64 | **31.3%** | **58.3%** |
+| any daily Q2 bar | 26.2% | 345 | 1.848 | +735% | 1.50 | 25.0% | 22.1% |
+| any session Q2 bar | 26.0% | 496 | 1.665 | +239% | 0.80 | 16.3% | 0.6% |
+
+**Zero overlays beat E on profit factor. Every one destroys MAR** (2.26 → 0.50–1.50)
+by cutting the sample 30–80%. The low Monte Carlo drawdowns on the ASIAH rows
+are not superiority — they are what trading a fifth as often at half the risk
+looks like.
+
+The Q50 row is the trap: it ties on PF and beats on MAR, and its Monte Carlo is
+**catastrophic — median 31.3% against a 25% backtest path, with a 58.3% chance
+of exceeding 30%.** Its historical drawdown is luck. Rejected on exactly the
+criterion the brief specified.
+
+### Final verdict
+
+**No robust additive edge exists in level-to-level behaviour, Quarterly Theory,
+or the $25/$50/$100 grid on this instrument at this timeframe.** This is now the
+thirteenth through fifteenth independent family of level-based ideas to fail
+controls in this project. The champion is unchanged; **config E and E'' stand.**
+
+The single most useful positive finding is diagnostic rather than tradeable:
+gold's forward drift over 48 bars is large enough (+0.46 to +0.52 ATR) that
+**any** long-biased filter will appear profitable on this sample. That is the
+mechanism that has made level studies look promising here for months.
