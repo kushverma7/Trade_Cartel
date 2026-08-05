@@ -939,3 +939,33 @@ Volume spike on the break (10.87 — worse than its own no-spike control at
 the first and second ABSOLUTE levels beyond the fill, rather than a multiple of
 ATR/R/price. Every prior target in this repo was a multiple. Defaults to None,
 so every existing ledger row reproduces unchanged.
+
+## Update 4, same session — the MTI five-PDF set, and a sizing answer worth keeping
+
+~145 pages, two files byte-identical duplicates, four falsifiable claims. Three
+fail. The fourth is the most directly useful number produced this session.
+
+**"Never risk more than 2-5% per trade" (FX Profit Hacks #4) applied to this
+champion:** 2% → **66.6% drawdown**; 5% → **94.45%**. The champion's own solved
+risk at a 25% drawdown budget is **0.72%**. MTI's floor is 2.8x that.
+
+Also: PF peaks at 2% (1.651) then falls to 1.390 at 5%, and the terminal equity
+multiple peaks at 4% (x303) and falls at 5% (x268). **Past the peak, extra
+leverage costs return as well as drawdown.** Useful when the user next asks
+about leverage or a 200% account.
+
+**Standing rule added:** percentage-risk advice is meaningless without the win
+rate and payoff it was calibrated on. Convert any "risk X%" rule to its implied
+drawdown before considering it. This desk sizes from a drawdown budget, which is
+the same statement in the units that decide survival.
+
+Refuted: StochRSI mean reversion (best |t| 1.38 of 16 tests), session-boundary
+reversals (NY open sets extremes 0.086 vs 0.049 but flips LESS, 0.509 vs 0.516 —
+expansion again), month-end "wildcard" candles (0.9903 vs 0.9836 ATR).
+
+Noted for the record: MTI's Tip #14 "you will never go broke taking a profit" is
+contradicted by this session's own numbers — the breakeven move scored net/DD
+7.06 against 27.26.
+
+**The blocking item is unchanged and unaffected by any of this: a second
+instrument the champion works on, to settle the Bollinger squeeze gate.**

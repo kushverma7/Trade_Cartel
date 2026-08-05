@@ -3503,3 +3503,47 @@ Blocking requirement: a second instrument the champion actually works on.
 
 **Untested, stated:** checklist item 4 (trendlines) is not mechanically
 specified; the reversals note contains no falsifiable rule.
+
+### 2026-08-05 (d) — Market Traders Institute set (`research/mti_hacks.py`)
+
+Five PDFs, ~145 pages, two of them byte-identical duplicates. Four falsifiable
+claims total.
+
+**Hack #4 — position sizing (`research/mti_risk_sizing.csv`)**
+
+| risk/trade | n | PF | net% | max DD% | equity multiple |
+|---|---|---|---|---|---|
+| 0.50 | 786 | 1.555 | +303.7 | 17.70 | 4.04 |
+| **0.72 (champion @ 25% DD)** | 789 | 1.588 | +665.9 | **24.67** | 7.66 |
+| 1.00 | 789 | 1.626 | +1,511.9 | 35.25 | 16.12 |
+| 2.00 | 789 | 1.651 | +10,840.4 | 66.58 | 109.40 |
+| 3.00 | 789 | 1.574 | +26,586.4 | 81.24 | 266.86 |
+| 4.00 | 789 | 1.469 | +30,211.5 | 89.23 | 303.11 |
+| 5.00 | 789 | 1.390 | +26,694.6 | **94.45** | 267.95 |
+
+PF peaks at 2% and falls thereafter; terminal multiple peaks at 4% and falls at
+5%. Past the peak, extra size costs return as well as drawdown.
+
+**Hack #6 — StochRSI(14,14,3,3) mean reversion (`mti_stochrsi.csv`)**
+16 tests, best |t| = 1.38. STOCHRSI_oversold_long at 32 bars: −0.076 ATR edge,
+t = −2.04 (n = 19,205) — oversold gold drifts up *less* than unconditional.
+
+**Hack #11 — session-boundary reversal** (first 2h of each NY-anchored session)
+
+| window | bars | sets day extreme | flip rate |
+|---|---|---|---|
+| Asia open 18:00 | 6,868 | 0.056 (vs 0.052) | 0.530 (vs 0.514) |
+| London open 03:00 | 6,872 | 0.043 (vs 0.053) | 0.520 (vs 0.515) |
+| NY open 08:00 | 6,872 | **0.086** (vs 0.049) | **0.509** (vs 0.516) |
+
+NY open sets extremes far more often and reverses *less*. Expansion, not
+reversal — corroborates the 08-05 (a) NY-open result.
+
+**25 Tips #5 — month-end "wildcard" candles**
+
+| window | n | mean range (ATR) | flip rate |
+|---|---|---|---|
+| last 3 days of month | 10,223 | 0.9903 | 0.5116 |
+| rest of month | 68,472 | 0.9836 | 0.5161 |
+
+**Net effect on the shipped system: none. No change adopted.**
