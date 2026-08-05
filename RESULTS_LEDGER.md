@@ -3870,3 +3870,65 @@ gross win 22,372, gross loss 10,123, avg win 100.6 pts.
 
 Break-even ≈ **2.72 pt/side**; trade count is inferred, and at 1.5× the inferred
 n break-even falls to 1.81 pt.
+
+### 2026-08-05 (i) — AU200-BASE Pine reproduced and stress-tested
+
+User supplied the Pine and a TradingView run: **n=937, WR 83.03%, PF 2.014,
+net +2,715.10 AUD, max DD 123 AUD (0.24%)** — but also **Sharpe −1.082** and
+**strategy outperformance −16,213.40 AUD (−32.43%)** against buy-and-hold's
++38%. Data added: `data/au200_15m.csv.gz` (47,283 native 15m bars) and
+`data/au200_5m.csv.gz` (139,898 5m bars), both 2020-08-05 → 2026-08-04.
+Native 15m confirms **mintick = 0.1**.
+
+**THREE DEFECTS IN THE PINE, ALL MEASURED**
+
+1. **`trail_points` / `trail_offset` are in TICKS, not points, and the input
+   labels invert their roles.** With mintick 0.1: `trail_points=30` = arm after
+   **3.0 points** of profit; `trail_offset=5` = trail **0.5 points** behind the
+   peak. The labels read "Trail SL 30 pts / Trail activates 5 pts". Reading them
+   as written gives PF 0.924; the tick reading gives PF 2.518 and reproduces
+   TradingView. The system is a 0.5-point scalp, not a 30-point trail.
+2. **`hour(time, "UTC+10")` is a fixed offset.** Australia runs AEDT (UTC+11)
+   from October to April, so for ~6 months a year the entry fires at 11:00
+   local, not 10:00. **99.7% of signal bars differ** between the two readings.
+   Correcting it to Australia/Sydney is worth +0.42 PF at 1 pt slippage
+   (1.108 → 1.529).
+3. **On a 15-minute chart `is_950` and `is_955` can never be true** (bar minutes
+   are only 0/15/30/45). Two of the three window inputs are dead code; the
+   system is a single 10:00 entry per day.
+
+**EXIT-PATH RESOLUTION — the decisive test.** The trail sits 0.5 pt behind the
+peak, far smaller than a 15m bar's range, so bar-ordering assumptions decide
+most trades. Identical signals, path walked at two resolutions:
+
+| slippage/side | 15m path (what TV models) | 5m path (3× finer) |
+|---|---|---|
+| 0.0 | PF 2.518, net +3,896 | PF 2.296, net +2,446 |
+| 0.5 | PF 1.941, net +2,832 | PF 1.643, net +1,475 |
+| **1.0** | **PF 1.529, net +1,771** | **PF 1.141, net +389** |
+| 1.5 | PF 1.123, net +502 | PF 0.798, net −677 |
+| 2.0 | PF 0.855, net −673 | PF 0.565, net −1,700 |
+
+**78% of the profit at 1 pt disappears when the path is resolved 3× finer.**
+Degradation is monotone in resolution, so tick data would be worse again.
+
+**ATTRIBUTION — 5m path, 1 pt/side (n=982, net +389 pts)**
+
+| year | n | PF | net | % of total |
+|---|---|---|---|---|
+| 2020 | 71 | 1.37 | +74 | 19.1% |
+| 2021 | 165 | 1.07 | +36 | 9.3% |
+| 2022 | 160 | 1.60 | +244 | 62.6% |
+| 2023 | 168 | **0.82** | −87 | −22.4% |
+| 2024 | 167 | **0.71** | −139 | −35.8% |
+| 2025 | 167 | **0.73** | −157 | −40.4% |
+| 2026 | 84 | 8.14 | +418 | **107.4%** |
+
+**Excluding 2026: n=898, PF 0.989, net −28.9 pts.** The three most recent
+complete years all lose. Buy-and-hold over the same span: **+3,039 pts**.
+
+**VERDICT: REJECT.** Fails bar 1 (negative at 1.5 pt on a realistic path),
+bar 3 (top 10 of 982 trades = 57.8% of net; 2026 alone = 107%), and bar 5
+(one lucky year). The 83% win rate is real but is produced by a 0.5-point
+trail whose modelled fills are an artifact of bar resolution. TradingView's own
+report already flagged this: Sharpe −1.082 and −32.43% against buy-and-hold.
