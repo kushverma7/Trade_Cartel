@@ -4188,3 +4188,86 @@ baseline approaches.
 **GATE VERDICT: PASS.** The engine does not invent edge. Two bugs found and
 fixed (BUG-031 lookahead, BUG-032 non-gap-aware stops); the residual deviation
 from the null is conservative and fully attributed.
+
+---
+
+### 2026-08-05 (m) — AU200 Phase 1 + Phase 2 on the CORRECTED engine: no candidate
+
+Engine: post BUG-031/BUG-032. Signals 15m, path 5m, fills next-bar-safe,
+gap-aware stops. `research/au200_phase1_clean.csv`, `au200_phase2.csv`.
+
+**PHASE 1 — 320 MA arms** (5 pairs × {EMA/EMA, SMA/SMA, SMA/EMA, EMA/SMA} ×
+long/both × rising on/off × all-day/cash × {cross, cross+3ATR}).
+
+| threshold | count |
+|---|---|
+| PF ≥ 1.0 @ 1.0 pt | **3 / 320** |
+| PF ≥ 1.2 @ 1.0 pt | **0 / 320** |
+| PF ≥ 1.0 @ 2.0 pt | **2 / 320** |
+
+**DOES EMA STILL BEAT SMA ON A CLEAN ENGINE? NO — they are identical.**
+
+| fast MA | mean PF | median | max |
+|---|---|---|---|
+| EMA | 0.675 | 0.658 | 1.021 |
+| SMA | **0.677** | 0.658 | **1.055** |
+
+| slow MA | mean PF | median | max |
+|---|---|---|---|
+| EMA | 0.677 | 0.660 | 1.051 |
+| SMA | 0.675 | 0.656 | 1.055 |
+
+The 08-05 (j) claim "EMA beats SMA (mean 1.011 vs 0.896)" is **void**. It was an
+artifact of BUG-031: a faster MA reacts sooner and therefore extracted more from
+the 10-minute lookahead. With the peek removed the difference vanishes.
+
+**Structural effects that survive (all still below 1.0):** long-only 0.713 vs
+both-sides 0.639; cash-session 0.699 vs all-day 0.653; rising-gate OFF 0.710 vs
+ON 0.642 (the gate was also a lookahead beneficiary); **closed-bar cross exit
+0.742 vs cross+3ATR 0.610 — wide ATR stops HURT on this instrument.**
+
+**Survivor sanity — SMA 50/200 long, cash session (the only PF>1 @2pt)**
+
+| check | result |
+|---|---|
+| n / PF / net | 150 / 1.055 / +386 pts |
+| top1 / top5 / top10 as % of net | **242% / 667% / 1024%** |
+| net excluding the single best trade | **−547 pts** |
+| years positive | 5/7 (2021 −1,143, 2024 −248) |
+| IS → OOS | 0.866 → 1.287 |
+| **mirror (SMA50 < SMA200 long)** | **PF 1.396 — the inverse scores HIGHER** |
+| **synthetic null, same rule, 3 seeds** | **PF 1.120** (1.129 / 1.114 / 1.119) |
+
+Killed on three independent grounds: one trade is 242% of net; the mirror beats
+it; and the identical rule scores 1.120 on return-shuffled noise, i.e. **above**
+the 1.055 it scores on real data. This is noise at n=150.
+
+**PHASE 2 — 44 path-robust arms.** Slow-trend (close > SMA/EMA 100/200, rising
+on/off, all-day/cash, state or +3ATR exit) and N-bar breakout (20/50/100-bar
+high, exit on 20/50-bar low, ± 3ATR).
+
+**PF ≥ 1.0 @ 1.0 pt: 0 / 44.** Best arm 0.835 (20-bar high, 50-bar low exit).
+Slow-trend family tops out at 0.785.
+
+**THE DECISIVE COMPARISON**
+
+| reference | PF @ 1.0 pt |
+|---|---|
+| B3 random entry in cash session | **0.807** |
+| Phase 2 mean (44 path-robust arms) | 0.684 |
+| Phase 1 mean (320 MA arms) | 0.677 |
+| B1 always long, cash session | 0.646 |
+
+**The mean MA arm and the mean path-robust arm both score BELOW random entry
+in the same session.** Only one Phase-2 arm (0.835) exceeds random, and it is
+still a losing system.
+
+**VERDICT: STILL NO AU200 CANDIDATE.** Nothing reaches PF 1.2 at 1 pt; nothing
+survives the adoption bar; the two nominal 2-pt survivors are noise.
+
+**UPDATED KILL LIST (corrected engine):** MA crosses all pairs/types/sides —
+DEAD. Rising-slow gate — DEAD (was lookahead). EMA-over-SMA preference — VOID.
+Slow-trend filters (SMA/EMA 100/200) — DEAD. N-bar breakout with wide stops —
+DEAD. Wide ATR stops as an addition — HARMFUL (−0.13 mean PF). Previously
+killed and unchanged: gap/ST/TBT, TB morning scalper, AU200-BASE, VWAP and
+σ-bands, flip mechanics, sub-point trails.
