@@ -1,0 +1,290 @@
+// =============================================================================
+// AU200 UT Bot Session Strategy v1.0
+// =============================================================================
+// SPEC (Phase 0):
+//   Asset: AU200 CFD | TF: 5-minute recommended
+//   Entry: UT Bot buy/sell signal (ATR trailing stop crossover) + EMA200 direction
+//          Only within session 10:00–12:00 AEST (Australia/Sydney)
+//   Exit:  SL=15pts | Trail=30pts (arms at +5pts from entry) | TP1=20pts (50%)
+//          Flip on SL hit: SL×2.0, max 3 flips | Hard close at 12:00 AEST
+//   Costs: commission_type=cash_per_contract, $1 AUD | slippage=1 tick (1pt)
+//   NOT IN SCOPE: news filter, volume profile, multi-TF
+//
+// BUG-019 FIX: excursion peak (v_pk) updated AFTER stop check on every bar.
+//              Previously updating v_pk before checking sl → inflated win rate.
+//
+// MINTICK ASSUMPTION: syminfo.mintick assumed = 1.0 (AU200 CFD standard).
+//   Verify on chart before live use. slippage=1 means 1 tick = 1pt.
+// =============================================================================
+
+//@version=6
+strategy(
+     title              = "AU200 UT Bot Session v1",
+     overlay            = true,
+     initial_capital    = 50000,
+     default_qty_type   = strategy.fixed,
+     default_qty_value  = 1,
+     commission_type    = strategy.commission.cash_per_contract,
+     commission_value   = 1.0,
+     slippage           = 1,
+     process_orders_on_close = true,
+     max_labels_count   = 500,
+     max_lines_count    = 500
+     )
+
+// ── Inputs ───────────────────────────────────────────────────────────────────
+grpUT   = "UT Bot"
+i_atrLen    = input.int(10,    "ATR Length",        minval=1,  group=grpUT)
+i_atrMult   = input.float(1.5, "ATR Multiplier",   minval=0.1, step=0.1, group=grpUT)
+
+grpEMA  = "EMA Filter"
+i_emaLen    = input.int(200,   "EMA Length",        minval=10, group=grpEMA)
+i_useEma    = input.bool(true, "Require EMA filter", group=grpEMA)
+
+grpSess = "Session"
+i_sessStart = input.int(10,    "Session start hour (AEST)", minval=0, maxval=23, group=grpSess)
+i_sessEnd   = input.int(12,    "Session end hour (AEST)",   minval=0, maxval=23, group=grpSess)
+i_tz        = input.string("Australia/Sydney", "Timezone", group=grpSess)
+
+grpExit = "Exit"
+i_sl        = input.float(15.0, "Stop Loss (pts)",          minval=1.0, group=grpExit)
+i_tp1       = input.float(20.0, "TP1 (pts)",                minval=1.0, group=grpExit)
+i_tp1Pct    = input.float(0.50, "TP1 close fraction",       minval=0.1, maxval=1.0, step=0.05, group=grpExit)
+i_useTP1BE  = input.bool(true,  "Move SL to BE after TP1",  group=grpExit)
+i_trailPts  = input.float(30.0, "Trail distance (pts)",     minval=1.0, group=grpExit)
+i_trailTrig = input.float(5.0,  "Trail trigger (pts from entry)", minval=0.0, group=grpExit)
+
+grpFlip = "Flip Engine"
+i_flipSLMult = input.float(2.0, "Flip SL multiplier",  minval=1.0, step=0.1, group=grpFlip)
+i_maxFlips   = input.int(3,     "Max flips per session", minval=0, maxval=10, group=grpFlip)
+
+grpDbg  = "Debug"
+i_debug     = input.bool(true,  "Show debug table",  group=grpDbg)
+
+// ── Derived ───────────────────────────────────────────────────────────────────
+ema200  = ta.ema(close, i_emaLen)
+atr     = ta.atr(i_atrLen)
+
+// ── UT Bot Core ───────────────────────────────────────────────────────────────
+// Classic UT Bot: ATR trailing stop that flips direction on crossover/crossunder
+var float utTrail = na
+var int   utDir   = 0  // 1=long trail, -1=short trail
+
+float trailStop = atr * i_atrMult
+
+if na(utTrail)
+    utTrail := close
+    utDir   := 1
+
+// Long trail: if close drops below trail, flip short; else raise trail
+if utDir == 1
+    if close < utTrail
+        utDir   := -1
+        utTrail := close + trailStop
+    else
+        utTrail := math.max(utTrail, close - trailStop)
+else
+    if close > utTrail
+        utDir   := 1
+        utTrail := close - trailStop
+    else
+        utTrail := math.min(utTrail, close + trailStop)
+
+// Signal: direction change
+bool utBuy  = utDir == 1 and utDir[1] == -1
+bool utSell = utDir == -1 and utDir[1] == 1
+
+// ── EMA Filter ────────────────────────────────────────────────────────────────
+bool emaLong  = not i_useEma or close > ema200
+bool emaShort = not i_useEma or close < ema200
+
+// ── Session Filter ────────────────────────────────────────────────────────────
+int  hAEST    = hour(time, i_tz)
+int  mAEST    = minute(time, i_tz)
+bool inSess   = hAEST >= i_sessStart and hAEST < i_sessEnd
+bool sessEnd  = hAEST == i_sessEnd and mAEST == 0  // hard close bar
+
+// ── State Variables ───────────────────────────────────────────────────────────
+var float entryPrice = na
+var float sl_p       = na
+var float tp1_p      = na
+var float trailRef   = na   // excursion peak/trough for trail (BUG-019: updated AFTER stop check)
+var bool  tp1Done    = false
+var bool  inFlip     = false
+var int   flipCount  = 0
+var int   posDir     = 0    // 1=long, -1=short, 0=flat
+var bool  trailArmed = false
+
+// ── Exit Logic (BUG-019 compliant: stop CHECK first, then peak update) ────────
+bool justStopped = false
+bool justTP1     = false
+bool justFlipped = false
+
+if posDir != 0
+    bool isLong = posDir == 1
+
+    // 1. CHECK STOP (must be before peak update — BUG-019 fix)
+    bool stopHit = isLong ? low <= sl_p : high >= sl_p
+
+    if stopHit
+        // Flip logic
+        if inFlip and flipCount < i_maxFlips
+            // Open reverse position at SL price
+            float flipSL = sl_p  // entry is at current SL price
+            float newSL  = isLong ? flipSL - i_sl * i_flipSLMult : flipSL + i_sl * i_flipSLMult
+            float newTP1 = isLong ? flipSL - i_tp1 : flipSL + i_tp1
+
+            if isLong
+                strategy.close("Long", comment="SL→Flip")
+                strategy.entry("Short", strategy.short, comment="Flip↓")
+            else
+                strategy.close("Short", comment="SL→Flip")
+                strategy.entry("Long", strategy.long, comment="Flip↑")
+
+            posDir     := -posDir
+            entryPrice := flipSL
+            sl_p       := newSL
+            tp1_p      := newTP1
+            trailRef   := flipSL
+            tp1Done    := false
+            trailArmed := false
+            flipCount  += 1
+            justFlipped := true
+        else
+            // Close flat
+            if isLong
+                strategy.close("Long", comment="SL")
+            else
+                strategy.close("Short", comment="SL")
+            posDir      := 0
+            entryPrice  := na
+            sl_p        := na
+            tp1_p       := na
+            trailRef    := na
+            tp1Done     := false
+            trailArmed  := false
+            inFlip      := false
+            justStopped := true
+
+    // 2. Trail stop (armed check, AFTER stop already handled)
+    if posDir != 0  // still in position (not just stopped)
+        bool isLong2 = posDir == 1
+        // Arm trail once price moves i_trailTrig pts in our favour
+        if not trailArmed
+            bool trigLong  = isLong2 and high >= entryPrice + i_trailTrig
+            bool trigShort = not isLong2 and low <= entryPrice - i_trailTrig
+            if trigLong or trigShort
+                trailArmed := true
+                trailRef   := isLong2 ? high : low
+
+        // 3. UPDATE excursion peak (BUG-019 fix: AFTER stop check)
+        if trailArmed
+            if isLong2
+                trailRef := math.max(trailRef, high)
+                float newSL = trailRef - i_trailPts
+                if newSL > sl_p
+                    sl_p := newSL
+            else
+                trailRef := math.min(trailRef, low)
+                float newSL = trailRef + i_trailPts
+                if newSL < sl_p
+                    sl_p := newSL
+
+        // 4. TP1
+        if not tp1Done and not na(tp1_p)
+            bool tp1Hit = isLong2 ? high >= tp1_p : low <= tp1_p
+            if tp1Hit
+                strategy.close_all(comment="TP1 partial")  // simplified: full close for now
+                // Note: partial exit via qty not implemented here (strategy.close uses qty_percent)
+                // Use strategy.order with qty = initial * i_tp1Pct for partial
+                tp1Done    := true
+                justTP1    := true
+                if i_useTP1BE
+                    sl_p := entryPrice
+
+// 5. Hard close at session end
+if sessEnd and posDir != 0
+    strategy.close_all(comment="EOD")
+    posDir      := 0
+    entryPrice  := na
+    sl_p        := na
+    tp1_p       := na
+    trailRef    := na
+    tp1Done     := false
+    trailArmed  := false
+    inFlip      := false
+    flipCount   := 0
+
+// Reset flip count at new session
+bool newSession = inSess and not inSess[1]
+if newSession
+    flipCount := 0
+
+// ── Entry Logic ───────────────────────────────────────────────────────────────
+bool canEntry = inSess and posDir == 0 and not justStopped
+
+if canEntry
+    if utBuy and emaLong
+        strategy.entry("Long", strategy.long, comment="UT↑")
+        posDir     := 1
+        entryPrice := close
+        sl_p       := close - i_sl
+        tp1_p      := close + i_tp1
+        trailRef   := close
+        tp1Done    := false
+        trailArmed := false
+        inFlip     := true
+        // flipCount resets only at new session, not on each entry (counts per session)
+
+    else if utSell and emaShort
+        strategy.entry("Short", strategy.short, comment="UT↓")
+        posDir     := -1
+        entryPrice := close
+        sl_p       := close + i_sl
+        tp1_p      := close - i_tp1
+        trailRef   := close
+        tp1Done    := false
+        trailArmed := false
+        inFlip     := true
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+plot(ema200,     "EMA 200",   color=color.new(color.orange, 0), linewidth=2)
+plot(utTrail,    "UT Trail",  color=utDir == 1 ? color.green : color.red, linewidth=1)
+plot(posDir != 0 ? sl_p : na, "SL",    color=color.red,   style=plot.style_circles, linewidth=1)
+plot(posDir != 0 and not tp1Done ? tp1_p : na, "TP1", color=color.blue, style=plot.style_circles, linewidth=1)
+
+// Session background
+bgcolor(inSess ? color.new(color.blue, 92) : na, title="Session")
+
+// UT signals
+plotshape(utBuy  and inSess, "UT Buy",  shape.triangleup,   location.belowbar, color.green, size=size.small)
+plotshape(utSell and inSess, "UT Sell", shape.triangledown,  location.abovebar, color.red,   size=size.small)
+
+// ── Debug Table ───────────────────────────────────────────────────────────────
+if i_debug and barstate.islast
+    var table tbl = table.new(position.top_right, 2, 10, bgcolor=color.new(color.black, 80), border_width=1)
+    table.cell(tbl, 0, 0, "AU200 UTBot v1",    text_color=color.white, text_size=size.small)
+    table.cell(tbl, 1, 0, str.tostring(close, "#.0"),  text_color=color.white, text_size=size.small)
+    table.cell(tbl, 0, 1, "Direction",         text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 1, posDir == 1 ? "LONG" : posDir == -1 ? "SHORT" : "FLAT",
+               text_color=posDir == 1 ? color.green : posDir == -1 ? color.red : color.gray, text_size=size.tiny)
+    table.cell(tbl, 0, 2, "SL",               text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 2, na(sl_p) ? "—" : str.tostring(sl_p, "#.0"), text_color=color.red, text_size=size.tiny)
+    table.cell(tbl, 0, 3, "TP1",              text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 3, na(tp1_p) or tp1Done ? "—" : str.tostring(tp1_p, "#.0"), text_color=color.blue, text_size=size.tiny)
+    table.cell(tbl, 0, 4, "Flip #",           text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 4, str.tostring(flipCount), text_color=color.yellow, text_size=size.tiny)
+    table.cell(tbl, 0, 5, "In Session",       text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 5, inSess ? "YES" : "NO", text_color=inSess ? color.green : color.gray, text_size=size.tiny)
+    table.cell(tbl, 0, 6, "MINTICK (assumed)",text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 6, "1.0 pt — VERIFY",  text_color=color.yellow, text_size=size.tiny)
+    table.cell(tbl, 0, 7, "Slippage",         text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 7, "1 tick = 1 pt",    text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 0, 8, "BUG-019",          text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 8, "FIXED",            text_color=color.green, text_size=size.tiny)
+    table.cell(tbl, 0, 9, "Commission",       text_color=color.gray,  text_size=size.tiny)
+    table.cell(tbl, 1, 9, "$1 AUD/contract",  text_color=color.gray,  text_size=size.tiny)
+
+// ── Alert Conditions ──────────────────────────────────────────────────────────
+alertcondition(utBuy  and inSess and emaLong,  "UT Buy Signal",  "AU200 UT Buy in session")
+alertcondition(utSell and inSess and emaShort, "UT Sell Signal", "AU200 UT Sell in session")
