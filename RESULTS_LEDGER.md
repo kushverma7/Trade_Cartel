@@ -3312,3 +3312,81 @@ about +0.27 MAR — real but small. Buying 9 points costs 92% of the return.
 
 If a low hit rate is uncomfortable to trade rather than mathematically
 suboptimal, the fix is the **20% drawdown budget**, not a filter.
+
+---
+
+## 2026-08-05 — Source-library deep research (corrected Quarterly Theory + pattern battery)
+
+Data: `data/xauusd_15m.csv.gz`, resampled 30m, 2019-12-01 → sample end
+(157,366 15m bars / 78,693 30m bars). Champion settings unchanged
+(trail 4.24 ATR, short_risk 0.75, cooldown 3, comm 0.07, slip 0.20).
+
+### Champion gated by corrected quarter (`research/qt_corrected.csv`)
+
+| gate | n | WR% | PF | net% | DD% | PF h1 | PF h2 | verdict |
+|---|---|---|---|---|---|---|---|---|
+| ALL (ungated) | 789 | 21.67 | **1.626** | 1511.9 | 35.25 | — | — | baseline |
+| daily Q1 (18–00 NY) | 330 | 21.21 | 1.380 | 128.9 | 49.19 | 0.945 | 1.857 | worse |
+| daily Q2 (00–06 NY) | 436 | 25.46 | 1.519 | 564.9 | 37.28 | 1.281 | 1.655 | worse |
+| daily Q3 (06–12 NY) | 552 | 21.38 | 1.463 | 377.9 | 45.61 | 1.135 | 1.697 | worse |
+| daily Q4 (12–18 NY) | 293 | 19.80 | 1.201 | 57.2 | 34.23 | 1.066 | 1.351 | worse |
+| weekly Q1 = Tue | 242 | 23.14 | 1.114 | 22.5 | 40.45 | 0.876 | 1.385 | worse |
+| weekly Q2 = Wed | 264 | 18.56 | 1.065 | 17.5 | 37.12 | 1.150 | 0.971 | worse |
+| weekly Q3 = Thu | 244 | 23.36 | 1.392 | 177.7 | 36.48 | 1.532 | 1.242 | worse |
+| weekly Q4 = **Fri** | 224 | 22.32 | **1.825** | 332.6 | 22.21 | 1.570 | 1.960 | see DD-match |
+| session Q1 | 463 | 21.60 | 1.408 | 243.4 | 42.08 | 1.151 | 1.618 | worse |
+| session Q2 | 453 | 21.85 | 1.556 | 449.8 | 40.83 | 1.136 | 1.819 | worse |
+| session Q3 | 412 | 21.60 | 1.529 | 374.4 | 38.98 | 1.153 | 1.764 | worse |
+| session Q4 | 284 | 23.24 | 1.593 | 215.3 | 43.20 | 1.154 | 2.027 | worse |
+
+Twelve arms scanned; one beat baseline PF. That is what noise produces.
+
+### Drawdown-matched control on the survivor (`research/qt_friday.py`)
+
+Risk% solved by bisection so all three arms land on 25% max DD.
+
+| arm | risk% | n | PF | net% | DD% | **net/DD** |
+|---|---|---|---|---|---|---|
+| champion, all days | 0.72 | 789 | 1.589 | +678.5 | 24.89 | **27.26** |
+| Friday only | 1.11 | 224 | 1.832 | +411.0 | 25.00 | 16.44 |
+| drop Friday | 0.43 | 709 | 1.432 | +134.8 | 25.00 | 5.39 |
+
+**REJECTED.** Friday-only has the higher PF and compounds 40% less at equal
+risk. Dropping Friday costs 80% of the risk-adjusted return.
+
+### Surrogate null on QT anatomy (`research/qt_null.py`, 20 return-shuffled paths)
+
+| cycle | statistics beyond ±3σ | reading |
+|---|---|---|
+| weekly | **0 of 8** | no structure at all |
+| daily | Q3 sets high 0.365 vs surrogate 0.188 (z **+17.4**) | real, but it is session volatility, not QT's Q2 manipulation (Q2 = 0.150) |
+| session | Q1 +6.5, Q2 +5.7, Q4 −12.5 | real; the sweep-reversal z-scores are reproduced by the surrogate, i.e. geometry |
+
+### Pattern battery (`research/source_battery.csv`) — 10 arms × 4 horizons
+
+Forward move in ATR vs the **unconditional** move, Welch t. **Survivors at
+|t| > 3: 0 of 40.** Strongest results: PIN_BEAR t = −2.87 (inverted — bearish
+pins precede up moves), BIGPLAY_L_adx −0.484 ATR at 32 bars (t = −2.06,
+negative as specified), FAKEY_UP +1.92 at 32 bars.
+
+### Dollar-quarter grid (`research/source_dollar_quarter.csv`)
+
+| level | .00 | .25 | .50 | .75 |
+|---|---|---|---|---|
+| touches | 78,033 | 77,985 | 77,939 | 77,973 |
+| reject rate | 0.7009 | 0.7022 | 0.7023 | 0.7002 |
+
+Blueprint claim (".00 strongest, .25/.75 often breached") **REJECTED** on
+n ≈ 78k per level. Spread is 0.2 points.
+
+### NY open (`research/source_ny_open.csv`)
+
+| window | n | mean abs move | sign-flip rate |
+|---|---|---|---|
+| 09:30–10:30 NY | 3,436 | **4.998** | 0.4974 |
+| all other bars | 75,257 | 2.528 | 0.5163 |
+
+Volatility doubles; reversals are *less* frequent than baseline. "Major
+reversals at the NY open" **REJECTED**; it is an expansion window.
+
+**Net effect on the shipped system: none. No change adopted.**
