@@ -3754,3 +3754,119 @@ roughly double slippage.
 **VERDICT: REJECT.** Bars 1 and 5 pass; bar 2 marginal; bars 3 and 4 fail.
 The measurement edge was REAL but too thin and too concentrated to trade
 standalone.
+
+---
+
+## 2026-08-05 (h) — AU200 (AUS200 CFD): all families re-tested under one protocol
+
+**Data (recovered mid-session).** `data/au200_5m.csv.gz`, 139,898 5-minute bars,
+2020-08-05 → 2026-08-04 Australia/Sydney, 6.00 years, 1,635 dates. This is the
+**CapitalCom feed of Archive 2**, not Archive 3's 212,177-bar London-Strategic-Edge
+feed — so Archive 3's candidates get a genuine independent test here.
+
+Verified at load: median bar step 5.0 min; smallest close increment **0.02 pt**
+(archives claim 0.1 — see bugs); **92.6% of dates carry a bar stamped exactly
+10:00 local** under Australia/Sydney.
+
+**Feed-coverage break, confirmed:** 6 distinct hours present per year 2020-2022,
+23 from 2023. Any all-day walk-forward straddling 2023 compares two different
+data-generating processes.
+
+Costs: slippage floor **1.0 pt/side**, commission 0.50 AUD/order, point value 100 AUD.
+
+### PASS 1 — baseline, 1.0 pt/side (`research/au200_pass1.csv`)
+
+| arm | exit | n | WR% | PF | net pts | maxDD | top10 %net | yrs+ |
+|---|---|---|---|---|---|---|---|---|
+| A gap+ST+TBT (long) | trail no-flip | 439 | 23.9 | **1.165** | 650 | 472 | 204.2 | 4/7 |
+| A gap only | trail no-flip | 1117 | 24.8 | 1.160 | 1655 | 525 | 121.3 | 5/7 |
+| C AU200-BASE | flip | 1743 | 25.9 | 1.153 | 2501 | 712 | 79.3 | 5/7 |
+| C AU200-BASE | trail no-flip | 992 | 24.2 | 1.151 | 1423 | 733 | 135.1 | 5/7 |
+| A gap+ST+TBT (long) | flip | 856 | 24.7 | 1.133 | 1053 | 571 | 177.1 | 5/7 |
+| D ST-flip+ADX25 | flip | 2898 | 25.9 | 1.106 | 2516 | 964 | 77.4 | 4/7 |
+| A gap only | flip | 1977 | 25.0 | 1.077 | 1454 | 1467 | 149.1 | 4/7 |
+| D TB morning scalper | flip | 1705 | 24.0 | **0.987** | −212 | 1147 | −884 | 3/7 |
+| **CONTROL random-in-window** | flip | 1719 | 22.8 | **0.914** | −1401 | 2102 | — | 2/7 |
+| **CONTROL buy & hold** | — | 1 | — | — | **+3,013** | — | — | — |
+
+**Every 3-layer ATR exit arm returned PF < 1.0** (0.852–0.995). That exit
+protocol is refuted on this feed.
+
+### PASS 4a — SLIPPAGE SENSITIVITY (decisive)
+
+| arm | exit | PF@1.0 | PF@1.5 | PF@2.0 | PF@2.5 | PF@3.0 | net@2pt |
+|---|---|---|---|---|---|---|---|
+| C AU200-BASE | flip | 1.153 | 1.030 | 0.908 | 0.812 | 0.734 | −1,808 |
+| C AU200-BASE | no-flip | 1.151 | 1.018 | 0.904 | 0.755 | 0.610 | −933 |
+| A gap+ST+TBT long | no-flip | 1.165 | 0.975 | 0.862 | 0.756 | 0.590 | −581 |
+| A gap only | no-flip | 1.160 | 1.062 | 0.905 | 0.735 | 0.585 | −1,037 |
+| A gap+ST+TBT long | flip | 1.133 | 1.014 | 0.872 | 0.802 | 0.691 | −1,229 |
+| D ST-flip+ADX25 | flip | 1.106 | 0.992 | 0.844 | 0.754 | 0.627 | −4,649 |
+
+**Arms above PF 1.0 at 2.0 pt/side: ZERO.** Every candidate breaks even between
+1.0 and 1.5 pt of slippage.
+
+### PASS 4b — year by year at 1.0 pt/side
+
+| arm | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|---|---|
+| C AU200-BASE | 1.11 | 1.30 | 1.32 | 1.00 | 1.18 | **0.96** | 1.34 |
+| D ST-flip+ADX25 | **0.95** | 1.19 | 1.39 | **0.88** | 1.22 | 1.27 | **0.85** |
+| A gap only | 1.33 | 1.43 | 1.25 | **0.83** | **0.96** | 1.13 | **0.79** |
+| A gap+ST+TBT long | 1.60 | 1.02 | 1.11 | **0.90** | 1.36 | 1.06 | **0.94** |
+
+### PASS 4c — time-based OOS (train to 2023-07, test from 2023-08)
+
+| arm | exit | IS n | IS PF | OOS n | OOS PF | degradation |
+|---|---|---|---|---|---|---|
+| A gap+ST+TBT long | flip | 453 | 1.121 | 403 | **1.151** | −2.7% |
+| C AU200-BASE | flip | 736 | 1.190 | 1007 | **1.125** | 5.5% |
+| D ST-flip+ADX25 | flip | 1255 | 1.210 | 1643 | 1.009 | 16.6% |
+| A gap only | flip | 842 | 1.184 | 1135 | 0.994 | 16.0% |
+| C AU200-BASE | no-flip | 437 | 1.337 | 555 | 1.000 | 25.2% |
+| A gap only | no-flip | 535 | 1.380 | 582 | 0.958 | 30.6% |
+| A gap+ST+TBT long | no-flip | 252 | 1.363 | 187 | 0.832 | 39.0% |
+
+**The flip mechanism HOLDS out of sample; the no-flip trail does not.** This
+overturns Archive 3's claim that flip-recovery "degraded out of sample".
+
+### PASS 4d — concentration and Monte Carlo (5 seeds × 2,000 reshuffles)
+
+| arm | exit | n | PF | top5 %net | top10 %net | MC med DD |
+|---|---|---|---|---|---|---|
+| C AU200-BASE | flip | 1743 | 1.153 | **44.9** | **79.3** | 861 |
+| D ST-flip+ADX25 | flip | 2898 | 1.106 | 44.9 | 77.4 | 1079 |
+| A gap only | no-flip | 1117 | 1.160 | 70.9 | 121.3 | 777 |
+| A gap+ST+TBT long | flip | 856 | 1.133 | 110.9 | 177.1 | 723 |
+| A gap+ST+TBT long | no-flip | 439 | 1.165 | 130.9 | **204.2** | 501 |
+
+Values above 100% mean the rest of the book is net negative.
+
+### VERDICT: NO AU200 SYSTEM CLEARS THE ADOPTION BAR
+
+| bar | best arm (C AU200-BASE + flip) |
+|---|---|
+| 1. Positive expectancy after realistic costs | **FAIL** — dies at 1.5 pt/side |
+| 2. Holds in time-based OOS | PASS (1.190 → 1.125) |
+| 3. Not driven by outliers | MARGINAL — top 10 of 1,743 carry 79.3% of net |
+| 4. Plateau not spike | NOT REACHED (gated on bar 1) |
+| 5. Not one lucky year | MARGINAL — 5/7 years positive, 2025 at 0.96 |
+
+Also: **no arm beats buy-and-hold** (+3,013 pts) on net points.
+
+### TBT+Flip (Archive 3, PF 2.21) — cost reconstruction
+
+Published at **0 pts slippage**. From its own aggregates (PF 2.21, WR 9.9%,
+net +12,249, fixed 5-pt stop ⇒ n_loss = gross_loss/5): n ≈ 2,247 legs,
+gross win 22,372, gross loss 10,123, avg win 100.6 pts.
+
+| slippage/side | net pts | PF |
+|---|---|---|
+| 0.0 | 12,227 | 2.205 |
+| 1.0 | 7,732 | 1.545 |
+| 2.0 | 3,238 | 1.177 |
+| 2.72 | 0 | 1.000 |
+| 3.0 | −1,256 | 0.944 |
+
+Break-even ≈ **2.72 pt/side**; trade count is inferred, and at 1.5× the inferred
+n break-even falls to 1.81 pt.
