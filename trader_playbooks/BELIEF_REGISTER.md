@@ -1962,3 +1962,84 @@ have now failed controls in this repo. The prior on the seventeenth should be
 set accordingly: the champion's edge is in its *exit* (a 4.24-ATR chandelier on
 a 6.36:1 payoff), and no amount of entry pattern-matching from the source
 library has moved it.
+
+---
+
+## B-0xx — The long-form books: two claims are significant, both with the sign against the author
+
+`research/source_battery2.py` covers the rules stated in prose across the
+long-form sources — Person's candlesticks, Ochoa's pivots, Hougaard's manual,
+Trader Dale's volume profile — anything exact enough to falsify. Directional
+arms go through the same Welch-t-against-the-unconditional harness as battery 1.
+Regime claims do **not**: they do not predict direction, they claim to say when a
+breakout system should be trading, so they are run as champion gates at matched
+25% drawdown.
+
+**Directional survivors at |t| > 3: 6 of 40. Every one is a refutation.**
+
+**1. Ochoa's headline rule is a significant loser.** "Buy support in a bull
+trend" — price trading into S1 while above the 89MA — returns **−0.196 ATR** at
+32 bars against an unconditional **+0.323** (edge −0.519, **t = −4.92**,
+n = 1911). Buying dips at pivot support in gold's uptrend underperforms buying
+nothing. The rule is not merely absent; it is inverted and significant.
+
+**2. Hougaard's 89MA separates drift, but not in a way that can be shorted.**
+
+| state | forward move at 32 bars | n |
+|---|---|---|
+| above 89MA | **+0.448 ATR** | 42,814 |
+| unconditional | +0.323 ATR | — |
+| below 89MA | **+0.162 ATR** | 35,761 |
+
+t = +4.46 and +5.54 — real and large. But note what it says: below the 89MA gold
+*still drifts up*, only slower. The four "significant" below-89 rows are
+significant in the short direction only because slower-up beats faster-up when
+you flip the sign. **A short taken on that signal still loses to the drift.**
+This is the B-0xx bull-market artifact in a new costume, and the gate confirms
+it: net/DD 16.10 against the ungated 27.26.
+
+**3. Ochoa's pivot-width claim points the right way and is noise.** "Unusually
+narrow pivot range forecasts trending and breakout markets; unusually wide
+forecasts sideways trading." Day trend-efficiency, |close−open| / (high−low),
+by pivot-width quintile over 2,071 days:
+
+| narrowest | narrow | mid | wide | widest |
+|---|---|---|---|---|
+| 0.4596 | 0.4539 | 0.4542 | 0.4514 | 0.4383 |
+
+Monotone in the predicted direction. **Spearman ρ = −0.027, p = 0.22; narrowest
+vs widest Welch t = +1.17, p = 0.24.** This is the most interesting claim in the
+library for this desk — the champion *is* a breakout system, so a free
+breakout-day gate would be worth real money — and it is 2 points of efficiency
+that cannot be separated from chance.
+
+**Everything else is flat.** Person's HCD/LCD (doji plus a confirming close) and
+his Jack Hammer (lower shadow ≥ 2× body, then a close above the hammer's high)
+both come in at |t| ≤ 2.1 — and note these are *stricter* than battery 1's pin
+bar, since Person requires a confirmation bar, so the confirmation adds nothing.
+Trader Dale's volume-profile POC, built as a rolling 10-day 60-bin profile ending
+at the previous bar, reaches |t| = 2.60 once out of eight tests.
+
+**Not one regime gate beats the ungated champion at matched drawdown:**
+
+| gate | risk% | n | PF | net | net/DD |
+|---|---|---|---|---|---|
+| **ungated** | 0.72 | 789 | 1.589 | +678.5% | **27.26** |
+| Dale: > 1 ATR from POC | 0.68 | 766 | 1.599 | +592.1% | 23.67 |
+| Hougaard: > 1 ATR from 89MA | 0.61 | 748 | 1.559 | +402.7% | 16.10 |
+| Ochoa: inside value only | 2.56 | 74 | 1.939 | +266.6% | 10.62 |
+| Ochoa: narrow pivot only | 0.69 | 416 | 1.794 | +261.9% | 10.51 |
+| Ochoa: wide pivot only | 0.53 | 388 | 1.283 | +57.6% | 2.31 |
+| Ochoa: higher/lower value | 0.33 | 599 | 1.212 | +34.4% | 1.37 |
+
+Three gates post a **higher profit factor** than the ungated champion and every
+one of them compounds less. That is the same trap as the Friday result, and it
+is now the third time this pattern has appeared: **PF rises whenever a filter
+removes trades, because the survivors are the easy ones. Read net/DD.**
+
+**Recorded as untestable rather than silently dropped:** Dale's Order Flow
+confirmation step needs a bid/ask ladder this desk does not have;
+`agent_2_1_cluster_detector` is SEC Form 4 insider clustering on US equities
+with no application to XAUUSD; the Gann material states no falsifiable
+mechanical rule; Hougaard's discretionary crowd-reading is by construction not
+mechanical. Those four are gaps in coverage, not passes.
