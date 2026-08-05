@@ -3690,3 +3690,67 @@ desk-checked). Risk presets re-solved: **0.606% at 25% DD, 0.475% at 20%**.
 
 **On the record:** G1\* failed US30 before withdrawal (P(DD>30%) 36% → 53%).
 The supported claim is "better on gold", not "better".
+
+### 2026-08-05 (g) — Standalone PWH/PWL break strategy: REJECTED
+
+Gold 30m, 78,695 bars, 2019-12-01 → 2026-07-30 (6.66y, 349 weeks). PWH/PWL
+verified non-repainting (constant within week, equal to prior completed week's
+extreme for all 349 weeks). Costs 0.07/oz/side + 0.20 slippage. No pyramiding.
+Fixed-fractional sizing bisected to the DD budget. `research/pwh_break.py`.
+
+**BUG FOUND BEFORE ANY RESULT:** first signal condition `prev_close <= L + band`
+fired on bars whose previous close was already inside the band on the far side
+— continuation bars, not fresh breaks. 637 PWH up-breaks at tol 0.5 against the
+study's 274, a **2.3× inflation**. Corrected to `prev_close < L` strictly.
+Counts now reconcile exactly with the study (274+176=450 at tol 0.5,
+408+295=703 at 0.25).
+
+**DEFINITION FORK:** the study's surviving cell was `PWH break` in the break
+direction — BOTH directions. The brief pairs PWH-up with PWL-down, and
+`PWL break` scored edge_mm −0.008 and was rejected. Three variants run:
+V1 = brief, V2 = surviving cell, V3 = long-only PWH-up.
+
+**Top arms, 25% DD budget** (144 arms total, `research/pwh_break.csv`)
+
+| arm | risk% | n | WR | PF | CAGR | MAR | MC med | P(DD>30%) | pre-2025 | 2021 | 2022 | 2026 | top10 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| V1 t0.5 time64+4ATR | 3.57 | 330 | 47.6 | 1.368 | 32.2 | **1.287** | 36.18 | **82.96%** | 1.283 | 1.051 | 1.343 | 1.213 | 59.4% |
+| **V3 t0.5 trail 5ATR** | 3.13 | 192 | 44.8 | **1.840** | 29.0 | 1.159 | 20.99 | **6.96%** | **1.865** | **0.496** | 1.175 | 1.406 | 61.4% |
+| V1 t0.5 trail 5ATR | 3.60 | 322 | 41.6 | 1.390 | 27.9 | 1.115 | 32.94 | 67.13% | 1.430 | 0.759 | 1.420 | 1.208 | 65.9% |
+| V2 t0.25 3R tgt | 1.95 | 335 | 32.8 | 1.343 | 25.7 | 1.028 | 30.30 | 51.93% | 1.321 | 0.889 | 1.097 | 1.016 | 47.3% |
+| V2 t0.5 trail 5ATR | 2.19 | 245 | 41.6 | 1.561 | 16.6 | 0.663 | 19.28 | 3.38% | 1.547 | 0.727 | 1.179 | 0.923 | 61.5% |
+
+20% budget preserves the ordering (V1 time64 1.276, V3 trail5 1.134).
+
+**CONTROL 1 — displaced weekly levels, 14 replicates, each re-solved to 25% DD**
+
+| arm | real MAR | control mean | sd | min | max | percentile |
+|---|---|---|---|---|---|---|
+| V3 t0.5 trail 5ATR | 1.159 | 0.680 | 0.431 | 0.269 | **1.978** | 92.9th (1/14 beat it) |
+| V1 t0.5 time64 | 1.287 | 0.241 | 0.356 | −0.057 | **1.304** | 92.9th (1/14 beat it) |
+| V2 t0.5 trail 5ATR | 0.663 | 0.230 | 0.157 | 0.009 | 0.529 | 100th (0/14) |
+
+**CONTROL 2 — buy and hold:** net +179.1%, CAGR 16.67%, DD 29.08%, MAR 0.573.
+
+**RIGHT TAIL, V3 t0.5 trail 5ATR (n=192)**
+
+| | % of gross profit | **% of NET** |
+|---|---|---|
+| top 1 trade | 7.0 | 15.3 |
+| top 5 trades | 26.5 | **58.0** |
+| top 10 trades | 41.8 | **91.6** |
+| top 10% (19) | 61.4 | **134.5** |
+
+Removing the best 5 of 192 trades cuts net to **42%** of original.
+
+**Walk-forward, V3:** folds 1.775 / 2.615 / 2.224 / 2.321 / 2.783 / 1.212 — all
+above 1, but n=16–25 per fold.
+
+**Cost sensitivity, V3 (risk fixed 3.127%):** MAR 1.435 at zero cost → 1.159 at
+0.07+0.20 → 0.980 at 0.07+0.40 → 0.831 at 0.07+0.60. Costs consume **19% of
+MAR** at the desk's standard assumption and break even against buy-and-hold at
+roughly double slippage.
+
+**VERDICT: REJECT.** Bars 1 and 5 pass; bar 2 marginal; bars 3 and 4 fail.
+The measurement edge was REAL but too thin and too concentrated to trade
+standalone.
