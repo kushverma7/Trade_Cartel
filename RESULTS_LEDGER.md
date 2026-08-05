@@ -3390,3 +3390,58 @@ Volatility doubles; reversals are *less* frequent than baseline. "Major
 reversals at the NY open" **REJECTED**; it is an expansion window.
 
 **Net effect on the shipped system: none. No change adopted.**
+
+### 2026-08-05 (b) — Long-form source battery (`research/source_battery2.py`)
+
+Same data and champion settings as the 08-05 block above.
+
+**Directional arms — forward move in ATR vs the unconditional move, Welch t.
+10 arms × 4 horizons. Survivors at |t| > 3: 6, all refutations.**
+
+| arm | horizon | n | mean ATR | uncond | edge | t |
+|---|---|---|---|---|---|---|
+| OCHOA_S1_in_uptrend | 32 | 1911 | −0.196 | +0.323 | **−0.519** | **−4.92** |
+| HOUGAARD_above89 | 32 | 42814 | +0.448 | +0.323 | +0.125 | +4.46 |
+| HOUGAARD_above89 | 16 | 42814 | +0.233 | +0.160 | +0.073 | +3.78 |
+| HOUGAARD_below89 | 32 | 35761 | +0.162 (raw) | +0.323 | +0.161 short | +5.54 |
+| HOUGAARD_below89 | 16 | 35777 | +0.067 (raw) | +0.160 | +0.093 short | +4.63 |
+| HOUGAARD_below89 | 8 | 35780 | +0.035 (raw) | +0.081 | +0.047 short | +3.38 |
+| PERSON_HCD_long | all | 4133 | — | — | — | \|t\| ≤ 2.0 |
+| PERSON_JACKHAMMER | all | 1515 | — | — | — | \|t\| ≤ 1.3 |
+| PERSON_SHOOTSTAR | all | 1244 | — | — | — | \|t\| ≤ 1.6 |
+| DALE_POC_support/resist | all | ~1400 | — | — | — | best \|t\| 2.60 |
+| OCHOA_R1_in_downtrend | all | 1675 | — | — | — | \|t\| ≤ 1.34 |
+
+The below-89MA rows are significant only because gold's drift is *slower* there,
+not negative. A short on that signal still loses to the drift.
+
+**Ochoa pivot-width claim (`research/source_pivot_width.csv`), 2,071 days**
+
+| band | narrowest | narrow | mid | wide | widest |
+|---|---|---|---|---|---|
+| days | 415 | 414 | 414 | 414 | 414 |
+| mean trend-efficiency | 0.4596 | 0.4539 | 0.4542 | 0.4514 | 0.4383 |
+
+Spearman ρ = −0.0267, **p = 0.2247**. Narrowest vs widest Welch t = +1.172,
+**p = 0.2415**. Right direction, not significant.
+
+**Regime gates at matched 25% DD (`research/source_regime_gates.csv`)**
+
+| gate | risk% | n | PF | net% | DD% | net/DD |
+|---|---|---|---|---|---|---|
+| **champion, ungated** | 0.72 | 789 | 1.589 | +678.5 | 24.89 | **27.26** |
+| Dale: >1 ATR from POC | 0.68 | 766 | 1.599 | +592.1 | 25.01 | 23.67 |
+| Hougaard: >1 ATR from 89MA | 0.61 | 748 | 1.559 | +402.7 | 25.02 | 16.10 |
+| Ochoa: inside value only | 2.56 | 74 | 1.939 | +266.6 | 25.10 | 10.62 |
+| Ochoa: narrow pivot only | 0.69 | 416 | 1.794 | +261.9 | 24.91 | 10.51 |
+| Ochoa: wide pivot only | 0.53 | 388 | 1.283 | +57.6 | 24.94 | 2.31 |
+| Ochoa: higher/lower value | 0.33 | 599 | 1.212 | +34.4 | 25.02 | 1.37 |
+
+Three gates beat the champion on PF; all seven lose on net/DD.
+
+**Net effect on the shipped system: none. No change adopted.**
+
+**Coverage gaps, stated:** Dale's Order Flow confirmation (needs a bid/ask
+ladder), `agent_2_1_cluster_detector` (SEC Form 4 equities, no XAUUSD
+application), the Gann material (no falsifiable mechanical rule in the text),
+Hougaard's discretionary content (not mechanical).
