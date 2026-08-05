@@ -3547,3 +3547,81 @@ reversal — corroborates the 08-05 (a) NY-open result.
 | rest of month | 68,472 | 0.9836 | 0.5161 |
 
 **Net effect on the shipped system: none. No change adopted.**
+
+### 2026-08-05 (e) — Volatility targeting as a sizing lever (`research/voltarget*.py`)
+
+Locked spec unchanged: Donchian 12h + EMA regime + dual SMA (shorts need falling
+slope) | chandelier 4.24 ATR → 2.0 after +15 ATR | no targets/time stops/BE |
+4 adds × 1.5 ATR on entry ATR | cooldown 30 | sma2 630 | closed-bar only.
+Gold 78,695 30m bars, 2019-12-01 → 2026-07-30 (6.66y). Every arm bisected to the
+drawdown budget. MC = 2,000 shuffles of equity-relative returns.
+
+**IMPLEMENTATION PROOF:** `A: VT ATR14` reproduces Config E to every digit
+(risk 0.706, PF 1.945, MAR 2.263). A 4.24×ATR14 stop makes ATR14-targeting a
+constant multiplier, absorbed by the bisection. Expected and observed.
+
+**Main table, 25% budget**
+
+| arm | risk% | n | PF | CAGR | MAR | MC med | P(DD>30%) | PF pre-2025 | top10 share |
+|---|---|---|---|---|---|---|---|---|---|
+| E (baseline) | 0.706 | 711 | 1.945 | 56.6 | 2.263 | 25.35 | 21.55% | 1.459 | 39.5% |
+| G1 (baseline) | 0.708 | 711 | 2.014 | 61.4 | **2.456** | 25.23 | 21.00% | 1.483 | 41.2% |
+| **G1\* (mult also on adds)** | 0.606 | 711 | 2.175 | 60.8 | 2.431 | **22.47** | **10.55%** | **1.520** | 41.4% |
+| B: VT ATR20 × G1 | 0.615 | 711 | 2.154 | 60.1 | 2.402 | 22.94 | 11.95% | 1.496 | 41.4% |
+| B: VT SD20d × G1 | 0.640 | 711 | 2.197 | 61.4 | 2.457 | 24.12 | 16.35% | 1.444 | 45.8% |
+| A: VT SD20d | 0.764 | 711 | 1.964 | 57.4 | 2.295 | 27.00 | 31.00% | 1.398 | 42.0% |
+| A: VT EWMA(0.94) | 0.687 | 711 | 1.998 | 55.7 | 2.228 | 24.58 | 18.15% | 1.458 | 40.3% |
+| **A\*: VT ATR20 alone** | 0.716 | 711 | 1.919 | 55.5 | **2.218** | 26.01 | 24.40% | 1.435 | 39.3% |
+| A: VT ATR50 | 0.711 | 711 | 1.862 | 51.0 | 2.042 | 26.06 | 24.85% | 1.394 | 37.5% |
+| C: G1 + open-vol cap 4% | 1.017 | 713 | 1.631 | 47.2 | 1.888 | 29.78 | 48.45% | 1.297 | 33.5% |
+| C: G1 + open-vol cap 2% | 0.954 | 717 | 1.507 | 26.6 | **1.077** | 23.13 | 11.75% | 1.208 | **24.2%** |
+
+20% budget preserves every ordering (E 2.166 / G1 2.345 / G1\* 2.312 / B ATR20
+2.287 / A\* 2.128). Full table in `voltarget_gold.csv`.
+
+**DISCRIMINANT (`voltarget_discriminant.csv`) — the finding.** Volatility
+targeting ISOLATED is negative: A\* MAR 2.218 against E's 2.263. The entire gain
+attributed to "variant B" comes from `risk_series_adds`, i.e. applying G1's
+existing regime multiplier to the pyramid adds. Layering VT on top makes every
+metric slightly worse (2.431 → 2.402).
+
+**Right tail, matched by entry bar (`voltarget_tails.csv`), ratios vs G1**
+
+| arm | top1% | top5% | top10% | bot10% | gross win | gross loss | win/loss |
+|---|---|---|---|---|---|---|---|
+| G1\* | 0.915 | 0.924 | 0.917 | 0.829 | 0.907 | 0.840 | **1.080** |
+| B: VT ATR20 × G1 | 0.895 | 0.902 | 0.894 | 0.816 | 0.886 | 0.829 | 1.069 |
+| B: VT SD20d × G1 | 1.037 | 0.966 | 0.941 | 0.895 | 0.925 | 0.848 | 1.091 |
+| **C: open-vol cap 2%** | **0.141** | **0.176** | **0.201** | 0.229 | 0.243 | 0.323 | **0.751** |
+
+Variant C amputates the right tail: top 1% of trades retain 14% of their
+baseline contribution, win rate jumps 21.7%→30.0%, top-10 share 39.5%→24.2%.
+Textbook confirmation of hard finding #2.
+
+**US30 transfer (`voltarget_us30.csv`, `g1star_us30.csv`) — the killer**
+
+| arm | n | PF | MAR | MC med | P(DD>30%) | PF pre-2025 |
+|---|---|---|---|---|---|---|
+| E | 274 | 1.469 | **0.963** | 26.57 | **30.75%** | **2.051** |
+| G1 | 274 | 1.455 | 0.962 | 27.60 | 36.05% | 1.907 |
+| G1\* | 274 | 1.409 | 0.909 | 30.63 | **53.30%** | 1.744 |
+| B: VT ATR20 × G1 | 274 | 1.408 | 0.903 | 30.73 | 53.70% | 1.725 |
+| B: VT SD20d × G1 | 274 | 1.368 | 0.722 | 30.58 | 53.50% | 1.542 |
+
+Every candidate degrades US30 on MAR, MC median, tail probability and pre-2025
+PF. P(DD>30%) roughly doubles. **Adoption bar 5 fails for all of them.**
+
+**CORRECTION TO A PRIOR ENTRY.** The 08-05 (c) note that "the champion has no
+edge on US30 (PF 0.657, n=34)" described the RAW champion. The LOCKED Config E
+gives **n=274, PF 1.487, +272.8%** on the same file at a flat 1% risk. The
+second-instrument control IS informative under Config E — which also means the
+Bollinger squeeze gate can and should be re-tested there.
+
+**Plateau (`voltarget_plateau.csv`, `g1star_plateau.csv`)** — ATR family is a
+clean monotone plateau (MAR 2.431 → 2.251 across ATR14→ATR40, no spike). But
+G1\*'s own thresholds are on a SLOPE, not a peak: expThr 1.00→1.20 rises
+monotonically 2.475 → 2.759, and mult 1.5/0.75 gives 2.478. Chasing that is
+re-optimisation (hard finding #10) and was not pursued.
+
+**DECISION: REJECT all volatility-targeting variants (A, B, C). No change to the
+shipped system.** G1\* deferred pending a US30 result that does not degrade.

@@ -119,7 +119,9 @@ def run(df, sigL, sigS,
         pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
         pyr_mode="current", pyr_budget=1.0, pyr_gate=None, pyr_decay=1.0,
         long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0,
-        cooldown_win=0, risk_series=None, tighten_after=0.0, tighten_to=0.0,
+        cooldown_win=0, risk_series=None, risk_series_adds=False,
+        vol_daily=None, open_vol_cap=0.0,
+        tighten_after=0.0, tighten_to=0.0,
         dd_trigger=0.0, dd_scale=1.0, dd_recover=0.0,
         trail_after_add=0.0, trail_short=0.0, trail_time_bars=0, trail_time_to=0.0,
         pyr_pause_lo=0.0, pyr_pause_hi=0.0, vol_rank=None,
@@ -220,6 +222,15 @@ def run(df, sigL, sigS,
                             gate_ok = False
                         if pyr_pause_hi > 0 and vr > pyr_pause_hi:
                             gate_ok = False
+                if open_vol_cap > 0 and vol_daily is not None:
+                    # SOFT ceiling (variant C). Hard-capping open risk was
+                    # already shown to destroy the return, so this never
+                    # reduces an existing position -- it only declines to
+                    # make the stack bigger once its expected daily vol
+                    # contribution, as a fraction of equity, is at the cap.
+                    ov = pos['qty'] * c[i] * vol_daily[i] / max(eq, 1e-9)
+                    if np.isfinite(ov) and ov * 100.0 >= open_vol_cap:
+                        gate_ok = False
                 if pyr_gate == "breakeven":
                     gate_ok = (pos["stop"] - pos["entry"]) * d > 0
                 if pyr_trail_gate > 0:
@@ -229,6 +240,13 @@ def run(df, sigL, sigS,
                     gate_ok = gate_ok and moved >= pyr_trail_gate
                 if gate_ok and ((h[i] >= nxt) if d > 0 else (l[i] <= nxt)):
                     ar = (risk_pct if d > 0 else risk_pct * short_risk) * pyr_risk
+                    # VOLATILITY TARGETING: an add must be sized to the same
+                    # vol target as the opening unit. The multiplier is the one
+                    # captured AT ENTRY, not today's -- re-reading it mid-trade
+                    # would be intra-trade rebalancing, which is a different
+                    # animal and is deliberately not tested in this pass.
+                    if risk_series_adds:
+                        ar *= pos['rm']
                     # GAP-AWARE ADD FILL (BUG-030). Filling at `nxt` assumes the
                     # add level is crossed DURING this bar. If the bar already
                     # opened beyond it -- which happens on a gap, and happens
@@ -449,17 +467,19 @@ def run(df, sigL, sigS,
             # Progressive risk after consecutive wins, capped. STREAK[0] counts
             # consecutive winning closes and resets on any loss.
             eff *= min(1.0 + streak_step * STREAK[0], streak_cap)
+        _rm = 1.0
         if risk_series is not None:
             # per-bar risk MULTIPLIER (1.0 = unchanged). Applied only at entry,
             # so a position's size is fixed by the regime at the moment it was
             # opened and never re-scaled mid-trade.
             rm = float(risk_series[i])
-            eff *= rm if np.isfinite(rm) else 1.0
+            _rm = rm if np.isfinite(rm) else 1.0
+            eff *= _rm
         qty = float(max(min(eq * eff / 100.0 / sdist, eq * max_lev / c[i]), 0))
         qty = qty if frac_qty else float(np.floor(qty))
         if qty < (1e-8 if frac_qty else 1):
             continue
-        pos = {"dir": d, "entry": entry, "qty": qty, "q0": qty, "bar": i,
+        pos = {"dir": d, "entry": entry, "qty": qty, "q0": qty, "bar": i, "rm": _rm,
                "a0": a, "r0": qty * sdist, "orisk": 1.0,
                "cand": np.nan, "ref": np.nan, "swings": 0,
                "stop": entry - d * sdist, "stop0": entry - d * sdist,
