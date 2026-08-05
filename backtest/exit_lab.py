@@ -90,6 +90,11 @@ def _target(entry, d, a, mode, val, stop_dist):
     raise ValueError(mode)
 
 
+def px_exit(price, d, slippage):
+    """Exit fill: slippage always against the trade."""
+    return price + d * slippage
+
+
 def _grid_target(grid, i, entry, d, rank):
     """The `rank`-th level in `grid[i]` strictly beyond `entry` in direction d.
 
@@ -126,7 +131,7 @@ def run(df, sigL, sigS,
         trail_after_add=0.0, trail_short=0.0, trail_time_bars=0, trail_time_to=0.0,
         pyr_pause_lo=0.0, pyr_pause_hi=0.0, vol_rank=None,
         tighten_sched=None, streak_step=0.0, streak_cap=1.0, reentry=False,
-        pyr_trail_gate=0.0, atr_n=14,
+        pyr_trail_gate=0.0, atr_n=14, max_bars=0,
         risk_pct=1.0, equity0=10000.0, commission=0.07, slippage=0.05,
         max_lev=20, frac_qty=False):
     # PYRAMIDING MODES (pyr_mode). All default to "current" so every result
@@ -430,6 +435,15 @@ def run(df, sigL, sigS,
                                    else min(pos["stop"], pos["entry"]))
             if done:
                 continue
+            # HARD TIME EXIT (variant C). Closes at this bar's close once the
+            # trade has been open `max_bars` bars. Checked AFTER the stop and any
+            # targets, so a bar that would have stopped out still stops out --
+            # letting the clock rescue a losing bar would flatter the result.
+            if max_bars > 0 and (i - pos['bar']) >= max_bars:
+                if close_part(pos, i, px_exit(c[i], -d, slippage), pos['qty'], 'time'):
+                    pos = None; last_exit = i
+                    continue
+
             # excursion updated only now that this bar is fully resolved
             pos["best"] = max(pos["best"], h[i]) if d > 0 else min(pos["best"], l[i])
 
