@@ -3625,3 +3625,68 @@ re-optimisation (hard finding #10) and was not pursued.
 
 **DECISION: REJECT all volatility-targeting variants (A, B, C). No change to the
 shipped system.** G1\* deferred pending a US30 result that does not degrade.
+
+### 2026-08-05 (f) — GOLD ONLY. G1* ADOPTED; volatility targeting still rejected
+
+User directive: "you are only working on gold remove us30." Adoption bar 5
+(second-instrument transfer) withdrawn. Replaced with three gold-only controls.
+
+**Headline, gold, both budgets (`research/g1star_goldonly.csv`)**
+
+| arm | budget | risk% | n | PF | CAGR | MAR | MC med | P(DD>30%) | PF pre-2025 | TRAIN/VALID/TEST |
+|---|---|---|---|---|---|---|---|---|---|---|
+| E | 25% | 0.706 | 711 | 1.945 | 56.6 | 2.263 | 25.35 | 21.55% | 1.459 | 1.486/1.274/2.274 |
+| G1 | 25% | 0.708 | 711 | 2.014 | 61.4 | **2.456** | 25.23 | 21.00% | 1.483 | 1.497/1.298/2.337 |
+| **G1\*** | 25% | 0.606 | 711 | **2.175** | 60.8 | 2.431 | **22.47** | **10.55%** | **1.520** | **1.576/1.309/2.588** |
+| E | 20% | 0.553 | 711 | 1.906 | 43.3 | 2.166 | 20.37 | 5.30% | 1.472 | 1.521/1.281/2.298 |
+| G1 | 20% | 0.555 | 711 | 1.970 | 46.9 | **2.345** | 20.27 | 5.15% | 1.496 | 1.535/1.305/2.364 |
+| **G1\*** | 20% | 0.475 | 711 | **2.114** | 46.2 | 2.312 | **17.94** | **1.55%** | **1.536** | **1.619/1.316/2.611** |
+
+**Control 1 — year by year (`g1star_years.csv`)**
+
+| year | change | E | G1 | G1\* |
+|---|---|---|---|---|
+| 2020 | +24.9% | 2.005 | 2.098 | 2.301 |
+| **2021** | **−4.3%** | 0.924 | 0.910 | 0.913 |
+| **2022** | **−0.3%** | 1.168 | 1.184 | **1.189** |
+| 2023 | +12.8% | 1.585 | 1.562 | 1.588 |
+| 2024 | +27.1% | 1.654 | 1.720 | 1.740 |
+| 2025 | +64.7% | 2.390 | 2.415 | 2.607 |
+| **2026** | **−6.0%** | 2.311 | 2.398 | **2.761** |
+
+Improves in two of three down/flat years, including the largest (2026, +0.363
+PF). Not a bull-market artifact.
+
+**Control 2 — anchored walk-forward, 6 folds (`g1star_wf.csv`)**
+
+| fold | n | E | G1 | G1\* |
+|---|---|---|---|---|
+| **1** | 77 | 1.010 | 0.986 | **0.879** |
+| 2 | 74 | 1.865 | 1.890 | 2.073 |
+| 3 | 72 | 1.175 | 1.235 | 1.286 |
+| 4 | 71 | 2.092 | 2.107 | 2.204 |
+| 5 | 73 | 2.509 | 2.627 | 2.913 |
+| 6 | 68 | 2.285 | 2.323 | 2.602 |
+
+Fold 1 degrades. Five of six improve.
+
+**Control 3 — MC seed stability, 5 seeds × 5,000 paths (`g1star_mc.csv`)**
+
+| arm | MC median | P(DD>30%) | range |
+|---|---|---|---|
+| E | 25.36 ± 0.029 | 21.66% ± 0.315 | 21.06–21.92 |
+| G1 | 25.26 ± 0.037 | 21.12% ± 0.446 | 20.34–21.62 |
+| **G1\*** | **22.43 ± 0.016** | **9.85% ± 0.306** | **9.48–10.22** |
+
+Non-overlapping by ~10 standard deviations. The tail improvement is a property
+of the return distribution, not of a seed.
+
+**DECISION — ADOPT G1\* on gold.** Bars 1,2,3,4,6 pass; bar 5 withdrawn.
+Spec and `strategies/gold_trend_G1.pine` updated (lint CLEAN, state machine
+desk-checked). Risk presets re-solved: **0.606% at 25% DD, 0.475% at 20%**.
+
+**Volatility targeting REMAINS REJECTED** — variant A fails on gold alone
+(MAR 2.218 vs E 2.263) and never depended on US30.
+
+**On the record:** G1\* failed US30 before withdrawal (P(DD>30%) 36% → 53%).
+The supported claim is "better on gold", not "better".

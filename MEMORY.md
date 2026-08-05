@@ -969,3 +969,62 @@ contradicted by this session's own numbers — the breakeven move scored net/DD
 
 **The blocking item is unchanged and unaffected by any of this: a second
 instrument the champion works on, to settle the Bollinger squeeze gate.**
+
+## Update 5 — GOLD ONLY from 2026-08-05, and G1* is adopted
+
+**Standing scope change (user directive): US30 is removed. Gold only.** Do not
+run second-instrument transfer tests unless the user reinstates them.
+
+### What was adopted
+
+**G1\*** — G1's regime multiplier, previously applied to the OPENING unit only,
+now also scales every pyramid add, using the multiplier **captured at entry**.
+One line of change. Entry, exit, trail, add triggers, spacing, cooldown all
+untouched. Trade count 711, long share 65.68%, mean adds 1.809 — **identical**
+to G1. Same trades, same paths, different add size.
+
+At a 25% DD budget: PF 2.014 → **2.175**, MC median DD 25.26 → **22.43**,
+**P(DD>30%) 21.12% ± 0.45 → 9.85% ± 0.31** (5 seeds × 5,000 paths,
+non-overlapping ranges), pre-2025 PF 1.483 → **1.520**, TRAIN/VALID/TEST
+1.497/1.298/2.337 → **1.576/1.309/2.588**. MAR 2.456 → 2.431 (−1%).
+
+Risk presets re-solved: **0.606% at 25% DD, 0.475% at 20%.**
+`strategies/gold_trend_G1.pine` updated, lint CLEAN, state machine desk-checked.
+
+### What was rejected
+
+**Volatility targeting, all three variants.** Isolated VT is NEGATIVE on gold
+(MAR 2.218 vs E's 2.263) across six estimators. The soft open-volatility ceiling
+amputated the right tail exactly as hard finding #2 predicts — top 1% of trades
+kept 14% of their contribution, win rate jumped 21.7% → 30.0%.
+
+### The methodological lesson worth keeping
+
+The VT gain was an ILLUSION created by a new engine flag. `risk_series` had
+never applied to pyramid adds; turning that on to make VT coherent also changed
+G1, and the entire "VT × G1" improvement was the adds change, not VT.
+
+**It was caught by an identity control**: `VT ATR14` must reproduce Config E
+exactly (a 4.24×ATR14 stop makes ATR14-targeting a constant multiplier). It did.
+`VT ATR14 × G1` must therefore reproduce G1 exactly. **It did not** — and that
+gap was the whole finding. **Build an arm whose answer you already know into
+every sweep.** It cost one row and it separated a real effect from a plumbing
+change.
+
+### Caveats on record for G1*
+
+1. It **failed US30** before withdrawal (P(DD>30%) 36% → 53%). The supported
+   claim is "better on gold", not "better".
+2. Walk-forward fold 1 of 6 degrades (1.010 → 0.879, n=77); folds 2–6 improve.
+3. 2021 degrades marginally (0.924 → 0.913); 2022 and 2026 improve.
+4. G1's thresholds sit on a **rising slope**, not a peak (expThr 1.00→1.20 gives
+   MAR 2.475→2.759). The adopted 1.10 is the conservative point, BELOW the
+   slope. Do not chase it — that is re-optimisation, hard finding #10.
+
+### Open item
+
+The **Bollinger squeeze gate** (net/DD 46.53 vs 27.26) was logged as blocked
+pending a second instrument. Under gold-only rules that blocker is void, but so
+is the resolution: it must now clear the same gold-only bar G1* just cleared —
+down years, anchored walk-forward, MC seed stability, right-tail diagnosis.
+It has NOT been run against that bar. Do that before it is considered again.
