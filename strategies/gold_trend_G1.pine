@@ -196,7 +196,7 @@ bool  showDash  = input.bool(true, "Show dashboard", group="⑦ Display")
 // 30m trail directly (4.24 was best on train net, +113.5%).
 // ═════════════════════════════════════════════════════════════
 // Profile presets override the manual risk and add settings.
-float riskE   = riskProf == "20% DD budget" ? 0.567 : riskProf == "Custom" ? riskPct : 0.723
+float riskE   = riskProf == "20% DD budget" ? 0.475 : riskProf == "Custom" ? riskPct : 0.606
 float pyrAtrE = riskProf == "Custom" ? pyrAtr : 1.5
 int   pyrMaxE = riskProf == "Custom" ? pyrMax : 4
 
@@ -273,6 +273,11 @@ var int   nAdds     = 0
 // 36.5%. Against a leverage-matched baseline at the same drawdown it returned
 // +1,996% vs +1,094% with a higher PF, so it is not the risk dial in disguise.
 var float atrEntry  = na
+// G1* (adopted 2026-08-05): the regime multiplier that sized the OPENING
+// unit, held for the life of the trade so the adds inherit it. Re-reading
+// the live multiplier at each add would be intra-trade rebalancing -- a
+// different system, and one that was not tested.
+var float rmEntry   = na
 var float bestPx    = na   // best excursion THROUGH THE PREVIOUS BAR (see below)
 
 // ═════════════════════════════════════════════════════════════
@@ -298,6 +303,7 @@ else
     trailStop := na
     lastAdd   := na
     atrEntry  := na
+    rmEntry   := na
     bestPx    := na
     nAdds     := 0
 
@@ -313,7 +319,10 @@ if usePyr and not tpOn and strategy.position_size != 0 and nAdds < pyrMaxE and n
     bool  isLong = strategy.position_size > 0
     float nxt    = isLong ? lastAdd + step : lastAdd - step
     if isLong ? high >= nxt : low <= nxt
-        float aRisk = (isLong ? riskE : riskE * shortRisk) * pyrRisk
+        // G1*: the add carries the ENTRY-TIME regime multiplier. Without
+        // this the adds size at base risk and the position drifts away
+        // from the risk the regime justified when it was opened.
+        float aRisk = (isLong ? riskE : riskE * shortRisk) * pyrRisk * nz(rmEntry, 1.0)
         float aAtr  = na(atrEntry) ? atr : atrEntry          // entry-ATR sizing
         float aQty  = math.floor(math.min(strategy.equity * aRisk / 100.0 / (aAtr * trailMultE),
              strategy.equity * maxLev / close - math.abs(strategy.position_size)))
@@ -346,6 +355,7 @@ if longSig and coolOk and strategy.position_size == 0 and qty >= 1
     tp2Done   := false
     lastAdd   := close
     atrEntry  := atr
+    rmEntry   := regimeMult
     bestPx    := close
     nAdds     := 0
 
@@ -360,6 +370,7 @@ if shortSig and coolOk and strategy.position_size == 0 and qty >= 1
     tp2Done   := false
     lastAdd   := close
     atrEntry  := atr
+    rmEntry   := regimeMult
     bestPx    := close
     nAdds     := 0
 

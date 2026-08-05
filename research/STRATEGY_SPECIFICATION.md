@@ -67,10 +67,42 @@ the hold destroys the edge, which accrues to hold time rather than entry timing
 - **Risk per trade is solved from a drawdown budget, not chosen.**
   - Config E: 0.705% (25% budget) or 0.553% (20% budget)
   - Config G1: 0.723% (25% budget) or 0.567% (20% budget)
+  - **Config G1\* (ADOPTED 2026-08-05, gold only): 0.606% (25%) or 0.475% (20%)**
 - `qty = equity × risk% / (4.24 × ATR)`
 - **Adds: 4 maximum, every 1.5 ATR of favourable movement, each sized on the
   ATR AT ENTRY** (not the current ATR — current-ATR sizing shrinks the add
   exactly when volatility expands, which is when the trade is working)
+
+**G1\* AMENDMENT (adopted 2026-08-05, gold only).** The G1 regime multiplier —
+`clip(f(trend distance from EMA) × f(ATR expansion), 0.5, 2.0)` — previously
+scaled the OPENING unit only. It now also scales every pyramid add, using the
+multiplier **captured at entry** and held for the life of the trade. Re-reading
+the live multiplier at each add would be intra-trade rebalancing, which is a
+different system and was not tested.
+
+Nothing else changes: entry, exit, trail, add triggers, add spacing, cooldown
+and the entry-ATR add sizing are all untouched. Trade count (711), long share
+(65.68%) and mean adds per trade (1.809) are **identical** to G1 — the trade
+paths are the same and only the size of each add moves.
+
+Evidence at a 25% drawdown budget, gold, 2019-12-01 → 2026-07-30:
+
+| | E | G1 | **G1\*** |
+|---|---|---|---|
+| Profit factor | 1.945 | 2.014 | **2.175** |
+| MAR | 2.263 | 2.456 | 2.431 |
+| Monte Carlo median DD | 25.36 | 25.26 | **22.43** |
+| **P(DD > 30%)**, 5 seeds × 5,000 paths | 21.66% ± 0.32 | 21.12% ± 0.45 | **9.85% ± 0.31** |
+| Profit factor pre-2025 | 1.459 | 1.483 | **1.520** |
+| TRAIN / VALID / TEST PF | 1.486/1.274/2.274 | 1.497/1.298/2.337 | **1.576/1.309/2.588** |
+| Top-10-trade share of gross profit | 39.5% | 41.2% | 41.4% |
+
+**Known limitations, on the record.** (1) G1\* was tested on US30 before that
+instrument was withdrawn from scope, and it FAILED there: P(DD>30%) rose from
+36% to 53%. The claim supported by the evidence is "better on gold", not
+"better". (2) Walk-forward fold 1 of 6 degrades (PF 1.010 → 0.879, n=77);
+folds 2–6 all improve. (3) 2021 degrades marginally (0.924 → 0.913); the other
+two down/flat years improve, 2022 1.168 → 1.189 and 2026 2.311 → 2.761.
 - Notional cap 20×; the full 4-add stack is ~3.65× account leverage
 
 **Config G1 only** — the opening position (NOT the adds) is multiplied by:
