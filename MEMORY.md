@@ -887,3 +887,55 @@ the productive direction is the exit and the sizing, which is where the
 champion's edge has always been.
 
 5-minute gold work is dropped at the user's instruction (2026-08-05).
+
+## Update 3, same session — the first real candidate in eighteen families
+
+The user supplied a scalping checklist, a reversals note, and a multi-timeframe
+trend-break plan. One item out of all of it beat the baseline.
+
+### THE BOLLINGER SQUEEZE GATE — candidate, NOT adopted
+
+Gate the champion's entries to bars where Bollinger bandwidth (2·2σ₂₀/MA₂₀)
+sits in the bottom 40%. At matched 25% drawdown: **net/DD 46.53 against the
+baseline's 27.26**, PF 1.589 → 1.863, and the complement collapses to 4.49.
+
+Passed: halves (both), threshold plateau (30–60th pct all strong, so the number
+was not fitted), per-trade quality (payoff 2.10:1 → 2.55:1, not leverage), and
+critically the **ATR-rank discriminant** — gating on plain ATR rank does NOT
+reproduce it (10.22 vs 46.53, corr +0.54). The σ-over-price construction is
+doing real work an ATR filter does not.
+
+**Blocked on the second-instrument control, which could not be run.** The
+champion has no edge on the US30 data in this repo at all: baseline PF 0.657 on
+n=34. You cannot test whether a filter improves a system that has no edge. This
+is the control that has killed the most candidates here, and its absence is the
+whole open risk. Also note 2023 degrades (PF 1.294 → 1.034).
+
+**NEXT ACTION: get a second instrument the champion works on** — more US30
+history, or silver/EURUSD/NAS100 30m. That single test decides whether the
+squeeze gate ships. Nothing else on the list matters more.
+
+### Two retail practices measured and found destructive
+
+- **Stop at the broken level** ("broken resistance becomes support, use it as
+  your stop"): net/DD **2.71** vs 27.26. Reason, measured: the median distance
+  from a breakout close back to the level it just broke is **0.38 ATR** against
+  the champion's 4.24 ATR stop. The stop sits inside the noise; WR falls to 10%.
+- **Breakeven move after TP1**: net/DD **7.06**. It works as advertised — WR
+  23.7% → 28.6% — and costs 96% of the return. On a 21.7%-win-rate trend system,
+  protecting the middle of the distribution destroys the 6:1 tail that pays for
+  everything. Expect to be asked for this repeatedly; the number is the answer.
+
+### Also refuted at matched drawdown
+
+Volume spike on the break (10.87 — worse than its own no-spike control at
+13.42), 4h trend agreement (11.30), 4h + squeeze combined (12.68 — the 4h gate
+*damages* the squeeze finding), candle confirmation (6.35), hard 2R/3R targets
+(25–27, indistinguishable to worse), take-profit at each pivot level (17.8–24.3).
+
+### Code change
+
+`backtest/exit_lab.py` gained `tp_grid` + `_grid_target()`: TP1/TP2 placed at
+the first and second ABSOLUTE levels beyond the fill, rather than a multiple of
+ATR/R/price. Every prior target in this repo was a multiple. Defaults to None,
+so every existing ledger row reproduces unchanged.
