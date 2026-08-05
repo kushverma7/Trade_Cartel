@@ -762,3 +762,78 @@ Still open from before, in priority order:
    previous-year static, and make `levels.py` and the Pine module agree.
 3. Add volume-profile levels (POC/VAH/VAL) to `levels.py`; reconcile the
    18/33/36 level-count mismatch.
+
+---
+
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-05, supersedes the 08-03 block)
+
+## What happened this session
+
+The user asked for **deeper research on every file, PDF, text and transcript
+supplied**. Two things came out of it.
+
+### 1. A methodology error was found and corrected
+
+The Quarterly Theory study delivered earlier as a negative finding was run
+**without reading the two QT source PDFs**, which were on disk the whole time in
+`trader_playbooks/sources/` under normalised names
+(`quarterly_theory_daye_compiled*.pdf`) — not under the numeric-prefixed upload
+names, which is why an earlier search for them came back empty. Read now, they
+contradict `research/levels_qt.py` in four places: weekly cycle is Tue–Fri not
+Mon–Thu; daily blocks are New York time not UTC; there are two AMD forms not
+one; session quarters are expansion, not manipulation.
+
+Re-run on the source definitions with a surrogate null and a drawdown-matched
+control (`research/qt_corrected.py`, `qt_null.py`, `qt_friday.py`), **the
+rejection stands** — but it now rests on the right definitions. Details in
+BELIEF_REGISTER and RESULTS_LEDGER.
+
+Three things worth carrying forward:
+- The weekly cycle has **no structure at all** against surrogates (max |z| 2.62).
+- The daily cycle's real effect is that the **NY morning (06:00–12:00 NY) sets
+  the day's high 36.5% of the time** (surrogate 18.8%, z +17.4). Real and large,
+  but it is session volatility; QT names the wrong quarter.
+- **Friday carries a disproportionate share of the champion's edge** — removing
+  it drops net/DD from 27.3 to 5.4 — yet trading Friday alone compounds 40% less
+  at matched risk. Do not filter on it in either direction.
+
+### 2. Every falsifiable claim in the source library was batch-tested
+
+`research/source_battery.py` — 10 arms × 4 horizons, forward move in ATR against
+the **unconditional** move. **Zero survivors at |t| > 3.** Pin bars, inside
+bars, fakeys, and the ported "Big Players Entry" indicator all fail; the Big
+Players indicator is *negative* as specified. The one-dollar quarter grid
+(.00/.25/.50/.75) is flat to four decimal places on ~78,000 touches per level.
+The NY-open claim is inverted: volatility doubles but reversals become *less*
+frequent — it is an expansion window, which corroborates the breakout champion
+rather than contradicting it.
+
+**Sixteen independent families of entry/level ideas have now failed controls.**
+The shipped system is unchanged; nothing was adopted.
+
+## Standing rules added
+
+1. **Read the uploaded source before studying a named methodology.** Code from
+   the document, not from recall. A negative finding reached without reading the
+   source is not a finding.
+2. **Source files live in `trader_playbooks/sources/` under normalised
+   filenames.** The original numeric-prefixed upload names are not on disk;
+   searching for them returns nothing and that is not evidence of absence.
+3. **Higher PF at fewer trades is not an improvement.** Compare at matched
+   drawdown and read net/DD.
+
+## Next action
+
+- The user said "Wait i will give you the data" regarding **5-minute gold**.
+  That data has not arrived. When it does, run the champion's timeframe study on
+  5m and 15m.
+- Remaining unexamined sources, in descending value:
+  `wd_gann_master_commodities_course.txt` (815KB),
+  `hima_reddy_trading_methodologies_of_wd_gann.txt` (225KB),
+  `hougaard_trading_manual.txt` (214KB),
+  `trader_dale_order_flow_trading_setups.txt` (140KB),
+  `all_indicators_dump.txt` (359KB), `ochoa_profiting_with_pivot_based_concepts`,
+  `john_person_candlesticks_cbot_2006`, `key_levels_guide`,
+  `agent_2_1_cluster_detector_training`, and `sources/raw_transcripts/` (21 files).
+  Extract only *exactly-specified* rules from each and add them as arms to
+  `research/source_battery.py` — the harness and the null are already built.
