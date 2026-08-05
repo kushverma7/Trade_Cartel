@@ -3932,3 +3932,109 @@ bar 3 (top 10 of 982 trades = 57.8% of net; 2026 alone = 107%), and bar 5
 (one lucky year). The 83% win rate is real but is produced by a 0.5-point
 trail whose modelled fills are an artifact of bar resolution. TradingView's own
 report already flagged this: Sharpe −1.082 and −32.43% against buy-and-hold.
+
+### 2026-08-05 (j) — AU200 moving-average family: a system that clears the bar
+
+Protocol parity with AU200-BASE: signals on `data/au200_15m.csv.gz` (47,283
+native 15m bars), **exit path walked on `data/au200_5m.csv.gz`** (139,898 bars),
+2020-08-05 → 2026-08-04 Australia/Sydney, commission 1.0 AUD/contract/side,
+slippage swept 0/1.0/1.5/2.0 pt. No sub-point trails. `research/au200_ma.py`.
+
+**STEP 1 — dual cross, exit = opposite cross only, 1.0 pt (20 arms)**
+
+| arm | n | WR% | PF | net | top10 |
+|---|---|---|---|---|---|
+| EMA 5/20 long | 1289 | 35.4 | **1.282** | +4,400 | 49.0% |
+| EMA 5/20 both | 2578 | 34.1 | 1.185 | +5,823 | 47.4% |
+| EMA 8/21 long | 1034 | 32.8 | 1.134 | +2,061 | 104.6% |
+| SMA 5/20 long | 1439 | 35.7 | 1.010 | +210 | 958.3% |
+| SMA 8/21 long | 1260 | 36.8 | 0.983 | −341 | −620.1% |
+| SMA 20/50 both | 1050 | 32.3 | 0.733 | −7,904 | −43.4% |
+
+**Mean PF: EMA 1.011 vs SMA 0.896.** EMA beats SMA on every matched pair.
+Fast pairs win; 20/50 and 50/200 lose on both MA types.
+
+**STEP 3 — mixed cross (long-only, 1.0 pt).** EMA-fast is what matters:
+EMA5×EMA20 1.282, EMA5×SMA20 1.217, SMA5×SMA20 1.010, SMA5×EMA20 0.964.
+
+**STEP 4 — filters on EMA5/20 long, 1.0 pt**
+
+| variant | n | PF | net | maxDD | top10 |
+|---|---|---|---|---|---|
+| all-day baseline | 1289 | 1.282 | +4,400 | 1,159 | 49.0% |
+| entries 09:50–10:30 | 609 | **0.911** | −908 | 1,789 | −210.9% |
+| entries 10:00–12:00 | 738 | 1.103 | +1,121 | 1,054 | 187.5% |
+| + close > SMA200 | 1073 | 1.306 | +3,327 | 593 | 61.8% |
+| **+ slow EMA rising** | 2014 | **1.480** | +7,782 | 1,089 | 27.6% |
+| + SMA200 + rising | 1542 | 1.452 | +5,312 | 591 | 38.5% |
+
+**Session filtering HURTS.** The morning-window gate that defines AU200-BASE
+drops PF from 1.282 to 0.911.
+
+**STEP 6 — exits on EMA5/20 long + rising, 1.0 pt**
+
+| exit | n | PF | net | maxDD | top10 |
+|---|---|---|---|---|---|
+| A cross only | 2014 | 1.480 | +7,782 | 1,089 | 27.6% |
+| B cross or 30 pt stop | 2068 | 1.755 | +10,500 | 520 | 20.4% |
+| **B cross or 3×ATR stop** | 2120 | **1.889** | **+11,564** | **489** | **18.6%** |
+| C cross or 20/30 pt trail | 2014 | 1.480 | +7,782 | 1,089 | 27.6% |
+| D cross + flat 16:00 | 10349 | **0.538** | −25,558 | 27,626 | −7.1% |
+
+The wide trails never bind before the cross fires. Daily flattening is
+catastrophic — it converts a swing system into 10,349 forced round turns.
+
+### CHAMPION — EMA 5/20 long + rising slow EMA + 3×ATR stop
+
+| slippage/side | n | WR% | PF | net | maxDD | top10 |
+|---|---|---|---|---|---|---|
+| 0.0 | 2120 | 48.1 | 2.477 | +15,804 | 377 | 13.7% |
+| **1.0** | 2120 | 40.7 | **1.889** | **+11,564** | **489** | 18.6% |
+| 1.5 | 2120 | 37.6 | 1.662 | +9,444 | 546 | 22.6% |
+| 2.0 | 2120 | 35.0 | 1.469 | +7,324 | 603 | 29.0% |
+| 3.0 | 2120 | 30.1 | 1.167 | +3,084 | 893 | 68.3% |
+
+**Year by year (1.0 pt): 2020 2.47 | 2021 1.59 | 2022 1.55 | 2023 2.13 |
+2024 1.82 | 2025 1.48 | 2026 2.49 — 7/7 years profitable**, net
++1,055/+1,145/+1,108/+1,781/+1,447/+1,143/+3,884.
+
+**OOS: IS 1.761 (n=806) → OOS 1.988 (n=1,314) — IMPROVES out of sample.**
+
+**Concentration: top5 10.1%, top10 18.6%, top50 62.2% of net.**
+
+**Monte Carlo (5 seeds × 2,000): median maxDD 315 pts, 95th pct 465 pts vs
+historical 489** — the historical drawdown is not a lucky path.
+
+**Plateau (PF at 1.0 pt, all with +rising):** every pair from 4/16 to 10/30 ×
+every ATR multiple 2.0–4.0 lands between 1.657 and 1.998. Broad, smooth, no
+spike. Note the surface rises toward FASTER pairs and 4/16 (1.998) sits at the
+edge of the tested range — 5/20 was kept as an interior point rather than
+chasing the peak.
+
+**Both sides:** PF 1.786, net +20,385, maxDD 638, top10 13.6%.
+**Buy and hold same span: +3,013 pts.**
+
+### VERDICT: SERIOUS CANDIDATE — first AU200 system to clear the bar
+
+| bar | result |
+|---|---|
+| 1. Positive after realistic costs | **PASS** — PF 1.469 at 2.0 pt, 1.167 at 3.0 pt |
+| 2. Holds in time-based OOS | **PASS** — improves, 1.761 → 1.988 |
+| 3. Not outlier-driven | **PASS** — top10 = 18.6% of net |
+| 4. Plateau not spike | **PASS** — 45-cell surface, 1.66–2.00 |
+| 5. Not one lucky year | **PASS** — 7/7 years profitable |
+
+Also beats buy-and-hold 11,564 vs 3,013 pts. Pine:
+`strategies/au200_ema_cross.pine` (lint CLEAN).
+
+**STEP 5 — SMA as a regime filter on the earlier families (5m, flip exit, 1.0 pt)**
+
+| family | filter | n | PF | net | top10 |
+|---|---|---|---|---|---|
+| AU200-BASE | none | 1743 | 1.153 | +2,501 | 79.3% |
+| AU200-BASE | close>SMA200 | 1653 | 1.139 | +2,198 | 90.2% |
+| **A gap+ST** | none | 1691 | 1.055 | +907 | 227.0% |
+| **A gap+ST** | **close>SMA200** | 1335 | **1.161** | **+2,059** | **95.4%** |
+
+SMA200 helps the gap family (+0.106 PF, and concentration 227% → 95%) and
+slightly hurts AU200-BASE. Neither reaches the EMA-cross arm.
