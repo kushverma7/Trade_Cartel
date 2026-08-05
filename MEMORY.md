@@ -837,3 +837,53 @@ The shipped system is unchanged; nothing was adopted.
   `agent_2_1_cluster_detector_training`, and `sources/raw_transcripts/` (21 files).
   Extract only *exactly-specified* rules from each and add them as arms to
   `research/source_battery.py` — the harness and the null are already built.
+
+## Update, same session — the remaining sources are now done
+
+`research/source_battery2.py` covered the long-form books (Person, Ochoa,
+Hougaard, Trader Dale). **6 of 40 directional arms cleared |t| > 3 and every one
+is a refutation, not a find:**
+
+- **Ochoa's headline rule — "buy support in a bull trend" — is a significant
+  loser** on gold 30m: −0.196 ATR at 32 bars against +0.323 unconditional
+  (t = −4.92, n = 1911).
+- **Hougaard's 89MA is real but unshortable.** Above it gold drifts +0.448 ATR
+  per 32 bars, below it +0.162, unconditional +0.323. Below the 89MA the drift
+  is *slower, not negative* — a short on that signal still loses. Same
+  bull-market artifact as B-0xx in new clothes.
+- **Ochoa's pivot-width claim** (narrow pivot range → breakout day) points the
+  direction he predicts and is **not significant**: ρ = −0.027, p = 0.22 over
+  2,071 days. This was the most promising claim in the library, since the
+  champion is a breakout system.
+- Person's HCD and Jack Hammer add nothing over the pin bar already tested,
+  even though they require a confirmation bar.
+
+**No regime gate beat the ungated champion at matched 25% drawdown.** Three of
+seven posted a *higher profit factor* and all seven compounded less.
+
+## The rule that keeps re-earning itself
+
+**A filter that removes trades raises profit factor almost automatically — the
+survivors are the easy ones. Score at matched drawdown and read net/DD.** This
+has now caught three separate false positives (the Friday gate, the narrow-pivot
+gate, the inside-value gate). Treat any "PF went up" claim as unproven until the
+drawdown-matched number is on the table.
+
+## Coverage gaps, stated rather than hidden
+
+Not everything in the library is testable here, and these are gaps, not passes:
+Trader Dale's Order Flow confirmation step needs a bid/ask ladder this desk does
+not have; `agent_2_1_cluster_detector` is SEC Form 4 insider clustering on US
+equities with no XAUUSD application; the Gann material states no falsifiable
+mechanical rule; Hougaard's discretionary crowd-reading is not mechanical by
+construction.
+
+## Next action (revised)
+
+The source library is exhausted for testable content. **Seventeen independent
+families of entry, level and regime ideas have now failed controls.** Further
+entry research against this library has a poor prior; if more work is wanted,
+the productive direction is the exit and the sizing, which is where the
+champion's edge has always been.
+
+5-minute gold work is dropped at the user's instruction (2026-08-05).
