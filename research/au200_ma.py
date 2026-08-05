@@ -83,7 +83,15 @@ def run(state15, d5, slip=1.0, stop_pts=0.0, stop_atr=0.0, trail_pts=0.0,
     """Walk the 5m path. Exit on opposite state, and optionally on a stop or a
     wide trail. Every fill pays slippage against the trade."""
     o, h, l, c = (d5[k].to_numpy(float) for k in ("open", "high", "low", "close"))
-    tgt = state15.reindex(d5.index, method="ffill").fillna(0).to_numpy().astype(np.int8)
+    # BUG, found 2026-08-05. The 15m index stamp is the bar's OPEN time, so a
+    # state derived from that bar's CLOSE is only known at stamp + 15 minutes.
+    # Forward-filling from the stamp itself applied the state to the three 5m
+    # bars INSIDE the still-forming 15m bar -- up to 10 minutes of lookahead on
+    # every signal. Shifting the state index forward by one full 15m bar makes
+    # it available exactly when it becomes knowable, and not before.
+    st_shift = state15.copy()
+    st_shift.index = st_shift.index + pd.Timedelta(minutes=15)
+    tgt = st_shift.reindex(d5.index, method="ffill").fillna(0).to_numpy().astype(np.int8)
     hh = d5.index.hour.to_numpy(); day = d5.index.normalize().to_numpy()
     tr = []; pos = None
     for i in range(1, len(c)):
@@ -103,7 +111,7 @@ def run(state15, d5, slip=1.0, stop_pts=0.0, stop_atr=0.0, trail_pts=0.0,
                 tr.append(dict(pnl=d * (px - e) - 2 * COMM, day=pos["day"], why="stop"))
                 pos = None
             elif tgt[i] != d:
-                px = c[i] - d * slip
+                px = o[i] - d * slip
                 tr.append(dict(pnl=d * (px - e) - 2 * COMM, day=pos["day"], why="cross"))
                 pos = None
             elif flat_hour and (hh[i] >= flat_hour or day[i] != pos["day"]):
@@ -114,10 +122,14 @@ def run(state15, d5, slip=1.0, stop_pts=0.0, stop_atr=0.0, trail_pts=0.0,
             d = int(tgt[i])
             st = np.nan
             if stop_pts > 0:
-                st = c[i] - d * stop_pts
+                st = o[i] - d * stop_pts
             elif stop_atr > 0 and a5 is not None:
-                st = c[i] - d * stop_atr * a5[i]
-            pos = dict(d=d, e=c[i] + d * slip, pk=c[i], stop=st,
+                st = o[i] - d * stop_atr * a5[i]
+            # FILL FIDELITY: the state becomes knowable at the 15m bar's close,
+            # which is exactly the OPEN of this 5m bar. Filling at this bar's
+            # open reproduces process_orders_on_close; filling at its close
+            # would penalise the system by a further 5 minutes it never waited.
+            pos = dict(d=d, e=o[i] + d * slip, pk=o[i], stop=st,
                        armed=False, day=day[i])
     return pd.DataFrame(tr)
 

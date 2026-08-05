@@ -4038,3 +4038,77 @@ Also beats buy-and-hold 11,564 vs 3,013 pts. Pine:
 
 SMA200 helps the gap family (+0.106 PF, and concentration 227% → 95%) and
 slightly hurts AU200-BASE. Neither reaches the EMA-cross arm.
+
+---
+
+### 2026-08-05 (k) — RETRACTION of the AU200 EMA-cross champion, and the VWAP matrix
+
+**BUG-0xx — 10-minute lookahead in `research/au200_ma.py::run()`.**
+The 15m index stamp is the bar's **OPEN** time (verified directly: the bar
+stamped 10:00 spans the 5m bars 10:00/10:05/10:10 and its close equals the
+10:10 5m close). `run()` did
+`state15.reindex(d5.index, method="ffill")`, which applied a state derived from
+that bar's CLOSE to the three 5m bars **inside the still-forming bar** — up to
+10 minutes of lookahead on every signal.
+
+Fixed by shifting the state index forward one full 15m bar, so it becomes
+available exactly when it becomes knowable, and by filling at the 5m bar's
+OPEN (which is the 15m close price) rather than its close, so the correction
+does not over-penalise by a further 5 minutes.
+
+**Effect on the 08-05 (j) result — the entire edge was the bug.**
+
+| slippage | PUBLISHED (with lookahead) | CORRECTED |
+|---|---|---|
+| 0.0 | PF 2.477, net +15,804 | PF 0.858, net −3,295 |
+| **1.0** | **PF 1.889, net +11,564** | **PF 0.696, net −8,199** |
+| 1.5 | PF 1.662 | PF 0.632 |
+| 2.0 | PF 1.469 | PF 0.576 |
+| 3.0 | PF 1.167 | PF 0.483 |
+
+Year by year corrected: 2020 1.20 | 2021 0.53 | 2022 0.75 | 2023 0.95 |
+2024 0.91 | 2025 0.67 | 2026 0.51 — **1/7 years positive**, not 7/7.
+IS 0.747 → OOS 0.662.
+
+**EVERY claim in the 08-05 (j) entry is void**, including "EMA beats SMA",
+the plateau surface, the exit comparison and the Pine's header numbers.
+`strategies/au200_ema_cross.pine` must NOT be traded.
+
+### VWAP + volume-weighted sigma bands, on the corrected engine
+
+Session VWAP anchored at **10:00 local** (derived: hours 10–15 carry ~6,050
+bars each vs ~720 for extended hours; 1,337 of 2,468 intraday gaps end at
+hour 10). Typical price p = (H+L+C)/3 for both VWAP and deviation.
+sigma = sqrt( Σv·p² / Σv − VWAP² ), bands = VWAP ± k·sigma, k ∈ {1,2}.
+Sigma finite on 90.3% of bars; median session sigma 10.53 pts,
+rolling-24 14.74, rolling-50 23.18.
+
+**A/D — filters on the (now failing) champion, 1.0 pt**
+
+| arm | n | PF | ΔPF |
+|---|---|---|---|
+| champion | 2452 | 0.696 | — |
+| close > session VWAP | 2966 | 0.689 | −0.008 |
+| > VWAP and > Lower1 | 2830 | 0.691 | −0.005 |
+| reject if < Lower2 | 2675 | 0.694 | −0.002 |
+| close > rolling24 VWAP | 2494 | 0.692 | −0.005 |
+| close > Upper1 | 2649 | 0.578 | −0.118 |
+| value area VWAP..Upper1 | 2833 | 0.521 | −0.175 |
+| close > Upper2 | 1399 | 0.442 | −0.254 |
+
+**B — band mean reversion (standalone):** best 0.819 (reclaim Lower2 → exit
+Upper1). **C — band breakout (standalone):** best 0.761.
+**E — sigma-width regime:** bottom third 0.606, middle 0.715, top 0.708.
+**F — session:** cash-session-only 0.745 (best VWAP arm), 10:00–12:00 0.494.
+
+**Slippage sweep — nothing reaches 1.0 at any cost level, including 0.**
+
+**VERDICT: no VWAP or sigma-band construction produces a positive-expectancy
+AU200 system, and none improves the champion — because the champion does not
+work either. Directional filters (>VWAP, >Lower1, reject <Lower2) are neutral
+to −0.01 PF; band-extreme filters (>Upper1, >Upper2, value area) are strongly
+harmful, −0.12 to −0.25 PF. ±1σ and ±2σ add no usable information on AU200.**
+
+**AU200 status: no candidate. The best measured arm on this instrument remains
+AU200-BASE at PF 1.141 (5m path, 1 pt), which itself fails on year-by-year and
+concentration.**
