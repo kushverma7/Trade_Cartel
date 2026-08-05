@@ -1847,3 +1847,118 @@ this failure mode.
 future candidate must be scored as EXCESS over the baseline's own MAR-vs-
 drawdown curve at the candidate's drawdown. Six configurations in this session
 "beat the baseline" on MAR and every one was leverage.
+
+---
+
+## B-0xx — Quarterly Theory was rejected on the wrong definitions; the corrected definitions reject it too
+
+**How the error happened.** `research/levels_qt.py` encoded Quarterly Theory
+from memory. The two source documents were sitting in
+`trader_playbooks/sources/` unread while the study ran, and the negative
+finding was reported as settled. Read afterwards, they contradict the code in
+four places:
+
+| # | Source says | levels_qt.py did |
+|---|---|---|
+| 1 | Weekly Q1=**Tuesday** … Q4=Friday; "Tuesday midnight open is the True Weekly Open" | Mon/Tue/Wed/Thu — off by one whole day |
+| 2 | Daily Q1 18:00–00:00 … Q4 12:00–18:00 **New York time** | Same numbers applied to a UTC index — a 4–5h shift |
+| 3 | **Two** AMD forms (Form 2 shifts every phase one quarter later) | Form 1 only |
+| 4 | Session quarters are Range Formation / **Expansion** / Continuation / Reversal | Treated as accumulation/manipulation |
+
+**Re-run on the source definitions (`research/qt_corrected.py`), both timezone
+readings the source itself gives — it is internally inconsistent, daily in NY
+time and its 90-minute table in UTC.**
+
+**Result 1 — the weekly cycle is empty.** Against 20 return-shuffled surrogates
+(`research/qt_null.py`) every weekly statistic sits inside ±3σ. The largest
+z is −2.62. There is no weekly quarter structure of any kind.
+
+**Result 2 — the big z-scores are geometry, not theory.** "Sweep the high in Q3
+and the cycle reverses only 25% of the time" reads as z = −16. The surrogate
+reproduces it: if a cycle sets its extreme in a *late* quarter there is no time
+left to move away from it. Reversal rate falling with sweep-quarter lateness is
+what a driftless random walk does.
+
+**Result 3 — what *is* real is session volatility, which QT mislabels.** In the
+NY-anchored daily cycle, Q3 (06:00–12:00 NY) sets the daily high 36.5% of the
+time against a surrogate 18.8% (z = +17.4). That is real and large. But Form 1
+names Q2 the manipulation quarter, and Q2 sets the high only 15.0%. The theory
+points at the wrong quarter; the effect is "the NY morning is where the day's
+extreme forms", which needs no cycle framework.
+
+**Result 4 — the one profitable arm is a day-of-week effect that fails its
+control.** Weekly Q4 gated the champion to PF 1.825 vs 1.626, holding in both
+halves. Weekly Q4 *is Friday*: the corrected cycle is a relabelling of
+Tue/Wed/Thu/Fri and cannot differ from a bare weekday sweep. Dialled to a
+matched 25% drawdown (`research/qt_friday.py`):
+
+| arm | risk% | n | PF | net | net/DD |
+|---|---|---|---|---|---|
+| champion, all days | 0.72 | 789 | 1.589 | +678.5% | **27.26** |
+| Friday only | 1.11 | 224 | 1.832 | +411.0% | 16.44 |
+| drop Friday | 0.43 | 709 | 1.432 | +134.8% | 5.39 |
+
+Friday has the better *per-trade* quality and still compounds less, because it
+trades 28% as often. Higher PF at fewer trades is not an improvement.
+Separately worth knowing: **removing Friday guts the system** (net/DD 27 → 5),
+so Friday carries a disproportionate share of the edge even though it cannot be
+traded alone.
+
+**Verdict: REJECT Quarterly Theory, now on its own definitions.** The earlier
+rejection was right for the wrong reasons, which is not the same as being right.
+
+**Standing consequence — the one that actually costs money.** A negative
+finding reached without reading the source is not a finding. Before any study
+of a named methodology, read the uploaded source first and code from it, not
+from recall. The sources are in `trader_playbooks/sources/` under normalised
+filenames; the original numeric-prefixed upload names do not exist on disk.
+
+---
+
+## B-0xx — Every falsifiable pattern claim in the uploaded sources fails its unconditional baseline
+
+`research/source_battery.py` codes each exactly-specified claim in
+`trader_playbooks/sources/` and compares its forward move, in ATR, against the
+**unconditional** forward move over the same horizon. The unconditional
+baseline matters: gold rose 1450 → 4100 across the sample, so every long-side
+pattern beats zero and none of that is edge.
+
+**40 tests (10 arms × 4 horizons). Survivors at |t| > 3: zero.**
+
+| claim | source | result |
+|---|---|---|
+| Pin bar, tail ≥ ⅔ of range, body ≤ ⅓ | pinbar/insidebar/fakey p.430 | bull t ≈ 0; **bear is inverted** — bearish pins are followed by *up* moves (t = −2.87 at 32 bars, n = 4078) |
+| Inside bar, continuation and reversal | same, p.342 | \|t\| ≤ 1.1 at every horizon |
+| Fakey — false break of the inside bar | same, p.365 | best t = +1.92; nothing at 4 bars |
+| "Big Players Entry" indicator, ported line-for-line incl. ADX > 40 | big_players_reversal_entry.txt | **negative as specified**: −0.48 ATR at 32 bars (t = −2.06). It buys 33-bar lows while DI− dominates — buying into confirmed downtrends |
+
+**The dollar-quarter grid is dead flat, and this one is decisive.**
+`gold_scalping_strategy_blueprint.txt` claims ".00 strongest S/R … .25/.75 weak,
+often breached". Rejection rate at each sub-level, n ≈ 78,000 touches each:
+
+| level | .00 | .25 | .50 | .75 |
+|---|---|---|---|---|
+| reject rate | 0.7009 | 0.7022 | 0.7023 | 0.7002 |
+
+A 0.2-point spread on 78k samples. The four sub-levels are indistinguishable.
+Note this is a *different* claim from the $25/$50/$100 grid already rejected —
+this is the one-dollar grid — and it fails the same way.
+
+**"Gold LOVES the daily open — major reversals within 30 min of NY open" is
+half right and the wrong half is the tradeable one.** 09:30–10:30 NY:
+
+| | mean \|move\| | sign-flip rate |
+|---|---|---|
+| NY open window | **4.998** | 0.4974 |
+| all other bars | 2.528 | 0.5163 |
+
+Volatility genuinely doubles. But the flip rate is *lower* than elsewhere — the
+NY open is an **expansion** window, not a reversal window. Fading it is trading
+against the one thing the data says clearly. This corroborates the champion,
+which is a breakout system.
+
+**Standing consequence.** Sixteen independent families of entry/level ideas
+have now failed controls in this repo. The prior on the seventeenth should be
+set accordingly: the champion's edge is in its *exit* (a 4.24-ATR chandelier on
+a 6.36:1 payoff), and no amount of entry pattern-matching from the source
+library has moved it.
