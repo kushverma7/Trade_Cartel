@@ -90,6 +90,21 @@ def _target(entry, d, a, mode, val, stop_dist):
     raise ValueError(mode)
 
 
+def _grid_target(grid, i, entry, d, rank):
+    """The `rank`-th level in `grid[i]` strictly beyond `entry` in direction d.
+
+    This is what "take profits at each pivot point level" means mechanically:
+    the targets are not a multiple of anything, they are wherever the levels
+    happen to sit relative to the fill. A trade entered right underneath R1
+    gets a tiny first target; one entered just above S1 gets a large one. That
+    variability is the rule, not a flaw in it.
+    """
+    row = grid[i]
+    row = row[np.isfinite(row)]
+    beyond = np.sort(row[row > entry]) if d > 0 else np.sort(row[row < entry])[::-1]
+    return float(beyond[rank]) if len(beyond) > rank else np.nan
+
+
 def run(df, sigL, sigS,
         stop_atr=4.0,
         trail_mode="chandelier", trail_atr=4.24, trail_n=20, trail_ema=0,
@@ -100,7 +115,7 @@ def run(df, sigL, sigS,
         trail_only_after_tp1=False,
         tp1_mode=None, tp1_val=0.0, tp1_pct=0.5,
         tp2_mode=None, tp2_val=0.0, tp2_pct=0.3,
-        tp_be=False, be_atr=0.0, tp_shorts_only=False,
+        tp_be=False, be_atr=0.0, tp_shorts_only=False, tp_grid=None,
         pyr_atr=0.0, pyr_max=0, pyr_risk=1.0,
         pyr_mode="current", pyr_budget=1.0, pyr_gate=None, pyr_decay=1.0,
         long_only=False, short_risk=1.0, cooldown=0, cooldown_loss=0,
@@ -449,8 +464,12 @@ def run(df, sigL, sigS,
                "cand": np.nan, "ref": np.nan, "swings": 0,
                "stop": entry - d * sdist, "stop0": entry - d * sdist,
                "best": entry, "banked": 0.0,
-               "tp1": _target(entry, d, a, tp1_mode, tp1_val, sdist),
-               "tp2": _target(entry, d, a, tp2_mode, tp2_val, sdist),
+               "tp1": _grid_target(tp_grid, i, entry, d, 0)
+                      if tp_grid is not None
+                      else _target(entry, d, a, tp1_mode, tp1_val, sdist),
+               "tp2": _grid_target(tp_grid, i, entry, d, 1)
+                      if tp_grid is not None
+                      else _target(entry, d, a, tp2_mode, tp2_val, sdist),
                "tp1_done": False, "tp2_done": False, "be": False,
                "adds": 0, "last_add": entry}
     return trades

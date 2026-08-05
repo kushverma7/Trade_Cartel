@@ -2043,3 +2043,103 @@ confirmation step needs a bid/ask ladder this desk does not have;
 with no application to XAUUSD; the Gann material states no falsifiable
 mechanical rule; Hougaard's discretionary crowd-reading is by construction not
 mechanical. Those four are gaps in coverage, not passes.
+
+---
+
+## B-0xx — The Bollinger squeeze gate: the first candidate in eighteen families to beat the baseline, and the control that would settle it cannot be run
+
+**The claim (user's scalping checklist, item 6, quoting Bollinger).** "Periods
+of low volatility are often followed by periods of high volatility ... a
+narrowing of the bands can foreshadow a significant advance or decline."
+
+**Part 1 — the market claim is TRUE and large.** Bandwidth = 2·2σ₂₀/MA₂₀,
+quintiled over 78,673 bars. Forward 20-bar price range, in ATR:
+
+| band | squeeze | tight | mid | loose | wide |
+|---|---|---|---|---|---|
+| forward 20-bar range (ATR) | **6.69** | 5.72 | 5.03 | 4.61 | 4.13 |
+
+Monotone, and the squeeze band delivers **62% more forward range** than the
+wide band. Note this is not the trivial mean-reversion of bandwidth itself
+(bandwidth is bounded below so it must rise from a low) — it is the *price
+range that follows*, which is the thing Bollinger actually claimed.
+
+**Part 2 — gating the champion on it, at matched 25% drawdown.**
+
+| arm | risk% | n | WR | PF | net | **net/DD** |
+|---|---|---|---|---|---|---|
+| baseline champion | 0.72 | 789 | 21.7% | 1.589 | +678.5% | **27.26** |
+| **squeeze gate (bw < 40th pct)** | 0.96 | 458 | 24.2% | 1.863 | +1163.9% | **46.53** |
+| no-squeeze (complement, control) | 0.60 | 524 | 21.0% | 1.397 | +112.0% | 4.49 |
+
++71% on the metric that decides, and the complement collapses. Nothing in
+seventeen prior families has done this.
+
+### The controls
+
+| # | control | result |
+|---|---|---|
+| 1 | **halves** | PASS — improves in both: h1 1.180→1.420, h2 1.799→2.151 |
+| 2 | **down years** | MIXED — 2021 0.900→1.002, 2022 1.093→1.376 (both DOWN years improve, so it is not the bull-market artifact). But **2023 degrades, 1.294→1.034**, and 2026 has n=6 and is meaningless |
+| 3 | **US30, second instrument** | **CANNOT BE RUN** — see below |
+| 4 | **threshold** | PASS, and strongly — a plateau, not a cliff: 30th 27.6, 40th 46.5, 50th 47.7, 60th 41.9. Only the 20th (n=243) falls away |
+| 5 | **is it Bollinger or just low vol?** | PASS, and this is the surprise — ATR-rank gating does **not** reproduce it: 10.22 / 11.15 / 8.20 at the 30th/40th/50th percentile. corr(bandwidth rank, ATR rank) = +0.54. The σ-over-price construction is doing work that an ATR filter does not |
+| 6 | **quality vs leverage** | PASS — payoff 2.10:1 → **2.55:1** and win rate 21.8% → 24.7%. The trades are genuinely better, not merely larger |
+
+### Why control 3 could not be run, stated rather than glossed
+
+US30 has 28,591 30-minute bars against gold's 78,693, and **the champion has no
+edge on it in this dataset at all**: baseline PF 0.657 on n=34 (bars mode) and
+0.656 on n=38 (clock mode). You cannot ask whether a filter improves a system
+that has no edge to improve, and n≈35 could not answer it if you could. The
+squeeze gate scores 0.633 / 0.472 there, which is noise around a broken
+baseline and must not be read as a failure any more than as a pass.
+
+**This is the control that has killed the most candidates in this project.**
+Its absence is the single largest open risk on this finding, and no amount of
+passing the other five substitutes for it.
+
+### Standing status
+
+**PROMOTED TO CANDIDATE, NOT ADOPTED.** It has cleared more than anything
+before it, including the control that distinguishes it from a generic
+volatility filter. It has not cleared the second instrument, and it degrades in
+one of four up years. Adoption requires either a US30 dataset the champion
+actually works on, or a third instrument.
+
+---
+
+## B-0xx — The rest of the scalping checklist and the MTF trend-break plan: every new element loses
+
+All at matched 25% drawdown, baseline net/DD 27.26.
+
+| element | source | net/DD | verdict |
+|---|---|---|---|
+| volume spike on the break | checklist item 1 | 10.87 | **worse than its own control** (no-spike: 13.42) — the spike is a negative filter |
+| 4h trend agreement (directional) | MTF plan §3 | 11.30 | PF rises to 1.688, compounding halves |
+| 4h agreement + squeeze | combined | 12.68 | the 4h gate **damages** the squeeze finding (46.53 → 12.68) |
+| candle confirmation on the break | MTF plan §4.3 | 6.35 | engulfing/pin gating cuts n to 322 and gains nothing |
+| hard 2R target, 100% of size | MTF plan §5 | 25.60 | worse |
+| hard 2R target, 50% of size | MTF plan §5 | 27.13 | indistinguishable |
+| TP at each pivot level, 25/25% | checklist item 5 | 24.30 | worse |
+| TP at each pivot level, 33/33% | checklist item 5 | 22.16 | worse |
+| TP at pivots + breakeven move | checklist item 5 | 7.06 | **the BE move is destructive** — WR rises 23.7%→28.6% and net collapses |
+| **stop just below the broken level** | checklist item 3 / MTF §5 | **2.71** | **the worst result of the session** |
+
+**Why the level-as-stop fails, measured.** The checklist says the flipped level
+"can also act as a STOP LOSS". The median distance from a breakout close back to
+the level it just broke is **0.38 ATR** (10th pct 0.06, 90th pct 1.26). The
+champion's stop is 4.24 ATR. A stop at the broken level sits *inside the noise*:
+win rate falls to 10.0% and net/DD to 2.71. This is a concrete, quantified
+reason, not a preference.
+
+**The breakeven move deserves its own note** because it is the most commonly
+recommended risk practice in retail material and it is the second-worst result
+here. It does exactly what it promises — win rate up 4.9 points — and it costs
+96% of the return, because it removes the trades that were going to become the
+6:1 winners this system lives on. On a 21.7%-win-rate trend system, protecting
+the middle of the distribution destroys the tail that pays for everything.
+
+**The reversals note supplied alongside states no mechanical rule** — it defines
+what a reversal is and warns they are hard to predict. Recorded as received;
+there is nothing in it to falsify.
