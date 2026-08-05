@@ -3248,3 +3248,67 @@ better drawdown distribution. Roughly 85 configurations were searched to find a
 3% profit-factor gain, which is close to what noise alone would produce at that
 search count; the plateau structure and the pre-2025 improvement are the reasons
 to believe it anyway.
+
+---
+
+## CAN THE WIN RATE BE RAISED? 37 filters tested (2026-08-04)
+
+User request: raise the 21.7% win rate by filtering. Baseline config E at the
+20% drawdown budget: n=711, WR 21.7%, PF 1.906, net +996%, MAR 2.17.
+
+**24 of 37 filters raised the win rate. 18 of those 24 REDUCED risk-adjusted
+return.** Full results in `research/winrate_filters.csv`.
+
+### The trade-off, at its clearest
+
+| | win rate | Δ | MAR | net |
+|---|---|---|---|---|
+| baseline | 21.7% | — | 2.17 | +996% |
+| **breakeven stop after TP1** | **31.0%** | **+9.3** | **0.44** | **+76%** |
+
+The single largest win-rate gain available costs **92% of the return**. Every
+mechanism that banks profit early converts the fat right tail into a nicer hit
+rate — which is the whole edge, traded away.
+
+### The six that raised win rate AND MAR
+
+| filter | n | WR | PF | net | MAR |
+|---|---|---|---|---|---|
+| **trend: \|close−EMA\| > 6 ATR** | 571 | **24.2%** | **2.278** | +1,310% | **2.44** |
+| exclude New York 16–21 | 688 | 21.8% | 1.946 | +1,297% | 2.43 |
+| volume rank > 0.5 | 640 | 22.0% | 1.995 | +1,276% | 2.41 |
+| trend > 3 ATR | 669 | 22.4% | 1.997 | +1,242% | 2.39 |
+| trend > 2 ATR | 686 | 21.7% | 1.957 | +1,197% | 2.35 |
+
+The trend-strength family is a plateau (1/2/3/4/6 ATR all keep or improve MAR),
+which is the argument for it being real rather than fitted.
+
+### The control that limits all six
+
+| filter | gold MAR | TEST PF | **US30 MAR** |
+|---|---|---|---|
+| no filter | 2.17 | 2.206 | **0.95** |
+| trend > 6 ATR | 2.44 | 2.880 | **0.69** |
+| volume rank > 0.5 | 2.41 | 2.553 | **0.55** |
+| exclude NY 16–21 | 2.43 | 2.288 | **0.74** |
+
+**Every one improves gold and degrades US30.** All five survive the regime
+split (trend > 6 ATR: DOWN-year PF 2.251 against baseline 1.767) and all
+improve the untouched gold test window — but not one is corroborated on the
+second instrument. That is the signature of gold-specific fitting.
+
+### Verdict
+
+**REJECT all six as additions.** The best of them, trend > 6 ATR, is also the
+same variable config G1 already uses for risk scaling — filtering *and* scaling
+on one measurement concentrates the whole improvement in the quantity that has
+repeatedly come back neutral-to-negative on the second instrument. Do one or
+neither, never both.
+
+**The structural answer.** Break-even win rate is 13.1% and the system runs at
+21.7%, an 8.6-point cushion. The 21.7% exists *because* the payoff is 6.36:1;
+they are the same fact stated twice. Buying 2.5 points of win rate is worth
+about +0.27 MAR — real but small. Buying 9 points costs 92% of the return.
+
+If a low hit rate is uncomfortable to trade rather than mathematically
+suboptimal, the fix is the **20% drawdown budget**, not a filter.
