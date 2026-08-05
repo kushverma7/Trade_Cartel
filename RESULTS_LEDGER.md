@@ -3445,3 +3445,61 @@ Three gates beat the champion on PF; all seven lose on net/DD.
 ladder), `agent_2_1_cluster_detector` (SEC Form 4 equities, no XAUUSD
 application), the Gann material (no falsifiable mechanical rule in the text),
 Hougaard's discretionary content (not mechanical).
+
+### 2026-08-05 (c) — Scalping checklist, MTF trend-break plan, Bollinger squeeze
+
+Data and champion settings as above. **Every arm dialled by bisection to 25%
+max drawdown before comparison.** Scripts: `research/scalp_checklist.py`,
+`research/mtf_plan.py`, `research/squeeze_controls.py`.
+
+**Bollinger squeeze foreshadows expansion — CONFIRMED** (`scalp_bb_squeeze.csv`,
+78,673 bars, quintiles ~15,735 each)
+
+| band | squeeze | tight | mid | loose | wide |
+|---|---|---|---|---|---|
+| bandwidth | 0.0031 | 0.0050 | 0.0069 | 0.0100 | 0.0204 |
+| forward 20-bar range (ATR) | **6.69** | 5.72 | 5.03 | 4.61 | 4.13 |
+
+**Champion variants at matched 25% DD** (`scalp_variants.csv`, `mtf_plan.csv`)
+
+| arm | risk% | n | WR% | PF | net% | net/DD |
+|---|---|---|---|---|---|---|
+| **squeeze gate, bw < 40th pct** | 0.96 | 458 | 24.2 | 1.863 | +1163.9 | **46.53** |
+| baseline champion | 0.72 | 789 | 21.7 | 1.589 | +678.5 | 27.26 |
+| hard 2R target, 50% of size | 0.75 | 789 | 21.9 | 1.573 | +675.2 | 27.13 |
+| hard 2R target, 100% | 0.78 | 789 | 23.1 | 1.539 | +642.8 | 25.60 |
+| TP at pivots 25/25% | 0.74 | 796 | 22.6 | 1.561 | +607.9 | 24.30 |
+| TP at pivots 33/33% | 0.71 | 799 | 23.7 | 1.572 | +553.9 | 22.16 |
+| hard 3R target, 50% | 0.70 | 789 | 21.7 | 1.593 | +630.0 | 25.13 |
+| TP at pivots 50/25% | 0.68 | 792 | 22.0 | 1.543 | +440.0 | 17.77 |
+| 4h agree + squeeze | 0.69 | 343 | 25.1 | 1.817 | +316.6 | 12.68 |
+| 4h trend agreement | 0.52 | 598 | 22.7 | 1.688 | +282.1 | 11.30 |
+| volume spike on break | 0.60 | 647 | 22.7 | 1.521 | +271.3 | 10.87 |
+| NO volume spike (control) | 0.63 | 610 | 21.8 | 1.590 | +335.3 | 13.42 |
+| TP at pivots 33/33% + BE | 0.59 | 967 | 28.6 | 1.389 | +176.8 | 7.06 |
+| candle confirmation | 0.95 | 322 | 24.2 | 1.356 | +159.0 | 6.35 |
+| no squeeze (control) | 0.60 | 524 | 21.0 | 1.397 | +112.0 | 4.49 |
+| **stop at broken level (~0.86 ATR)** | 0.08 | 1234 | 10.0 | 1.346 | +67.8 | **2.71** |
+| 4h DISagreement (control) | 0.73 | 361 | 19.7 | 1.154 | +41.6 | 1.66 |
+
+**Squeeze-gate controls** (`squeeze_controls.csv`)
+
+| control | result | verdict |
+|---|---|---|
+| halves | h1 1.180→1.420, h2 1.799→2.151 | PASS |
+| down years | 2021 0.900→1.002, 2022 1.093→1.376; **2023 1.294→1.034**; 2026 n=6 | MIXED |
+| **US30** | baseline PF 0.657 (n=34, bars) / 0.656 (n=38, clock) | **UNINFORMATIVE — champion has no edge on this US30 data** |
+| threshold | 20th 2.45 / 30th 27.64 / 40th 46.53 / 50th 47.68 / 60th 41.86 / 70th 26.62 | PASS (plateau) |
+| ATR-rank discriminant | 30th 10.22 / 40th 11.15 / 50th 8.20; corr(bw rank, ATR rank) = +0.54 | PASS — not reproduced by ATR |
+| quality vs leverage | payoff 2.10:1 → 2.55:1, WR 21.8% → 24.7% | PASS |
+
+**Directional arms** (`scalp_directional.csv`): FLIP_res_turned_support reaches
+t = +5.02 at 16 bars (n = 6122) but its short-side mirror is flat (t ≤ 0.62) —
+the asymmetry signature of gold's drift, so it is not claimed. Volume-spike
+breaks: best |t| = 2.90 of 8 tests.
+
+**Status: squeeze gate = CANDIDATE, not adopted. Shipped system unchanged.**
+Blocking requirement: a second instrument the champion actually works on.
+
+**Untested, stated:** checklist item 4 (trendlines) is not mechanically
+specified; the reversals note contains no falsifiable rule.
