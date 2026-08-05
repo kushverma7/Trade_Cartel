@@ -2143,3 +2143,63 @@ the middle of the distribution destroys the tail that pays for everything.
 **The reversals note supplied alongside states no mechanical rule** — it defines
 what a reversal is and warns they are hard to predict. Recorded as received;
 there is nothing in it to falsify.
+
+---
+
+## B-0xx — The MTI set: "never risk more than 2-5% per trade" would have destroyed the account
+
+Five PDFs from Market Traders Institute, ~145 pages. **Two of the five duplicate
+each other byte-for-byte** (`15_FXProfit_Hacks.pdf` and `...Hacks1.pdf`, both
+extracting to md5 `2da1a431dd8d9e34b34ecde7af49ba8c`). Of the remaining ~145
+distinct pages, **four claims are specified precisely enough to falsify.** The
+rest is psychology, workflow advice, and a vendor pitch. That is the finding for
+those documents, not a shortfall in the testing.
+
+### Hack #4, and this one matters because it is about a real account
+
+"Never risk more than two to five percent of your overall account in any given
+trade." The champion, solved to a 25% drawdown budget, risks **0.72%**. MTI's
+floor is 2.8× that; its ceiling is 6.9×.
+
+| risk/trade | n | PF | net | **max DD** | equity multiple |
+|---|---|---|---|---|---|
+| 0.50% | 786 | 1.555 | +303.7% | 17.70% | ×4.0 |
+| **0.72% (champion)** | 789 | 1.588 | +665.9% | **24.67%** | ×7.7 |
+| 1.00% | 789 | 1.626 | +1,511.9% | 35.25% | ×16.1 |
+| 2.00% | 789 | 1.651 | +10,840.4% | **66.58%** | ×109 |
+| 3.00% | 789 | 1.574 | +26,586.4% | **81.24%** | ×267 |
+| 4.00% | 789 | 1.469 | +30,211.5% | **89.23%** | ×303 |
+| 5.00% | 789 | 1.390 | +26,694.6% | **94.45%** | ×268 |
+
+**MTI's recommended floor of 2% costs a 66.6% drawdown. Its ceiling of 5% costs
+94.45%** — an account down 94% needs a 1,700% gain to recover, and no one keeps
+trading a system through that. The advice is written for a market and a win rate
+it does not name; applied to a 21.7%-win-rate trend system on gold it is not
+conservative, it is ruinous.
+
+**Note the second-order effect:** profit factor peaks at 2% (1.651) and then
+*falls* to 1.390 at 5%. Beyond a point, extra size stops buying return and only
+buys drawdown — the terminal multiple is lower at 5% (×268) than at 4% (×303).
+Over-leverage does not merely add risk; past the peak it destroys return too.
+
+**Standing consequence.** Percentage-risk advice is meaningless without the win
+rate and payoff it was calibrated on. This desk sizes from a **drawdown budget**
+(binary-search risk% to hit the target DD), which is the same statement made in
+the units that decide survival. Any future "risk X% per trade" rule gets
+converted to its drawdown before it is considered.
+
+### The other three claims
+
+| claim | source | result |
+|---|---|---|
+| StochRSI outside 80/20 "is expected to u-turn" | Hack #6 | **no.** 16 tests, best \|t\| = 1.38. The oversold-long arm is *negative* at 32 bars (t = −2.04): oversold gold drifts up **less** than unconditional |
+| "When one session ends and another begins, the opposite reversal point typically forms" | Hack #11 | **no.** NY open sets the day's extreme far more often (0.086 vs 0.049) but its flip rate is **lower** (0.509 vs 0.516). Same result as the earlier NY-open test: expansion, not reversal |
+| "Wildcard candlesticks the closer we get to the end of the month" | 25 Tips #5 | **no.** Last three days: mean range 0.9903 ATR and flip rate 0.5116, against 0.9836 and 0.5161 for the rest. Indistinguishable |
+
+Hack #1 (multiple timeframes) and Hack #3 (candlestick formations) were already
+refuted this session at matched drawdown — 11.30 and 6.35 against 27.26.
+
+**Tip #14, "you will never go broke taking a profit," is directly contradicted
+by this session's own measurements**: the breakeven move scored net/DD 7.06
+against 27.26, and hard 2R/3R targets 25.1–27.1. On a 21.7%-win-rate system,
+taking profits early is exactly how you go broke slowly.
