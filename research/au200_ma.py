@@ -107,7 +107,14 @@ def run(state15, d5, slip=1.0, stop_pts=0.0, stop_atr=0.0, trail_pts=0.0,
                     stop = max(stop, cand) if d > 0 else min(stop, cand)
                     pos["stop"] = stop
             if np.isfinite(stop) and ((l[i] <= stop) if d > 0 else (h[i] >= stop)):
-                px = stop - d * slip
+                # GAP-AWARE STOP FILL. Filling at the stop price assumes the
+                # level was crossed DURING the bar. If the bar OPENED beyond it
+                # the level was never available and the real fill is the open.
+                # Without this the engine flatters every loss, which showed up
+                # as a +0.15 PF bias on a return-shuffled null where the true
+                # value is 1.0.
+                fill = min(stop, o[i]) if d > 0 else max(stop, o[i])
+                px = fill - d * slip
                 tr.append(dict(pnl=d * (px - e) - 2 * COMM, day=pos["day"], why="stop"))
                 pos = None
             elif tgt[i] != d:

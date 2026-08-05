@@ -899,3 +899,53 @@ the initial stop distance.
    requested size is being clipped, the engine is reporting the cap's
    behaviour, not the strategy's. Instrumented permanently as
    `exit_lab.LEVCAP` / `LEVTRY`.
+
+---
+
+## BUG-031 — Resampled-timeframe state applied inside the still-forming bar
+
+**Where:** `research/au200_ma.py::run()` (AU200 lab).
+**Class:** lookahead / timing.
+
+**Root cause.** The 15m index stamp is the bar's OPEN time — verified against
+the data: the bar stamped 10:00 spans the 5m bars 10:00/10:05/10:10 and its
+close equals the 10:10 5m close. The engine did
+`state15.reindex(d5.index, method="ffill")`, which applied a state derived from
+that bar's CLOSE to the three 5m bars inside the still-forming bar. Up to **10
+minutes of lookahead on every signal.**
+
+**Impact.** Manufactured an entire champion: EMA 5/20 reported PF 1.889 at
+1 pt/side, net +11,564, 7/7 profitable years, OOS better than IS. Corrected:
+**PF 0.602, net −12,432, 1/7 years positive.**
+
+**Why downstream checks missed it.** Plateau sweeps, year-by-year, walk-forward
+and Monte Carlo all looked excellent. They cannot detect an upstream timing
+defect because the defect applies uniformly to every cell — a fitted-looking
+robustness surface is exactly what a uniform lookahead produces.
+
+**Detection that works.** A return-shuffled synthetic null. On data with no
+structure by construction the broken engine returned **PF 6.639** at zero cost;
+the corrected engine returns 0.898. Any engine scoring materially above 1.0 on a
+demeaned shuffle is inventing edge.
+
+**Prevention.** When mapping a coarse-timeframe state onto a finer series,
+shift the state index forward by one full coarse bar before reindexing. Fill at
+the finer bar's OPEN (which equals the coarse bar's close), never its close.
+
+---
+
+## BUG-032 — Stop fills not gap-aware in the AU200 engine
+
+**Where:** same file. **Class:** optimistic fill.
+
+**Root cause.** Stops filled at the stop price unconditionally. If a bar OPENS
+beyond the stop, that price was never available and the real fill is the open.
+The gold engine had carried the gap-aware fix since BUG-018; the AU200 engine,
+written later and separately, did not.
+
+**Impact.** +0.18 PF of pure optimism on a demeaned synthetic null
+(1.080 vs 0.898 corrected). Small next to BUG-031 but in the same direction and
+it survived the first correction — found only because the null still failed.
+
+**Prevention.** Every stop fill is `min(stop, open)` for longs and
+`max(stop, open)` for shorts, before slippage.

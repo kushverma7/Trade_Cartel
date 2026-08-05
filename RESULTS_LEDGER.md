@@ -4112,3 +4112,79 @@ harmful, −0.12 to −0.25 PF. ±1σ and ±2σ add no usable information on AU2
 **AU200 status: no candidate. The best measured arm on this instrument remains
 AU200-BASE at PF 1.141 (5m path, 1 pt), which itself fails on year-by-year and
 concentration.**
+
+---
+
+### 2026-08-05 (l) — AU200 ENGINE INTEGRITY GATE
+
+No strategy search. Engine proof only. `research/au200_integrity.py`.
+
+**A1 — bar alignment, proven from data.** 15m open == first spanned 5m open
+(True); 15m close == last spanned 5m close (True). **The stamp is the bar's
+OPEN time**; a bar stamped T covers [T, T+15) and its close is knowable only at
+T+15.
+
+**A3 — fill rules.** Entry at the OPEN of the first 5m bar at/after the 15m
+close (that open IS the 15m close price, so `process_orders_on_close` is
+reproduced with no added delay). State exits likewise at the bar open. Stop
+exits at `min(stop, open)` long / `max(stop, open)` short. Slippage always
+adverse. Commission 2.0 AUD per round turn.
+
+**A2 — lookahead battery (real data, EMA 5/20)**
+
+| engine | slip | n | PF | net | ΔPF |
+|---|---|---|---|---|---|
+| unshifted (broken) | 0.0 | 2120 | 2.477 | +15,804 | — |
+| **shifted (correct)** | 0.0 | 2452 | **0.858** | −3,295 | −1.619 |
+| unshifted (broken) | 1.0 | 2120 | 1.889 | +11,564 | — |
+| **shifted (correct)** | 1.0 | 2452 | **0.696** | −8,199 | −1.193 |
+| unshifted (broken) | 2.0 | 2120 | 1.469 | +7,324 | — |
+| **shifted (correct)** | 2.0 | 2452 | **0.576** | −13,103 | −0.894 |
+
+**SYNTHETIC NULL — the decisive test.** Return-shuffled 5m series: same bars,
+volatility and session pattern, no exploitable structure by construction.
+
+| engine | data | commission | mean PF (5 seeds) |
+|---|---|---|---|
+| **broken (unshifted)** | shuffled | 0 | **6.639** |
+| broken (unshifted) | shuffled | 1.0/side | 4.738 |
+| corrected, naive stop fill | shuffled, demeaned | 0 | 1.080 |
+| **corrected, gap-aware fill** | shuffled, demeaned | 0 | **0.898** (sd 0.015) |
+
+The broken engine manufactures **+5.7 PF from nothing**. The corrected engine
+sits below 1.0; the shortfall is attributable **entirely** to gap-aware stop
+fills (removing them returns 1.080), which is correct physics — a stop in a
+gapping market has negative expectancy on a driftless walk, and there is no
+symmetric benefit because the system carries no profit target.
+
+**PART B — naive baselines, corrected engine, 3×ATR stop + session-close exit**
+
+| baseline | slip | n | PF | net | top10 |
+|---|---|---|---|---|---|
+| B1 always long, cash 10–16 | 1.0 | 3,139 | 0.646 | −20,369 | −8.5% |
+| B1 | 2.0 | 3,139 | 0.569 | −26,647 | −6.4% |
+| B2 always long, all day | 1.0 | 18,958 | 0.387 | −84,651 | −2.7% |
+| B3 random entry, cash (5 seeds) | 1.0 | 1,422 | 0.807 | −4,462 | −34.5% |
+| B4 random entry, all day (5 seeds) | 1.0 | 1,630 | 0.723 | −6,601 | −23.2% |
+| B5 mirror (EMA5 < EMA20 long) | 1.0 | 2,937 | 0.644 | −16,992 | −11.2% |
+| B5 mirror | 2.0 | 2,937 | 0.554 | −22,866 | −8.2% |
+
+**Every naive baseline is well under 1.0 at both cost levels.** None resembles
+a champion. Buy-and-hold is +3,013 pts costless on 1 unit, which no cost-bearing
+baseline approaches.
+
+**PART C — regression on known artifacts**
+
+| artifact | metric | before | after |
+|---|---|---|---|
+| EMA 5/20 champion | PF @1.0 pt | 1.889 | **0.602** |
+| EMA 5/20 champion | PF @2.0 pt | 1.469 | **0.506** |
+| EMA 5/20 champion | net @1.0 pt | +11,564 | **−12,432** |
+| EMA 5/20 champion | years positive | 7/7 | **1/7** |
+| AU200-BASE 0.5-pt trail | PF @1.0, 15m path | 1.529 | — |
+| AU200-BASE 0.5-pt trail | PF @1.0, 5m path | — | **1.141** |
+| AU200-BASE 0.5-pt trail | PF @1.5, 5m path | — | **0.798** |
+
+**GATE VERDICT: PASS.** The engine does not invent edge. Two bugs found and
+fixed (BUG-031 lookahead, BUG-032 non-gap-aware stops); the residual deviation
+from the null is conservative and fully attributed.
