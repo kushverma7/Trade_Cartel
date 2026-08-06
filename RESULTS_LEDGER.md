@@ -4344,3 +4344,76 @@ instrument with a tighter spread-to-ATR ratio is a different experiment and is
 not addressed by this result.
 
 **Not added to the kill list** — recorded as under-powered, not refuted.
+
+---
+
+### 2026-08-05 (o) — Playbook system: US30 30-Minute Breakout + LWMA 21
+
+Data `data/us30_15m_native.csv.gz`, 56,165 native 15m bars, 2019-12-02 →
+2026-07-29 America/New_York (6.66y). `research/us30_orb_lwma.py`.
+Rule coded verbatim: session 09:30–16:00 ET, opening range = 09:30–10:00,
+entry on a CLOSE beyond the range with close beyond LWMA 21, LWMA slope > 8 pts
+over 5 bars, distance from LWMA > 20 pts; SL 1.5×ATR(14), TP 3×ATR(14).
+Integrity: closed-bar signals, NEXT-bar-open fills, gap-aware stops,
+stop-wins-ties. Ambiguous bars (stop and target both touched) = **1 of 1,813
+trades (0.1%)**, so the path assumption is immaterial here.
+
+**HEADLINE**
+
+| slippage/side | n | WR% | PF | net pts | maxDD | top10 |
+|---|---|---|---|---|---|---|
+| 0.0 | 1,813 | 40.1 | **1.001** | +116 | 5,164 | — |
+| **1.0** | 1,813 | 39.8 | **0.977** | **−3,008** | 7,098 | — |
+| 2.0 | 1,813 | 39.3 | 0.952 | −6,378 | 9,591 | — |
+| 3.0 | 1,813 | 39.1 | 0.929 | −9,550 | 12,367 | — |
+
+**The system is almost exactly break-even before costs (PF 1.001) and loses
+after them.** Year by year at 1 pt: 2020 1.09, 2021 0.91, 2022 0.99, 2023 0.87,
+2024 1.10, 2025 0.92, 2026 0.91 — **2 of 8 years positive**. IS 0.979 → OOS
+0.974 (stable, and stably negative). Exit mix: 935 stops, 469 EOD, 409 targets.
+
+**Q1 — is the edge front-loaded? No, it is the opposite.**
+
+| entry hour ET | n | WR% | PF | net | avg/trade |
+|---|---|---|---|---|---|
+| **10** | 823 | 37.4 | **0.865** | **−9,097** | −11.1 |
+| 11 | 305 | 39.0 | 0.969 | −735 | −2.4 |
+| 12 | 204 | 45.1 | 1.164 | +2,254 | +11.1 |
+| 13 | 170 | 45.9 | **1.377** | +3,596 | +21.2 |
+| 14 | 193 | 42.0 | 0.927 | −860 | −4.5 |
+| 15 | 118 | 36.4 | **1.462** | +1,833 | +15.5 |
+
+The 10:00 hour carries 45% of all trades and **−9,097 points** — it is the
+entire loss and more. Every hour from 12:00 on is profitable. Flagged as
+observational: six hour-buckets on one instrument is a multiple-comparison
+surface, and the 15:00 bucket is n=118.
+
+**Q2 — fixed 3×ATR target vs trailing after 1.5R: no material difference.**
+
+| exit | n | WR% | PF | net | maxDD |
+|---|---|---|---|---|---|
+| fixed 3×ATR (playbook) | 1,813 | 39.8 | 0.977 | −3,008 | 7,098 |
+| trail 1R after +1.5R | 1,813 | 42.0 | **0.985** | −1,839 | **5,431** |
+| trail 1R after +1.0R | 1,815 | 47.8 | 0.981 | −2,132 | 7,855 |
+| trail 1R after +2.0R | 1,813 | 39.8 | 0.977 | −3,008 | 7,098 |
+
+Trailing after 1.5R is marginally better (+0.008 PF, 23% smaller drawdown) and
+does not change the verdict. The +2.0R variant is identical to the fixed target
+because a 3×ATR target on a 1.5×ATR risk unit IS exactly 2R — the trail can
+never arm before the target fills.
+
+**Q3 — breakout failure rate (reclaim of the range), n = 9,454 long / 7,483 short**
+
+| window | long reclaim | short reclaim |
+|---|---|---|
+| 4 bars (60 min) | 20.0% | 23.7% |
+| 8 bars (120 min) | 31.0% | 36.0% |
+| 16 bars (240 min) | 44.5% | 49.6% |
+
+**Roughly half of all breakouts are back inside the range within four hours**,
+and shorts fail more often than longs at every horizon — consistent with the
+long bias of the index over this sample.
+
+**VERDICT: the system as written does not have a positive expectancy on US30.**
+PF 1.001 at zero cost means the entry and exit structure is, to three decimals,
+a coin flip before the spread. Not a candidate.
