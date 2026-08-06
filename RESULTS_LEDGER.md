@@ -4271,3 +4271,76 @@ Slow-trend filters (SMA/EMA 100/200) — DEAD. N-bar breakout with wide stops �
 DEAD. Wide ATR stops as an addition — HARMFUL (−0.13 mean PF). Previously
 killed and unchanged: gap/ST/TBT, TB morning scalper, AU200-BASE, VWAP and
 σ-bands, flip mechanics, sub-point trails.
+
+---
+
+### 2026-08-05 (n) — Six-step liquidity methodology (sweep → MSB → retest) on AU200
+
+Source: six screenshots of a social-media trader's process, demonstrated on
+NQ 15m. Coded mechanically in `research/au200_sweep_msb.py` and run on AU200
+15m signals / 5m path under the post-integrity-gate engine.
+
+**WHAT WAS AND WAS NOT TESTABLE**
+- Testable: steps 1–4 (HTF pivot zone → liquidity sweep → market-structure
+  shift → retest entry) and the 2:1 risk-reward floor.
+- **NOT testable here: step 5 (VIX inverse confirmation) and step 6
+  (Magnificent Seven participation).** No VIX series exists in this
+  environment; the ASX analogue (A-VIX) is also absent; and the Magnificent
+  Seven are US single stocks with no mechanical mapping to an Australian index.
+  This therefore tests the method's automatable skeleton, not the author's full
+  discretionary process.
+
+**THE FUNNEL — this is the finding**
+
+| stage | count |
+|---|---|
+| Step 2: raw sweeps of any HTF level (PDH/PDL/PWH/PWL/P4H-H/P4H-L) | **7,920** |
+| Steps 3+4 complete (structure shift AND retest, widest windows) | **103–133** |
+| …of which the entry-to-stop distance is ≥ 10 points | **20–36** |
+
+A 98.4% rejection rate from step 2 to step 4. The author states this explicitly
+("If every box isn't checked, I don't trade"), so the selectivity is the design,
+not a coding artifact.
+
+**THE STRUCTURAL PROBLEM, measured**
+
+| shift/retest | entries | ≥10 pt stop | median risk | cost/risk @ 1 pt |
+|---|---|---|---|---|
+| 12/24 | 65 | 20 | 7.0 pts | 28.6% |
+| 20/40 | 108 | 33 | 6.3 pts | 31.7% |
+| 30/60 | 103 | 29 | 6.6 pts | 30.3% |
+| 40/80 | 133 | 36 | 6.5 pts | 30.8% |
+
+The retest entry sits a **median 6.3–7.0 points** from the sweep extreme, against
+an AU200 15m ATR(14) of 10.8 points. Round-turn slippage of 2 points is
+therefore **~30% of the risk unit**. A 2:1 target must clear 30% of its own risk
+in costs before earning anything. **This is the same structural defect as the
+0.5-pt AU200-BASE trail: the stop is small relative to the spread it must trade
+through.**
+
+**RESULTS, full sample, 10-pt floor waived so the sample is reportable**
+
+| shift/retest | RR | side | n | WR% | PF@1 | net | PF@2 |
+|---|---|---|---|---|---|---|---|
+| 20/40 | 3.0 | both | 100 | 30.0 | **0.933** | −66 | 0.854 |
+| 20/40 | 3.0 | long | 48 | 27.1 | 0.923 | −38 | 0.823 |
+| 30/60 | 3.0 | long | 47 | 21.3 | 0.805 | −93 | 0.734 |
+| 20/40 | 2.0 | both | 100 | 33.0 | 0.693 | −286 | 0.561 |
+| 30/60 | 2.0 | both | 95 | 25.3 | 0.475 | −506 | 0.385 |
+
+**Arms with PF ≥ 1.0 at 1 pt: 0 of 12. Largest sample 124 trades over 6 years
+(~21/year).**
+
+**VERDICT: NOT A CANDIDATE, and n is too small to call it a kill either.**
+The honest status is **UNDER-POWERED ON THIS INSTRUMENT AND TIMEFRAME**: at
+~21 setups a year, six years cannot distinguish a real edge from noise. The
+2:1 arms are clearly worse than the 3:1 arms, which is consistent with the
+cost-to-risk arithmetic above rather than with any directional finding.
+
+**What would change the answer.** The method needs a risk unit large relative
+to costs. On AU200 15m it does not have one. The same rule on a higher
+timeframe (where the sweep extreme sits further from the retest) or on an
+instrument with a tighter spread-to-ATR ratio is a different experiment and is
+not addressed by this result.
+
+**Not added to the kill list** — recorded as under-powered, not refuted.
