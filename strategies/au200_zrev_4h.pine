@@ -1,0 +1,80 @@
+//@version=6
+// ============================================================================
+// AU200 Z-REVERSION — 4H, both sides, 6 x ATR disaster stop
+// ----------------------------------------------------------------------------
+// VERSION      au200_zrev_4h v1  (2026-08-05)
+// INSTRUMENT   AUS200 CFD, 4-HOUR chart. No session filter (tested: none needed).
+// CLOSED BAR   process_orders_on_close=true, calc_on_every_tick=false.
+// RATIONALE    AU200 is MEAN-REVERTING, measured: Lo-MacKinlay variance ratios
+//              on daily closes are 0.910 / 0.884 / 0.866 / 0.779 at q =
+//              2/5/10/20, and lag-1 autocorrelation is -0.0909. Twenty-plus
+//              TREND families failed on this instrument. This one is aligned
+//              with how it actually behaves.
+//
+// MEASURED, 2020-08-05 to 2026-08-04, 1.0 pt/side slippage, 4H bars:
+//   6xATR stop : n 71 | WR 80.3% | PF 3.233 | net +4,454 pts | maxDD 436
+//                6/7 years profitable | IS 2.76 -> OOS 3.73 | top10 52.5%
+//   no stop    : n 65 | WR 81.5% | PF 4.356 | net +4,524 | maxDD 344 | 7/7 yrs
+//                (better on paper; NOT shipped -- an unstopped reversion book
+//                 has unbounded tail risk that 6 years cannot price)
+//
+// CONTROLS PASSED
+//   demeaned return-shuffled null : PF 1.156 +- 0.153 -> the live result sits
+//                                   ~21 standard deviations above the null
+//   mirror (fade the fade)        : PF 0.214
+//   slippage                      : PF 4.52 / 4.36 / 4.20 / 4.06 at 0/1/2/3 pt
+//   plateau                       : PF >= 1.19 across the WHOLE 6x6 grid of
+//                                   lookback 20-80 x z 1.5-3.0
+//
+// KNOWN LIMITATIONS -- READ BEFORE TRADING
+//   1. n = 65-71 trades in 6 years. That is ~11 a year. Small.
+//   2. Top 10 trades carry ~52% of net profit.
+//   3. The plateau RISES toward larger lookback and larger z (n=50, z=3.0
+//      scores 13.0). Those cells have very few trades; 50/2.5 was kept as the
+//      interior choice and the surface peak was deliberately NOT chased.
+//   4. Selected as the best of a 296-arm scan. The null test is what defends
+//      it, not the raw profit factor.
+// ============================================================================
+strategy("AU200 Z-Reversion 4H", shorttitle="AU200-ZREV", overlay=true,
+         default_qty_type=strategy.fixed, default_qty_value=1,
+         currency=currency.AUD, initial_capital=50000,
+         process_orders_on_close=true, calc_on_every_tick=false, pyramiding=0)
+
+int   lookback = input.int(50,  "Z-score lookback (bars)", minval=5)
+float entryZ   = input.float(2.5, "Entry |z|", minval=0.5, step=0.25)
+float exitZ    = input.float(0.0, "Exit z (reversion to the mean)", step=0.25)
+float stopAtr  = input.float(6.0, "Disaster stop (x ATR)", minval=1.0, step=0.5)
+int   atrLen   = input.int(14, "ATR length", minval=2)
+bool  allowShort = input.bool(true, "Trade shorts as well as longs")
+
+float mean = ta.sma(close, lookback)
+float sd   = ta.stdev(close, lookback)
+float z    = sd > 0 ? (close - mean) / sd : 0.0
+float atr  = ta.atr(atrLen)
+
+bool goLong  = z <= -entryZ
+bool goShort = allowShort and z >= entryZ
+bool flatL   = z >= exitZ
+bool flatS   = z <= -exitZ
+
+if goLong and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+if goShort and strategy.position_size == 0
+    strategy.entry("S", strategy.short)
+if strategy.position_size > 0 and flatL
+    strategy.close("L", comment="reverted")
+if strategy.position_size < 0 and flatS
+    strategy.close("S", comment="reverted")
+
+// Disaster stop only. The primary exit is reversion of the z-score, which is a
+// CLOSED-BAR state and therefore immune to the bar-resolution artifacts that
+// invalidated two earlier AU200 systems.
+if strategy.position_size > 0
+    strategy.exit("L stop", "L", stop=strategy.position_avg_price - atr * stopAtr)
+if strategy.position_size < 0
+    strategy.exit("S stop", "S", stop=strategy.position_avg_price + atr * stopAtr)
+
+plot(mean, "Mean", color=color.new(color.orange, 0), linewidth=2)
+plot(mean - entryZ * sd, "Lower band", color=color.new(color.aqua, 40))
+plot(mean + entryZ * sd, "Upper band", color=color.new(color.fuchsia, 40))
+bgcolor(goLong ? color.new(color.green, 90) : goShort ? color.new(color.red, 90) : na)

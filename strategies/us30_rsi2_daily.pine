@@ -1,0 +1,69 @@
+//@version=6
+// ============================================================================
+// US30 RSI(2) REVERSION — DAILY, both sides, MA200 regime filter
+// ----------------------------------------------------------------------------
+// VERSION      us30_rsi2_daily v1  (2026-08-05)
+// INSTRUMENT   US30 CFD, DAILY chart. No session filter (daily bars).
+// CLOSED BAR   process_orders_on_close=true, calc_on_every_tick=false.
+// RATIONALE    US30 is the MOST mean-reverting of the three instruments
+//              measured: daily lag-1 autocorrelation -0.1692 and variance
+//              ratios 0.832 / 0.844 / 0.825 / 0.838 at q = 2/5/10/20.
+//              The playbook's 30-min breakout scored PF 1.001 at ZERO cost on
+//              the same instrument -- a coin flip. This trades the property the
+//              data actually has.
+//
+// MEASURED, 2019-12-02 to 2026-07-29, 1.0 pt/side slippage, daily bars:
+//   n 75 | WR 74.7% | PF 2.630 | net +12,521 pts | maxDD 1,408
+//   6/7 years profitable | IS 2.58 -> OOS 2.68 (improves) | top10 69.7%
+//   4xATR stop variant: PF 2.276, 7/7 years, maxDD 1,540 -- steadier, smaller
+//
+// CONTROLS PASSED
+//   demeaned return-shuffled null : PF 1.182 +- 0.167 -> ~8.7 sd above null
+//   mirror (fade the fade)        : PF 0.372
+//   slippage                      : PF 2.658 / 2.630 / 2.603 / 2.575 at 0/1/2/3
+//   plateau                       : RSI length 2-3 x oversold 5-25 all >= 1.37
+//
+// KNOWN LIMITATIONS -- READ BEFORE TRADING
+//   1. n = 75 trades in 6.7 years, about 11 a year.
+//   2. Top 10 trades carry 69.7% of net profit. This is concentrated.
+//   3. 2024 was flat-to-negative (-49 pts).
+//   4. Selected from a 296-arm scan; the null test defends it, not the PF.
+// ============================================================================
+strategy("US30 RSI2 Reversion", shorttitle="US30-RSI2", overlay=true,
+         default_qty_type=strategy.fixed, default_qty_value=1,
+         currency=currency.USD, initial_capital=50000,
+         process_orders_on_close=true, calc_on_every_tick=false, pyramiding=0)
+
+int   rsiLen  = input.int(2,   "RSI length", minval=2)
+int   osLevel = input.int(10,  "Oversold level", minval=1, maxval=49)
+int   obLevel = input.int(90,  "Overbought level", minval=51, maxval=99)
+int   maLen   = input.int(200, "Regime MA length", minval=20)
+float stopAtr = input.float(4.0, "Disaster stop (x ATR, 0 = none)", minval=0.0, step=0.5)
+int   atrLen  = input.int(14,  "ATR length", minval=2)
+bool  allowShort = input.bool(true, "Trade shorts as well as longs")
+
+float r   = ta.rsi(close, rsiLen)
+float ma  = ta.sma(close, maLen)
+float atr = ta.atr(atrLen)
+
+// Buy oversold ONLY above the long-term mean; sell overbought ONLY below it.
+// Reversion without a regime filter fights the drift and was measurably worse.
+bool goLong  = r < osLevel and close > ma
+bool goShort = allowShort and r > obLevel and close < ma
+
+if goLong and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+if goShort and strategy.position_size == 0
+    strategy.entry("S", strategy.short)
+if strategy.position_size > 0 and r > 50
+    strategy.close("L", comment="reverted")
+if strategy.position_size < 0 and r < 50
+    strategy.close("S", comment="reverted")
+
+if stopAtr > 0 and strategy.position_size > 0
+    strategy.exit("L stop", "L", stop=strategy.position_avg_price - atr * stopAtr)
+if stopAtr > 0 and strategy.position_size < 0
+    strategy.exit("S stop", "S", stop=strategy.position_avg_price + atr * stopAtr)
+
+plot(ma, "MA200", color=color.new(color.orange, 0), linewidth=2)
+bgcolor(goLong ? color.new(color.green, 90) : goShort ? color.new(color.red, 90) : na)

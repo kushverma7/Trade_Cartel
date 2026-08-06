@@ -4547,3 +4547,93 @@ has not been tested and is the only open direction. Prior for it is modest —
 VR 0.78–0.91 is a weak effect and the earlier sweep/fade families already
 failed — but it is at least aligned with the instrument's measured behaviour
 rather than against it.
+
+---
+
+### 2026-08-05 (r) — MEAN REVERSION: two candidates found, one per instrument
+
+Directed by the variance ratios in 08-05 (q) rather than by search: gold is the
+only one of the three with positive return persistence, so trend belongs there
+and reversion belongs on the other two. 296-arm scan, `research/mean_reversion_lab.py`.
+
+**Costs:** AU200 1.0, US30 1.0, GOLD 0.20 pts/side. Closed-bar signals,
+next-bar-open fills, gap-aware stops, state-based (resolution-independent) exits.
+
+**Scan hit rates — reversion is broadly, not narrowly, profitable on these two**
+
+| instrument | arms | PF ≥ 1.0 | PF ≥ 1.2 | PF ≥ 1.2 AND OOS ≥ 1.0 |
+|---|---|---|---|---|
+| AU200 | 89 | 68 | 51 | **49** |
+| US30 | 100 | 91 | 61 | **60** |
+| GOLD | 107 | 52 | 23 | 23 |
+
+### CANDIDATE 1 — AU200 4H z-reversion (`strategies/au200_zrev_4h.pine`)
+
+`z = (close − SMA50) / stdev50` on 4H. Long z ≤ −2.5, short z ≥ +2.5, exit at
+z = 0, disaster stop 6×ATR(14). Both sides. No session filter.
+
+| stop | n | WR% | PF | net pts | maxDD | top10 | IS | OOS | yrs+ |
+|---|---|---|---|---|---|---|---|---|---|
+| none | 65 | 81.5 | **4.356** | +4,524 | 344 | 50.2% | 4.81 | 4.10 | **7/7** |
+| **6×ATR** | 71 | 80.3 | **3.233** | +4,454 | 436 | 52.5% | 2.76 | 3.73 | 6/7 |
+| 4×ATR | 86 | 73.3 | 2.135 | +4,339 | 606 | 57.1% | 1.81 | 2.51 | 7/7 |
+
+Slippage 0/1/2/3 pt: PF 4.515 / 4.356 / 4.203 / 4.055 — nearly flat, because
+the trades are large relative to the spread.
+By year (pts): 2020 +120, 2021 +1,218, 2022 +238, 2023 +106, 2024 +1,181,
+2025 +677, 2026 +986.
+
+### CANDIDATE 2 — US30 daily RSI(2) (`strategies/us30_rsi2_daily.pine`)
+
+RSI(2) < 10 with close > SMA200 → long; RSI(2) > 90 with close < SMA200 →
+short; exit when RSI crosses 50. Optional 4×ATR stop.
+
+| stop | n | WR% | PF | net pts | maxDD | top10 | IS | OOS | yrs+ |
+|---|---|---|---|---|---|---|---|---|---|
+| **none** | 75 | 74.7 | **2.630** | +12,521 | 1,408 | 69.7% | 2.58 | **2.68** | 6/7 |
+| 4×ATR | 77 | 75.3 | 2.276 | +11,914 | 1,540 | 73.7% | 1.92 | 2.78 | **7/7** |
+
+Slippage 0/1/2/3 pt: PF 2.658 / 2.630 / 2.603 / 2.575.
+By year (pts): 2020 +315, 2021 +2,539, 2022 +2,002, 2023 +1,281,
+**2024 −49**, 2025 +2,251, 2026 +4,182.
+
+### CONTROL BATTERY — this is what defends them, not the profit factor
+
+| arm | n | real PF | shuffled (drift kept) | **demeaned null** | mirror | σ above null |
+|---|---|---|---|---|---|---|
+| AU200 4H z50/2.5 both | 65 | **4.356** | 0.979 ± 0.166 | 1.156 ± 0.153 | **0.214** | **~21** |
+| US30 D RSI2 both | 75 | **2.630** | 1.168 ± 0.249 | 1.182 ± 0.167 | **0.372** | **~8.7** |
+| US30 D RSI2 long | 63 | 3.189 | 1.679 ± 0.439 | 1.464 ± 0.507 | — | ~3.4 |
+| GOLD 4H z50/2.0 long | 54 | 2.666 | 1.322 ± 0.396 | 0.882 ± 0.076 | — | top10 **129.7%** — REJECT |
+
+Note the long-only nulls sit at 1.46–1.68 because a long-only rule on a rising
+market captures drift. The **both-sides** arms have nulls near 1.16–1.18, which
+is why they are the ones promoted.
+
+### PLATEAUS
+
+AU200 4H z-reversion, PF across lookback 20–80 × z 1.5–3.0: **every one of the
+36 cells ≥ 1.19**, rising toward larger lookback and larger z (n=50, z=3.0
+scores 13.0 on very few trades — the peak was deliberately not chased).
+US30 RSI(2), length 2–4 × oversold 5–25: all measured cells ≥ 1.057, most
+1.6–2.6.
+
+### GOLD — no change. G1\* stands.
+
+The best gold reversion arm has **top-10 concentration of 129.7%** (the rest of
+the book is net negative) on n=54. G1\* has n=711, top-10 41.4%, MAR 2.511 and
+7/7 profitable years. Gold keeps the trend system; that is what its positive
+autocorrelation supports.
+
+### HONEST LIMITATIONS ON BOTH CANDIDATES
+
+1. **n = 65–77 trades in ~6.5 years, roughly 11 a year.** Small.
+2. **Concentration: 52% (AU200) and 70% (US30) of net in the top 10 trades.**
+3. Both were selected as the best of a 296-arm scan. **The null test is the
+   defence, not the profit factor** — a multiple-comparison winner does not sit
+   21σ above a matched null.
+4. US30 2024 was flat (−49 pts).
+5. The unstopped versions score better and are NOT shipped: 6 years cannot
+   price the tail of an unstopped reversion book.
+
+**STATUS: first validated candidates on AU200 and US30. Gold unchanged (G1\*).**
