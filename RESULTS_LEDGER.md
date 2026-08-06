@@ -4709,3 +4709,67 @@ among the weakest cells on the surface. AU200's reversion lives on the daily.
 5. AU200 2020 (+61) and 2025 (+239) are thin years; 2024 and 2026 carry it.
 
 **STATUS: VALID — three per-instrument systems, controls passed. Hybrid closed.**
+
+---
+
+## 2026-08-06b — COST-GATE HYPOTHESIS FALSIFIED; US30 1H FOUND
+
+### The hypothesis, and why it was wrong
+
+Twenty-plus intraday families had failed. The proposed explanation was that
+entries gated in statistical units (z, RSI) say nothing about whether the
+expected move exceeds the spread, so cost was eating the edge. The fix under
+test: require the extension to exceed K x the round-trip cost, in POINTS.
+
+**FALSIFIED.** Across K = 0, 2, 4, 8, 16, 32 (i.e. up to a 64-point minimum on
+the indices), trade counts moved by under 2% and PF was unchanged to two decimal
+places on every instrument and timeframe. At |z| >= 2 the extensions are already
+tens of points. The gate is non-binding. **Cost is not what killed those
+families**, and the "cost-to-risk ratio" explanation carried through several
+prior sessions should not be repeated as the reason without re-testing it.
+
+Also measured and rejected en route:
+- **Hour-of-day drift.** Hour 23 UTC carries 66% of AU200's total drift and 49%
+  of gold's; US30's sits in the US cash session (hours 13-16 = 89%).
+- **Overnight vs intraday.** AU200 overnight is 66.9% of drift but only
+  +0.82 pts/session against a 1 pt spread (t = 1.07). Gold overnight t = 4.20
+  but +0.664 pts against 0.40 round trip. US30 overnight is NEGATIVE (-7%).
+  No unconditional session effect is large enough to trade. Family closed.
+
+### FOUND: US30 z-reversion, 1 HOUR — `strategies/us30_zrev_1h.pine`
+
+Surfaced as a by-product of the falsified sweep, not as its target.
+
+| slip/side | n | PF | net pts | WR | maxDD |
+|-----------|---|-----|---------|----|-------|
+| 1 pt | 158 | 1.427 | +19,026 | 67.1% | 8,647 |
+| 2 pt | 158 | **1.422** | +18,845 | 67.1% | 8,653 |
+| 3 pt | 158 | 1.415 | +18,565 | | |
+| 4 pt | 158 | 1.408 | +18,285 | | |
+
+Quadrupling slippage costs 1.4% of PF — the trades are large relative to spread.
+
+Yearly: 2020 1.03 / 2021 1.66 / **2022 0.88 (-1,315)** / 2023 1.26 / 2024 1.99 /
+2025 1.56 / 2026 3.29 (part year). IS 1.11 (n=113) -> OOS 4.97 (n=45).
+Median trade +343 pts. Hold: median 34h, 34% under a day, 68% under two.
+About 24 trades/year.
+
+**Controls.** Null (30 seeds): median 0.975, p95 1.174, **max 1.331** — live PF
+1.422 exceeds the null's maximum. Mirror 0.449. All 12 neighbourhood cells
+{50,75,100,150} x {2.0,2.5,3.0} above 1.0 (range 1.02–1.68). **Drop-the-best-year:
+excluding 2026 entirely, PF 1.258 on n=126, +10,597 pts.** Rolling 30-trade PF:
+median 1.33, min 0.82, only 13% of windows below 1.0.
+
+**LIMITATIONS.** Top 10 trades = 83% of net (top 5 = 51%, best single = 13.9%).
+2022 was a losing year. IS PF only 1.11 — the strength is out-of-sample, which is
+the right direction but means early years are near breakeven. maxDD 8,647 pts.
+Median hold 34h: **this is not an intraday system** — it holds overnight and over
+weekends.
+
+### REJECTED: AU200 1H
+
+Identical rule and process: PF 1.241 (2 pt slip), n=202, but **3/7 positive years
+and top-10 concentration of 97.5%** — net of its ten best trades it is flat. Null
+median 0.845, **max 1.316 vs live 1.241: it does not clear its own null.** No.
+
+**STATUS: US30 1H VALID. Cost-gate and session-drift families CLOSED.**
