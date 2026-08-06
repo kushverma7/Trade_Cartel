@@ -4417,3 +4417,57 @@ long bias of the index over this sample.
 **VERDICT: the system as written does not have a positive expectancy on US30.**
 PF 1.001 at zero cost means the entry and exit structure is, to three decimals,
 a coin flip before the spread. Not a candidate.
+
+---
+
+### 2026-08-05 (p) — The 10:00-hour exclusion: does not transfer. NOT a finding.
+
+The 08-05 (o) hour table showed the US30 10:00 ET bucket carrying −9,097 pts on
+45% of trades, and I flagged it as needing a cross-instrument test before
+either of us believed it. Tested. **It does not survive.**
+
+Method: the playbook's absolute thresholds converted to ATR units so the same
+rule means the same thing on three different price scales — US30 15m in-session
+ATR(14) median is **68.3 pts**, so slope > 8 pts = **0.117 × ATR** and distance
+> 20 pts = **0.293 × ATR**. Sessions: US30/Gold 09:30–16:00 ET (OR 09:30–10:00),
+AU200 10:00–16:00 AEST (OR 10:00–10:30). All other discipline unchanged.
+
+**Exclude the session's first full clock hour, 1.0 pt/side**
+
+| instrument | variant | n | PF | net | IS PF | OOS PF | ΔOOS |
+|---|---|---|---|---|---|---|---|
+| US30 | all hours | 1,822 | 0.956 | −5,824 | 0.933 | 0.987 | — |
+| **US30** | **exclude hour 10** | 1,003 | **1.057** | **+3,674** | 1.007 | **1.135** | **+0.148** |
+| GOLD | all hours | 1,746 | 0.593 | −3,252 | 0.478 | 0.668 | — |
+| **GOLD** | exclude hour 10 | 864 | **0.473** | −1,971 | 0.378 | 0.532 | **−0.135** |
+| AU200 | all hours | 1,521 | 0.633 | −7,977 | 0.647 | 0.618 | — |
+| **AU200** | exclude hour 10 | 1,097 | 0.622 | −5,829 | 0.630 | 0.613 | −0.005 |
+
+**The exclusion helps US30 (+0.148 OOS), HURTS gold (−0.135 OOS) and does
+nothing on AU200 (−0.005).** A genuine "the first hour of a session is noise"
+effect would show up on all three. It shows up on one.
+
+**Per-hour PF, IS / OOS — the pattern is not stable within instruments either**
+
+| instrument | 10h | 11h | 12h | 13h | 14h | 15h |
+|---|---|---|---|---|---|---|
+| US30 | 0.85/0.86 | 0.80/**1.17** | 1.16/1.13 | 1.29/1.33 | 0.95/0.82 | 1.09/**2.18** |
+| GOLD | 0.56/0.79 | 0.42/0.57 | 0.41/0.29 | 0.43/0.74 | 0.31/0.87 | 0.07/0.57 |
+| AU200 | 0.69/0.63 | 0.79/0.64 | 0.76/0.65 | 0.54/0.66 | 0.39/0.55 | 0.50/0.46 |
+
+On US30 the 11:00 bucket swings 0.80 → 1.17 and the 15:00 bucket 1.09 → 2.18
+across the split. On gold **every** hour is below 1.0 in both halves. Only US30
+hour 10 is consistently poor in both halves, and even there the level is 0.85
+IS / 0.86 OOS — stable but not the −9,097 outlier the whole-sample table
+suggested.
+
+**VERDICT: the hour effect is a US30-specific, sample-specific artifact of one
+bucket out of six. Excluding hour 10 turns US30 PF 0.956 → 1.057, which is
+still barely above break-even and does not survive as a principle.** The
+playbook system remains without a positive expectancy on any of the three
+instruments.
+
+**Note on the base numbers.** With ATR-scaled filters US30 reads PF 0.956 at
+1 pt versus 0.977 with the playbook's literal point thresholds. The ATR scaling
+is required for a fair cross-instrument comparison, so both are reported; the
+conclusion is the same either way.
