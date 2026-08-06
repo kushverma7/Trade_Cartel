@@ -70,6 +70,8 @@ int   lookback   = input.int(100,  "Z-score lookback (bars)", minval=5, group="S
 float entryZ     = input.float(2.5, "Entry |z|", minval=0.5, step=0.25, group="Signal")
 float exitZ      = input.float(0.0, "Exit z (reversion to mean)", step=0.25, group="Signal")
 bool  allowShort = input.bool(true, "Trade shorts as well as longs", group="Signal")
+bool  useSession = input.bool(false, "Trade US cash hours only", group="Signal")
+string sessStr   = input.session("1330-2000", "Session (UTC)", group="Signal")
 float stopAtr    = input.float(6.0, "Disaster stop (x ATR)", minval=1.0, step=0.5, group="Risk")
 int   atrLen     = input.int(14,   "ATR length", minval=2, group="Risk")
 
@@ -78,8 +80,13 @@ float zSd   = ta.stdev(close, lookback)
 float z     = zSd > 0 ? (close - zMean) / zSd : 0.0
 float atrV  = ta.atr(atrLen)
 
-bool goLong  = z <= -entryZ
-bool goShort = allowShort and z >= entryZ
+// Session gate. My dataset covers only ~8.7 hourly bars a day -- it is
+// US-cash-dominant -- so the measured edge is an RTH edge. On a 24/5 feed the
+// overnight entries are extra, unmeasured trades. Toggle decides it on real data.
+bool inSess = not useSession or not na(time(timeframe.period, sessStr, "UTC"))
+
+bool goLong  = z <= -entryZ and inSess
+bool goShort = allowShort and z >= entryZ and inSess
 bool flatL   = z >= exitZ
 bool flatS   = z <= -exitZ
 
