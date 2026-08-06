@@ -1028,3 +1028,74 @@ pending a second instrument. Under gold-only rules that blocker is void, but so
 is the resolution: it must now clear the same gold-only bar G1* just cleared —
 down years, anchored walk-forward, MC seed stability, right-tail diagnosis.
 It has NOT been run against that bar. Do that before it is considered again.
+
+---
+
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-06, supersedes the 08-05 block)
+
+## What happened this session
+
+User asked for a hybrid across AU200 / Gold / US30, "free hand without any
+restriction", then clarified mid-turn: **"create what i asked you not to worry
+about my portfolio"** (a portfolio-allocation study had been started and was
+dropped), and then **"you can create one for each"** — separate per-instrument
+systems are acceptable, a single unified strategy was not required.
+
+**The hybrid was built, tested and REJECTED.** See RESULTS_LEDGER 2026-08-06.
+The idea: measure each instrument's own rolling lag-1 autocorrelation and let it
+select trend vs fade, same threshold everywhere. Every 4H arm came in below
+PF 1.0; the daily arms had n=10–20. The regime switch also failed its own
+pre-stated diagnostic (it put AU200 in TREND 31% of the time and lost 1,468 pts
+there). Rolling autocorrelation on 500 bars is too noisy to route an engine.
+**Family closed — do not re-open without a materially different regime proxy.**
+
+**BUG-033 found and registered.** The hybrid's v1 produced n=4585, WR 0.2%.
+That was stop-out re-entry churn: the signal-state pass did not know the executor
+had already stopped out, so it re-entered the identical trade every bar. New
+standing harness assertion: **WR below 10% or above 90%, or trades exceeding
+~25% of bars, is a bug until proven otherwise — check it before reading the PF.**
+Note this bug class makes results WORSE, so null/mirror/slippage controls all
+pass while it silently buries real edges. Rebuilt clean in
+`research/adaptive_sim.py`.
+
+## The three shipped systems — one per instrument
+
+| Instrument | File | TF | n | PF @2x slip | yrs+ | IS/OOS |
+|-----------|------|----|---|------|------|--------|
+| GOLD | `strategies/gold_trend_G1.pine` (G1\*) | 15m | 711 | PF 2.157 @25% DD, MAR 2.511 | — | — |
+| US30 | `strategies/us30_rsi2_daily.pine` | 1D | 77 | 2.255 | 7/7 | 1.81→3.52 |
+| AU200 | `strategies/au200_zrev_daily.pine` | 1D | 71 | 2.306 | 7/7 | 2.39→2.16 |
+
+All three lint CLEAN. **US30 and AU200 now embed the Key Levels module** per the
+standing directive; they previously did not (that was a live CLAUDE.md
+violation — check any older strategy file for the same gap).
+
+New this session: `au200_zrev_daily.pine`. **`au200_zrev_4h.pine` is SUPERSEDED**
+and marked so in its header — on the rebuilt harness that 4H cell scores PF 1.25
+with top-10 concentration of 199%, meaning it loses money net of its ten best
+trades. AU200's reversion edge lives on the DAILY, not 4H.
+
+Cross-instrument transfer FAILED: RSI(2) daily applied to AU200 gives IS/OOS
+1.82→0.49, and on gold gives +303 pts over 7 years. This is precisely why three
+separate systems shipped rather than one.
+
+## Standing caveats to repeat to the user, unprompted
+
+n = 71 and 77 trades over 6–7 years is about one trade a month each; top-10
+concentration is ~70% on both; six to seven years is one broad regime and the
+variance ratios motivating the whole reversion family are measured on that same
+window. These are daily systems and will feel inactive to trade.
+
+## NEXT ACTION
+
+1. User forward-tests / paper-trades the two daily systems. They are low
+   frequency, so expect months before the sample means anything — say so rather
+   than reading early results.
+2. Still open from 08-05: the **Bollinger squeeze gate remains a CANDIDATE** and
+   needs the gold-only bar (down years, anchored walk-forward, MC seed
+   stability, right-tail).
+3. Do NOT re-open the adaptive/regime-switching hybrid family without a
+   genuinely different regime proxy — noisy rolling autocorrelation is settled.
+4. Audit the remaining `strategies/*.pine` for the missing Key Levels module;
+   `gold_confluence_engine.pine` also fails lint with 38 undeclared identifiers
+   (pre-existing, untouched this session).

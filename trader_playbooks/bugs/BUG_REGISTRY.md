@@ -949,3 +949,46 @@ it survived the first correction — found only because the null still failed.
 
 **Prevention.** Every stop fill is `min(stop, open)` for longs and
 `max(stop, open)` for shorts, before slippage.
+
+---
+
+## BUG-033 — Stop-out re-entry churn: signal state unaware the stop fired
+
+**Where:** `research/adaptive_hybrid.py` (v1, discarded) and the same latent
+defect in `research/mean_reversion_lab.py::run`. **Class:** execution/state
+desync. **Found:** 2026-08-06.
+
+**Root cause.** The signal generator (`state()`) and the executor (`backtest()`)
+were separate passes. `state()` produced a direction array that held the
+position direction until its own exit condition fired. The executor could exit
+EARLIER on a stop — but nothing told `state()` that. So on the very next bar the
+direction array still read "long", the executor saw `pos is None and d[i] != 0`,
+and it re-entered the identical trade at the identical stop distance. It then
+stopped out again, and again, for as long as the state array held.
+
+**Symptom that exposed it.** Absurd trade counts and win rates: n=4585 on 10,646
+gold bars with **WR 0.2%** and PF 0.135. A near-zero win rate is not a bad
+strategy, it is a broken loop — a real edge-less system lands near 50%, not 0.2%.
+
+**Why the usual controls miss it.** It makes results WORSE, so a null test, a
+mirror control and a slippage sweep all pass happily. Nothing flags a
+pessimistic bug. It destroys real edges silently rather than inventing fake ones
+— the opposite failure mode to BUG-031, and just as costly, because it causes
+good families to be discarded.
+
+**Impact.** Would have buried the adaptive-hybrid result entirely had the win
+rate not been checked. `mean_reversion_lab.run` carries the same shape; there
+its impact is bounded because the shipped configs are state-exit dominated (67
+of 71 AU200 daily exits, 74 of 77 US30 exits are state exits, not stops), so the
+re-entry path is rarely reachable. Verified, not assumed: exit-reason counts are
+printed in `research/verify_three.py`.
+
+**Prevention.**
+1. Position, stop and exit live in ONE loop (see `research/adaptive_sim.py`), so
+   a stopped-out trade cannot re-open until the entry condition fires again from
+   flat. Never split signal state from execution when a stop can exit early.
+2. **Win rate is a harness assertion, not a metric.** Any backtest returning
+   WR < 10% or > 90%, or trades numbering more than ~25% of bars, is a bug
+   until proven otherwise. Check it before reading the PF.
+3. When a two-pass design is unavoidable, report the exit-reason breakdown so
+   the stop path's share is visible.

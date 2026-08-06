@@ -4637,3 +4637,75 @@ autocorrelation supports.
    price the tail of an unstopped reversion book.
 
 **STATUS: first validated candidates on AU200 and US30. Gold unchanged (G1\*).**
+
+---
+
+## 2026-08-06 — ADAPTIVE HYBRID (rejected) + THREE FINAL PER-INSTRUMENT SYSTEMS
+
+### Adaptive hybrid — REJECTED
+
+One rule set that measures each instrument's own rolling lag-1 autocorrelation
+(win 500, threshold ±0.02, lagged one bar) and switches between a Donchian(20)
+trend engine and a z≥2.5 fade engine. Same parameters, same threshold, all three
+instruments — deliberately not tuned per instrument.
+
+**v1 was buggy** (BUG-033, stop-out re-entry churn: n=4585, WR 0.2%). Rebuilt as
+a single integrated loop in `research/adaptive_sim.py`. Clean v2 results:
+
+| TF | Instrument | n | PF @1x slip | PF @2x | yrs+ | IS/OOS |
+|----|-----------|---|------|------|------|--------|
+| 4H | GOLD | 146 | 0.951 | 0.935 | 2/7 | 0.68/1.26 |
+| 4H | US30 | 64 | 0.952 | 0.946 | 3/7 | 1.33/0.63 |
+| 4H | AU200 | 76 | 0.735 | 0.713 | 1/6 | 0.76/0.68 |
+| 1D | GOLD | 10 | 0.117 | 0.117 | 1/4 | 0.69/0.00 |
+| 1D | US30 | 13 | 1.276 | 1.272 | 3/4 | 0.99/1.71 |
+| 1D | AU200 | 20 | 1.499 | 1.470 | 4/5 | 1.23/1.99 |
+
+**Verdict: REJECTED.** Every 4H arm is below PF 1.0. The daily arms have n=10–20,
+which is not a sample. The regime switch also failed its own pre-stated
+diagnostic — it was supposed to place gold in TREND and the indices in REVERT
+without being told, and at 4H it put AU200 in TREND 31% of the time and lost
+1,468 pts in exactly that mode. Rolling autocorrelation on a 500-bar window is
+too noisy to route an engine. **Family closed.**
+
+### The three shipped systems (one per instrument)
+
+Common harness: closed-bar signals, next-bar-open fills, gap-aware stops,
+adverse slippage, IS/OOS split at 70%, demeaned return-shuffled null.
+
+| Instrument | System | TF | n | PF @2x slip | WR | yrs+ | IS/OOS | top10 | null p95 |
+|-----------|--------|----|---|------|----|----|--------|-------|----------|
+| GOLD | `gold_trend_G1.pine` (G1\*) | 15m | 711 | PF 2.157 @25% DD budget, MAR 2.511 | 21.7% | — | — | 42.3% | prior |
+| US30 | `us30_rsi2_daily.pine` | 1D | 77 | **2.255** | 74.0% | **7/7** | 1.81→3.52 | 74.5% | 1.278 |
+| AU200 | `au200_zrev_daily.pine` | 1D | 71 | **2.306** | 71.8% | **7/7** | 2.39→2.16 | 69.0% | 1.572 (max 1.836) |
+
+Slippage robustness: US30 PF 2.234 at 3x; AU200 PF 2.189 at **4x**.
+
+**Plateaus.** US30: all 12 cells of {RSI 5/95…20/80} × {SMA 100/200/300} net
+profitable, PF 1.29–2.26, no cliff. AU200 daily: all 27 cells of
+{lookback 20/50/100} × {z 2.0/2.5/3.0} × {stop 4/6/8 ATR} profitable. Both
+shipped cells chosen for SAMPLE SIZE, not peak PF — AU200's peak cell (z20/3.0)
+scores PF 8.16 on n=9 and was deliberately not chased.
+
+**Rejected en route:** the same RSI(2) daily rule cross-applied to AU200
+(IS/OOS 1.82→0.49, 3 of last 4 years negative) and to GOLD (net +303 pts over
+7 years, top10 252%). Cross-instrument transfer failed — each instrument keeps
+its own system, which is why no single hybrid was shipped.
+
+**SUPERSEDED:** `au200_zrev_4h.pine`. On the rebuilt harness that 4H cell scores
+PF 1.25 / n=74 / top10 199% — net of its ten best trades it loses money. It is
+among the weakest cells on the surface. AU200's reversion lives on the daily.
+
+### HONEST LIMITATIONS
+
+1. **n = 71 and 77 trades over ~6–7 years — about one trade a month each.** No
+   framing makes 71 a large sample.
+2. **Top-10 concentration ~70% on both.** Reversion books are concentrated, but
+   this means a handful of trades carry the record.
+3. Six to seven years is roughly one broad regime, and the variance ratios that
+   motivate the whole reversion family are measured on that same window.
+4. Both are DAILY systems. They are not a substitute for intraday activity, and
+   they will feel inactive to trade.
+5. AU200 2020 (+61) and 2025 (+239) are thin years; 2024 and 2026 carry it.
+
+**STATUS: VALID — three per-instrument systems, controls passed. Hybrid closed.**

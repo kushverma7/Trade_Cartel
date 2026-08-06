@@ -1,89 +1,102 @@
 //@version=6
 // ============================================================================
-// US30 RSI(2) REVERSION — DAILY, both sides, MA200 regime filter
+// AU200 Z-REVERSION — DAILY, both sides, 6 x ATR disaster stop
 // ----------------------------------------------------------------------------
-// VERSION      us30_rsi2_daily v1  (2026-08-05)
-// INSTRUMENT   US30 CFD, DAILY chart. No session filter (daily bars).
+// VERSION      au200_zrev_daily v1  (2026-08-06)
+// INSTRUMENT   AUS200 CFD, DAILY chart. No session filter (daily bars).
 // CLOSED BAR   process_orders_on_close=true, calc_on_every_tick=false.
-// RATIONALE    US30 is the MOST mean-reverting of the three instruments
-//              measured: daily lag-1 autocorrelation -0.1692 and variance
-//              ratios 0.832 / 0.844 / 0.825 / 0.838 at q = 2/5/10/20.
-//              The playbook's 30-min breakout scored PF 1.001 at ZERO cost on
-//              the same instrument -- a coin flip. This trades the property the
-//              data actually has.
 //
-// MEASURED, 2019-12-02 to 2026-07-29, 1.0 pt/side slippage, daily bars:
-//   n 75 | WR 74.7% | PF 2.630 | net +12,521 pts | maxDD 1,408
-//   6/7 years profitable | IS 2.58 -> OOS 2.68 (improves) | top10 69.7%
-//   4xATR stop variant: PF 2.276, 7/7 years, maxDD 1,540 -- steadier, smaller
+// WHY THIS REPLACES THE 4H VERSION
+//   au200_zrev_4h shipped the cell z50 / 2.5 / 6xATR. Re-measured on this
+//   session's clean harness at 2 pt/side that cell scores PF 1.25 on n=74 with
+//   top-10 concentration of 199% -- i.e. everything outside the ten best trades
+//   is net negative. It is one of the WEAKEST cells on the surface. The same
+//   rule on DAILY bars is stronger in every dimension, and the daily surface is
+//   profitable in all 27 cells tested (lookback 20/50/100 x z 2.0/2.5/3.0 x
+//   stop 4/6/8 ATR). AU200's reversion lives on the daily, not the 4H.
+//
+// RATIONALE    AU200 is MEAN-REVERTING, measured: Lo-MacKinlay variance ratios
+//              on daily closes are 0.910 / 0.884 / 0.866 / 0.779 at q =
+//              2/5/10/20, lag-1 autocorrelation -0.0909. Twenty-plus TREND
+//              families failed on this instrument.
+//
+// MEASURED, 2020-08-05 to 2026-08-04, DAILY bars, 71 trades:
+//   slip 1 pt/side : PF 2.367 | net +4,159 pts | maxDD 481
+//   slip 2 pt/side : PF 2.306 | net +4,021 pts | maxDD 482   <- headline
+//   slip 3 pt/side : PF 2.247 | net +3,883 pts | maxDD 483
+//   slip 4 pt/side : PF 2.189 | net +3,745 pts | maxDD 484
+//   WR 71.8% | top10 69.0% | avg win +139.2 / avg loss -153.9
+//   7 of 7 years profitable: 2020 +61 / 2021 +693 / 2022 +235 / 2023 +353 /
+//                            2024 +1417 / 2025 +239 / 2026 +1023
+//   IS 2.39 (n=51) -> OOS 2.16 (n=20), split 2024-11-05. Holds up out of sample.
+//   Exits: 67 by reversion state, 4 by stop. The stop is a tail guard, not the
+//   working exit -- which is what a reversion book should look like.
 //
 // CONTROLS PASSED
-//   demeaned return-shuffled null : PF 1.182 +- 0.167 -> ~8.7 sd above null
-//   mirror (fade the fade)        : PF 0.372
-//   slippage                      : PF 2.658 / 2.630 / 2.603 / 2.575 at 0/1/2/3
-//   plateau                       : RSI length 2-3 x oversold 5-25 all >= 1.37
-//
-// RE-VERIFIED 2026-08-06 on an independently rebuilt harness (research/
-// verify_three.py), shipped config (RSI2, 10/90, SMA200, 4xATR stop):
-//   slip 1 pt/side : n 77 | PF 2.276 | net +11,914 | WR 75.3% | maxDD 1,540
-//   slip 2 pt/side : n 77 | PF 2.255 | net +11,763 | top10 74.5%
-//   slip 3 pt/side : n 77 | PF 2.234 | net +11,612
-//   7 of 7 years profitable: 2020 +311 / 2021 +1838 / 2022 +1505 / 2023 +1255 /
-//                            2024 +460 / 2025 +2227 / 2026 +4168
-//   IS 1.81 (n=54) -> OOS 3.52 (n=23). Improves out of sample.
-//   Neighbourhood: ALL 12 cells of {RSI 5/95, 10/90, 15/85, 20/80} x
-//     {SMA 100, 200, 300} are net profitable, PF 1.29 to 2.26. The shipped cell
-//     is the peak of that surface but the surface has no cliff -- there is no
-//     isolated spike here.
-//   Demeaned return-shuffled null, 20 seeds: median PF 0.826, p95 1.278.
-//   NOTE the 2024 figure differs from the pre-stop headline above (-49 vs +460)
-//   because the 4xATR stop is active in this run. Long-only scores PF 2.538 but
-//   6/7 years; both sides is shipped for the steadier year count.
+//   demeaned return-shuffled null, 30 seeds : median PF 0.797, p95 1.572,
+//     MAX 1.836. The live PF of 2.31 sits above the null's maximum, not merely
+//     above its mean. The null runs below 1.0 because costs are charged in it,
+//     which is the correct target for a cost-bearing engine.
+//   plateau : all 27 daily cells profitable; this cell was chosen for SAMPLE
+//     SIZE (n=71), not for peak PF. Peak cells (z20/3.0 -> PF 8.16) have n=9
+//     and were deliberately NOT chased.
+//   slippage : PF still 2.19 at 4 pt/side, 4x the assumed cost.
 //
 // KNOWN LIMITATIONS -- READ BEFORE TRADING
-//   1. n = 75 trades in 6.7 years, about 11 a year.
-//   2. Top 10 trades carry 69.7% of net profit. This is concentrated.
-//   3. 2024 was flat-to-negative (-49 pts).
-//   4. Selected from a 296-arm scan; the null test defends it, not the PF.
+//   1. n = 71 trades in 6 years, about 12 a year. Small, and no amount of
+//      framing makes 71 a large sample.
+//   2. Top 10 trades carry 69% of net profit. Concentrated, as reversion books
+//      generally are.
+//   3. 2020 (+61) and 2025 (+239) are thin years; the record is carried by 2024
+//      and 2026.
+//   4. Six years covers one broad regime for AU200. The variance ratios that
+//      justify the whole family are measured on that same window.
+//   5. This is a DAILY system. It produces roughly one trade a month. It is not
+//      a substitute for intraday activity.
 // ============================================================================
-strategy("US30 RSI2 Reversion", shorttitle="US30-RSI2", overlay=true,
+strategy("AU200 Z-Reversion Daily", shorttitle="AU200-ZREV-D", overlay=true,
          default_qty_type=strategy.fixed, default_qty_value=1,
-         currency=currency.USD, initial_capital=50000,
+         currency=currency.AUD, initial_capital=50000,
          max_lines_count=500, max_labels_count=500, max_boxes_count=500,
          process_orders_on_close=true, calc_on_every_tick=false, pyramiding=0)
 
-int   rsiLen  = input.int(2,   "RSI length", minval=2)
-int   osLevel = input.int(10,  "Oversold level", minval=1, maxval=49)
-int   obLevel = input.int(90,  "Overbought level", minval=51, maxval=99)
-int   maLen   = input.int(200, "Regime MA length", minval=20)
-float stopAtr = input.float(4.0, "Disaster stop (x ATR, 0 = none)", minval=0.0, step=0.5)
-int   atrLen  = input.int(14,  "ATR length", minval=2)
-bool  allowShort = input.bool(true, "Trade shorts as well as longs")
+int   lookback = input.int(20,  "Z-score lookback (bars)", minval=5, group="Signal")
+float entryZ   = input.float(2.0, "Entry |z|", minval=0.5, step=0.25, group="Signal")
+float exitZ    = input.float(0.0, "Exit z (reversion to the mean)", step=0.25, group="Signal")
+float stopAtr  = input.float(6.0, "Disaster stop (x ATR)", minval=1.0, step=0.5, group="Risk")
+int   atrLen   = input.int(14, "ATR length", minval=2, group="Risk")
+bool  allowShort = input.bool(true, "Trade shorts as well as longs", group="Signal")
 
-float rsiV = ta.rsi(close, rsiLen)
-float maV  = ta.sma(close, maLen)
-float atrV = ta.atr(atrLen)
+float zMean = ta.sma(close, lookback)
+float zSd   = ta.stdev(close, lookback)
+float z     = zSd > 0 ? (close - zMean) / zSd : 0.0
+float atrV  = ta.atr(atrLen)
 
-// Buy oversold ONLY above the long-term mean; sell overbought ONLY below it.
-// Reversion without a regime filter fights the drift and was measurably worse.
-bool goLong  = rsiV < osLevel and close > maV
-bool goShort = allowShort and rsiV > obLevel and close < maV
+bool goLong  = z <= -entryZ
+bool goShort = allowShort and z >= entryZ
+bool flatL   = z >= exitZ
+bool flatS   = z <= -exitZ
 
 if goLong and strategy.position_size == 0
     strategy.entry("L", strategy.long)
 if goShort and strategy.position_size == 0
     strategy.entry("S", strategy.short)
-if strategy.position_size > 0 and rsiV > 50
+if strategy.position_size > 0 and flatL
     strategy.close("L", comment="reverted")
-if strategy.position_size < 0 and rsiV < 50
+if strategy.position_size < 0 and flatS
     strategy.close("S", comment="reverted")
 
-if stopAtr > 0 and strategy.position_size > 0
+// Disaster stop only. The primary exit is reversion of the z-score, which is a
+// CLOSED-BAR state and therefore immune to the bar-resolution artifacts that
+// invalidated two earlier AU200 systems (see bugs/BUG_REGISTRY.md).
+if strategy.position_size > 0
     strategy.exit("L stop", "L", stop=strategy.position_avg_price - atrV * stopAtr)
-if stopAtr > 0 and strategy.position_size < 0
+if strategy.position_size < 0
     strategy.exit("S stop", "S", stop=strategy.position_avg_price + atrV * stopAtr)
 
-plot(maV, "MA200", color=color.new(color.orange, 0), linewidth=2)
+plot(zMean, "Mean", color=color.new(color.orange, 0), linewidth=2)
+plot(zMean - entryZ * zSd, "Lower band", color=color.new(color.aqua, 40))
+plot(zMean + entryZ * zSd, "Upper band", color=color.new(color.fuchsia, 40))
 bgcolor(goLong ? color.new(color.green, 90) : goShort ? color.new(color.red, 90) : na)
 
 // ════════════════════════════════════════════════════════════════════

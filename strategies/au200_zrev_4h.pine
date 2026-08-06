@@ -1,4 +1,11 @@
 //@version=6
+// *** SUPERSEDED 2026-08-06 by strategies/au200_zrev_daily.pine ***
+// On a rebuilt harness at 2 pt/side this 4H cell scores PF 1.25 on n=74 with
+// top-10 concentration of 199% -- i.e. net of the ten best trades it loses
+// money. It is one of the weakest cells on the AU200 reversion surface. The
+// identical rule on DAILY bars scores PF 2.31 on n=71, 7/7 positive years,
+// IS 2.39 -> OOS 2.16, and survives 4x slippage. Trade the daily file.
+// Kept here as the record of what was measured, not as a recommendation.
 // ============================================================================
 // AU200 Z-REVERSION — 4H, both sides, 6 x ATR disaster stop
 // ----------------------------------------------------------------------------
