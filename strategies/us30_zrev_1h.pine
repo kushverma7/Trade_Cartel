@@ -43,6 +43,27 @@
 //   rolling 30-trade PF     : median 1.33, minimum 0.82, only 13% of windows
 //     below 1.0. The equity curve is broadly monotone, not one step.
 //
+// LIVE-FEED RESULT SUPERSEDES THE FIGURES ABOVE (2026-08-06)
+//   Run by the user on Capital.com US30 1H, 2020-07-31 to 2026-08-06, 50k USD:
+//     n = 308 | PF 1.235 | net +13,672 USD (+27.34%) | maxDD 8,069 (13.12%)
+//     WR 59.74% | Sharpe 0.119 | buy-and-hold outperformed by 62.68%
+//   TRUST THIS, NOT THE 1.422 QUOTED ABOVE. The local datasets carry ~8.7
+//   hourly bars/day against a real feed's ~24 (BUG-034), so the local run was
+//   an RTH test wearing a 24-hour label, and its headline was inflated by 25
+//   trades in hours with almost no coverage.
+//
+// THE SESSION GATE IS OFF BY DEFAULT BECAUSE IT WAS FALSIFIED
+//   Local data suggested the edge lived in US cash hours (13-20 UTC: PF 1.340
+//   on n=133; outside: PF 2.139 on n=25). The gate was added to test that on a
+//   real feed. It was tested and it FAILED, badly and in the opposite
+//   direction:
+//     gate OFF : n=308 | PF 1.235 | net +13,672 | maxDD 8,069 (13.12%) | WR 59.74%
+//     gate ON  : n=240 | PF 1.095 | net + 4,407 | maxDD 10,424 (18.37%) | WR 57.08%
+//   Worse profit factor, a third of the net, and a LARGER drawdown. The
+//   overnight entries are the better trades, not the diluting ones. Leave
+//   "Trade US cash hours only" OFF. The input is kept only so the falsification
+//   stays reproducible; there is no known reason to switch it on.
+//
 // KNOWN LIMITATIONS -- READ BEFORE TRADING
 //   1. Top 10 trades carry 83% of net profit; top 5 carry 51%. The single best
 //      trade is 13.9%. Concentrated -- though no one trade dominates.

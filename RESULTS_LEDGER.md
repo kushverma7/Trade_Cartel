@@ -4773,3 +4773,53 @@ and top-10 concentration of 97.5%** — net of its ten best trades it is flat. N
 median 0.845, **max 1.316 vs live 1.241: it does not clear its own null.** No.
 
 **STATUS: US30 1H VALID. Cost-gate and session-drift families CLOSED.**
+
+---
+
+## 2026-08-06c — US30 1H CONFIRMED ON A LIVE FEED; SESSION-GATE HYPOTHESIS FALSIFIED
+
+### The live number replaces the local one
+
+User ran `us30_zrev_1h.pine` on Capital.com US30 1H, 2020-07-31 to 2026-08-06,
+50k USD, default properties:
+
+| | local (this repo) | **LIVE (authoritative)** |
+|---|---|---|
+| n | 158 | **308** |
+| PF | 1.422 | **1.235** |
+| net | +18,845 pts | **+13,672 USD (+27.34%)** |
+| maxDD | 8,653 pts | **8,069 (13.12%)** |
+| WR | 67.1% | **59.74%** |
+
+Cause of the gap is BUG-034: local US30 data carries ~8.7 hourly bars/day against
+a real feed's ~24. **The 1.422 figure is withdrawn.** Also on the live run:
+Sharpe **0.119**, and buy-and-hold outperformed the strategy by **62.68%**.
+
+### Session gate: proposed, tested, FALSIFIED
+
+Local data said the edge was concentrated in US cash hours (13–20 UTC: PF 1.340
+on n=133; outside: PF 2.139 on n=25 with near-zero coverage). Prediction: gating
+to RTH should raise PF on a real feed. Tested by the user:
+
+| | gate OFF | gate ON |
+|---|---------|---------|
+| n | 308 | 240 |
+| PF | **1.235** | 1.095 |
+| net | **+13,672** | +4,407 |
+| maxDD | **8,069 (13.12%)** | 10,424 (18.37%) |
+| WR | **59.74%** | 57.08% |
+
+**Wrong in the opposite direction.** The gate cut two-thirds of the net while
+INCREASING drawdown. Overnight entries are the better trades. Gate stays OFF and
+is retained only to keep the falsification reproducible.
+
+### What this actually leaves
+
+US30 1H is a **live-verified but modest** edge: PF 1.235 on n=308, +27.34% over
+6 years, 13.12% maxDD, Sharpe 0.119, beaten by buy-and-hold. n=308 is the largest
+verified sample in this repo. It is real; it is not exceptional.
+
+**STANDING RULE ADDED:** for any sub-daily strategy, the local backtest is a
+SCREEN, not a result. The user's Strategy Tester on their own feed is the
+arbiter, and no sub-daily headline number is quoted as validated until it has
+been reproduced there.
