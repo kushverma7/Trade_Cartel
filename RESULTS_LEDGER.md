@@ -4471,3 +4471,79 @@ instruments.
 1 pt versus 0.977 with the playbook's literal point thresholds. The ATR scaling
 is required for a fair cross-instrument comparison, so both are reported; the
 conclusion is the same either way.
+
+---
+
+### 2026-08-05 (q) — AU200 higher timeframes: my own cost hypothesis, refuted
+
+I concluded the previous run with "the direction the numbers point to is longer
+holds and wider stops". That was a hypothesis, not a result. Tested on AU200.
+
+**Cost-to-risk by timeframe** (2 pts round turn against a 4×ATR stop)
+
+| timeframe | bars | ATR(14) median | 4×ATR stop | cost/risk |
+|---|---|---|---|---|
+| 15m | 47,283 | 10.8 pts | 43.4 pts | 4.61% |
+| 1H | 12,637 | 23.0 pts | 91.8 pts | 2.18% |
+| 4H | 4,445 | 41.1 pts | 164.2 pts | 1.22% |
+| **Daily** | 1,618 | 70.7 pts | 283.0 pts | **0.71%** |
+
+**Result: 0 of 32 arms reach PF 1.0.** The G1\*-shaped structure (Donchian
+breakout + EMA regime + dual SMA + chandelier trail), run at 1H / 4H / Daily ×
+trail 3.0 / 4.24 / 6.0 ATR × both-sides / long-only × with / without
+pyramiding, slippage 1.0 pt/side.
+
+| best arms | n | WR% | PF | avg hold | IS | OOS |
+|---|---|---|---|---|---|---|
+| 1H trail 4.24 long, no pyr | 167 | 36.5 | **0.912** | 34 bars | 1.104 | 0.798 |
+| 1H trail 6.0 long, no pyr | 98 | 37.8 | 0.904 | 59 bars | 1.114 | 0.762 |
+| 4H trail 3.0 long, no pyr | 94 | 42.6 | 0.857 | 21 bars | 0.854 | 0.859 |
+| Daily trail 3.0 long, no pyr | 35 | 37.1 | 0.829 | 19 bars | 0.925 | 0.789 |
+| Daily trail 4.24 both, pyr | 40 | 7.5 | **0.177** | 27 bars | 0.001 | 0.365 |
+
+**Pyramiding is harmful on AU200 at every timeframe** — the exact opposite of
+gold, where the adds ARE the edge. Buy and hold over the span: +50.5%.
+
+**THE HYPOTHESIS IS REFUTED, AND THE REASON IS DIAGNOSABLE.** At 0.71%
+cost-to-risk on daily bars, costs cannot be the constraint, and the system
+still fails. So the problem was never cost.
+
+**Lo-MacKinlay variance ratio, daily closes** (VR > 1 trending, < 1 mean-reverting)
+
+| instrument | daily bars | VR(2) | VR(5) | VR(10) | VR(20) |
+|---|---|---|---|---|---|
+| **AU200** | 1,618 | 0.910 | 0.884 | 0.866 | **0.779** |
+| GOLD | 2,072 | **1.009** | 0.928 | 0.861 | 0.821 |
+| US30 | 1,783 | 0.832 | 0.844 | 0.825 | 0.838 |
+
+**Daily-return autocorrelation**
+
+| instrument | lag-1 | lag-5 | lag-10 | ann. drift |
+|---|---|---|---|---|
+| **AU200** | **−0.0909** | +0.0068 | −0.0519 | 6.4% |
+| GOLD | **+0.0078** | +0.0198 | +0.0227 | 12.5% |
+| US30 | −0.1692 | +0.0930 | −0.0507 | 8.8% |
+
+**AU200 is mean-reverting at every horizon measured, with negative lag-1
+autocorrelation.** Gold is the only one of the three with positive
+autocorrelation at all three lags — which is precisely why a trend-following
+system works there and nowhere else in this project. A trend system needs
+VR > 1 at its holding horizon; AU200 supplies 0.78–0.91.
+
+Caveat stated: the robust z-statistics are all ≈ 0, so none of these VRs is
+individually significant at n≈1,600 daily bars. The evidence is the CONSISTENCY
+of the sign — AU200 below 1.0 at all four horizons and negative at lag 1 — not
+any single statistic.
+
+**VERDICT: AU200 is closed for trend-following.** Not because of costs, not
+because of the timeframe, but because the instrument does not exhibit the
+return persistence the strategy family requires. Twenty-plus families across
+five sessions have now failed on it, and this is the first result that explains
+why rather than just recording another failure.
+
+**What this implies, honestly:** if anything works on AU200 it would be a
+MEAN-REVERSION structure, since that is the sign the data actually shows. That
+has not been tested and is the only open direction. Prior for it is modest —
+VR 0.78–0.91 is a weak effect and the earlier sweep/fade families already
+failed — but it is at least aligned with the instrument's measured behaviour
+rather than against it.
