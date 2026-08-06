@@ -992,3 +992,41 @@ printed in `research/verify_three.py`.
    until proven otherwise. Check it before reading the PF.
 3. When a two-pass design is unavoidable, report the exit-reason breakdown so
    the stop path's share is visible.
+
+---
+
+## BUG-034 — Backtest data coverage never checked against the live feed
+
+**Where:** `data/us30_15m*.csv.gz` and every result quoted from them.
+**Class:** silent sample mismatch. **Found:** 2026-08-06, by the user's live test.
+
+**Root cause.** Both US30 datasets carry roughly **8.7 hourly bars per trading
+day**. A 24/5 CFD feed carries about 24. The data is US-cash-dominant with only
+token overnight coverage (~230 bars in hours where a real feed has ~1,700). No
+one checked. Every "US30 1H" result computed here was therefore an RTH result
+wearing a 24-hour label.
+
+**Impact.** A headline of PF 1.422 on n=158 was quoted to the user. Their live
+run on a real feed returned **PF 1.236 on n=308** — nearly double the trades.
+Decomposing the local trades by entry hour explains it exactly: the well-sampled
+13–20 UTC block is 133 trades at PF 1.340, while 25 trades in barely-covered
+overnight hours scored PF 2.139 and pulled the headline up. The quoted figure was
+inflated by the hours the dataset knows least about.
+
+**Why the usual controls miss it.** Null, mirror, neighbourhood, IS/OOS and
+slippage sweeps all operate INSIDE the dataset. Every one of them passed. None
+can see that the dataset is not the market the user trades. This defect class is
+invisible to every control in the standing gate.
+
+**Prevention.**
+1. **Print a coverage profile before quoting any intraday result**: bars per day,
+   and the bar count per UTC hour. If bars/day is materially below what the
+   instrument's session length implies, the result is session-conditional and
+   must be labelled as such.
+2. Report P&L **by entry hour** for anything below the daily timeframe. If a
+   meaningful share of net sits in hours with thin coverage, the headline is not
+   trustworthy — quote the well-sampled block instead.
+3. Prefer the user's live Strategy Tester result over the local one whenever the
+   trade counts diverge. Their feed is the market; this data is a proxy.
+4. This does NOT apply to daily-timeframe results, where one bar per day means
+   coverage is complete.
