@@ -4958,3 +4958,72 @@ Ships as `strategies/au200_10pt_breakout.pine` (lint CLEAN, Key Levels embedded)
 
 **STATUS: VALID pending live-feed confirmation. Cost is the binding constraint,
 not the signal.**
+
+---
+
+## 2026-08-08 — UT BOT: REJECTED ON AU200, RISK-CONTROLLED VARIANT BUILT
+
+### UT Bot on AU200 as a 10-point system — REJECTED
+
+Tested identically to the trendline breakout (fixed 10 pt target / 10 pt stop,
+one position at a time, 1 pt/side slippage, AU200 5m 2020-08 -> 2026-08):
+
+| key | hours | n | win% | exp | pts/day |
+|-----|-------|---|------|-----|---------|
+| 1 | 10-13 | 4,685 | 45.2% | -1.95 | -5.58 |
+| 2 | 10-13 | 2,743 | 46.3% | -1.72 | -2.88 |
+| 3 | 10-13 | 1,704 | 46.9% | -1.64 | -1.71 |
+| 19 | 10-13 | 254 | 45.7% | -1.87 | -0.29 |
+
+**Every setting loses; win rate is pinned at 45-47% regardless of Key Value.**
+Key 19 only cuts the trade count (4,685 -> 254), it does not raise the win rate.
+Compare the trendline breakout on the same test: **58.3% / +2.87 pts/day**.
+UT Bot is a TREND FOLLOWER (471 bars average hold ~ 39 hours); capping it at
+10 points discards the long winners and keeps the whipsaw. **CLOSED for AU200.**
+
+### Analysis of the user's gold screenshots (GCZ2026 COMEX / GOLD1! MCX)
+
+Reported: +2,256% on 10k AUD, PF 1.627, 555 trades, "max DD 25.96%", Sharpe 0.477.
+
+Findings:
+1. **Two runs showed max DD of 164.76% and 211.50% — above 100% means equity
+   passed through zero.** Those results are void; the account was liquidated.
+2. **"25.96%" is measured against PEAK equity (~90k), not capital.** In absolute
+   terms the drawdown is 23,408 AUD = **234% of the 10k starting capital**.
+3. **One loss = 7,892 AUD = 79% of starting capital.** Average trade is +/-380 =
+   3.8% of capital. The simulation trades a size the account cannot carry; the
+   +2,256% is leverage, not performance.
+4. **Date sensitivity:** Jan 2020 start -> 609 trades, 64.10% DD. Aug 2020 start
+   -> 555 trades, 25.96% DD. Removing 7 months (COVID) cut the drawdown 60%.
+   The crash was excluded, not survived.
+5. **+14,332 of the total was OPEN (unrealised) P&L** on a position still live.
+
+**Scaled to survivable size** (worst historical loss = X% of account):
+
+| risk/trade | size vs shown | 6-yr return | per year |
+|-----------|---------------|-------------|----------|
+| 1% | 1.27% | +29% | 4.3% |
+| 2% | 2.53% | +57% | **7.8%** |
+| 5% | 6.34% | +143% | 15.9% |
+
+**+2,256% becomes ~8%/year at 2% risk.** Real, ordinary, not spectacular.
+
+### `strategies/utbot_risk_stop.pine` — built
+
+Signal unchanged. Additions, each sourced from a measured result in this repo:
+- **Risk-based sizing** `qty = equity x risk% / stopDist` — the same mechanism as
+  gold_trend_G1. This, not the stop, is what caps the 79% loss.
+- **Disaster stop 4x ATR**, deliberately WIDER than UT Bot's own 1x ATR trail.
+  From the AU200 grid: a 5 pt stop won 8.7% vs 51.4% at 20 pts. Tightening a
+  trend system's stop converts winners into losers. Reduce risk via risk%, never
+  by tightening the stop.
+- **Window close-out** so open P&L cannot inflate the total (defect 5 above).
+- **Breakeven move OFF by default** — at a 42.7% win rate the few large winners
+  pay for everything, and breakeven stops truncate them.
+
+Acceptance check: watch the ratio of stop exits to signal flips. Healthy is
+mostly flips (au200_zrev_daily: 67 state exits vs 4 stops). If stops dominate,
+4x ATR is too tight — widen it.
+
+**STATUS: UT Bot CLOSED for AU200 10-point work. Risk-controlled variant built
+but UNTESTED — no IS/OOS, null, or plateau checks run on any instrument yet.**
