@@ -105,8 +105,8 @@ if bar_index >= lookback + 1
     int lj = find_pivot(low[1],  lookback, olsS, olsI, -1)
     float rs = optimize_slope(high[1], lookback, uj, olsS, false)
     float ss = optimize_slope(low[1],  lookback, lj, olsS, true)
-    rVal := high[1][lookback - 1 - uj] + rs * (lookback - uj)
-    sVal := low[1][lookback - 1 - lj]  + ss * (lookback - lj)
+    rVal := high[lookback - uj] + rs * (lookback - uj)
+    sVal := low[lookback - lj]  + ss * (lookback - lj)
 
 // ---- trade logic -----------------------------------------------------------
 bool inSess = not useSess or not na(time(timeframe.period, sessStr))

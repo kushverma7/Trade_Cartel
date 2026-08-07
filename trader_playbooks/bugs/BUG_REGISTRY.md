@@ -1030,3 +1030,33 @@ invisible to every control in the standing gate.
    trade counts diverge. Their feed is the market; this data is a proxy.
 4. This does NOT apply to daily-timeframe results, where one bar per day means
    coverage is complete.
+
+---
+
+## BUG-034 — Double historical indexing `src[1][n]` at the top level
+
+**Where:** `strategies/au200_10pt_breakout.pine` v1, lines 108-109.
+**Class:** Pine syntax / port error. **Found:** 2026-08-07, by the user's compiler.
+
+**Root cause.** Inside a Pine function, a parameter holding `high[1]` can be
+indexed again — `src[k]` resolves to `high[1+k]` because `src` is a series
+parameter. That idiom does NOT survive being written out literally at the top
+level: `high[1][lookback - 1 - uj]` is a syntax error (CE10156).
+
+**Fix.** Collapse the two offsets by hand. With `src = high[1]`,
+`src[len-1-j]` == `high[(len-1-j)+1]` == `high[len-j]`, so:
+    rVal := high[lookback - uj] + rs * (lookback - uj)
+    sVal := low[lookback - lj]  + ss * (lookback - lj)
+
+**Why the lint missed it.** `backtest/pine_lint.py` reported CLEAN. It checks
+undeclared identifiers, balance and structure, but has no rule for chained
+history operators. **The linter passing is not the same as compiling.**
+
+**Prevention.**
+1. When inlining a function body that indexes a `[1]`-shifted series, collapse
+   the offsets arithmetically and VERIFY the collapse against the reference
+   implementation at several index positions before shipping. Done here: pivot
+   j=0/1/4 all matched the Python port's bars-back.
+2. Any Pine that has not been compiled by TradingView is UNVERIFIED, regardless
+   of what the local linter says. State that when delivering.
+3. Candidate lint rule: flag `ident[expr][expr]` outside a function body.
