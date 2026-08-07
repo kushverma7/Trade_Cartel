@@ -4823,3 +4823,69 @@ verified sample in this repo. It is real; it is not exceptional.
 SCREEN, not a result. The user's Strategy Tester on their own feed is the
 arbiter, and no sub-daily headline number is quoted as validated until it has
 been reproduced there.
+
+---
+
+## 2026-08-07 — THE 10:00 OPEN: 112 CONFIGURATIONS, ALL FAILED. FAMILY CLOSED.
+
+Goal set by the user: capture 10 points per day on AU200. Everything below was
+run on the user's own `au200_aud_5m.csv` (139,898 bars, 2020-08-05 -> 2026-08-04,
+1,514 ten-o'clock candles, timezone verified empirically: converting UTC ->
+Australia/Sydney puts 74.6% of volume in 10:00-15:59 and makes 10:00 the busiest
+hour of the day).
+
+| approach | configs | result |
+|---|---|---|
+| 10:00 open entry, TP +10, stops 5-50 | 12 | ALL negative. Best -1.47 pts/day |
+| linear predictors (gap, prior day, US30 24h/8h/4h, gold 24h) | 6 | \|corr\| all < 0.06 |
+| quintile conditioning on each | 30 | nothing survives multiple testing |
+| walk-forward ML (logistic + gradient boosting, 17 features) | 6 | **OOS accuracy 50.3-52.5%** |
+| opening-range breakout (1/3/6/12 bars x TP x SL) | 48 | **0 of 48 profitable**, best -1.47 t=-3.36 |
+| OCO straddle at the open | 20 | 19 of 20 negative |
+| no-stop hold for +10 | 4 | 96.9% hit rate, worst case **-878 pts** |
+
+The failures are not noise: the tightest opening-range cell loses at **t = -29**.
+That is cost being paid with mechanical reliability. The ML result settles it —
+given the gap, prior day, US30's overnight move at three horizons, gold,
+volatility and day-of-week, a gradient-boosted model trained walk-forward over
+1,053 out-of-sample days predicts direction at **50.5%**.
+
+**AU200 10:00 open direction is not predictable from available data. CLOSED.
+Do not rebuild ORB, straddle, gap-fade or open-continuation families.**
+
+Measured facts that DO hold (volatility structure, not direction):
+- 10:00-10:05 candle: mean range 13.08, median 12.00, 68.5% span >= 10 pts
+- 10:00-10:15 candle: mean range 20.48, median 18.50, 95.2% span >= 10 pts
+- direction 45.2% bull / 52.5% bear; mean C-O -0.70 pts (t = -2.98) — real,
+  statistically significant, and **smaller than the 2 pt round-trip cost**.
+
+### The sized build — `strategies/au200_zrev_daily_sized.pine`
+
+The only validated AU200 edge yields **2.66 pts per trading day at 1 unit**
+(+4,022 pts / 1,514 days). 10 pts/day therefore requires **3.8 units**; the extra
+is LEVERAGE, not edge, and the script states that on-chart.
+
+Monte Carlo, 10,000 reshuffles of the actual 71 trades at 3.8x:
+
+| max drawdown | pts |
+|---|---|
+| realised (the ordering that happened) | 1,816 |
+| MC median | 2,813 |
+| **p95** | **4,549** |
+| p99 | 5,551 |
+| worst of 10,000 | 7,538 |
+
+**The realised drawdown was a lucky ordering — plan for ~4,550.** Longest
+underwater stretch p95 = 25 trades (~2 years). Bootstrapped year: median +2,681,
+p10 -269, p5 -1,171, worst -6,645. **P(losing year) = 12.3%.**
+
+Dollar translation at ~$1 AUD/pt/unit: 10 pts/day = ~$10/day = ~$2,520/yr against
+a p95 drawdown of ~$4,549 (9.1% of 50k, 18.2% of 25k). At 40 units the p95
+drawdown is ~$48,000.
+
+**NOTE the permutation test preserves the sum by construction — only the DRAWDOWN
+PATH varies. Reporting p5=p95=median for net is arithmetic, not a finding.**
+
+**STATUS: 10 pts/day is reachable as a long-run AVERAGE via size on a real but
+infrequent edge (71 trades in 6 years, one every 21 trading days, ~213 pts each).
+It is NOT reachable as a daily event. Ledger records both.**
