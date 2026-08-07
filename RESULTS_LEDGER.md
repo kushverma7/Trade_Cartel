@@ -4889,3 +4889,72 @@ PATH varies. Reporting p5=p95=median for net is arithmetic, not a finding.**
 **STATUS: 10 pts/day is reachable as a long-run AVERAGE via size on a real but
 infrequent edge (71 trades in 6 years, one every 21 trading days, ~213 pts each).
 It is NOT reachable as a daily event. Ledger records both.**
+
+---
+
+## 2026-08-07b — AU200 10-POINT TRENDLINE BREAKOUT (ASX MORNING) — VALID, COST-CRITICAL
+
+The user's own trendline-breakout indicator (lookback 5, literal port — see the
+note below on its `optimize_slope`), traded on 5-minute AU200 bars, restricted to
+the ASX morning, 10 pt target / 10 pt stop, ONE POSITION AT A TIME.
+
+**Measured 2020-08-05 -> 2026-08-04, 1 pt/side slippage:**
+
+| metric | value |
+|---|---|
+| trades | 7,107 |
+| win rate | 58.3% |
+| expectancy | **+0.66 pts/trade** |
+| net | +4,695 pts |
+| **pts per trading day** | **2.87** |
+| trades/day | 4.35 |
+| t-stat | **+5.66** |
+| IS -> OOS | +0.48 -> **+1.09** (improves) |
+
+By year: 2020 +511 | 2021 +886 | 2022 +863 | **2023 -398** | 2024 +467 |
+2025 +671 | 2026 +1,694.  6 of 7 positive.
+
+**CONTROLS**
+- Synthetic null, 8 seeds, trendlines REBUILT on each shuffled series (not reused):
+  mean **-2.788**, sd 0.113, best seed -2.602, versus real **+0.661** -> **z = +30.5**.
+- Plateau: ALL 25 cells of {TP 10,12,15,20,25} x {SL 10,15,20,25,30} are positive
+  AND have both IS and OOS halves positive. Not a fitted corner.
+- Hour-of-day: hours 10, 11, 12 are the positive block (11 alone: +0.66 on
+  n=4,200 at 66.1% win). Hours 13-15 are negative. The session filter is a
+  measured effect, not a convenience.
+
+**THE DECIDING NUMBER — COST SENSITIVITY**
+
+| slippage/side | pts/day |
+|---|---|
+| 0.5 | +6.65 |
+| 1.0 | **+2.87** |
+| **1.5** | **-1.34** |
+| 2.0 | -5.83 |
+| 3.0 | -14.56 |
+
+**Flips negative between 1.0 and 1.5 pts/side.** At 4.35 trades/day the spread is
+paid 7,000+ times. Viable ONLY if the all-in cost stays at or under ~1.2 pts/side.
+This sensitivity is identical across all 25 cells — no parameter choice escapes it.
+
+**PORT NOTE (important).** The user's `optimize_slope` starts at the OLS slope and
+only moves when a step lands feasible. When the OLS line through the pivot is
+already infeasible — the usual case — neither direction is feasible, `best` never
+updates, and it returns the OLS slope untouched. The indicator therefore often
+draws plain OLS-slope lines rather than tightest-fit trendlines. An "analytic
+clamp" reimplementation disagrees with the real Pine on ~10% of bars, so the
+LITERAL transcription is what was measured and what ships (PORT, DON'T
+REIMPLEMENT).
+
+**KNOWN LIMITATIONS**
+1. 2023 was a losing year (-398 pts, 52.9% win).
+2. 2.87 pts/day at 1 unit -- reaching 10 pts/day means 3.5x size and 3.5x drawdown.
+3. Entry measured at the trendline level with a stop-order fill; 25% of signals
+   open past the line and pay the open. That is modelled, not assumed away.
+4. Local backtest only. Per the standing rule, sub-daily results are a SCREEN --
+   the user's own Strategy Tester on their feed is the arbiter.
+
+Ships as `strategies/au200_10pt_breakout.pine` (lint CLEAN, Key Levels embedded).
+
+**STATUS: VALID pending live-feed confirmation. Cost is the binding constraint,
+not the signal.**
