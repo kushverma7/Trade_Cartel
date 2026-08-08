@@ -1,0 +1,73 @@
+//@version=6
+// UT BOT + ADX — MINIMAL DIAGNOSTIC BUILD
+// No risk sizing, no date range, no disaster stop. Nothing that can silently
+// zero the order size. The on-chart table counts each gate so we can see
+// exactly where trades are being lost.
+strategy("UT ADX diag", shorttitle="UT-DIAG", overlay=true,
+         default_qty_type=strategy.fixed, default_qty_value=1,
+         initial_capital=10000, pyramiding=0,
+         process_orders_on_close=true, calc_on_every_tick=false)
+
+float keyValue = input.float(19.0, "Key Value")
+int   atrLen   = input.int(10,     "ATR Period")
+bool  useAdx   = input.bool(true,  "Use ADX filter")
+float adxMin   = input.float(30.0, "Minimum ADX")
+
+float xATR  = ta.atr(atrLen)
+float nLoss = keyValue * xATR
+
+var float ts = 0.0
+float p = nz(ts[1], 0.0)
+ts := close > p and close[1] > p ? math.max(p, close - nLoss) :
+      close < p and close[1] < p ? math.min(p, close + nLoss) :
+      close > p ? close - nLoss : close + nLoss
+
+bool buy  = close > ts and ta.crossover(close, ts)
+bool sell = close < ts and ta.crossover(ts, close)
+
+[diP, diM, adxVal] = ta.dmi(14, 14)
+bool ok = not useAdx or (not na(adxVal) and adxVal >= adxMin)
+
+var int cBuy = 0
+var int cSell = 0
+var int cPass = 0
+var int cBlock = 0
+var float adxMax = 0.0
+if not na(adxVal)
+    adxMax := math.max(adxMax, adxVal)
+if buy
+    cBuy += 1
+if sell
+    cSell += 1
+if (buy or sell) and ok
+    cPass += 1
+if (buy or sell) and not ok
+    cBlock += 1
+
+if buy and ok
+    strategy.entry("L", strategy.long)
+if sell and ok
+    strategy.entry("S", strategy.short)
+
+plot(ts, "UT trail", color=close > ts ? color.green : color.red)
+plotshape(buy  and ok, style=shape.labelup,   location=location.belowbar, color=color.green, text="B", size=size.tiny)
+plotshape(sell and ok, style=shape.labeldown, location=location.abovebar, color=color.red,   text="S", size=size.tiny)
+
+var table t = table.new(position.top_right, 2, 8, border_width=1, bgcolor=color.white)
+if barstate.islast
+    table.cell(t,0,0,"BUY signals",  text_size=size.normal)
+    table.cell(t,1,0,str.tostring(cBuy),  text_size=size.normal)
+    table.cell(t,0,1,"SELL signals", text_size=size.normal)
+    table.cell(t,1,1,str.tostring(cSell), text_size=size.normal)
+    table.cell(t,0,2,"passed ADX",   text_size=size.normal)
+    table.cell(t,1,2,str.tostring(cPass), text_size=size.normal, text_color=cPass>0?color.green:color.red)
+    table.cell(t,0,3,"blocked ADX",  text_size=size.normal)
+    table.cell(t,1,3,str.tostring(cBlock),text_size=size.normal)
+    table.cell(t,0,4,"ADX now",      text_size=size.normal)
+    table.cell(t,1,4,str.tostring(adxVal,"#.#"), text_size=size.normal)
+    table.cell(t,0,5,"ADX max seen", text_size=size.normal)
+    table.cell(t,1,5,str.tostring(adxMax,"#.#"), text_size=size.normal)
+    table.cell(t,0,6,"ATR now",      text_size=size.normal)
+    table.cell(t,1,6,str.tostring(xATR,"#.##"), text_size=size.normal)
+    table.cell(t,0,7,"trail now",    text_size=size.normal)
+    table.cell(t,1,7,str.tostring(ts,"#.##"), text_size=size.normal)
