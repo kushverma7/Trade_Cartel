@@ -1060,3 +1060,47 @@ history operators. **The linter passing is not the same as compiling.**
 2. Any Pine that has not been compiled by TradingView is UNVERIFIED, regardless
    of what the local linter says. State that when delivering.
 3. Candidate lint rule: flag `ident[expr][expr]` outside a function body.
+
+---
+
+## BUG-035 — Fill at a level that only the confirming close proves was reached
+
+**Where:** every intraday result in the 2026-08-06/07 AU200 work — the trendline
+breakout 10-point system, all EMA(2000)/SMA(2000) cross systems, the "entry at
+the line" family. **Class:** execution lookahead. **Found:** 2026-08-07.
+
+**Root cause.** The signal was `close > r_val` (or close beyond the MA). The FILL
+was then taken at `max(r_val, open)` -- the level itself, during that same bar.
+Both halves are individually defensible and together they are a lookahead: you
+are filled at the level ONLY on bars whose close later proves the move
+continued. Every bar that touched the level and reversed was silently excluded
+from the trade population.
+
+**Impact -- the entire result, not a shading of it.**
+
+| config | fill at level | fill at close (real) |
+|---|---|---|
+| trendline TP10/SL10 all hrs | PF 1.166  +11,746 | **PF 0.663  -31,860** |
+| trendline TP10/SL15 all hrs | PF 1.100   +6,791 | **PF 0.693  -25,845** |
+| trendline TP10/SL10 10:00-13:00 | PF 1.206 +7,371 | **PF 0.672  -15,871** |
+| EMA2000 15m cross 10:00-15:00 | PF 2.421   +695 | **PF 0.838   -250** (resting limit) |
+| EMA2000 15m cross, enter at close | -- | **PF 0.909    -90** |
+
+36 of 36 achievable-execution rows are negative. The headline "58.3% win rate,
+10 points a day" system does not exist.
+
+**Why the usual controls missed it.** The synthetic null, the mirror control, the
+parameter plateau and the IS/OOS split were all computed with the SAME biased
+fill, so the bias applied uniformly and every control passed. A null test cannot
+detect an execution assumption; it can only detect a signal that is not there.
+
+**Prevention.**
+1. **The fill price must be reachable using only information available BEFORE the
+   bar that fills it.** A resting stop/limit at a level computed from closed bars
+   qualifies. A fill at that level conditioned on the same bar's close does not.
+2. Every backtest reports the SAME configuration under three executions --
+   at-level, at-close, at-next-open. If the three disagree materially, the
+   at-level number is not a result. Ship the worst of the three.
+3. `strategy.entry` with `process_orders_on_close` fills at the CLOSE. If the
+   research assumed a better price, the Pine and the research are not the same
+   strategy -- which was exactly the case here.

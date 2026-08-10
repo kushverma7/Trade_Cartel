@@ -1,4 +1,8 @@
 //@version=6
+// *** RETRACTED 2026-08-07 - DO NOT TRADE - see BUG-035 ***
+// Execution lookahead: filled at the level, confirmed by the same bar's close.
+// Achievable execution returns PF 0.66-0.70 and large losses.
+
 // ============================================================================
 // AU200 10-POINT TRENDLINE BREAKOUT — ASX MORNING
 // ----------------------------------------------------------------------------

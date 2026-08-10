@@ -1,4 +1,10 @@
 //@version=5
+// *** RETRACTED 2026-08-07 - DO NOT TRADE - see BUG-035 ***
+// The research behind this filled at the trendline level while requiring the
+// same bar's CLOSE to confirm the break. That only fills on bars that went the
+// right way. Under the execution this script actually uses (fill at the close)
+// the same config returns PF 0.663 and -31,860 points, not PF 1.166 and +11,746.
+
 // AU200 10-POINT SYSTEM  —  AU200, 5-MINUTE CHART
 // Trendline breakout (lookback 5), ASX morning only, +10 target / -10 stop.
 // Measured on 6 years of AU200 5m data, 1 pt/side slippage:

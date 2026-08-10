@@ -5027,3 +5027,34 @@ mostly flips (au200_zrev_daily: 67 state exits vs 4 stops). If stops dominate,
 
 **STATUS: UT Bot CLOSED for AU200 10-point work. Risk-controlled variant built
 but UNTESTED — no IS/OOS, null, or plateau checks run on any instrument yet.**
+
+---
+
+## 2026-08-07b — RETRACTION: the AU200 10-point system and all "entry at the line" results
+
+**BUG-035.** Signal was the close beyond a level; fill was taken AT that level on
+the same bar. That combination only fills on bars whose close proves the move
+continued. Under any achievable execution the entire family is negative:
+
+| config | as reported (biased) | achievable |
+|---|---|---|
+| trendline TP10/SL10 all hrs | PF 1.166 / +11,746 / 58.3% WR | **PF 0.663 / -31,860 / 42.2%** |
+| trendline TP10/SL15 all hrs | PF 1.100 / +6,791 | **PF 0.693 / -25,845** |
+| trendline TP10/SL10 ASX morning | PF 1.206 / +7,371 | **PF 0.672 / -15,871** |
+| EMA2000 15m cross 10:00-15:00 | PF 2.421 / 75.1% TP | **PF 0.838 (resting limit)** |
+| EMA2000 15m all hours | PF 1.920 / 77.3% TP | **PF 0.838 / 0.909** |
+
+36 of 36 achievable-execution cells negative. **RETRACTED:**
+`strategies/au200_10_point_system.pine`, `strategies/au200_10pt_breakout.pine`,
+and every EMA/SMA(2000) cross figure quoted on 2026-08-07.
+
+**The controls did not catch it** because null, mirror, plateau and IS/OOS were
+all computed with the same biased fill. An execution assumption is invisible to
+a signal-strength control.
+
+**NEW STANDING RULE:** every intraday backtest reports the same config under
+THREE executions -- at-level, at-close, at-next-open -- and the WORST is the
+headline. No exceptions.
+
+**STATUS: no validated 10-point AU200 system exists. Family reopened, not closed
+-- the signal work was invalidated by execution, not disproved.**
