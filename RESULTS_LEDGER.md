@@ -5088,3 +5088,30 @@ Entry reconstruction validated against the user's own exported trade list:
 
 Related: BUG-036, BUG-037. The earlier trailing-stop version of this script
 reported PF 1.98-3.40; that was a tick-unit artifact, not this logic.
+
+## 2026-08-11 — Exhaustive achievable-fill search around the 10:00 candle / daily open
+
+350 cells across four families: (A) the 10:00 candle's own body, continue or
+fade, at 5/15/30/60-minute candle lengths; (B) position vs the daily open at
+10:15/10:30/11:00; (C) opening-range breakout and fade with a RESTING order at
+a level built from closed bars only; (D) overnight-gap continuation and fade at
+0/5/10-point thresholds. Exits: fixed time (+1h, +2h, to 15:59) and TP/SL pairs
+resolved on the 1-minute path, adverse extreme first. 2-point round-trip cost
+included in every cell. Data 2025-01-13 .. 2026-08-07, 397 sessions.
+
+Multiple-testing bar for K=350: t >= sqrt(2 ln K) = **3.42**.
+
+| best cells | n | PF | win | /trade | t | pts/day |
+|-----------|---|----|-----|--------|---|---------|
+| D gap fade, \|g\|>=10, hold to close, TP20/SL30 | 334 | 1.148 | 63.8% | +1.39 | 1.17 | +1.17 |
+| D gap fade, \|g\|>=5,  hold to close, TP20/SL30 | 359 | 1.126 | 63.5% | +1.20 | 1.04 | +1.08 |
+| C OR5m fade, hold +2h, no TP/SL                  | 397 | 1.010 | 50.9% | +0.12 | 0.08 | +0.12 |
+
+**Verdict: NOTHING FOUND.** Zero of 350 cells clear the multiple-testing bar.
+Only **7 of 350** are even PF > 1.0 — against ~175 expected if the space were a
+fair coin — meaning the 2-point cost dominates the entire family at ~1 trade/day.
+Zero cells reach the +10 pts/day target; the best is +1.17, a factor of 9 short.
+
+The gap-fade direction is the only one showing anything consistent (t~1.2 across
+three thresholds), which is at least the right sign, but it is not significant
+and must not be traded on this evidence.
