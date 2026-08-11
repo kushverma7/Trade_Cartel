@@ -5058,3 +5058,33 @@ headline. No exceptions.
 
 **STATUS: no validated 10-point AU200 system exists. Family reopened, not closed
 -- the signal work was invalidated by execution, not disproved.**
+
+## 2026-08-11 — AU200 10:00 candle, EMA200+RSI14+SuperTrend(3.1,97), one-bar fixed hold
+
+User's specified logic, no trailing stop, no stop loss. Enter at the 10:00
+Melbourne candle's close, exit at the next bar's close. Timezone
+`Australia/Sydney` (DST correct). Close-to-close, so there is NO intrabar fill
+ambiguity — this result is execution-clean, unlike everything else this session.
+Data: OANDA AU200AUD 1-minute, 2025-01-13 .. 2026-08-10 (~390 sessions).
+
+| TF | n | PF gross | win | avg gross | PF @2pt cost | avg @2pt | NULL: always-long, same days |
+|----|---|---------|-----|-----------|--------------|----------|------------------------------|
+| 30m | 246 | 0.784 | 43.5% | -1.27 | 0.537 | -3.27 | **+1.47** |
+| 45m | 219 | 0.780 | 45.2% | -1.77 | 0.589 | -3.77 | **+0.82** |
+| 1H  | 218 | 1.123 | 52.8% | +0.98 | 0.886 | -1.02 | +0.40 |
+| 2H  | 203 | 0.983 | 48.8% | -0.16 | 0.796 | -2.16 | **+0.76** |
+
+Last 3 months only (2026-05-11 .. 2026-08-10), gross: 30m -5.51/trade (n=42),
+45m -5.26 (n=40), 1H **+1.77** (n=40), 2H -2.59 (n=43).
+
+**Verdict: NOT VALID.** Negative net of cost on all four timeframes. On three of
+four, ignoring the filter and simply going long every day beats the filtered
+signal. 1H is the single best cell and the only one gross-positive in both
+windows, but +0.98/trade does not survive a 2-point round-trip, and the 3-month
+window (n=40, per-trade sd ~24 pts => se ~3.8) cannot distinguish +1.77 from zero.
+
+Entry reconstruction validated against the user's own exported trade list:
+100% direction agreement on all 182 shared days.
+
+Related: BUG-036, BUG-037. The earlier trailing-stop version of this script
+reported PF 1.98-3.40; that was a tick-unit artifact, not this logic.
