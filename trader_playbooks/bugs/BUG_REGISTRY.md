@@ -1104,3 +1104,60 @@ detect an execution assumption; it can only detect a signal that is not there.
 3. `strategy.entry` with `process_orders_on_close` fills at the CLOSE. If the
    research assumed a better price, the Pine and the research are not the same
    strategy -- which was exactly the case here.
+
+## BUG-036 — `trail_points`/`trail_offset` are in TICKS, and their roles are easy to swap
+
+**Found:** 2026-08-11, in `AU200-BASE` (user's script).
+**Symptom:** TradingView reported PF 2.0–3.4, 81–86% win rate, drawdown 0.2–0.4%
+of equity, and a near-straight equity curve across four timeframes. Honest
+1-minute-path simulation of the identical logic returns PF 0.31–1.03.
+
+**Root cause, two faults in one line:**
+```pine
+strategy.exit("Long Exit", "Long", stop=close - sl_pts,
+              trail_points=trail_pts, trail_offset=trail_trig)
+```
+1. Both arguments are in **ticks**, not price points. AU200 mintick = 0.1, so
+   an input of `5` is **0.5 points** and `30` is **3.0 points**.
+2. The roles are **swapped**: `trail_points` is the ACTIVATION profit;
+   `trail_offset` is the TRAILING DISTANCE. The inputs were wired the other way.
+
+Net effect: a trail that arms after 3 points and then follows 0.5 points behind
+the running extreme.
+
+**Why the backtest inflated it:** with `calc_on_every_tick=false` and no bar
+magnifier, TradingView has no intrabar path, so it walks the bar monotonically
+to its extreme before reversing. A 0.5-point trail therefore books
+`extreme - 0.5` on every winner. Measured against raw 1-minute data: **99.0% of
+winners filled within 1 point of that bar's own high/low**, 100% of losers
+booked the fixed stop exactly, and booked exits averaged **+10.0 points better
+than the real price at exit time**. Live, a 0.5-point trail is hit by the first
+tick wiggle after arming, for roughly +3 points.
+
+**Detection:** honouring the strategy's own direction calls at real prices
+(signal-bar close -> next-bar close) gave a **47.7% hit rate, -2.36 pts/trade**.
+The entries were a coin flip; 100% of the reported profit lived in the exit fill.
+
+**Prevention:**
+- Express trailing arguments in points and divide by `syminfo.mintick`:
+  `trail_points = trigger_pts / syminfo.mintick`,
+  `trail_offset = trail_distance_pts / syminfo.mintick`.
+- **A trailing distance below ~1x the chart's average bar range is untestable
+  without a bar magnifier.** Treat any such result as unmeasured, not as an edge.
+- Standing assertion extended: a win rate above 90%, OR a drawdown under 1% of
+  equity, OR a visually straight multi-year equity curve, is a bug until proven
+  otherwise. All three were present here.
+- Related but distinct from BUG-035 (execution lookahead). BUG-035 is the code
+  peeking; BUG-036 is the simulator guessing because the strategy is finer-grained
+  than the bar.
+
+## BUG-037 — `hour(time, "UTC+10")` ignores daylight saving
+
+**Found:** 2026-08-11, same script.
+**Symptom:** trades exported at two distinct clock times (10:00 and 11:00),
+which looked like two separate setups but were one rule.
+**Root cause:** `"UTC+10"` is a fixed offset. Melbourne is UTC+11 from October to
+April, so `bar_hour == 10` is **11:00 local** for roughly half the year — an hour
+after the ASX open, not at it.
+**Prevention:** always use the named zone `"Australia/Sydney"`, never a fixed
+`"UTC+10"`, for any session-anchored logic on Australian instruments.
