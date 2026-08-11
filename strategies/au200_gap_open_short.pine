@@ -1,35 +1,5 @@
 //@version=5
-// ============================================================================
-// AU200 GAP-DOWN OPEN SHORT   —  1-MINUTE CHART, AU200
-// If the 10:00 Sydney open is BELOW the previous session's close, short the
-// opening candle and exit a minute or two later. That is the whole strategy.
-//
-// MEASURED on 1-min AU200, Jan-2025 -> Aug-2026, 396 sessions, 181 signals:
-//   round-turn cost 0.0 : PF 3.151 | 65.2% win | +3.03 pts/trade | t = 5.93
-//   round-turn cost 1.0 : PF 2.148 | 60.2% win | +2.03 pts/trade
-//   round-turn cost 1.7 : PF 1.649 | 59.1% win | +1.33 pts/trade | maxDD 56
-//   round-turn cost 3.0 : PF 1.011 -- breakeven. YOUR SPREAD DECIDES THIS.
-//
-//   in-sample PF 1.641 (n=126) -> out-of-sample PF 1.664 (n=55). No decay.
-//   2025 PF 1.917 | 2026 PF 1.354. Both years positive.
-//   MIRROR (long instead of short on gap-down): PF 0.158.
-//   Shorting on gap-UP days instead: PF 0.653.  The condition is the edge.
-//   Gap-size plateau (cost 1.7): any -1.649 | <-15 1.838 | <-20 1.903 | <-30 2.545
-//
-// EXECUTION IS CLEAN. The gap is known at 10:00:00 from the previous close, the
-// entry is at market on the open, the exit is 1-2 minutes later. Nothing is
-// conditioned on a bar that has not finished. (Contrast BUG-035.)
-//
-// LIMITATIONS
-//   181 trades over 19 months. Fires on 46% of days. About 113 trades a year.
-//   At 1.7 cost that is ~152 pts/year per unit against a 56 pt drawdown.
-//   Hold of 2 bars scores better than 1 or 3 (PF 1.92 / 1.65 / 1.28) -- a single
-//   peak, not a plateau, so treat the hold length as the least certain input.
-// ============================================================================
-strategy("AU200 Gap-Down Open Short", shorttitle="AU200-GAP", overlay=true,
-     default_qty_type=strategy.fixed, default_qty_value=1, initial_capital=50000,
-     currency=currency.AUD, pyramiding=0,
-     process_orders_on_close=true, calc_on_every_tick=false)
+strategy("AU200 Gap-Down Open Short", shorttitle="AU200-GAP", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1, initial_capital=50000, currency=currency.AUD, pyramiding=0, process_orders_on_close=true, calc_on_every_tick=false)
 
 string sessStr = input.session("1000-1600", "ASX cash session")
 float  minGap  = input.float(0.0,  "Minimum gap DOWN (points, 0 = any)", minval=0, step=1)
@@ -41,12 +11,11 @@ float  stopPts = input.float(20.0, "Disaster stop (points)", minval=1, step=1)
 bool inSess    = not na(time(timeframe.period, sessStr))
 bool isOpenBar = inSess and not inSess[1]
 
-// previous session's closing price, captured before today's session updates it
 var float prevSessClose = na
 float gapPts = isOpenBar and not na(prevSessClose) ? open - prevSessClose : na
 
-var int  cSig  = 0
-var int  cTrig = 0
+var int cSig = 0
+var int cTrig = 0
 if isOpenBar and not na(gapPts)
     cSig += 1
 
@@ -61,19 +30,14 @@ if strategy.position_size < 0
     if bar_index - strategy.opentrades.entry_bar_index(0) >= holdBar
         strategy.close("S", comment="time exit")
 
-// update AFTER the entry decision so the open bar still sees yesterday's close
 if inSess
     prevSessClose := close
 
-plotshape(goShort, "gap-down short", shape.triangledown, location.abovebar,
-          color.new(color.red, 0), text="S", size=size.tiny)
+plotshape(goShort, "gap-down short", shape.triangledown, location.abovebar, color.new(color.red, 0), text="S", size=size.tiny)
 bgcolor(inSess ? color.new(color.blue, 95) : na)
 
 var label L = na
 if barstate.islast
     label.delete(L)
-    L := label.new(bar_index, high,
-        "opens seen " + str.tostring(cSig) + "   gap-down shorts " + str.tostring(cTrig) +
-        "\nlast gap " + str.tostring(nz(gapPts, na), "#.#") +
-        "   prev close " + str.tostring(prevSessClose, "#.#"),
-        style=label.style_label_left, color=color.white, textcolor=color.black, size=size.normal)
+    string txt = "opens seen " + str.tostring(cSig) + "   gap-down shorts " + str.tostring(cTrig) + "   last gap " + str.tostring(nz(gapPts, 0), "#.#") + "   prev close " + str.tostring(nz(prevSessClose, 0), "#.#")
+    L := label.new(bar_index, high, txt, style=label.style_label_left, color=color.white, textcolor=color.black, size=size.normal)
