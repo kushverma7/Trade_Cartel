@@ -1,0 +1,80 @@
+//@version=6
+// AU200 10:00 candle -> one-bar fixed hold.  Spec frozen 2026-08-11 by the user.
+//   Entry : the 10:00 Melbourne candle only (Australia/Sydney, DST correct).
+//           Long  if close > EMA200 and RSI14 > 50 and SuperTrend bullish.
+//           Short if close < EMA200 and RSI14 < 50 and SuperTrend bearish.
+//           Fills at that candle's CLOSE (process_orders_on_close).
+//   Exit  : the close of the NEXT bar. No stop loss. No trailing stop.
+//
+// Deliberately contains no trailing stop: `trail_points`/`trail_offset` are in
+// TICKS and inflated the previous version of this script (BUG-036).  Timezone is
+// the named zone, never "UTC+10", which ignores DST (BUG-037).
+//
+// Measured on OANDA AU200AUD 1-minute, 2025-01-13..2026-08-10 (~390 sessions),
+// gross of costs: 30m PF 0.784 / 45m PF 0.780 / 1H PF 1.123 / 2H PF 0.983.
+// Net of a 2-point round trip all four are below 1.0.  See RESULTS_LEDGER.md.
+// NOTE: on 45m and 2H charts no bar starts exactly at 10:00 for part of the year,
+// so those timeframes trade fewer days. 30m and 1H align cleanly.
+
+strategy("AU200 10AM One-Bar Hold", shorttitle = "AU200-10AM", overlay = true,
+     default_qty_type     = strategy.fixed,
+     default_qty_value    = 1,
+     commission_type      = strategy.commission.cash_per_contract,
+     commission_value     = 1,
+     currency             = currency.AUD,
+     initial_capital      = 50000,
+     process_orders_on_close = true,
+     calc_on_every_tick   = false)
+
+grpF = "Signal Filters"
+useEma = input.bool(true, "EMA 200",    group = grpF)
+useRsi = input.bool(true, "RSI 14",     group = grpF)
+useSt  = input.bool(true, "SuperTrend", group = grpF)
+
+grpS = "SuperTrend"
+stFactor = input.float(3.1, "Factor",     minval = 0.1, step = 0.1, group = grpS)
+stPeriod = input.int(97,    "ATR period", minval = 1,              group = grpS)
+
+ema200 = ta.ema(close, 200)
+rsi14  = ta.rsi(close, 14)
+[stVal, stDir] = ta.supertrend(stFactor, stPeriod)
+
+emaOkLong  = not useEma or close > ema200
+emaOkShort = not useEma or close < ema200
+rsiOkLong  = not useRsi or rsi14 > 50
+rsiOkShort = not useRsi or rsi14 < 50
+stOkLong   = not useSt  or stDir < 0
+stOkShort  = not useSt  or stDir > 0
+
+bullSignal = emaOkLong  and rsiOkLong  and stOkLong
+bearSignal = emaOkShort and rsiOkShort and stOkShort
+
+melHour = hour(time,   "Australia/Sydney")
+melMin  = minute(time, "Australia/Sydney")
+isTenAm = melHour == 10 and melMin == 0
+
+isFlat  = strategy.position_size == 0
+goLong  = isTenAm and bullSignal and isFlat
+goShort = isTenAm and bearSignal and isFlat
+
+var int entryBar = na
+
+if goLong
+    strategy.entry("L", strategy.long, comment = "BUY")
+    entryBar := bar_index
+
+if goShort
+    strategy.entry("S", strategy.short, comment = "SELL")
+    entryBar := bar_index
+
+// exactly one bar later, at that bar's close
+if not isFlat and not na(entryBar) and bar_index > entryBar
+    strategy.close_all(comment = "1-bar exit")
+    entryBar := na
+
+plot(ema200, "EMA 200", color = color.new(color.orange, 40), linewidth = 1)
+plotshape(goLong,  title = "Long",  style = shape.triangleup,
+     location = location.belowbar, color = #00FFBB, size = size.small, text = "B")
+plotshape(goShort, title = "Short", style = shape.triangledown,
+     location = location.abovebar, color = #FF3D57, size = size.small, text = "S")
+bgcolor(isTenAm ? color.new(color.yellow, 90) : na, title = "10:00 candle")
