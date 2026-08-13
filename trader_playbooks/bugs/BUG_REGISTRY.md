@@ -1161,3 +1161,27 @@ April, so `bar_hour == 10` is **11:00 local** for roughly half the year — an h
 after the ASX open, not at it.
 **Prevention:** always use the named zone `"Australia/Sydney"`, never a fixed
 `"UTC+10"`, for any session-anchored logic on Australian instruments.
+
+## BUG-038 — Resolving an exit from the signal bar's START replays its own formation
+
+**Found:** 2026-08-13, in `research/four_trader_hybrid_test.py` (my harness, not
+delivered code).
+**Symptom:** win rate 12.3%, PF 0.114 across every configuration — absurd for a
+1R first target.
+**Root cause:** aggregated bars carry the timestamp of their FIRST constituent
+minute. The exit resolver walked the 1-minute path from `bar[0]`, so it replayed
+minutes 2-5 of the signal bar itself — the exact minutes that formed the sweep
+low. The stop sat inside that low, so nearly every trade "stopped out" during the
+bar that generated the entry, before the entry could exist.
+**Fix:** path must begin at `bar_start + timeframe`, i.e. the bar's CLOSE.
+**Effect of the fix:** PF 0.114 -> 0.503, win 12.3% -> 32.0%.
+
+**Prevention:** whenever an aggregated bar's timestamp is used to index a
+finer-grained series, state explicitly whether it denotes the bar's OPEN or
+CLOSE, and add the timeframe before resolving anything that happens "after" the
+signal. This is the mirror image of BUG-035: that one let the strategy see the
+future, this one made it relive the past.
+
+**Detection that worked:** the standing absurdity assertion. A 12% win rate is
+outside the plausible band for the stated targets, so it was treated as a bug
+before it was read as a result. The rule paid for itself.
