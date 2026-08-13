@@ -62,6 +62,9 @@ MARK = {"[YES]": f'<font name="UI" color="#1F7A4D">✓</font> ',
 
 def inline(t):
     t = html.escape(t)
+    # bare glyphs first, so the bracket forms we insert below aren't re-processed
+    t = t.replace("✓", '<font name="UI" color="#1F7A4D">✓</font>')
+    t = t.replace("✗", '<font name="UI" color="#B03A2E">✗</font>')
     for k, v in MARK.items():
         t = t.replace(html.escape(k), v)
     t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
