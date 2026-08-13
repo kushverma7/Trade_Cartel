@@ -1,0 +1,28 @@
+inst,rung,label,n,pf,wr,exp_r,net,maxdd,top10_share,avg_bars,null_pf,null_exp_r,edge_over_null,z,is_n,is_pf,oos_n,oos_pf,typeR_n,typeR_pf,typeC_n,typeC_pf
+gold,L0  spec as written (sweep basis ATR_D),L0  spec as written (sweep basis ATR_D),1,0.0,0.0,-1.1666,-7.6,0.0,100.0,2.0,,,,,,,,,,,,
+gold,L1  sweep basis ATR_X,L1  sweep basis ATR_X,2,12.345,50.0,1.0468,13.4,0.0,100.0,17.0,,,,,,,,,,,,
+gold,L2  L1 + risk cap 1.00 ATR_D  [the measured inconsistency],L2  L1 + risk cap 1.00 ATR_D  [the measured inconsistency],5,1.244,40.0,0.2577,4.1,10.8,100.0,14.4,,,,,,,,,,,,
+gold,L3  L2 + speed window x2,L3  L2 + speed window x2,8,0.787,37.5,0.0543,-6.6,21.6,100.0,12.8,,,,,,,,,,,,
+gold,L4  L3 + volume criterion OFF (5.1.4),L4  L3 + volume criterion OFF (5.1.4),10,0.827,40.0,0.1266,-5.5,21.6,100.0,12.5,,,,,,,,,,,,
+gold,L5  L4 + FVG requirement OFF (5.2 ablation),L5  L4 + FVG requirement OFF (5.2 ablation),42,1.2,40.48,-0.0801,31.8,45.3,554.7,11.4,0.701,-0.2093,0.1292,2.13,29.0,0.701,13.0,1.789,25.0,1.219,17.0,1.177
+gold,L6  L5 + retest/arm windows x2,L6  L5 + retest/arm windows x2,45,1.127,37.78,-0.0838,20.8,46.5,818.8,10.9,0.868,-0.1197,0.0359,0.29,32.0,0.743,13.0,1.592,28.0,1.088,17.0,1.177
+gold,L7  L6 + session gate OFF (B1 ablation),L7  L6 + session gate OFF (B1 ablation),72,0.721,36.11,-0.1642,-85.1,108.0,-207.3,11.3,0.746,-0.2079,0.0437,0.61,50.0,0.891,22.0,0.608,44.0,1.091,28.0,0.436
+gold,"L8  L7 + min_r 1.5, sweep 0.15-1.00 ATR_X, tested<=4","L8  L7 + min_r 1.5, sweep 0.15-1.00 ATR_X, tested<=4",140,0.771,38.57,-0.1542,-128.6,187.3,-155.4,11.0,0.715,-0.1943,0.0401,0.54,104.0,0.927,36.0,0.592,98.0,0.862,42.0,0.59
+us30,L0  spec as written (sweep basis ATR_D),L0  spec as written (sweep basis ATR_D),0,,,,,,,,,,,,,,,,,,,
+us30,L1  sweep basis ATR_X,L1  sweep basis ATR_X,0,,,,,,,,,,,,,,,,,,,
+us30,L2  L1 + risk cap 1.00 ATR_D  [the measured inconsistency],L2  L1 + risk cap 1.00 ATR_D  [the measured inconsistency],3,7.091,66.67,0.2225,221.1,36.3,100.0,16.3,,,,,,,,,,,,
+us30,L3  L2 + speed window x2,L3  L2 + speed window x2,7,0.801,42.86,-0.3765,-105.5,493.9,100.0,13.6,,,,,,,,,,,,
+us30,L4  L3 + volume criterion OFF (5.1.4),L4  L3 + volume criterion OFF (5.1.4),9,0.827,44.44,-0.368,-107.0,493.9,100.0,12.7,,,,,,,,,,,,
+us30,L5  L4 + FVG requirement OFF (5.2 ablation),L5  L4 + FVG requirement OFF (5.2 ablation),24,0.679,33.33,-0.3028,-506.1,1083.3,-202.9,10.8,,,,,,,,,,,,
+us30,L6  L5 + retest/arm windows x2,L6  L5 + retest/arm windows x2,19,0.923,42.11,0.0026,-135.9,1155.6,-1143.5,8.5,,,,,,,,,,,,
+us30,L7  L6 + session gate OFF (B1 ablation),L7  L6 + session gate OFF (B1 ablation),29,0.643,37.93,-0.0904,-992.7,952.9,-177.4,9.1,,,,,,,,,,,,
+us30,"L8  L7 + min_r 1.5, sweep 0.15-1.00 ATR_X, tested<=4","L8  L7 + min_r 1.5, sweep 0.15-1.00 ATR_X, tested<=4",62,0.929,48.39,-0.0627,-324.6,1800.9,-830.9,8.3,0.825,-0.0646,0.0019,0.02,45.0,0.937,17.0,0.914,43.0,1.035,19.0,0.739
+au200,L0  spec as written (sweep basis ATR_D),L0  spec as written (sweep basis ATR_D),0,,,,,,,,,,,,,,,,,,,
+au200,L1  sweep basis ATR_X,L1  sweep basis ATR_X,0,,,,,,,,,,,,,,,,,,,
+au200,L2  L1 + risk cap 1.00 ATR_D  [the measured inconsistency],L2  L1 + risk cap 1.00 ATR_D  [the measured inconsistency],0,,,,,,,,,,,,,,,,,,,
+au200,L3  L2 + speed window x2,L3  L2 + speed window x2,0,,,,,,,,,,,,,,,,,,,
+au200,L4  L3 + volume criterion OFF (5.1.4),L4  L3 + volume criterion OFF (5.1.4),0,,,,,,,,,,,,,,,,,,,
+au200,L5  L4 + FVG requirement OFF (5.2 ablation),L5  L4 + FVG requirement OFF (5.2 ablation),2,0.5,50.0,-0.0728,-6.0,0.0,100.0,1.0,,,,,,,,,,,,
+au200,L6  L5 + retest/arm windows x2,L6  L5 + retest/arm windows x2,4,0.171,25.0,-0.5107,-29.0,20.0,100.0,6.8,,,,,,,,,,,,
+au200,L7  L6 + session gate OFF (B1 ablation),L7  L6 + session gate OFF (B1 ablation),37,0.127,18.92,-1.031,-541.1,545.5,-14.2,3.3,0.573,-0.3399,-0.6911,-2.65,27.0,0.091,10.0,0.339,22.0,0.06,15.0,0.156
+au200,"L8  L7 + min_r 1.5, sweep 0.15-1.00 ATR_X, tested<=4","L8  L7 + min_r 1.5, sweep 0.15-1.00 ATR_X, tested<=4",58,0.144,25.86,-0.5554,-404.7,412.0,-15.8,5.4,0.577,-0.2852,-0.2702,-2.71,42.0,0.15,16.0,0.13,41.0,0.16,17.0,0.119

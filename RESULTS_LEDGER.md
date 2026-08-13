@@ -5115,3 +5115,116 @@ Zero cells reach the +10 pts/day target; the best is +1.17, a factor of 9 short.
 The gap-fade direction is the only one showing anything consistent (t~1.2 across
 three thresholds), which is at least the right sign, but it is not significant
 and must not be traded on this evidence.
+
+---
+
+## 2026-08-12 — LIQUIDITY SWEEP → MSS → RETEST (v1.0 PDF, coded as v2.0): NOT VALID
+
+Engine: `research/sweep_lab.py` (state machine) + `research/sweep_ladder.py`.
+Spec: `trader_playbooks/LIQUIDITY_SWEEP_MASTER_RULESET.md`.
+Costs: 2× slippage headline (gold 0.27 pt/side, US30 2.0, AU200 1.0).
+
+**Stated deviations:** no NQ data exists in this container and every market-data
+host is 403 at the proxy — US30 15m is the nearest equity-index proxy and is NOT
+NQ. Gold/US30 are 15m against a spec written for 5m; AU200 5m is the only test at
+the spec's own execution timeframe. VIX / Mag7 / DXY / Silver are unreachable, so
+spec §5.5 and §3.2 are inert and the measured population is a SUPERSET of the
+specified one.
+
+### Finding 1 — the spec as written is untestable: 0–1 trades in 6.7 years
+
+| instrument | bars | window | trades at spec settings |
+|---|---|---|---|
+| XAUUSD 15m | 157,366 | 2019-12 → 2026-07 | **1** |
+| US30 15m | 56,165 | 2019-12 → 2026-07 | **0** |
+| AU200 5m | 139,898 | 2020-08 → 2026-08 | **0** |
+
+Funnel, XAUUSD, spec settings: armed 3,456 → swept 579 → MSS break 167 →
+displacement passes §5.1 53 → FVG present 13 → **risk gate passes 2** → filled 1.
+
+### Finding 2 — §5.3.1 and §1.2 are mutually contradictory, and it is arithmetic
+
+At the retest, RISK/ATR_D versus the spec's own validity gate:
+
+| instrument | basis | n at retest | p10 | median | p90 | gate | **above cap** |
+|---|---|---|---|---|---|---|---|
+| XAUUSD | ATR_D | 13 | 0.339 | **0.559** | 0.953 | [0.10, 0.35] | **84.6%** |
+| XAUUSD | ATR_X | 12 | 0.319 | **0.380** | 0.777 | [0.10, 0.35] | 66.7% |
+| US30 | ATR_D | 7 | 0.516 | **0.630** | 0.761 | [0.08, 0.32] | **100.0%** |
+| US30 | ATR_X | 12 | 0.349 | **0.534** | 0.713 | [0.08, 0.32] | 91.7% |
+
+**Zero setups fall below the floor; 67–100% breach the cap.** The mechanism is
+forced: the stop sits beyond the sweep extreme (§1.2) and entry is a 50–79%
+retracement of the sweep→MSS leg (§5.4.1), so RISK ≈ 0.5 × leg + buffer. Measured
+median leg is 0.50–1.06 ATR_D, putting median risk at 0.38–0.63 ATR_D — **1.1× to
+2.0× the cap the same document sets.** A deeper sweep mechanically produces a
+wider stop, which the cap then rejects. The rules fight each other.
+
+### Finding 3 — relaxed to a testable sample, there is no edge
+
+Eight-rung relaxation ladder (`research/sweep_ladder.csv`). Best rungs:
+
+| rung | inst | n | PF (pts) | **PF (R)** | **mean R** | t vs 0 | vs null | cost×0 |
+|---|---|---|---|---|---|---|---|---|
+| L5 no-FVG | gold | 42 | 1.200 | **0.812** | **−0.0801** | −0.52 | +0.05R, z=+0.31 | +0.0715 |
+| L6 | gold | 45 | 1.127 | **0.801** | **−0.0838** | −0.57 | +0.05R, z=+0.25 | +0.0745 |
+| L8 | us30 | 62 | 0.929 | — | −0.0627 | — | +0.002R, z=+0.02 | — |
+| L7 | au200 5m | 37 | 0.127 | **0.134** | **−1.0310** | **−3.01** | **−0.76R, z=−3.56** | −0.7137 |
+
+Every other rung on every instrument is PF < 1.0. No rung on any instrument
+clears its matched random-entry null.
+
+**The gold "PF 1.200" is a position-sizing artifact.** PF on raw points is 1.200;
+PF on R-multiples is **0.812** and mean R is **−0.0801**. Points-PF assumes
+constant contract size, which contradicts the spec's own risk-based sizing
+(§3.3). Under the sizing the spec mandates, the system loses. **Report PF on
+R-multiples whenever position size is risk-derived.**
+
+### Finding 4 — the ladder's one apparently-significant result was a seed artifact
+
+At 5 null seeds, gold L5 scored z = +2.13 and looked like the first entry in this
+repo to beat its null. At **20 seeds** the null's own dispersion is estimated
+properly (sd 0.061 → 0.168) and the same result is **z = +0.31, at the 65th
+percentile of the null distribution**. Nothing survived. Five seeds is not enough
+to estimate a null's spread; 20 changed a "finding" into noise.
+
+### Finding 5 — cost is the entire story on gold, reproducing the level-reaction result
+
+| cost | mean R | PF (R) |
+|---|---|---|
+| ×0 | **+0.0715** | 1.206 |
+| ×1 | −0.0043 | 0.989 |
+| ×2 (headline) | −0.0801 | 0.812 |
+| ×4 | −0.2317 | 0.554 |
+
+The raw signal carries a small positive expectancy that the spread consumes
+exactly. This is an **independent reproduction, from a completely different
+direction, of `level_reaction.py`'s conclusion**: *the information sits precisely
+where the spread eats it.* Breakeven sits between 1× and 2× slippage.
+
+### Finding 6 — at the spec's own execution timeframe the entry is worse than random
+
+AU200 5m is the only test on 5m data. It is **significantly negative against its
+own null: z = −3.56, 0th percentile of 20 null draws, t = −3.01 against zero**,
+and it stays negative at zero cost (mean R −0.71). Fill assumptions disagree
+materially (limit 0.134 / close 0.408 / next-open 0.038), so per BUG-035 these are
+not a result — but all three are heavily negative, and the rule is ship the worst.
+
+### Control status (spec §7.2)
+
+- **Control 1 (matched random null):** RUN, 20 seeds. **Not passed anywhere.**
+- **Control 2 (three fill assumptions):** RUN. Gold agrees within 0.03R (no
+  execution lookahead). AU200 does not agree → its numbers are not a result.
+- **Control 3 (identity arm):** not run.
+
+### Verdict
+
+**NOT VALID. Do not trade.** The rule set cannot be executed at its own settings,
+its stop rule and sweep rule are arithmetically incompatible, and at every
+relaxation producing a testable sample it is at or below a matched random entry.
+This is the **eighth** entry family in this repo to fail its null control, and the
+first to do so at three instruments simultaneously.
+
+**Not proven:** that the *5m NQ* version fails. NQ was never tested — no data.
+The AU200 5m result is the closest available evidence and it is the worst of the
+three.

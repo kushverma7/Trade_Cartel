@@ -2203,3 +2203,83 @@ refuted this session at matched drawdown — 11.30 and 6.35 against 27.26.
 by this session's own measurements**: the breakeven move scored net/DD 7.06
 against 27.26, and hard 2R/3R targets 25.1–27.1. On a 21.7%-win-rate system,
 taking profits early is exactly how you go broke slowly.
+
+---
+
+## B-0xx — The liquidity-sweep stack is the 8th entry family to fail its null, and cost is why
+
+**Established 2026-08-12.** `research/sweep_lab.py`, `research/sweep_ladder.py`.
+XAUUSD 15m (157,366 bars), US30 15m (56,165), AU200 5m (139,898). Full numbers
+in RESULTS_LEDGER.
+
+**The claim tested.** That a *stacked, conditional* entry — HTF level + liquidity
+sweep + rejection + market-structure shift + displacement + FVG + retest — is
+different in kind from the single-condition entries this repo has already
+falsified, and therefore carries edge where they did not.
+
+**It is not.** No configuration beats a matched random entry through the
+identical exit engine on any of the three instruments. Best gold rung: edge over
+null **+0.05R, z = +0.31, 65th percentile** of 20 null draws. This is the eighth
+entry family to fail this control and the first to fail it at three instruments
+at once.
+
+**The mechanism, and this is the part that generalises.** Mean R by cost
+multiple on gold: **+0.0715 at ×0, −0.0043 at ×1, −0.0801 at ×2, −0.2317 at ×4.**
+The signal has a small, real, positive expectancy and the spread consumes exactly
+it. Breakeven sits between 1× and 2× slippage.
+
+That is `level_reaction.py`'s finding reproduced from the opposite direction. That
+study measured single level touches (54.28% vs 49.06% control, z = +20.08, never
+economic at any R). This one measured a five-condition stack built on top of the
+same levels and landed in the same place. **Stacking conditions shrinks the
+population without moving the per-trade edge out of the cost band.**
+
+- **Why this is stronger evidence than either study alone.** The obvious defence
+  of the key-level result was always "a bare level touch is not a setup — nobody
+  trades that." This tested the full setup that the defence describes, at
+  institutional-grade specification, and it lands in the same cost band. The
+  defence is now measured and it does not hold.
+- **Consistent with:** H78 (level touch carries no directional information), the
+  exponent-gap finding (entry MAE exponent 0.493 vs random walk 0.500), and the
+  repo's standing position that the edge is the exit engine.
+- **At the spec's own 5m execution timeframe the entry is significantly WORSE
+  than random** (AU200 5m: z = −3.56, 0th percentile, t = −3.01 vs zero, and
+  negative at zero cost). A sweep-retest entry on 5m index data appears to buy
+  continuation systematically. Loosely held — one instrument.
+- **Invalidation:** any stacked-confluence entry that beats a matched random null
+  out of sample at 2× cost, on any instrument. Or: the correlation gates (spec
+  Steps 5–6, untested here for lack of VIX/Mag7/DXY/Silver data) removing enough
+  of the losers to flip the sign. That second one is a genuine open door — the
+  measured population is a SUPERSET of the specified one — and it is the first
+  thing to run if those series become reachable.
+- **NOT tested: NQ.** No data, every vendor host 403 at the proxy. Nothing here
+  licenses a claim about NQ in either direction.
+
+### Two methodological rules this produced, both cheap and both load-bearing
+
+**1. Report PF on R-multiples whenever position size is risk-derived.** Gold's
+best rung: PF 1.200 on raw points, **0.812 on R**, mean R −0.0801. Points-PF
+assumes constant contract size, which contradicts risk-based sizing. The points
+number would have shipped a loser. This is a new member of the BUG-017 /
+"metric that flatters" family.
+
+**2. Twenty null seeds, not five, and quote the percentile.** The same rung
+scored **z = +2.13 at 5 seeds and z = +0.31 at 20** — the null's dispersion was
+under-estimated 2.7× (sd 0.061 → 0.168). At 5 seeds this session would have
+recorded the first entry edge in the project's history. It was noise.
+
+### A specification finding worth keeping regardless of the verdict
+
+**A rule set can be internally contradictory in a way only coding it reveals.**
+The spec's sweep-depth rule (0.25–0.55 ATR_D beyond the level) and its stop
+validity gate (risk ≤ 0.32–0.35 ATR_D) are arithmetically incompatible: the stop
+sits beyond the sweep extreme and entry is a 50–79% retrace of the sweep→MSS leg,
+so RISK ≈ 0.5 × leg + buffer, and the measured median leg is 0.50–1.06 ATR_D.
+**67–100% of setups breach the cap; none falls below the floor.** Neither rule is
+unreasonable alone. Together they permit almost nothing — 0 to 1 trades in 6.7
+years on every instrument.
+
+**Standing consequence:** before running any supplied rule set, compute the
+distribution of the quantity its gates act on and check the gates against it. A
+gate that rejects 84% or admits 100% is not a filter, it is a specification bug,
+and it is visible in one pass over the data before any performance number exists.
