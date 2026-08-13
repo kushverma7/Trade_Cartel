@@ -5228,3 +5228,66 @@ first to do so at three instruments simultaneously.
 **Not proven:** that the *5m NQ* version fails. NQ was never tested — no data.
 The AU200 5m result is the closest available evidence and it is the worst of the
 three.
+
+## 2026-08-13 — Follow-up: the six proposed micro-adjustments, tested
+
+Same engine and rungs as the 08-12 entry. Gold, 15m, 2019-12 → 2026-07.
+
+**Frequency (item 1).** The proposal assumed "0–2 trades per week." Measured:
+
+| config | n over 6.7 yrs | trades/week | interval |
+|---|---|---|---|
+| spec as written | **1** | 0.003 | **one per 349 weeks** |
+| L5 (FVG + volume off, cap 1.0) | 42 | 0.120 | one per 8.3 weeks |
+| L8 (everything relaxed) | 140 | 0.401 | one per 2.5 weeks |
+
+The estimate is off by roughly **three orders of magnitude** at spec settings.
+
+**Max displacement age (item 6a) — tested, NOT supported.** Tightening the
+retest window as proposed shrinks the sample and does not improve the edge:
+
+| retest_bars | n | PF (R) | mean R | t |
+|---|---|---|---|---|
+| 6 | 30 | 0.612 | −0.1782 | −1.05 |
+| 8 | 33 | 0.804 | −0.0829 | −0.48 |
+| 10 | 35 | 0.690 | −0.1442 | −0.86 |
+| **15 (spec)** | 42 | 0.812 | −0.0801 | −0.52 |
+| 20 | 44 | **0.853** | **−0.0606** | −0.41 |
+| 30 | 46 | 0.820 | −0.0738 | −0.52 |
+
+"Old imbalances lose urgency" is not visible here; the mild gradient runs the
+other way. A textbook instance of the standing pattern — a new filter shrinks
+the population without enlarging the per-trade edge.
+
+**LBMA fix blackout (item 6c) — no support for extending.**
+
+| window | in-window n | in-window mean R | outside mean R |
+|---|---|---|---|
+| 09:55–10:05 (spec) | 3 | −0.3471 | −0.0650 |
+| 09:50–10:10 (proposed) | **3 — identical set** | −0.3471 | −0.0650 |
+| 09:45–10:15 | 5 | **+0.2842** | −0.1298 |
+
+Nothing lands in the proposed extra ten minutes, so the extension is a no-op;
+widening further catches trades that are *positive*. n = 3–5 means neither
+direction is established, but there is no evidence for extending it.
+
+**Disclosure:** the engine does NOT implement the fix-window blackout. Those 3
+trades are included in every number in the 08-12 entry. Immaterial at 3 of 45,
+but the runs are a superset of the spec on this rule as well as on Steps 5–6.
+
+**Type R vs Type C (item 5) — separated, and the one positive cell dissolves.**
+
+| rung | Type R | Type C |
+|---|---|---|
+| L5 | n=25, PF_R 0.404, meanR −0.2738 | n=17, PF_R **1.544**, meanR **+0.2047** (se 0.3017, t=0.68) |
+| L6 | n=28, PF_R 0.420, meanR −0.2589 | n=17, PF_R 1.544, meanR +0.2047 |
+| L7 | n=44, PF_R 0.573, meanR −0.2051 | n=28, PF_R 0.832, meanR −0.1000 |
+| L8 | n=98, PF_R 0.684, meanR −0.1622 | n=42, PF_R 0.699, meanR −0.1354 |
+
+Type C is the only positive cell measured anywhere in this framework, and it is
+**n=17 at t=0.68**. It decays monotonically to negative as the sample grows
+(+0.205 at n=17 → −0.100 at n=28 → −0.135 at n=42): the signature of a
+small-sample artifact, not an edge. Note it is also the *opposite* of v1.0's
+prediction that Type C would be the higher-win-rate, lower-R book — which is
+what the v2.0 type-asymmetric correction predicts, and is the one thing here
+worth re-testing if the framework is ever revived.
