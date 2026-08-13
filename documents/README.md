@@ -14,6 +14,8 @@ is unaffected.
 | `Rigorous_Research_Framework.pdf` | Typeset PDF of the above. |
 | `institutional_power_and_markets.md` | Document on leaks, insider-trading networks and a proposed pre-announcement trading system. **Carries an Editor's Verification Note recording six failed fact-checks, including one apparently fabricated case.** Body reproduced unaltered. |
 | `Institutional_Power_And_Markets.pdf` | Typeset PDF of the above, verification note included. |
+| `offshore_networks_and_institutional_data.md` | Guide to ICIJ offshore databases and SEC filing research, plus proposed trading workflows. **Carries an Editor's Verification Note: fabricated worked example, non-functional Pine code, and a section describing how to avoid regulatory attention.** Body reproduced unaltered. |
+| `Offshore_Networks_And_Institutional_Data.pdf` | Typeset PDF of the above, verification note included. |
 
 Rebuild the PDF with:
 
