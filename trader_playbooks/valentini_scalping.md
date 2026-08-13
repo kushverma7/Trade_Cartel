@@ -196,3 +196,42 @@ Verified accurate: 68/88/218% quarterly returns, 500 trades/quarter
 (refined above to per-quarter counts), 0.25% base risk, 3-stops/day cap,
 min 1:2 RR, stop 1-2 ticks below the high (not above, to dodge
 acceleration slippage).
+
+---
+
+## GAP FOUND AND CLOSED — ABSORPTION (2026-08-13)
+
+**How it was found:** an externally-supplied Fabio training manual made
+absorption a central pillar. Checking that against our own primary source —
+the five transcripts in `sources/raw_transcripts/` — showed **61 occurrences of
+absorption in Fabio's own words**, while this playbook contained **zero**. Our
+distillation dropped a concept the trader uses constantly.
+
+**What the source actually says:**
+
+> *"The sellers is huge but there is no followup. What does it mean? That someone
+> is absorbing this order — and if they are absorbing this order, if you watch
+> only colour you [miss it]."*
+
+> *"You can see clearly that this aggression at the moment is getting completely
+> absorbed."*
+
+**The concept.** Absorption = heavy aggressive volume arriving at a level with
+**no corresponding price movement**. One side is hitting hard; the other side is
+filling them without conceding price. It is the opposite reading to aggression:
+aggression means the initiator wins and price moves; absorption means the
+initiator is being fed and price holds.
+
+**How Fabio uses it:**
+- At a level of interest, large delta with no follow-through = the aggressor is
+  trapped, and a squeeze in the opposite direction becomes likely.
+- It is the **trigger for the mean-reversion model**, where aggression is the
+  trigger for the trend model. The two models use opposite confirmations.
+- Colour alone (green/red bubbles) will not show it — the tell is volume size
+  against price displacement.
+
+**Standing note for future distillation:** this playbook was built by reading
+the transcripts for *rules* and lost a concept that appears as *narration*.
+When distilling a transcript, grep the raw source for high-frequency domain
+terms and check each one made it into the playbook. Frequency in the source is
+a signal of importance to the speaker.

@@ -24,6 +24,9 @@ is unaffected.
 | `MSPV2_Dialectic_Engine_Report.pdf` | Typeset PDF of the above, verification note included. |
 | `msvp_carmine_rosato_source_003.md` | Carmine Rosato (verified real) CLC order-flow model for ES. **Verification note: the "TRIPLE CONFIRMED / CORE LAW" grading rests on a correlated sample — the source is a joint Fabio+Carmine session, and all three traders share one teaching platform.** |
 | `MSVP_Carmine_Rosato_Source_003.pdf` | Typeset PDF of the above, verification note included. |
+| `msvp4_fabio_valentini_training_manual.md` | Fabio Valentini AMT/order-flow manual. **First uploaded document verifiable against PRIMARY SOURCE held here** (five transcripts). Absorption and CVD corroborated; the 30-NY/20-London contract filter is blurred to "20-30"; contains no fabricated statistics, unlike its companion. |
+| `MSVP4_Fabio_Valentini_Training_Manual.pdf` | Typeset PDF of the above, verification note included. |
+| `Institutional_Intelligence_OS_Multi_Agent_Architecture.pdf` | 25-page architecture spec for the 8-agent Institutional Intelligence OS. |
 | `Institutional_Intelligence_OS_Setup_Guide.pdf` | 38-page setup guide for the Institutional Intelligence OS. Addressed to the "Devesh" stack. |
 | `Institutional_Intelligence_OS_Orchestrator_Framework.pdf` | Python orchestration framework coordinating the 8 agents. |
 | `Institutional_Intelligence_OS_Executive_Summary.pdf` | Overview of the 7-file Institutional Intelligence OS documentation set. |
