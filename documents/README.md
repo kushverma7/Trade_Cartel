@@ -26,6 +26,9 @@ is unaffected.
 | `MSVP_Carmine_Rosato_Source_003.pdf` | Typeset PDF of the above, verification note included. |
 | `msvp4_fabio_valentini_training_manual.md` | Fabio Valentini AMT/order-flow manual. **First uploaded document verifiable against PRIMARY SOURCE held here** (five transcripts). Absorption and CVD corroborated; the 30-NY/20-London contract filter is blurred to "20-30"; contains no fabricated statistics, unlike its companion. |
 | `MSVP4_Fabio_Valentini_Training_Manual.pdf` | Typeset PDF of the above, verification note included. |
+| `AlgoAlpha_Trend_Targets_Research_Report.pdf` | AlgoAlpha "Trend Targets" strategy analysis with a 24-cell optimization table. Kept as supplied. |
+| `AlgoAlpha_Trend_Targets_VERIFICATION.md` / `.pdf` | **Companion note: every cell in that table is the max of 36 in-sample tries with no out-of-sample test, no costs, no date range and no trade counts.** Its parameter instability is read as a reason to optimise per asset; it is the signature of curve-fitting. Its daily-beats-intraday conclusion IS independently corroborated. |
+| `Institutional_Intelligence_OS_Agent_1_1_SEC_Scraper.pdf` | Python source for the SEC Form 4 scraper agent. |
 | `Institutional_Intelligence_OS_Multi_Agent_Architecture.pdf` | 25-page architecture spec for the 8-agent Institutional Intelligence OS. |
 | `Institutional_Intelligence_OS_Setup_Guide.pdf` | 38-page setup guide for the Institutional Intelligence OS. Addressed to the "Devesh" stack. |
 | `Institutional_Intelligence_OS_Orchestrator_Framework.pdf` | Python orchestration framework coordinating the 8 agents. |

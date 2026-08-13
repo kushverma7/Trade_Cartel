@@ -2290,3 +2290,55 @@ Verification Note recording what was checked. Do not promote to
 records outrank scholarly analysis outrank synthesis outrank commentary. The
 AU200-BASE trade list (primary) beating the TradingView dashboard (derived) is
 the same principle proving itself on our own data.
+
+---
+
+## H86 — Longer timeframes carry structural edge; sub-15m does not, and the cause is cost not indicators
+
+**Evidence, from three independent routes:**
+
+1. **This repo's own measurement (2026-08-13):** a 350-cell achievable-fill
+   search on AU200 around the open returned **7 of 350 cells above PF 1.0**
+   against ~175 expected by chance. A fixed ~2-point round trip at ~1 trade/day
+   dominated every cell. Separately, the only system here that has survived all
+   controls is a **daily** z-reversion engine (PF 2.31, 7/7 years).
+2. **MSPV2 (externally supplied, reports its own negatives):** win rates of
+   **22-30% on 1m Gold regardless of indicator combination**, concluding *"this
+   is not an indicator problem, it's a timeframe problem"*, and grading 1m as
+   AVOID for any asset.
+3. **AlgoAlpha Trend Targets report (externally supplied):** daily Sharpe an
+   order of magnitude above hourly across 8 assets — though see the verification
+   note, as its annualisation is inconsistent and the cells are in-sample.
+
+**Belief:** the binding constraint at high frequency is transaction cost, not
+signal quality. Adding indicators to a sub-15m system cannot fix a cost problem.
+Three different instruments (AU200, XAUUSD, BTC/equities), three different
+methods, same conclusion — this is genuine corroboration, not correlated sources.
+
+**Invalidation:** an intraday system that clears cost on a measured (not
+assumed) spread, out of sample, with n > 200.
+
+**Consequence:** before another intraday round, **measure the spread**. If the
+real AU200 cost at 10:00 is 1 point rather than 2, several borderline cells
+change sign and the 350-cell sweep must be re-run. That measurement now gates
+the whole family.
+
+---
+
+## H87 — Scattered optimal parameters across assets is evidence against an edge, not a reason to optimise per asset
+
+**Evidence:** the AlgoAlpha report searched 36 parameter combinations per
+asset/timeframe, found optima scattered across the entire grid (Factor 8-14,
+ATR 60-120, WMA 20-60, "no single value dominating"), and concluded this
+"underscores the necessity of tailored optimization for each trading instrument."
+
+**Belief:** that inference is backwards. A real effect produces a **plateau** —
+neighbouring parameters perform similarly and the same neighbourhood works
+across related instruments. A **spike** that lands somewhere different for every
+asset is what noise looks like after optimisation. This repository already uses
+plateau-versus-spike as a control; this document is a clean external example of
+the failure mode.
+
+**Rule:** when a source reports per-asset optimal parameters, check whether the
+neighbourhood is flat. If the report does not show the neighbourhood, treat the
+headline number as the maximum of the search, not as a performance estimate.
