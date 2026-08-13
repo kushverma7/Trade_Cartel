@@ -2203,3 +2203,90 @@ refuted this session at matched drawdown — 11.30 and 6.35 against 27.26.
 by this session's own measurements**: the breakeven move scored net/DD 7.06
 against 27.26, and hard 2R/3R targets 25.1–27.1. On a 21.7%-win-rate system,
 taking profits early is exactly how you go broke slowly.
+
+---
+
+## H82 — The AU200 10:00 hour moves enough for a 10-point target; the direction is a coin flip
+
+**Evidence (our own, outranks testimony):** 397 sessions of 1-minute OANDA
+AU200AUD, 2025-01-13 .. 2026-08-07. From the 10:00 close to the 11:00 close:
+53.1% up / 45.4% down; median absolute move **13.0 points**; **64.6% of sessions
+move >= 10 points** inside that single hour.
+
+**Belief:** the magnitude the user observes at the open is real and repeatedly
+verified. The *side* carries no information from any filter tested to date.
+
+**Invalidation:** a filter that calls the side of that hour above ~57% out of
+sample, on n >= 200, net of measured spread.
+
+**Consequence:** stop testing exits on this setup. Every exit family has now been
+swept (fixed time 1h/2h/to-close, TP/SL grids 10/15/20/30, trailing at multiple
+distances, and the user's own one-bar hold). The binding constraint is entry.
+
+---
+
+## H83 — EMA200 + RSI(50) + SuperTrend(3.1, 97) does not call the side of the AU200 open
+
+**Evidence:** user-frozen spec, entries at the 10:00 candle close, exit at the
+next bar's close, four timeframes. Gross PF 30m 0.784 / 45m 0.780 / 1H 1.123 /
+2H 0.983; net of 2 pts cost all below 1.0. **Null test:** ignoring the filter
+entirely and going long on the same days beats the filtered signal on 30m
+(+1.47 vs -1.27), 45m (+0.82 vs -1.77) and 2H (+0.76 vs -0.16).
+
+**Independently replicated:** user ran the same script on 30m over a different
+window on TradingView and returned PF 0.544 / 37.20% win against our 0.537 /
+37.8%.
+
+**Status:** the three-indicator filter is REJECTED for this setup. 1H is the one
+cell where it adds anything (+0.58/trade over always-long) and is not itself
+significant.
+
+**Invalidation:** a longer sample (2019-2026 1-minute data) showing 1H gross
+PF > 1.2 with n > 400.
+
+---
+
+## H84 — Reported performance is a claim about the execution model, not about the market
+
+**Evidence:** five separate "champions" in this project have now turned out to be
+execution artifacts (0.5-pt trail path, 15m->5m lookahead, SMA50/200 noise,
+BUG-035 execution lookahead, BUG-036 tick-unit trail). In the BUG-036 case the
+identical entries scored PF 2.75 under the platform's intrabar guess and PF 0.31
+under 1-minute path resolution.
+
+**Belief:** a profit factor is a joint statement about a signal AND a fill
+assumption. Quoting one without the other is meaningless. The fill assumption
+must be stated with every result and is the first thing to attack.
+
+**Practical test that settles it:** reduce the strategy to a close-to-close
+construction. That has no intrabar path, so an independent simulator and the
+platform must agree. If they don't, one is broken.
+
+**Invalidation:** none expected; this is now a standing methodological belief.
+
+---
+
+## H85 — External research documents require verification before they enter the knowledge base
+
+**Evidence:** four uploaded research documents were fact-checked this session.
+Every one mixed genuine, checkable infrastructure with fabricated specifics:
+an SEC insider-trading case that does not exist (with invented fines), Form 4
+filings attributed to an executive under a title she does not hold, precise
+accuracy percentages (70% AAPL, 75% NVDA) with no source, a leak misdated by
+four years with the document count more than doubled, and a real Initial Balance
+statistic whose sample (5,519 ES+NQ days) was reattributed to NQ alone (2,833)
+with its 82.7% ES figure restated as an unrelated 82.17% NQ continuation rate.
+
+**Belief:** plausible, well-formatted research documents in this domain
+frequently contain invented specifics that inherit credibility from the real
+material around them. The mix is the hazard, not the falsehood alone.
+
+**Rule:** before any external document informs a strategy, check names, dates,
+case numbers, sample sizes and URLs. File it in `documents/` with an Editor's
+Verification Note recording what was checked. Do not promote to
+`trader_playbooks/` (which is read every session) until verified.
+
+**Corroborates:** the source-hierarchy principle already in the repo — primary
+records outrank scholarly analysis outrank synthesis outrank commentary. The
+AU200-BASE trade list (primary) beating the TradingView dashboard (derived) is
+the same principle proving itself on our own data.

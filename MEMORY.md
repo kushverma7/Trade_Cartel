@@ -1099,3 +1099,140 @@ window. These are daily systems and will feel inactive to trade.
 4. Audit the remaining `strategies/*.pine` for the missing Key Levels module;
    `gold_confluence_engine.pine` also fails lint with 38 undeclared identifiers
    (pre-existing, untouched this session).
+
+---
+
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-13)
+# Supersedes the 2026-07-31 handoff above. Read this first.
+
+## What happened this session, in one line
+
+The user's own AU200-BASE strategy showed PF 2.0–3.4 on TradingView across four
+timeframes. It was a units bug in one line. Cleaned up, the identical entries
+score PF 0.544 — **and the user's own platform reproduced that number**, which
+is the first time this project has had an independent replication of a negative
+result.
+
+## The AU200-BASE investigation (the model for how to do this)
+
+The user supplied **exported trade lists** (CSV, one row per fill) from
+Capital.com and OANDA at 15m/30m/45m/1H/2H. Those lists, not the dashboard,
+settled everything. Sequence:
+
+1. **Entries verified legitimate.** Every 10:00 entry filled at the signal bar's
+   CLOSE — matched raw 1-minute OANDA data 100% within 1 point, median gap 0.00.
+   That is `process_orders_on_close`, not lookahead. **I was initially wrong to
+   suspect the entries.**
+2. **Exits were the problem.** 99.0% of winners filled within 1 point of that
+   bar's own high (longs) / low (shorts); 100% of losers booked exactly -22.0.
+   Booked exits averaged **+10.0 points better than the real price at exit time**.
+3. **The decisive test:** take the strategy's own direction calls, honour them at
+   real prices. **47.7% hit rate, -2.36 pts/trade.** The entries were a coin
+   flip; 100% of reported profit lived in the exit fill.
+4. **Cause found in the source:** `trail_points`/`trail_offset` are in TICKS and
+   their roles were swapped. On AU200 (mintick 0.1) the inputs 30/5 meant
+   *arm at 3 points, trail 0.5 points behind the high*. See BUG-036.
+5. **Replication:** user ran the clean one-bar-hold version on 30m over
+   Jan 2024–Aug 2026. TradingView returned **PF 0.544, 37.20% win**. My
+   simulation said **PF 0.537, 37.8%**. Two implementations, different feeds,
+   different windows, agreeing to 0.007 of a profit factor.
+
+## New standing rules (earned today)
+
+**1. A trade list outranks a dashboard.** The exported CSV is primary evidence
+(entry price, exit price, P&L per trade). The summary panel is a derived
+statistic. When they disagree, the CSV wins. Ask for the trade list export
+before arguing about a PF.
+
+**2. Close-to-close is the only execution-unambiguous construction.** A strategy
+that enters at one bar's close and exits at another bar's close has no intrabar
+path to guess, so the platform and an independent simulator MUST agree. Any
+disagreement is a bug in one of them. Use this construction to settle disputes.
+
+**3. Any exit finer than the bar is unmeasured, not edged.** A trailing distance
+below ~1x the chart's average bar range cannot be resolved without a bar
+magnifier. TradingView fills the gap by walking the bar monotonically to its
+extreme. Treat such results as unmeasured. (BUG-036.)
+
+**4. Extend the absurdity assertion.** Already: WR <10% or >90% is a bug.
+Now also: **drawdown under 1% of equity, or a visually straight multi-year
+equity curve, is a bug until proven otherwise.** AU200-BASE had all three.
+
+**5. Never use a fixed UTC offset for session logic.** `hour(time,"UTC+10")` is
+11 AM Melbourne from October to April. Always the named zone
+`"Australia/Sydney"`. (BUG-037.) This also means any "10:00 only" filter on a
+fixed-offset script is silently a *winter-half-of-the-year* filter.
+
+**6. Verify uploaded documents before acting on them.** Four external research
+documents were filed this session. Every one mixed real, checkable infrastructure
+with fabricated specifics — invented SEC cases with invented fines, invented
+Form 4 filings from misnamed executives, precise accuracy percentages with no
+source. Check names, dates, case numbers and URLs before treating any of it as
+input. See `documents/` — each carries an Editor's Verification Note.
+
+## Results added to RESULTS_LEDGER this session
+
+- **AU200 10:00 candle + one-bar fixed hold** (user-frozen spec): NOT VALID.
+  Gross PF 30m 0.784 / 45m 0.780 / **1H 1.123** / 2H 0.983. Net of 2 pts cost all
+  below 1.0. On 3 of 4 timeframes, ignoring the filter and going long beats it.
+  1H is the only cell gross-positive in both windows and is the one worth
+  revisiting. Entry reconstruction validated: **100% direction agreement with
+  the user's trade list on all 182 shared days.**
+- **350-cell achievable-fill search** around the 10:00 candle and daily open
+  (gap fade/continue, opening range, daily-open relation, exit sweeps):
+  **NOTHING FOUND.** Zero cells clear t >= sqrt(2 ln 350) = 3.42. Only 7 of 350
+  are even PF > 1.0 against ~175 expected by chance — the 2-point cost dominates
+  the whole family at ~1 trade/day. Best cell +1.17 pts/day vs the 10 requested.
+
+## The 10-points-a-day answer, settled
+
+Not reachable from an intraday setup. Nothing in 350 rules, nor any strategy
+tested this session, produces it. The honest route is **size on the validated
+daily z-reversion**: ~696 pts/year at 1 unit with 482-point max drawdown, so
+10 pts/day (~2,500/yr) needs ~3.6x size and ~1,730 points of drawdown. That is
+about six months of average profit erased in one drawdown. The user has been
+told this plainly.
+
+## What IS true about the 10:00 candle (keep this)
+
+Measured on 397 sessions of 1-minute OANDA data:
+- 10:00 close -> 11:00 close: **53.1% up / 45.4% down** — no directional edge
+- Median absolute move in that hour: **13.0 points**
+- Sessions moving **>= 10 points** in that hour: **64.6%**
+
+The move the user sees is real. The side is a coin flip. The open remains the
+right place to look; EMA200 + RSI50 + SuperTrend is not the right filter.
+
+## documents/ — non-trading corpus (NEW this session)
+
+`documents/` holds material that is NOT part of the trading system and is
+deliberately outside the CLAUDE.md always-on reading order. Six documents, each
+with a verification note where warranted. Builders are reusable:
+
+- `research/build_report_pdf.py` — markdown -> typeset PDF (serif body, sans
+  headings, tables, colour-coded assessment marks). One command, any markdown.
+- `research/build_corpus_pdf_exact.py` — every source file -> one verified PDF.
+- `research/build_transcripts_pdf.py` — transcripts/playbooks companion volume.
+- `research/build_quarters_theory_pdf.py` — topic-scoped collection.
+
+All corpus builders typeset in full-Unicode monospace, hard-wrap at the column
+width, and **assert at render time that unwrapping reproduces the source
+character-for-character**. Verified: 70/70 text files and 507 original PDF pages
+present exactly; 403/403 Quarters-Theory references captured.
+
+## NEXT ACTION
+
+1. **1H is the only live thread from the open.** It came back gross-positive in
+   both windows and beats always-long. It is ~2 points/trade short of tradeable.
+   The gap must come from a better entry filter — the exit is now as clean as an
+   exit can be. Do not spend another round on exits.
+2. **User is downloading Dukascopy AUS.IDX/AUD data** — UTC, 10-second or tick,
+   BID and ASK as separate files. Two jobs: (a) measure the REAL spread at 10:00,
+   which decides several borderline results including the 350-cell sweep, and
+   (b) test the literal claim that the 9:59 candle's state at the 50-second mark
+   predicts the 10:00 candle. Job (a) needs ~3 days; job (b) needs a month+.
+3. **The 2-point cost assumption is the single most load-bearing unverified
+   number in this project.** It killed the 350-cell search on its own. Replace
+   it with a measurement the moment the bid/ask files arrive.
+4. Do NOT re-open: the adaptive/regime-switching hybrid; the AU200 4H reversion
+   cell; exit-tuning on the 10:00 candle.

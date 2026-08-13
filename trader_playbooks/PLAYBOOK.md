@@ -1197,3 +1197,35 @@ is a real constraint of the method, not a reason to read thin rows anyway.
 
 Pure instrumentation beyond the v1.1 fixes: entry conditions, level set,
 session filter, TP/SL geometry and all defaults unchanged.
+
+---
+
+## AU200 OPEN — FAMILY CLOSED ON EXITS, OPEN ON ENTRIES (2026-08-13)
+
+**What was tested.** Everything the user asked for around the 10:00 Melbourne
+candle and the daily open, at achievable fills only, cost included:
+
+| family | result |
+|--------|--------|
+| User's AU200-BASE trailing version | PF 2.0-3.4 reported; **artifact** (BUG-036) |
+| Same entries, 9 different honest exits | all negative, PF 0.31-0.66 |
+| User-frozen one-bar fixed hold, 4 TFs | gross 0.78-1.12; net of cost all < 1.0 |
+| 350-cell sweep (gap / opening range / daily-open / exits) | 0 of 350 clear the noise bar |
+
+**Regime note.** The 2-point round-trip cost is the binding constraint at ~1
+trade/day. Only 7 of 350 cells reach PF > 1.0 against ~175 expected by chance —
+the cost, not the signal, is setting the outcome for this whole family.
+
+**Status: exits CLOSED, entries OPEN.** Nine exit rules on fixed entries and a
+full exit sweep inside the 350-cell grid all failed. Do not spend another
+iteration on exits for this setup. The one live cell is **1H, one-bar hold**:
+gross-positive in both windows, beats always-long by +0.58/trade, roughly 2
+points short of tradeable.
+
+**What to do next, in order.**
+1. Measure the real spread from Dukascopy bid/ask. If it is 1 point rather than
+   2, several cells change sign and the 350-cell sweep must be re-run.
+2. Only then, search entry filters on the 1H cell. Target: call the side of the
+   10:00->11:00 hour above 57% out of sample.
+3. Anything that reports a win rate above 90%, a drawdown under 1% of equity, or
+   a straight equity curve gets its fills audited before its PF is read.
