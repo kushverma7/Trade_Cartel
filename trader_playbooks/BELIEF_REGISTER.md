@@ -2342,3 +2342,41 @@ the failure mode.
 **Rule:** when a source reports per-asset optimal parameters, check whether the
 neighbourhood is flat. If the report does not show the neighbourhood, treat the
 headline number as the maximum of the search, not as a performance estimate.
+
+---
+
+## H88 — Stacking confluences raises in-sample appearance and lowers evidence; it does not raise win probability
+
+**Claim under test:** "More conditions aligned = mathematically higher
+probability" (four-trader hybrid v3.0, Absolute Law #2, requiring 4-5
+simultaneous confluences).
+
+**Evidence against, from three externally-supplied documents that measured it:**
+
+- **MSPV2:** *"v6 printed zero signals because it required 4+ conditions all true
+  simultaneously on one candle... Lesson: max 3 hard requirements on one bar."*
+- **MSPV1:** *"FAIL 6: Too many conditions = no signals... fired 0-2 signals per
+  day on 15m XAUUSD. Too few signals to validate statistically."*
+- **MSVPSYSTEM:** *"More than 7 = almost never fires."*
+
+**Evidence from this repository:** the over-gated confluence engines
+(`omnibus_four_model_engine`, `multivoice_confluence_engine`) exhibited the same
+behaviour, and the 350-cell AU200 sweep showed that cells surviving the most
+filters were not the cells with the best out-of-sample behaviour.
+
+**Belief:** each additional required condition shrinks the sample and increases
+selection bias. Conditions bought in-sample by adding filters are the cheapest
+and least reliable kind of edge. A rule requiring 4-5 simultaneous conditions in
+a two-hour daily window will not accumulate a testable sample in reasonable time.
+
+**Correct formulation:** conditions should be *independent* and each should be
+justified separately against its own null. Three independent conditions beat
+seven correlated ones. Count independence, not confluences.
+
+**Invalidation:** a system whose win rate rises monotonically with condition
+count *out of sample*, with the trade count reported at each level.
+
+**Note:** this belief is now supported by four separate documents in the same
+supplied series, each of which measured the failure and then had its conclusion
+reversed by the next version. The series does not propagate its own findings
+forward.
