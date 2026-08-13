@@ -16,6 +16,9 @@ is unaffected.
 | `Institutional_Power_And_Markets.pdf` | Typeset PDF of the above, verification note included. |
 | `offshore_networks_and_institutional_data.md` | Guide to ICIJ offshore databases and SEC filing research, plus proposed trading workflows. **Carries an Editor's Verification Note: fabricated worked example, non-functional Pine code, and a section describing how to avoid regulatory attention.** Body reproduced unaltered. |
 | `Offshore_Networks_And_Institutional_Data.pdf` | Typeset PDF of the above, verification note included. |
+| `msvp_master_trading_system.md` | NQ futures system distilled from Fabio Valentini and Marco Accettone. **Carries an Editor's Verification Note: both traders verified real, but the headline Initial Balance statistic is misreported (sample size and the 82% figure).** Body unaltered. |
+| `MSVP_Master_Trading_System.pdf` | Typeset PDF of the above, verification note included. |
+| `Institutional_Intelligence_OS_Quick_Reference.pdf` | Operations manual for a PostgreSQL Form 4 signal pipeline. Supplied as two identical files; one kept. Documents a different system from the MSVP trading system. |
 
 Rebuild the PDF with:
 
