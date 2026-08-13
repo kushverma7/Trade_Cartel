@@ -20,6 +20,12 @@ is unaffected.
 | `MSVP_Master_Trading_System.pdf` | Typeset PDF of the above, verification note included. |
 | `mspv1_master_strategy_report.md` | "Dialectic Engine" strategy report for XAUUSD/BTCUSD/US30. **Verification note: its core stack (Supertrend 97/3.1 + EMA200 + RSI) is the same one we measured at PF 0.544 on AU200 the same day; its 78-82% accuracy claims carry no source.** Its Pine v6 technical lessons and its fake-data self-correction are sound. |
 | `MSPV1_Master_Strategy_Report.pdf` | Typeset PDF of the above, verification note included. |
+| `mspv2_dialectic_engine_report.md` | **Read this before MSPV1.** Reports its own negative results with real numbers (22-25%, 30.8% win rates) and concludes 1m has no edge regardless of indicator. Directly contradicts MSPV1 on the 1m timeframe, and is the one with data. |
+| `MSPV2_Dialectic_Engine_Report.pdf` | Typeset PDF of the above, verification note included. |
+| `msvp_carmine_rosato_source_003.md` | Carmine Rosato (verified real) CLC order-flow model for ES. **Verification note: the "TRIPLE CONFIRMED / CORE LAW" grading rests on a correlated sample — the source is a joint Fabio+Carmine session, and all three traders share one teaching platform.** |
+| `MSVP_Carmine_Rosato_Source_003.pdf` | Typeset PDF of the above, verification note included. |
+| `Institutional_Intelligence_OS_Setup_Guide.pdf` | 38-page setup guide for the Institutional Intelligence OS. Addressed to the "Devesh" stack. |
+| `Institutional_Intelligence_OS_Orchestrator_Framework.pdf` | Python orchestration framework coordinating the 8 agents. |
 | `Institutional_Intelligence_OS_Executive_Summary.pdf` | Overview of the 7-file Institutional Intelligence OS documentation set. |
 | `Devesh_IntelligenceOS_Integration_Summary.pdf` | Integration plan for a stack belonging to "Devesh" (392 skills, 81 agents, 15 MCPs, Hermes) — **not this repository's system**. |
 | `Legendary_Trader_Pine_Scripts_Raw_Source.pdf` | Raw open-source Pine for Market Cipher B and similar. Supplied named "Mspv3" but unrelated to the MSPV strategy reports. |
