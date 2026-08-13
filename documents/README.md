@@ -18,6 +18,11 @@ is unaffected.
 | `Offshore_Networks_And_Institutional_Data.pdf` | Typeset PDF of the above, verification note included. |
 | `msvp_master_trading_system.md` | NQ futures system distilled from Fabio Valentini and Marco Accettone. **Carries an Editor's Verification Note: both traders verified real, but the headline Initial Balance statistic is misreported (sample size and the 82% figure).** Body unaltered. |
 | `MSVP_Master_Trading_System.pdf` | Typeset PDF of the above, verification note included. |
+| `mspv1_master_strategy_report.md` | "Dialectic Engine" strategy report for XAUUSD/BTCUSD/US30. **Verification note: its core stack (Supertrend 97/3.1 + EMA200 + RSI) is the same one we measured at PF 0.544 on AU200 the same day; its 78-82% accuracy claims carry no source.** Its Pine v6 technical lessons and its fake-data self-correction are sound. |
+| `MSPV1_Master_Strategy_Report.pdf` | Typeset PDF of the above, verification note included. |
+| `Institutional_Intelligence_OS_Executive_Summary.pdf` | Overview of the 7-file Institutional Intelligence OS documentation set. |
+| `Devesh_IntelligenceOS_Integration_Summary.pdf` | Integration plan for a stack belonging to "Devesh" (392 skills, 81 agents, 15 MCPs, Hermes) — **not this repository's system**. |
+| `Legendary_Trader_Pine_Scripts_Raw_Source.pdf` | Raw open-source Pine for Market Cipher B and similar. Supplied named "Mspv3" but unrelated to the MSPV strategy reports. |
 | `Institutional_Intelligence_OS_Quick_Reference.pdf` | Operations manual for a PostgreSQL Form 4 signal pipeline. Supplied as two identical files; one kept. Documents a different system from the MSVP trading system. |
 
 Rebuild the PDF with:
