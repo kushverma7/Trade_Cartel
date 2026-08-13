@@ -1099,3 +1099,99 @@ window. These are daily systems and will feel inactive to trade.
 4. Audit the remaining `strategies/*.pine` for the missing Key Levels module;
    `gold_confluence_engine.pine` also fails lint with 38 undeclared identifiers
    (pre-existing, untouched this session).
+
+---
+
+# ►► CURRENT STATE AND NEXT ACTION (2026-08-12, supersedes the 08-06 block)
+
+## What happened this session
+
+User asked for institutional research to complete five missing blocks (stops,
+targets/management, risk sizing, timeframe/sessions, robustness filters) in a
+liquidity-grab → structure-shift → retest framework for **NQ and GC**. Mid-turn
+they uploaded `LIQUIDITY_SWEEP_MASTER_RULESET.pdf` — a complete v1.0 rule set
+answering that exact question, built from institutional/prop/SMC practice but
+**with no access to this repo's measured evidence.** Then, mid-turn again:
+*"Give me the backtest results as well for both."*
+
+So the session ran in two halves: **audit, then measure.**
+
+## Half 1 — the audit: `trader_playbooks/LIQUIDITY_SWEEP_MASTER_RULESET.md` (v2.0)
+
+~80% of v1.0 survives. Four corrections against measured contradictions:
+
+1. **Exits made type-asymmetric.** v1.0 applies one exit architecture to both
+   trade types. H75 (CONFIRMED ×3), H79, the exponent gap, BUG-017 and the AU200
+   archive all say a target degrades the WITH-trend side and helps only the
+   counter-trend side. So Type R keeps its level target; **Type C loses its
+   target entirely and trails.** Five independent confirmations, none against.
+2. **Primary Draw = nearest pool that CLEARS the R gate**, not nearest pool
+   (BUG-017 geometry); obstruction check restricted to equal-or-higher rank.
+3. **Confluence override removed** — it relaxes the gate on the single claim
+   `level_claims.py` measured as false and slightly backwards (81,396 touches).
+4. **Time stop reclassified** rule → hypothesis, barred from Type C.
+
+Plus: a 17-row **implementation hazard map** (spec rule → registered bug), the
+three missing validation controls, and the TradingView data blocker (≥200 trades
+per instrument per type is unreachable on ~2 months of free-plan 5m history —
+this must be validated in `backtest/`, not on TradingView).
+
+Two live conflicts inside `COGNITIVE_ARCHITECTURE.md` flagged, not silently
+resolved: its **1–4% conviction sizing** (vs 0.50% here and G1*'s MC-derived
+0.475–0.606%) and its **"Scale-Out Protocol (Mandatory)"** (contradicted by H75
+on the with-trend side).
+
+## Half 2 — the measurement: NOT VALID
+
+`research/sweep_lab.py` (state machine, written against 9 registered bugs) and
+`research/sweep_ladder.py`. **Verdict: do not trade it.** RESULTS_LEDGER 08-12.
+
+1. **0–1 trades in 6.7 years** at spec settings, on all three instruments.
+2. **§5.3.1 and §1.2 are arithmetically incompatible.** RISK ≈ 0.5 × leg +
+   buffer; measured median leg 0.50–1.06 ATR_D → median risk 0.38–0.63 against a
+   cap of 0.32–0.35. **67–100% breach the cap; none falls below the floor.**
+3. **No rung beats its matched random null** on any instrument. Best gold rung:
+   +0.05R, z = +0.31, 65th percentile of 20 seeds. **Eighth entry family to fail
+   this control, first to fail at three instruments at once.**
+4. **AU200 5m — the only test at the spec's own execution timeframe — is
+   significantly WORSE than random**: z = −3.56, 0th percentile, t = −3.01.
+5. **Cost is the whole story on gold:** mean R **+0.0715 at ×0 cost, −0.0043 at
+   ×1, −0.0801 at ×2.** Independently reproduces `level_reaction.py` from the
+   opposite direction — the stack did not move the signal out of the cost band.
+
+## Two methodological rules produced, both cheap, both now standing
+
+- **Report PF on R-multiples when sizing is risk-derived.** Gold's best rung:
+  PF 1.200 on points, **0.812 on R**, mean R −0.0801. The points number would
+  have shipped a loser.
+- **20 null seeds minimum, and quote the percentile.** Same rung: **z = +2.13 at
+  5 seeds, z = +0.31 at 20.** At 5 seeds this session would have recorded the
+  first entry edge in the project's history. It was noise.
+
+## Standing caveats to repeat, unprompted
+
+- **NQ was never tested.** No NQ data in the container; every market-data host is
+  403 at the egress proxy. US30 15m was used as the nearest equity-index proxy
+  and it is NOT NQ. Nothing measured licenses a claim about NQ either way.
+- **Spec Steps 5–6 were never tested** (no VIX / Mag7 / DXY / Silver). The
+  measured population is a **SUPERSET** of the specified one, so the correlation
+  gates could in principle remove the losers. This is the framework's strongest
+  remaining defence and it is genuinely open.
+- Gold/US30 runs are 15m against a 5m spec — a timeframe-substituted test.
+
+## NEXT ACTION
+
+1. **If the network policy ever allows a market-data host** (see
+   `backtest/README.md` — LSE is one setting away): pull 5m NQ + GC and the
+   VIX/DXY/Silver series, and re-run. Testing Steps 5–6 is the single highest-
+   value open item, because it is the one path by which this framework survives.
+2. Re-run the spec with sweep depth read as **ATR_X, not ATR_D** (Part 9.1
+   recommendation) — the only correction that fixes the contradiction without
+   degrading another rule. Median sweep depth falls 0.29 → 0.04 ATR_D.
+3. Do NOT write Pine for this. It is falsified at the system level and
+   CODE_DELIVERY_PROTOCOL should not be spent on it.
+4. Still open from 08-05/08-06: the **Bollinger squeeze gate** needs the
+   gold-only bar (down years, anchored walk-forward, MC seed stability,
+   right-tail). Unmoved this session.
+5. Amend `COGNITIVE_ARCHITECTURE.md` for the two conflicts above — its sizing
+   table and its mandatory scale-out both contradict measured results.
