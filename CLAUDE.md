@@ -12,13 +12,33 @@
 8. `trader_playbooks/skills/SKILL_REGISTRY.md` — validated reusable Pine patterns. Use them by name; don't rewrite them. `trader_playbooks/tests/TEST_REGISTRY.md` — known-scenario test cases; run relevant ones mentally before delivery (see SKILL_EXPANSION_FRAMEWORK.md for how all three registries evolve).
 9. `trader_playbooks/AMDM_confluence_strategy.md` — the standing strategy lens: every transcript/data point gets analyzed through AMDM (Model 1 momentum-join vs Model 2 mean-reversion) in addition to the voice layer.
 9b. `trader_playbooks/OMNIBUS_PROTOCOL.md` — the standing ITERATION LOOP: build -> static-validate -> deliver -> user tests -> 3-mind diagnosis -> ONE fix per iteration -> verify vs before/after metrics -> learn/document -> repeat until the user says stop. READ ITS ADOPTION NOTE FIRST — the original's voice map has known errors (fabricated "Jared Tendler" voice; #19 is actually Hima Reddy; register holds 21 voices) and the repo register always wins where they differ.
+9c. `documents/README.md` — index of NON-TRADING material (research reports, external
+    systems awaiting validation). Deliberately OUTSIDE this reading order: skim the index
+    only, do not load the documents unless the task concerns them. Anything filed there
+    carries an Editor's Verification Note recording which of its claims were checked.
 10. `trader_playbooks/` (all other files) — the knowledge/confluence layer (candlestick patterns, trader rules). STANDING RULE: this layer is applied as confluence inside every strategy built or tuned — aligned tier-A signals upgrade entries, opposing ones veto/de-risk. It is never delivered as standalone output unless asked.
 
 KEY LEVELS ARE MANDATORY (user directive, 2026-07-28 — "add it into anything that you build and make sure it also displays the levels as it is in the indicator"): EVERY strategy or indicator built in this repo must embed `trader_playbooks/skills/key_levels_module.pine` verbatim — the ported SpacemanBTC IDWM Key Levels V13.1. Paste the block; never reimplement the drawing (three rewrites were rejected — BUG-013). The module exports `klPrices[]` / `klNames[]` so trade logic can use the same numbers the chart draws. Host must be v6, `overlay=true`, `max_lines_count`/`max_labels_count` ≥ 500, and must not already declare any identifier in the module's collision list.
 
 PORT, DON'T REIMPLEMENT (from BUG-013): when the user supplies working source, the deliverable is a port of THAT code. Deviations are allowed only where the host strictly requires them, and each one is logged as a numbered port delta with a reason.
 
-LEARNING CAPTURE (mandatory): every session that produces analysis, backtest results, or user trade feedback must update BELIEF_REGISTER.md / PLAYBOOK.md / MEMORY.md before ending. Every code bug found must be added to bugs/BUG_REGISTRY.md; every validated pattern to skills/SKILL_REGISTRY.md. If it isn't captured, it wasn't learned.
+LEARNING CAPTURE (mandatory): every session that produces analysis, backtest results, or user trade feedback must update BELIEF_REGISTER.md / PLAYBOOK.md / MEMORY.md before ending. Every code bug found must be added to bugs/BUG_REGISTRY.md; every validated pattern to skills/SKILL_REGISTRY.md. If it isn't captured, it wasn't learned. **Do the capture when the finding lands, not at session end — sessions get cut off.**
+
+EVIDENCE HIERARCHY (standing rule, 2026-08-13 — earned the hard way):
+1. **An exported trade list outranks a dashboard.** The CSV (entry price, exit price,
+   P&L per fill) is primary evidence; the summary panel is derived. When they disagree the
+   CSV wins. Ask for the trade-list export before arguing about a profit factor.
+2. **A reported PF is a joint claim about a signal AND a fill assumption.** State the fill
+   assumption with every result, and attack it first. Five "champions" in this repo have
+   turned out to be execution artifacts.
+3. **Close-to-close is the only execution-unambiguous construction.** No intrabar path to
+   guess, so an independent simulator and the platform MUST agree. Use it to settle disputes.
+4. **Absurdity assertion.** A win rate below 10% or above 90%, a drawdown under 1% of
+   equity, or a visually straight multi-year equity curve is a bug until proven otherwise.
+5. **Verify external documents before they inform anything.** Check names, dates, case
+   numbers, sample sizes and URLs. Plausible research documents in this domain routinely mix
+   real infrastructure with invented specifics; the mix is the hazard. File in `documents/`
+   with a verification note. Never promote to `trader_playbooks/` unverified.
 
 Then: `git config user.email noreply@anthropic.com && git config user.name Claude`, check `git status`, and push any unpushed commits from previous sessions.
 
