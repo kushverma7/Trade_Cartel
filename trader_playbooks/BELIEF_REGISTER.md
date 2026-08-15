@@ -2380,3 +2380,38 @@ count *out of sample*, with the trade count reported at each level.
 supplied series, each of which measured the failure and then had its conclusion
 reversed by the next version. The series does not propagate its own findings
 forward.
+
+---
+
+## H83 — REVISED 2026-08-13 (same day). The 1H cell is DEAD on the full sample.
+
+**What changed:** every AU200 result reported earlier on 2026-08-13 used the
+1-minute file — **444 sessions, 2025-01-13 to 2026-08-10**. The repository also
+holds `au200_aud_5m.csv`: **1,635 sessions, 2020-08-05 to 2026-08-04, six years,
+3.7x the sample.** It was not used. That was an error of omission on my part, not
+a data limitation.
+
+**Re-run of the 10:00 candle + one-bar hold, 1H, identical logic:**
+
+| sample | n | PF gross | win | avg gross | t (net) | years positive (net) |
+|--------|---|----------|-----|-----------|---------|----------------------|
+| 444 sessions (what I reported) | 217 | **1.105** | 52.5% | +0.84 | -0.73 | 1/2 |
+| 1,635 sessions (full six years) | 907 | **0.944** | 49.4% | **-0.42** | **-3.62** | **0/7** |
+
+**The conclusion reverses.** On the short sample the 1H cell was gross-positive
+and I called it "the one live thread." On the full six years it is
+**gross-negative**, and net of a 2-point cost it is negative in **all seven
+years** with t = -3.62 — significantly negative, not merely unproven.
+
+The always-long null on the same sessions is PF 1.014, avg +0.10, t +0.20 —
+indistinguishable from zero. So the filter is not merely failing to add value;
+it is **worse than not filtering at all** on the full sample.
+
+**Belief:** H83 is upgraded from "rejected on three of four timeframes" to
+**rejected on all four, on six years of data.** The EMA200 + RSI50 +
+SuperTrend(3.1, 97) stack does not call the direction of the AU200 open.
+
+**Standing rule added:** before reporting any result, print the date range and
+session count of the file actually used, and check whether a longer file for the
+same instrument exists in the data directory. A result on a subsample is not a
+result on the sample.

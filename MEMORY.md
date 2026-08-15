@@ -1236,3 +1236,31 @@ present exactly; 403/403 Quarters-Theory references captured.
    it with a measurement the moment the bid/ask files arrive.
 4. Do NOT re-open: the adaptive/regime-switching hybrid; the AU200 4H reversion
    cell; exit-tuning on the 10:00 candle.
+
+---
+
+## ►► CORRECTION, same day (2026-08-13, later)
+
+**I under-used the supplied data.** Every AU200 figure in the handoff above was
+computed on `au200_aud_1m_4.csv` — 444 sessions, 19 months. The uploads also
+contain **`au200_aud_5m.csv`: 1,635 sessions, 2020-08-05 to 2026-08-04, six
+years.** Also present and NOT used (user instruction 2026-08-13: "work only on
+au200"): `xau_usd_15m.csv` (6.7 yrs), `us30_usd_15m.csv` (6.7 yrs),
+`au200_aud_15m.csv` (6.0 yrs).
+
+**What the full sample changes:** the 10:00 candle + one-bar 1H hold, which the
+handoff calls "the one live thread", goes from PF 1.105 gross on 444 sessions to
+**PF 0.944 gross on 1,635 sessions**, and net of cost is negative in **0 of 7
+years** with t = -3.62. See H83 REVISED.
+
+**Therefore the NEXT ACTION list above is wrong on point 1.** The 1H cell is not
+a live thread; it is significantly negative on six years. Do not spend another
+round on an entry filter for it.
+
+**Everything else in the handoff still stands** — BUG-035/036/037/038, the
+AU200-BASE replication, the evidence hierarchy — because those were about
+execution mechanics, not sample size.
+
+**Standing rule:** state the date range and session count of the file used with
+every result, and check the data directory for a longer file on the same
+instrument before running anything.
