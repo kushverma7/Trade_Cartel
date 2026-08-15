@@ -1,0 +1,127 @@
+//@version=6
+// ============================================================================
+// 10 AM BODY BREAK — STRATEGY  |  AU200, 5-minute
+// Ported from the supplied indicator "10 AM Body Break [Daily-Open Filtered]".
+// Signal logic is UNCHANGED. Only the daily-open SOURCE and the exits differ,
+// both stated below.
+//
+// WINNING CONFIGURATION (see report): Logic A, Flip ON, end hour 16,
+// stop at the daily open, trailing exit at half the 10:00 body.
+//
+// DEVIATION 1 — daily open source. The indicator reads the 09:50 bar's open.
+//   In six years of AU200 5-minute data that bar exists on only 10.6% of
+//   sessions; most sessions begin at 10:00. Where the session's first bar IS
+//   the 10:00 bar, `side` is mathematically forced to 0 and Logic A can never
+//   arm. This strategy therefore uses the true DAILY open, which is defined on
+//   every session and is what the indicator's 09:50 line approximates.
+// DEVIATION 2 — the indicator has no exits. Stop and target added; both are
+//   anchored to levels the original already computes (daily open, 10:00 body).
+// ============================================================================
+strategy("10 AM Body Break", overlay = true,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 1.0,
+     slippage                = 1,
+     initial_capital         = 50000,
+     currency                = currency.AUD,
+     process_orders_on_close = true,
+     max_bars_back           = 1000)
+
+tz         = input.string("Australia/Melbourne", "Chart timezone")
+useCandle  = input.bool(false, "Logic B: use the 10 AM candle as the signal")
+useFlip    = input.bool(true,  "Logic C: flip on reversal")
+bodyHour   = input.int(10, "10 AM candle hour",   minval = 0, maxval = 23)
+bodyMin    = input.int(0,  "10 AM candle minute", minval = 0, maxval = 59)
+endHour    = input.int(16, "Stop signalling after hour", minval = 0, maxval = 23)
+trailFrac  = input.float(0.5, "Trailing exit as a fraction of the 10:00 body", minval = 0.1, step = 0.1)
+maxRisk    = input.float(80.0, "Skip if the stop is further than (points)", minval = 5)
+
+dailyOpen = request.security(syminfo.tickerid, "D", open, lookahead = barmerge.lookahead_off)
+
+h = hour(time, tz)
+m = minute(time, tz)
+isBody = h == bodyHour and m == bodyMin
+newDay = ta.change(dayofmonth(time, tz)) != 0
+
+var float bodyHi = na
+var float bodyLo = na
+var int   side   = 0
+var int   active = 0
+var bool  flipped = false
+var float entryPx = na
+var float stopPx  = na
+var float peakPx  = na
+
+if newDay
+    bodyHi  := na
+    bodyLo  := na
+    side    := 0
+    active  := 0
+    flipped := false
+    entryPx := na
+    stopPx  := na
+    peakPx  := na
+
+if isBody and not na(dailyOpen)
+    bodyHi := math.max(open, close)
+    bodyLo := math.min(open, close)
+    side   := bodyHi < dailyOpen ? -1 : bodyLo > dailyOpen ? 1 : 0
+
+afterBody = (h > bodyHour or (h == bodyHour and m > bodyMin)) and h < endHour
+
+armedA = not useCandle and not na(bodyHi) and side != 0 and active == 0 and afterBody
+buyA   = armedA and side ==  1 and close > bodyHi
+sellA  = armedA and side == -1 and close < bodyLo
+
+buyB  = useCandle and isBody and not na(dailyOpen) and close > open and close > dailyOpen
+sellB = useCandle and isBody and not na(dailyOpen) and close < open and close < dailyOpen
+
+buy  = buyA or buyB
+sell = sellA or sellB
+
+flipSell = useFlip and not flipped and active ==  1 and afterBody and not na(bodyLo) and close < bodyLo and not buy and not sell
+flipBuy  = useFlip and not flipped and active == -1 and afterBody and not na(bodyHi) and close > bodyHi and not buy and not sell
+
+goLong  = buy  or flipBuy
+goShort = sell or flipSell
+
+if goLong
+    active  := 1
+    flipped := flipBuy ? true : flipped
+    entryPx := close
+    stopPx  := dailyOpen
+    peakPx  := close
+    if close - dailyOpen > 0 and close - dailyOpen <= maxRisk
+        strategy.entry("L", strategy.long)
+
+if goShort
+    active  := -1
+    flipped := flipSell ? true : flipped
+    entryPx := close
+    stopPx  := dailyOpen
+    peakPx  := close
+    if dailyOpen - close > 0 and dailyOpen - close <= maxRisk
+        strategy.entry("S", strategy.short)
+
+// trailing exit at a fraction of the 10:00 body; peak advances on CLOSES only
+trailDist = na(bodyHi) ? na : (bodyHi - bodyLo) * trailFrac
+if strategy.position_size > 0
+    peakPx := math.max(peakPx, close)
+    trailLvl = peakPx - trailDist
+    strategy.exit("L x", "L", stop = math.max(stopPx, trailLvl > stopPx ? trailLvl : stopPx))
+if strategy.position_size < 0
+    peakPx := math.min(peakPx, close)
+    trailLvl = peakPx + trailDist
+    strategy.exit("S x", "S", stop = math.min(stopPx, trailLvl < stopPx ? trailLvl : stopPx))
+
+if h >= endHour and strategy.position_size != 0
+    strategy.close_all(comment = "end hour")
+
+plot(dailyOpen, "Daily Open", color.new(color.blue, 0), 2, plot.style_linebr)
+plot(bodyHi,    "10 AM Body High", color.new(color.gray, 0), 1, plot.style_linebr)
+plot(bodyLo,    "10 AM Body Low",  color.new(color.gray, 0), 1, plot.style_linebr)
+plotshape(buy,      "BUY",  shape.labelup,   location.belowbar, color.new(color.green,0), text="BUY",  textcolor=color.white, size=size.tiny)
+plotshape(sell,     "SELL", shape.labeldown, location.abovebar, color.new(color.red,0),   text="SELL", textcolor=color.white, size=size.tiny)
+plotshape(flipBuy,  "FLIP BUY",  shape.triangleup,   location.belowbar, color.new(color.lime,0),   size=size.tiny)
+plotshape(flipSell, "FLIP SELL", shape.triangledown, location.abovebar, color.new(color.orange,0), size=size.tiny)
