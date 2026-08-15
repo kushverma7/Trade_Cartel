@@ -1,0 +1,114 @@
+//@version=6
+// Hybrid v3.2 — Fabio + Marco + Carmine + Larry
+// Corrections applied to v3.0/v3.1, each marked [FIX n]:
+//  1 commission_type was percent; futures charge cash per contract
+//  2 `+=` is not Pine syntax; `if <number>` is not a bool condition
+//  3 ta.highest(20) includes the current bar, so the partial never fired
+//  4 the stop recomputed every bar and WIDENED on 16/16 trades (Iron Rule #9)
+//  5 math.min kept the WIDER stop, the opposite of its own comment
+//  6 there was no take profit at all — the only exit was the stop
+//  7 no session-close exit, so trades ran overnight (Absolute Law #3)
+strategy("Hybrid v3.2 Fixed", overlay = true,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     commission_type         = strategy.commission.cash_per_contract,  // [FIX 1]
+     commission_value        = 2.0,
+     slippage                = 1,
+     max_bars_back           = 1000,
+     process_orders_on_close = true)
+
+nySession     = input.session("0930-1130", "Session")
+sessionTZ     = input.string("America/New_York", "Session timezone")
+useLunch      = input.bool(true,  "Block 11:30-13:00")
+atrLen        = input.int(14,     "ATR length")
+atrMultSL     = input.float(0.35, "ATR stop multiplier")
+sweepLookback = input.int(30,     "Sweep lookback")
+aggVolMult    = input.float(1.8,  "Aggression volume multiple")
+aggBodyPct    = input.float(0.35, "Aggression body %")
+partialR      = input.float(1.5,  "Partial at R")
+targetR       = input.float(3.0,  "Target at R")
+confirmBars   = input.int(3,      "Bars allowed for confirmation")   // [FIX] not all on one bar
+
+inSess   = not na(time(timeframe.period, nySession, sessionTZ))
+inLunch  = not na(time(timeframe.period, "1130-1300", sessionTZ))
+allowed  = inSess and not (useLunch and inLunch)
+sessEnd  = inSess[1] and not inSess                                   // [FIX 7]
+
+// ---- session VWAP ------------------------------------------------------- [FIX 2]
+var float vPV  = 0.0
+var float vVOL = 0.0
+newDay = ta.change(time("D")) != 0
+if newDay
+    vPV  := 0.0
+    vVOL := 0.0
+vPV  := vPV  + hl2 * volume
+vVOL := vVOL + volume
+vwap = vVOL > 0 ? vPV / vVOL : na
+
+avgVol    = ta.sma(volume, 20)
+volRatio  = avgVol > 0 ? volume / avgVol : 0.0
+bodyRatio = high != low ? math.abs(close - open) / (high - low) : 0.0
+bullAgg   = volRatio >= aggVolMult and bodyRatio >= aggBodyPct and close > open
+bearAgg   = volRatio >= aggVolMult and bodyRatio >= aggBodyPct and close < open
+
+recentHigh = ta.highest(high[1], sweepLookback)
+recentLow  = ta.lowest(low[1],  sweepLookback)
+sweepLo    = low  < recentLow  and close > recentLow
+sweepHi    = high > recentHigh and close < recentHigh
+
+buyFrac = high != low ? (close - low) / (high - low) : 0.5
+cvd     = ta.cum(volume * (2 * buyFrac - 1))
+cvdUp   = cvd > cvd[1]
+cvdDn   = cvd < cvd[1]
+
+// sweep may occur up to confirmBars ago, rather than all conditions on one bar
+sweptLo = ta.barssince(sweepLo) <= confirmBars
+sweptHi = ta.barssince(sweepHi) <= confirmBars
+
+longCond  = allowed and sweptLo and bullAgg and cvdUp and close > vwap
+shortCond = allowed and sweptHi and bearAgg and cvdDn and close < vwap
+
+atrVal = ta.atr(atrLen)
+
+// stop computed ONCE at entry and never moved outward ---------------------- [FIX 4][FIX 5]
+var float entryPx = na
+var float stopPx  = na
+var float riskPts = na
+
+if longCond and strategy.position_size == 0
+    structural = recentLow - atrVal * 0.15
+    atrStop    = close - atrVal * atrMultSL
+    entryPx := close
+    stopPx  := math.max(structural, atrStop)      // the TIGHTER of the two
+    riskPts := entryPx - stopPx
+    if riskPts > 0
+        strategy.entry("Long", strategy.long)
+
+if shortCond and strategy.position_size == 0
+    structural = recentHigh + atrVal * 0.15
+    atrStop    = close + atrVal * atrMultSL
+    entryPx := close
+    stopPx  := math.min(structural, atrStop)      // the TIGHTER of the two
+    riskPts := stopPx - entryPx
+    if riskPts > 0
+        strategy.entry("Short", strategy.short)
+
+// stop, partial and target all as fixed prices from the frozen risk -------- [FIX 3][FIX 6]
+if strategy.position_size > 0 and not na(stopPx)
+    strategy.exit("L stop", "Long", stop = stopPx, limit = entryPx + riskPts * targetR)
+    strategy.exit("L part", "Long", qty_percent = 50, limit = entryPx + riskPts * partialR)
+
+if strategy.position_size < 0 and not na(stopPx)
+    strategy.exit("S stop", "Short", stop = stopPx, limit = entryPx - riskPts * targetR)
+    strategy.exit("S part", "Short", qty_percent = 50, limit = entryPx - riskPts * partialR)
+
+if sessEnd and strategy.position_size != 0                            // [FIX 7]
+    strategy.close_all(comment = "session close")
+
+plot(vwap, "VWAP", color.new(color.orange, 0), 2)
+plot(strategy.position_size != 0 ? stopPx : na, "Stop", color.new(color.red, 0), 1, plot.style_linebr)
+plotshape(longCond  and strategy.position_size == 0, title = "Long",
+     style = shape.triangleup,   location = location.belowbar, color = color.lime, size = size.small)
+plotshape(shortCond and strategy.position_size == 0, title = "Short",
+     style = shape.triangledown, location = location.abovebar, color = color.red,  size = size.small)
+bgcolor(allowed ? color.new(color.green, 92) : na)
