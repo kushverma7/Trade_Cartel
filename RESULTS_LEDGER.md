@@ -5165,3 +5165,74 @@ on AU200. The entire result was a function of which clock time the reference
 level was read at, and the only anchor that produced a large edge (00:00
 Melbourne) is a level the strategy never claims to use and that is undefined on
 two thirds of the available sessions.
+
+---
+
+## 2026-08-16 — REBUILD v2: four-family sweep + the 10:00 candle — **NOTHING FOUND**
+
+Engine rebuilt from scratch (`research/v2/`) after BUG-039, with four self-tests
+that must pass before a sweep may run: zero-cost direction null (mean t −0.075),
+injected-edge recovery (t −0.50 → +7.44), cost monotonicity (exact), and a
+random-walk test returning PF 1.035 on six driftless synthetic series.
+BUG-040 caught and fixed during the first run.
+
+Fill assumption for everything below: entry at the signal bar's 5-minute CLOSE,
+exits resolved on 5-minute bars with the adverse extreme taken first, stops
+frozen, trails advancing on closes only, 2.0 points cost per trade.
+
+### Sweep A — gap / opening-range / body / previous-day-high-low
+Data: AU200 5m, 1,489 sessions, 2020-08-25 .. 2026-08-03.
+IS 1,091 sessions (to 2024-12-30), OOS 398 sessions (2025-01-02 onward).
+Grid 7,182 cells; 6,622 produced >= 60 IS trades. Bar: t >= sqrt(2 ln 6622) = 4.19.
+
+| best IS cells | n | PF | win | t | yrs+ |
+|---|---|---|---|---|---|
+| gap continuation, stop ADR 0.25, trail ADR 0.5 | 576 | 1.120 | 34.7% | 1.01 | 5/5 |
+| gap continuation, stop ADR 0.75, trail ADR 0.3 | 575 | 1.122 | 37.7% | 1.01 | 3/5 |
+| prev-day high/low continuation, trail ADR 0.3  | 674 | 1.093 | 27.4% | 0.71 | 3/5 |
+
+**Cells clearing the bar: 0 of 6,622.** Only 153 cells (2.3%) reach PF > 1.0,
+against ~50% expected from a fair coin — the 2-point cost dominates the family.
+
+### Sweep B — the exact supplied indicator, 09:50 anchor, Logic A/B/C ported verbatim
+The indicator's `dailyOpen` is the open of the **09:50 bar** (the ASX pre-open
+auction print), not a broker daily open. That bar exists on only **173 of 1,514**
+sessions in the 5m export and **199 of 398** in the 1m export. A session without
+it can never signal, because `side` stays 0. Grid 1,728 cells, bar t >= 3.86.
+
+| dataset | sessions able to signal | cells clearing the bar | best cell |
+|---|---|---|---|
+| 5m, 2020-2026 | 173 | **0 of 1,728** | PF 1.217, n=106, t=0.69, 1/4 yrs+ |
+| 1m→5m, 2025-2026 | 199 | **0 of 1,728** | PF 1.204, n=117, t=0.77, 2/2 yrs+ |
+
+### Sweep C — THE 10:00 CANDLE ITSELF, full sample
+One trade per session, entry at the 10:00 candle's close. 2,620 cells, bar t >= 3.97.
+**Clearing the bar: 0. PF > 1.0: 13 of 2,620 (0.5%).** Every one of the top 15
+in-sample cells has an out-of-sample PF **below 1.0** (range 0.678 to 0.904).
+
+Directional baseline, no filter, no stop, costs on, all 1,455 sessions:
+
+| horizon | continuation | fade |
+|---|---|---|
+| hold 1 bar  | PF 0.439, t −12.06, 0/7 yrs+ | PF 0.531, t −9.24, 0/7 |
+| hold 6 bars | PF 0.716, t −4.97,  0/7 | PF 0.715, t −4.92, 0/7 |
+| to close    | PF 0.868, t −2.21,  2/7 | PF 0.845, t −2.68, 1/7 |
+
+### The three tests that close the question
+1. **Gross vs net.** At ZERO cost the 10:00 candle's expectancy is −0.26 to +0.50
+   points depending on horizon, every |t| < 1.5, and the sign flips between
+   horizons. This is not an edge destroyed by costs; there is no edge to destroy.
+2. **Directional accuracy** of the candle's sign against the next N bars:
+   46.05%, 48.87%, 49.42%, 48.59%, 47.42%, 48.45%, 50.46%. Never significantly
+   above 50%. The one significant reading (z = −3.01 at 5 minutes) is *below*
+   50% — mild mean reversion worth +0.27 points gross, against a 2-point cost.
+3. **Shuffle null against the MAXIMUM.** Best real cell of 2,620: t = +0.70.
+   Twelve searches over randomised candle directions returned maxima of +0.46,
+   +0.55, +0.56, +0.57, +0.63, +0.76, +0.76, +0.81, +0.88, +0.99, +1.31, +1.79.
+   **7 of 12 coin-flip searches beat the real one.**
+
+**VERDICT: NOTHING FOUND, and the reason is now established rather than assumed.**
+The 10:00 AU200 candle carries no directional information at any horizon from 5
+minutes to the close. No stop, target, trail, filter or session cutoff can
+manufacture an edge from a signal whose gross expectancy is zero. The previously
+reported PF 5.032 was BUG-039 and the PF 0.444 live result was correct.
