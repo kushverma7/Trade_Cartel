@@ -1352,3 +1352,48 @@ trail 0.3 x ADR, BE at half-risk. n=773, PF 1.154 full sample, OOS PF 1.244,
    localhost and we are not on his machine. Do not promise live chart reads here.
 4. Report published: reports/au200_10am_rebuild.html
    https://claude.ai/code/artifact/39222dfc-6238-49e6-b959-bb1505e6f5d6
+
+
+## 2026-08-16 (later still) — the written strategy tested. Cost, not concept.
+
+Kush supplied two handwritten pages and then a full 20-section written
+strategy ("Do not trade the level. Trade the reaction to the level"). Ported to
+Pine (strategies/reaction_to_the_level.pine) and to Python
+(research/v2/reaction.py), then swept: 756 cells, 669 with enough trades,
+**0 clearing the t>=3.61 bar and 0 with PF > 1.0.**
+
+THREE FINDINGS WORTH CARRYING FORWARD:
+
+1. **His section 14/20 checklist filters the WRONG WAY.** Requiring more
+   confirmations is monotonically worse on two of three triggers (retest:
+   PF 0.702 at conf>=0 down to 0.589 at conf>=6). This is the second
+   independent confirmation in this repo that "require more confluence" hurts
+   — the first was the four-trader hybrid's Absolute Law #2. Treat any future
+   "more confirmations = better quality" claim as contradicted until shown
+   otherwise on that specific setup.
+
+2. **His section 6 retest rule is RIGHT.** Retest (PF 0.705) beats
+   close-beyond (0.679) beats next-candle (0.642). Small but consistent. Give
+   him credit for it — it is the rule he was most insistent about and it is
+   the best of the three.
+
+3. **The diagnosis differs from the 10:00 candle.** There, gross expectancy
+   was ZERO (H89) — nothing to buy at any price. Here gross is **+0.26 points
+   per trade** against a 2.0-point cost. The concept is not empty; it is
+   roughly 8x too small to pay the toll at ~1 trade/session. Direction-flip
+   control confirms the rules are not backwards (inverted is worse still).
+
+### CURRENT STATE AND NEXT ACTION
+- THE SPREAD MEASUREMENT NOW GATES THREE SEPARATE RESULTS (gap continuation,
+  AMD FVG, and this). It is unambiguously the highest-value next task. Needs
+  Dukascopy bid/ask for AU200 at BOTH the 10:00 cash open and overnight
+  21:00-03:00, since AMD trades the night book.
+- Second lever for this strategy specifically: frequency is wrong, not logic.
+  A +0.26 pt/trade edge needs either a much cheaper fill or setups with much
+  larger expected moves. More filters will not fix it and demonstrably make it
+  worse.
+- DATA: the uploads directory was cleared mid-session. All price data now comes
+  from data/*.csv.gz committed in the repo. engine.py points there. Do not
+  reference /root/.claude/uploads paths again.
+- Gold is only available at 15m in the repo (data/xauusd_15m.csv.gz); there is
+  no gold 5m, so the "or gold 5 mins" option could not be honoured.

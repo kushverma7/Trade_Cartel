@@ -5302,3 +5302,77 @@ the shuffle null, (c) every tuned variant collapses out of sample, and (d) the
 2-point cost assumption was calibrated on the ASX cash session while this trades
 the **overnight book**, where the spread is wider — and that spread is still
 unmeasured. Item (d) could erase the entire result on its own.
+
+---
+
+## 2026-08-16 — "Reaction To The Level" (the written strategy) on AU200 5m
+
+Full port of the user's 20-section written strategy. Pine:
+`strategies/reaction_to_the_level.pine`. Python: `research/v2/reaction.py`
+(port deltas logged in its header; chiefly D1, cash-session open substituted
+for the Pine's `request.security(...,"D",open)` to avoid BUG-039).
+
+Data: AU200 5-minute, 1,489 sessions, 2020-08-25 .. 2026-08-03. One trade per
+session maximum. Entry at the signal bar's close, exits on 5-minute bars with
+the adverse extreme first, 2.0 points cost. IS 1,091 sessions / OOS 398, split
+fixed before ranking.
+
+**Sweep: 756 cells, 669 with >= 60 IS trades. Bar t >= 3.61.
+Cells clearing it: 0. Cells with PF > 1.0: 0 of 669 (0.0%).**
+
+Zero profitable cells is itself notable — the earlier AU200 sweeps returned
+2.3% and 0.5% above PF 1.0. This family is uniformly below water at 2 points.
+
+### Section 14 / Section 20 — "if several confirmations are missing, wait"
+**Contradicted.** More confirmations is monotonically WORSE on two of three
+triggers. Full sample, retest trigger:
+
+| confirmations required | n | PF | avg/trade |
+|---|---|---|---|
+| >= 0 | 1,391 | 0.702 | −1.76 |
+| >= 2 | 1,390 | 0.704 | −1.74 |
+| >= 3 | 1,367 | 0.675 | −1.95 |
+| >= 4 | 1,216 | 0.637 | −2.22 |
+| >= 5 | 747 | 0.588 | −2.55 |
+| >= 6 | 211 | 0.589 | −2.87 |
+
+Same shape on the close-beyond trigger (0.683 -> 0.570). Flat on next-candle.
+This is the SECOND independent time a "require more confluence" rule has been
+tested in this repo and found to filter in the wrong direction — the first was
+the four-trader hybrid's "Absolute Law #2" on 2026-08-13.
+
+### Section 6 — "do not chase the initial breakout" (the retest rule)
+**Directionally correct, and the best of the three triggers.** Full sample,
+conf >= 2, break setups: retest PF 0.705 > close-beyond 0.679 > next-candle
+0.642. The note's most insisted-upon rule is the right call. It is worth about
++0.026 PF, which is real but nowhere near enough to matter here.
+
+### The decisive test — gross vs net
+| trigger | cost 0.0 | cost 2.0 | cost 3.0 |
+|---|---|---|---|
+| close beyond | PF 1.031, avg **+0.142**, t +0.49 | PF 0.683 | PF 0.561 |
+| retest | PF 1.056, avg **+0.259**, t +0.85 | PF 0.704 | PF 0.580 |
+
+**The strategy has a small POSITIVE gross edge — about +0.26 points per trade
+on the retest trigger — and the cost is 2.0 points. The cost is roughly eight
+times the edge.** This is materially different from the 10:00-candle finding
+(H89), where gross expectancy was zero and there was nothing to pay for. Here
+there is something, it is just far too small to survive execution at roughly
+one trade per session.
+
+Caveat that keeps it honest: t = +0.85 on the gross edge is not significant.
++0.26 points/trade is indistinguishable from zero at n = 1,390.
+
+### Direction-flip control
+Inverting every signal gives PF 0.516 (vs 0.651 as written) on the next-candle
+trigger. The rules are not backwards — the strategy is on the right side, and
+loses to costs. NOTE: the flip control only produced output for one of the
+three triggers; the other two fell below the minimum trade count after the
+risk gates and were not reported.
+
+**VERDICT: NOT TRADEABLE AS WRITTEN on AU200 at a 2-point cost, but the
+diagnosis is "edge too small", not "no edge".** The two levers that matter are
+(a) the true spread, which is still unmeasured and is now gating a third
+result, and (b) trade frequency — at ~1 trade/session a +0.26 point edge can
+never pay a 2-point toll, so any viable version needs setups with far larger
+expected moves rather than more filters.
