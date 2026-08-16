@@ -1,0 +1,184 @@
+//@version=6
+// ============================================================================
+// 10 AM BODY BREAK — DIAGNOSTIC BUILD  |  AU200, 5-minute
+//
+// Purpose: settle BUG-039. The previous build's reference level came from
+// `request.security(syminfo.tickerid,"D",open)`. On OANDA AU200AUD that daily
+// bar rolls near 07:00 Melbourne, so the level lands a MEDIAN 0.0 POINTS from
+// the 10:00 cash open (measured on 544 sessions of 5-minute data). Since the
+// stop was that level, live stops sat on top of the entry — hence 26.79% wins.
+// The Python sweep that produced PF 5.0 was using the 00:00 Melbourne open,
+// a median 15.5 points away. Two different levels, same name.
+//
+// This build makes the level an EXPLICIT INPUT and adds the minimum-risk guard
+// the Python harness had and the Pine did not. It also prints the level and its
+// distance from the 10:00 open so the divergence is visible on the chart.
+// ============================================================================
+strategy("10 AM Body Break — DIAG", overlay = true,
+     default_qty_type        = strategy.fixed,
+     default_qty_value       = 1,
+     commission_type         = strategy.commission.cash_per_contract,
+     commission_value        = 1.0,
+     slippage                = 1,
+     initial_capital         = 50000,
+     currency                = currency.AUD,
+     process_orders_on_close = true,
+     max_bars_back           = 1000)
+
+tz       = input.string("Australia/Melbourne", "Chart timezone")
+refMode  = input.string("10:00 open", "Reference level",
+             options = ["Daily open (security)", "10:00 open", "07:00 open", "00:00 open"],
+             tooltip = "The previous build hard-coded 'Daily open (security)'. On OANDA AU200AUD that is NOT the cash open.")
+useFlip  = input.bool(true,  "Logic C: flip on reversal")
+bodyHour = input.int(10, "Body candle hour",   minval = 0, maxval = 23)
+bodyMin  = input.int(0,  "Body candle minute", minval = 0, maxval = 59)
+endHour  = input.int(16, "Stop signalling after hour", minval = 0, maxval = 23)
+entryAft = input.int(615, "No entries before (minutes past midnight)", minval = 0, maxval = 1439)
+minRisk  = input.float(3.0,  "Skip if the stop is nearer than (points)", minval = 0.0,
+             tooltip = "MISSING FROM THE PREVIOUS BUILD. 33 of 327 simulated trades had a sub-3-point stop; live, almost all of them did.")
+maxRisk  = input.float(80.0, "Skip if the stop is further than (points)", minval = 5)
+usePart  = input.bool(true,  "Take 50% off at 1R")
+trailFr  = input.float(0.5,  "Trailing exit as a fraction of the body", minval = 0.1, step = 0.1)
+
+secOpen = request.security(syminfo.tickerid, "D", open, lookahead = barmerge.lookahead_off)
+
+h      = hour(time, tz)
+m      = minute(time, tz)
+mins   = h * 60 + m
+newDay = ta.change(dayofmonth(time, tz)) != 0
+
+var float open1000 = na
+var float open0700 = na
+var float open0000 = na
+
+if newDay
+    open1000 := na
+    open0700 := na
+    open0000 := na
+
+// each anchor is captured on the FIRST bar at or after its clock time
+if na(open0000) and mins >= 0
+    open0000 := open
+if na(open0700) and mins >= 420
+    open0700 := open
+if na(open1000) and mins >= 600
+    open1000 := open
+
+refLevel = refMode == "Daily open (security)" ? secOpen :
+           refMode == "10:00 open"            ? open1000 :
+           refMode == "07:00 open"            ? open0700 : open0000
+
+isBody = h == bodyHour and m == bodyMin
+
+var float bodyHi  = na
+var float bodyLo  = na
+var float refFix  = na
+var int   side    = 0
+var int   active  = 0
+var bool  flipped = false
+var float entryPx = na
+var float stopPx  = na
+var float peakPx  = na
+
+if newDay
+    bodyHi  := na
+    bodyLo  := na
+    refFix  := na
+    side    := 0
+    active  := 0
+    flipped := false
+    entryPx := na
+    stopPx  := na
+    peakPx  := na
+
+if isBody and not na(refLevel)
+    bodyHi := math.max(open, close)
+    bodyLo := math.min(open, close)
+    refFix := refLevel                      // frozen at the body bar, never re-read
+    side   := bodyHi < refFix ? -1 : bodyLo > refFix ? 1 : 0
+
+afterBody = (h > bodyHour or (h == bodyHour and m > bodyMin)) and h < endHour and mins >= entryAft
+
+armed = not na(bodyHi) and side != 0 and active == 0 and afterBody
+buy   = armed and side ==  1 and close > bodyHi
+sell  = armed and side == -1 and close < bodyLo
+
+flipSell = useFlip and not flipped and active ==  1 and afterBody and not na(bodyLo) and close < bodyLo and not buy and not sell
+flipBuy  = useFlip and not flipped and active == -1 and afterBody and not na(bodyHi) and close > bodyHi and not buy and not sell
+
+goLong  = buy  or flipBuy
+goShort = sell or flipSell
+
+riskLong  = close - refFix
+riskShort = refFix - close
+
+if goLong
+    active  := 1
+    flipped := flipBuy ? true : flipped
+    entryPx := close
+    stopPx  := refFix
+    peakPx  := close
+    if riskLong >= minRisk and riskLong <= maxRisk
+        strategy.entry("L", strategy.long)
+
+if goShort
+    active  := -1
+    flipped := flipSell ? true : flipped
+    entryPx := close
+    stopPx  := refFix
+    peakPx  := close
+    if riskShort >= minRisk and riskShort <= maxRisk
+        strategy.entry("S", strategy.short)
+
+trailDist = na(bodyHi) ? na : (bodyHi - bodyLo) * trailFr
+
+// Scale-out idiom: the first call takes 50% at 1R, the second covers whatever
+// remains. When usePart is off there is a single call for the whole position.
+if strategy.position_size > 0
+    peakPx  := math.max(peakPx, close)
+    stopNow  = math.max(stopPx, peakPx - trailDist)
+    tp1      = entryPx + (entryPx - stopPx)
+    if usePart
+        strategy.exit("Lx1", "L", qty_percent = 50, limit = tp1, stop = stopNow)
+        strategy.exit("Lx2", "L", stop = stopNow)
+    else
+        strategy.exit("Lx", "L", stop = stopNow)
+
+if strategy.position_size < 0
+    peakPx  := math.min(peakPx, close)
+    stopNow  = math.min(stopPx, peakPx + trailDist)
+    tp1      = entryPx - (stopPx - entryPx)
+    if usePart
+        strategy.exit("Sx1", "S", qty_percent = 50, limit = tp1, stop = stopNow)
+        strategy.exit("Sx2", "S", stop = stopNow)
+    else
+        strategy.exit("Sx", "S", stop = stopNow)
+
+if h >= endHour and strategy.position_size != 0
+    strategy.close_all(comment = "end hour")
+
+// ---------------- diagnostics: the whole point of this build ----------------
+gap = na(secOpen) or na(open1000) ? na : math.abs(secOpen - open1000)
+
+var table tb = table.new(position.top_right, 2, 5, border_width = 1)
+if barstate.islast
+    table.cell(tb, 0, 0, "reference level", text_color = color.white, bgcolor = color.new(color.blue, 40))
+    table.cell(tb, 1, 0, refMode,           text_color = color.white, bgcolor = color.new(color.blue, 40))
+    table.cell(tb, 0, 1, "security D open")
+    table.cell(tb, 1, 1, str.tostring(secOpen, "#.##"))
+    table.cell(tb, 0, 2, "10:00 Melb open")
+    table.cell(tb, 1, 2, str.tostring(open1000, "#.##"))
+    table.cell(tb, 0, 3, "|difference|")
+    table.cell(tb, 1, 3, str.tostring(gap, "#.##"),
+         bgcolor = na(gap) ? color.gray : gap < 3 ? color.new(color.red, 30) : color.new(color.green, 40))
+    table.cell(tb, 0, 4, "stop distance now")
+    table.cell(tb, 1, 4, str.tostring(na(entryPx) or na(stopPx) ? na : math.abs(entryPx - stopPx), "#.##"))
+
+plot(secOpen,  "security D open", color.new(color.orange, 0), 1, plot.style_linebr)
+plot(refLevel, "reference level", color.new(color.blue, 0),   2, plot.style_linebr)
+plot(bodyHi,   "body high",       color.new(color.gray, 0),   1, plot.style_linebr)
+plot(bodyLo,   "body low",        color.new(color.gray, 0),   1, plot.style_linebr)
+plotshape(buy,      "BUY",  shape.labelup,   location.belowbar, color.new(color.green,0), text="BUY",  textcolor=color.white, size=size.tiny)
+plotshape(sell,     "SELL", shape.labeldown, location.abovebar, color.new(color.red,0),   text="SELL", textcolor=color.white, size=size.tiny)
+plotshape(flipBuy,  "FLIP BUY",  shape.triangleup,   location.belowbar, color.new(color.lime,0),   size=size.tiny)
+plotshape(flipSell, "FLIP SELL", shape.triangledown, location.abovebar, color.new(color.orange,0), size=size.tiny)

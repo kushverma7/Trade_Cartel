@@ -5115,3 +5115,53 @@ Zero cells reach the +10 pts/day target; the best is +1.17, a factor of 9 short.
 The gap-fade direction is the only one showing anything consistent (t~1.2 across
 three thresholds), which is at least the right sign, but it is not significant
 and must not be traded on this evidence.
+
+---
+
+## 2026-08-16 — 10 AM Body Break, AU200 5m — **RETRACTED / INVALID**
+
+**Reported earlier this session:** Logic A + flip, stop at "the daily open",
+trail at half the 10:00 body, 50% off at 1R, entries from 10:15, end hour 16.
+n=327, PF 5.032, win 63.3%, net +2420 pts, max DD 30.2, t=+9.15, 4/4 years
+positive, 2-pt cost, sample 2023-04 .. 2026-08.
+
+**Live check by the user (primary evidence):** the delivered Pine on OANDA
+AU200AUD, 5-minute, last 365 days, DEEP backtesting, 50K AUD:
+**n=280, PF 0.444, win 26.79%, net -353.95 AUD, max DD 381.00 AUD.**
+
+**Cause — BUG-039.** "The daily open" named three different levels:
+
+| level | median distance from the 10:00 Melbourne open (544 sessions) |
+|---|---|
+| 00:00 Melbourne open — what the Python harness actually used | 15.5 pts |
+| 07:00 Melbourne open — near OANDA's daily roll | 0.0 pts (mean 3.8) |
+| `request.security(...,"D",open)` on OANDA AU200AUD | the 07:00-ish level |
+
+The harness's proxy also forced `side = 0` on the 1091 cash-only sessions in the
+file, so 544 of 587 signals came from the 544 sessions carrying overnight bars.
+
+**Re-test with the anchor made explicit** (544 overnight sessions, 2-pt cost,
+same rules, min-risk guard added):
+
+| reference level | n | PF | win | net | t | yrs+ |
+|---|---|---|---|---|---|---|
+| 00:00 open, minRisk 0.5 | 476 | 2.672 | 50.0% | +2092 | +7.00 | 4/4 |
+| 00:00 open, minRisk 10  | 370 | 2.843 | 47.0% | +1983 | +6.81 | 4/4 |
+| 05:00 open, minRisk 0.5 | 275 | 1.943 | 47.3% |  +702 | +3.70 | 4/4 |
+| 06:00 open, minRisk 0.5 | 214 | 1.896 | 47.2% |  +570 | +3.22 | 3/4 |
+| **07:00 open, minRisk 0.5** | **144** | **1.346** | **41.7%** | **+161** | **+1.27** | **2/4** |
+| 07:00 open, minRisk 3   | 131 | 1.415 | 45.0% |  +183 | +1.45 | 3/4 |
+| 07:00 open, minRisk 10  | 100 | 1.341 | 37.0% |  +136 | +1.10 | 2/4 |
+
+Two things follow. First, a clean re-implementation of the SAME rules on the
+SAME anchor returns PF 2.672 / 50.0% win, not PF 5.032 / 63.3% — the original
+figure was not reproducible even by me, because `entry_after` was applied as a
+post-hoc trade filter rather than inside the signal state machine. Second, at
+the anchor that actually approximates what the Pine reads, t = +1.3 on a grid
+of 3,640 combinations. The multiple-testing bar is t >= 3.9. It is not close.
+
+**Verdict: NOTHING FOUND.** The 10 AM Body Break has no validated configuration
+on AU200. The entire result was a function of which clock time the reference
+level was read at, and the only anchor that produced a large edge (00:00
+Melbourne) is a level the strategy never claims to use and that is undefined on
+two thirds of the available sessions.

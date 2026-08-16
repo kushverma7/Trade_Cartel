@@ -1264,3 +1264,43 @@ execution mechanics, not sample size.
 **Standing rule:** state the date range and session count of the file used with
 every result, and check the data directory for a longer file on the same
 instrument before running anything.
+
+
+## 2026-08-16 — RETRACTION: the 10 AM Body Break result is void (BUG-039)
+
+I delivered `strategies/au200_10am_body_break.pine` claiming PF 5.032 / 63.3%
+win / n=327. Kush ran it on TradingView (OANDA AU200AUD, 5m, last 365 days, deep
+backtest) and got **PF 0.444 / 26.79% win / n=280 / -353.95 AUD**. The live run
+is right and my simulation was wrong.
+
+Cause: "the daily open" was three different price levels. My Python proxy took
+the first bar with hour < 10, which on the 544 sessions that carry overnight bars
+is the **00:00 Melbourne** open — a median 15.5 points from the 10:00 open — and
+on the other 1091 cash-only sessions is the 10:00 bar's own open, which forces
+`side = 0` and produces no trades. The Pine's `request.security(...,"D",open)` on
+OANDA rolls near **07:00 Melbourne**, a median **0.0 points** from the 10:00 open,
+so the live stop sat on the entry. Full write-up in bugs/BUG_REGISTRY.md
+(BUG-039) and RESULTS_LEDGER.md.
+
+Re-tested with the anchor made an explicit input: 00:00 gives PF 2.672 (not
+5.032 — my own harness was not reproducible), 07:00 gives PF 1.346 with t=+1.27
+against a multiple-testing bar of 3.9. **Nothing found.**
+
+Standing rule added: a level referenced by name is not a level. Before any
+sweep, measure the simulator's series against the Pine's and report the median
+absolute difference, plus how many sessions the proxy is even defined on.
+
+Deliverable from this: `strategies/au200_10am_body_break_diag.pine` — same rules,
+but the reference level is a dropdown (security daily / 10:00 / 07:00 / 00:00),
+a minimum-risk guard is added, and an on-chart table prints the security daily
+open, the 10:00 open and the gap between them so the divergence is visible.
+
+### CURRENT STATE AND NEXT ACTION
+- The 10 AM Body Break is CLOSED as a source of edge on AU200 unless the 00:00
+  anchor can be justified as a real overnight-gap filter and tested on data that
+  covers overnight bars for all sessions (the current file covers 544 of 1635).
+- Still outstanding: the AU200 spread at 10:00 is unmeasured. Every cost
+  assumption in this repo (2 pts) is an assumption. Dukascopy bid/ask download
+  gates re-running the 350-cell opening-range sweep.
+- Ask Kush for the trade-list CSV export from the live run if we ever revisit
+  this, to confirm the entry prices match the 07:00-anchor reconstruction.
