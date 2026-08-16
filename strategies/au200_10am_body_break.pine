@@ -107,22 +107,28 @@ if goShort
     if dailyOpen - close > 0 and dailyOpen - close <= maxRisk
         strategy.entry("S", strategy.short)
 
-// 50% off at 1R, then the trail carries the remainder
-if usePartial and strategy.position_size > 0 and not na(entryPx)
-    strategy.exit("L 1R", "L", qty_percent = 50, limit = entryPx + (entryPx - stopPx))
-if usePartial and strategy.position_size < 0 and not na(entryPx)
-    strategy.exit("S 1R", "S", qty_percent = 50, limit = entryPx - (stopPx - entryPx))
-
-// trailing exit at a fraction of the 10:00 body; peak advances on CLOSES only
+// ---- exits: 50% at 1R, remainder on the trail; both share one stop level ----
+// peak advances on CLOSES only, so the stop can never be set by a high that the
+// same bar then trades through.
 trailDist = na(bodyHi) ? na : (bodyHi - bodyLo) * trailFrac
+
 if strategy.position_size > 0
-    peakPx := math.max(peakPx, close)
-    trailLvl = peakPx - trailDist
-    strategy.exit("L x", "L", stop = math.max(stopPx, trailLvl > stopPx ? trailLvl : stopPx))
+    peakPx  := math.max(peakPx, close)
+    trailLv  = peakPx - trailDist
+    stopNow  = math.max(stopPx, trailLv)
+    tp1      = entryPx + (entryPx - stopPx)
+    if usePartial
+        strategy.exit("Lx1", "L", qty_percent = 50, limit = tp1, stop = stopNow)
+    strategy.exit("Lx2", "L", stop = stopNow)
+
 if strategy.position_size < 0
-    peakPx := math.min(peakPx, close)
-    trailLvl = peakPx + trailDist
-    strategy.exit("S x", "S", stop = math.min(stopPx, trailLvl < stopPx ? trailLvl : stopPx))
+    peakPx  := math.min(peakPx, close)
+    trailLv  = peakPx + trailDist
+    stopNow  = math.min(stopPx, trailLv)
+    tp1      = entryPx - (stopPx - entryPx)
+    if usePartial
+        strategy.exit("Sx1", "S", qty_percent = 50, limit = tp1, stop = stopNow)
+    strategy.exit("Sx2", "S", stop = stopNow)
 
 if h >= endHour and strategy.position_size != 0
     strategy.close_all(comment = "end hour")
