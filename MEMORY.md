@@ -1304,3 +1304,51 @@ open, the 10:00 open and the gap between them so the divergence is visible.
   gates re-running the 350-cell opening-range sweep.
 - Ask Kush for the trade-list CSV export from the live run if we ever revisit
   this, to confirm the entry prices match the 07:00-anchor reconstruction.
+
+
+## 2026-08-16 (later) — v2 rebuild complete. The 10:00 candle is dead, measured.
+
+Kush's instruction was "go from scratch and do the real work and get me the same
+PF as promised any how". I told him I would not manufacture the number and would
+report whatever the data held. It held nothing.
+
+Built `research/v2/` from zero. Nine numbered engine rules, four mandatory
+self-tests (zero-cost null, injected-edge recovery, cost monotonicity, random
+walk). BUG-040 caught by the harness on the first run — a fade signal with the
+stop at the reference level put the stop on the PROFITABLE side, producing PF 99
+and a 100% win rate. Now blocked by R8; R9 makes metrics() refuse absurd results
+outright, so the absurdity assertion is enforced in code rather than by my memory.
+
+Three sweeps, 10,530 cells, zero clearing their multiple-testing bars. The
+closing evidence on the 10:00 candle specifically:
+  * gross expectancy at ZERO cost: -0.26 to +0.50 pts, all |t| < 1.5, sign flips
+    between horizons. Not a cost problem. No signal.
+  * directional accuracy vs the next 1/2/3/6/12/24/71 bars: 46.05% .. 50.46%,
+    never significantly above chance. The one significant reading is BELOW 50%.
+  * shuffle null vs the search MAXIMUM: best real cell t=+0.70; 7 of 12
+    coin-flip searches beat it.
+
+STANDING CONCLUSION: the direction of the AU200 10:00 candle carries no
+information at any horizon from 5 minutes to the close. Every stop/target/trail/
+filter variation is a transformation of a zero-expectancy signal. Do not accept
+another 10:00-candle proposal without new evidence that contradicts these three
+measurements specifically.
+
+Only survivor worth an hour: gap continuation (|gap| > 0.25 ADR), stop 30,
+trail 0.3 x ADR, BE at half-risk. n=773, PF 1.154 full sample, OOS PF 1.244,
+6/7 years. BUT t=1.46 against a bar of 4.19; the exit dimension is a SPIKE
+(every alternative ~1.00, only trail_adr0.3 reaches 1.154); and it dies on cost
+(PF 1.013 at 3.0 pts, 0.893 at 4.0). MC P(profit) 92.8% at 2pt, 54.8% at 3pt.
+
+### CURRENT STATE AND NEXT ACTION
+1. MEASURE THE SPREAD. Dukascopy bid/ask for AU200 around 10:00 Melbourne. It is
+   the highest-value hour available: the only surviving result flips from viable
+   to worthless between 2.0 and 3.0 points, so the measurement either revives it
+   or kills it, and nothing else moves as much.
+2. Ask Kush how often his TradingView feed carries the 09:50 pre-open bar. My
+   exports have it on 11% of sessions; his live chart plainly has more. Sweep B's
+   173-session sample is a floor.
+3. TradingView MCP is UNREACHABLE from this cloud container — it addresses
+   localhost and we are not on his machine. Do not promise live chart reads here.
+4. Report published: reports/au200_10am_rebuild.html
+   https://claude.ai/code/artifact/39222dfc-6238-49e6-b959-bb1505e6f5d6

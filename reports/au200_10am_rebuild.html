@@ -1,0 +1,208 @@
+<title>AU200 Open Study</title>
+<style>
+:root{
+  --ground:#f7f6f3; --panel:#ffffff; --ink:#1a1c1e; --ink-2:#4a4f55; --ink-3:#767d85;
+  --rule:#dcd9d2; --rule-2:#ebe8e2;
+  --teal:#0f6b63; --teal-soft:#e2efed;
+  --ochre:#9a6a12; --ochre-soft:#f7efdd;
+  --rust:#963226; --rust-soft:#f8e7e4;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#131517; --panel:#1b1e21; --ink:#e8e6e1; --ink-2:#b0b5bb; --ink-3:#848a91;
+    --rule:#2e3338; --rule-2:#24282c;
+    --teal:#5fbfb2; --teal-soft:#12312e;
+    --ochre:#d6a44c; --ochre-soft:#33280f;
+    --rust:#e0796a; --rust-soft:#3a1f1b;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131517; --panel:#1b1e21; --ink:#e8e6e1; --ink-2:#b0b5bb; --ink-3:#848a91;
+  --rule:#2e3338; --rule-2:#24282c;
+  --teal:#5fbfb2; --teal-soft:#12312e;
+  --ochre:#d6a44c; --ochre-soft:#33280f;
+  --rust:#e0796a; --rust-soft:#3a1f1b;
+}
+:root[data-theme="light"]{
+  --ground:#f7f6f3; --panel:#ffffff; --ink:#1a1c1e; --ink-2:#4a4f55; --ink-3:#767d85;
+  --rule:#dcd9d2; --rule-2:#ebe8e2;
+  --teal:#0f6b63; --teal-soft:#e2efed;
+  --ochre:#9a6a12; --ochre-soft:#f7efdd;
+  --rust:#963226; --rust-soft:#f8e7e4;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--serif);
+  line-height:1.62;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:clamp(28px,5vw,64px) clamp(18px,4vw,40px) 96px}
+.eyebrow{font-family:var(--sans);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 14px}
+h1{font-family:var(--sans);font-weight:660;font-size:clamp(28px,4.6vw,44px);line-height:1.1;
+  letter-spacing:-.02em;margin:0 0 18px;text-wrap:balance}
+h2{font-family:var(--sans);font-weight:640;font-size:clamp(19px,2.6vw,24px);letter-spacing:-.01em;
+  margin:56px 0 4px;text-wrap:balance;padding-top:22px;border-top:1px solid var(--rule)}
+h3{font-family:var(--sans);font-weight:620;font-size:16px;margin:32px 0 8px;letter-spacing:-.005em}
+p{margin:0 0 16px;max-width:66ch}
+.lede{font-size:clamp(17px,2.1vw,19.5px);color:var(--ink-2);max-width:62ch}
+.sub{font-family:var(--sans);font-size:13px;color:var(--ink-3);margin:-2px 0 24px}
+.stack{display:flex;flex-direction:column;gap:0}
+code,.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.92em}
+
+.verdict{background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--rust);
+  padding:22px 24px;margin:28px 0 8px;display:flex;flex-direction:column;gap:10px}
+.verdict .tag{font-family:var(--sans);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--rust);font-weight:700}
+.verdict p{margin:0;max-width:70ch}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);margin:26px 0}
+.cell{background:var(--panel);padding:16px 18px;display:flex;flex-direction:column;gap:5px}
+.cell .k{font-family:var(--sans);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.cell .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:23px;font-weight:600;letter-spacing:-.02em}
+.cell .n{font-family:var(--sans);font-size:12px;color:var(--ink-3)}
+.v.bad{color:var(--rust)} .v.ok{color:var(--teal)} .v.warn{color:var(--ochre)}
+
+.scroll{overflow-x:auto;margin:20px 0;border:1px solid var(--rule);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-family:var(--sans);font-size:13.5px;min-width:520px}
+th{text-align:left;font-weight:620;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);padding:11px 14px;border-bottom:1px solid var(--rule);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr.hi td{background:var(--ochre-soft)}
+.neg{color:var(--rust)} .pos{color:var(--teal)}
+
+.note{border-left:3px solid var(--rule);padding:2px 0 2px 18px;color:var(--ink-2);margin:22px 0}
+.note.teal{border-left-color:var(--teal)}
+.note.ochre{border-left-color:var(--ochre)}
+
+ol.chain{counter-reset:c;list-style:none;padding:0;margin:24px 0;display:flex;flex-direction:column;gap:18px}
+ol.chain li{counter-increment:c;position:relative;padding-left:44px}
+ol.chain li::before{content:counter(c);position:absolute;left:0;top:1px;width:28px;height:28px;
+  border:1px solid var(--rule);border-radius:50%;display:grid;place-items:center;
+  font-family:var(--mono);font-size:12px;color:var(--ink-3);background:var(--panel)}
+ol.chain b{font-family:var(--sans);font-weight:640}
+
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);
+  font-family:var(--sans);font-size:12.5px;color:var(--ink-3)}
+</style>
+
+<div class="wrap">
+<p class="eyebrow">Trade Cartel &nbsp;·&nbsp; AU200 &nbsp;·&nbsp; 16 August 2026</p>
+<h1>The 10&nbsp;AM candle carries no directional information</h1>
+<p class="lede">A reported profit factor of 5.03 was a bug in my simulator. The live result of 0.444 was correct. This is the rebuild, the retraction, and the three tests that close the question.</p>
+
+<div class="verdict">
+  <span class="tag">Verdict — nothing found</span>
+  <p>Across <b>10,530 tested configurations</b> in three independent families, on up to six years of AU200 5-minute data, <b>zero</b> cleared their multiple-testing significance bar. The 10:00 candle's gross expectancy is approximately zero at every horizon from five minutes to the close, before any cost is charged. There is no edge being destroyed by costs here; there is no edge.</p>
+</div>
+
+<h2>What went wrong the first time</h2>
+<p class="sub">BUG-039 — a level referenced by name is not a level</p>
+
+<p>The strategy's reference level is called “the daily open”. In three different places it resolved to three different prices.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Level</th><th class="n">Defined on</th><th class="n">Median distance from the 10:00 open</th></tr></thead>
+<tbody>
+<tr><td>00:00 Melbourne open — <em>what my Python actually used</em></td><td class="n">134 / 1,503</td><td class="n">22.0 pts</td></tr>
+<tr><td>05:00 Melbourne open</td><td class="n">134 / 1,503</td><td class="n">12.4 pts</td></tr>
+<tr><td>07:00 Melbourne open — <em>near where the Pine's daily bar rolls</em></td><td class="n">50 / 1,503</td><td class="n">11.0 pts</td></tr>
+<tr><td>09:50 pre-open auction — <em>what the indicator actually specifies</em></td><td class="n">170 / 1,503</td><td class="n">7.0 pts</td></tr>
+<tr class="hi"><td><b>Previous cash close</b> — the only level defined everywhere</td><td class="n"><b>1,502 / 1,503</b></td><td class="n">29.0 pts</td></tr>
+</tbody></table></div>
+
+<p>Because <code>stopPx = dailyOpen</code>, my simulated stop sat a median 16.7 points from entry while the live stop sat essentially <em>on</em> the entry. That single substitution accounts for the entire gap between a 63% simulated win rate and a 26.8% live one. My harness also carried a minimum-risk guard that the delivered Pine did not, so live it accepted sub-point stops and trailed them by a median 2.75 points.</p>
+
+<div class="note">
+<p>Worse than the wrong number: the proxy silently forced <code>side = 0</code> on the 1,091 cash-only sessions in the file, so 544 of 587 signals came from a third of the sample. A result reported as “six years” rested on one era of data.</p>
+</div>
+
+<h2>The rebuild</h2>
+<p class="sub">research/v2 — nothing reused from the code that produced the bad number</p>
+
+<p>The engine now carries nine numbered design rules, each traceable to a registered bug, and four self-tests that must pass before a sweep is permitted to run at all.</p>
+
+<div class="grid">
+  <div class="cell"><span class="k">Null, zero cost</span><span class="v ok">−0.075</span><span class="n">mean t over 300 randomised-direction draws</span></div>
+  <div class="cell"><span class="k">Injected edge</span><span class="v ok">−0.50 → +7.44</span><span class="n">t, recovering a planted +0.4 pts/bar drift</span></div>
+  <div class="cell"><span class="k">Cost monotonicity</span><span class="v ok">exact</span><span class="n">net falls by precisely n × Δcost</span></div>
+  <div class="cell"><span class="k">Random walk</span><span class="v ok">PF 1.035</span><span class="n">six driftless synthetic series — no geometry bias</span></div>
+</div>
+
+<p>The first run of the rebuilt sweep immediately produced a top-18 block showing PF 99.000 and a <b>100.0% win rate</b> at t = +58.23. That is BUG-040: fading an up-gap goes short, but the reference level sits <em>below</em> the entry, on the profitable side, so every trade “stopped out” instantly at a gain. The diagnostic tell is worth keeping — all nine exit methods returned byte-identical results, meaning the exit was never binding.</p>
+
+<div class="note teal">
+<p>It is now blocked in code, not in my memory. <b>R8</b>: a stop must lie strictly adverse to the entry, or the cell is discarded. <b>R9</b>: <code>metrics()</code> refuses to return any result with a win rate above 90% or below 10%, or a profit factor above 20. A sweep can no longer rank an absurd cell at all.</p>
+</div>
+
+<h2>Three sweeps</h2>
+<p class="sub">Entry at the signal bar's 5-minute close · exits on 5-minute bars, adverse extreme first · stops frozen · trails advance on closes only · 2.0 points cost per trade</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Sweep</th><th class="n">Cells</th><th class="n">Sessions</th><th class="n">Bar</th><th class="n">Clearing it</th><th class="n">PF&nbsp;&gt;&nbsp;1.0</th></tr></thead>
+<tbody>
+<tr><td><b>A</b> — gap, opening range, body break, previous-day high/low</td><td class="n">6,622</td><td class="n">1,489</td><td class="n">4.19</td><td class="n neg"><b>0</b></td><td class="n">2.3%</td></tr>
+<tr><td><b>B</b> — your indicator ported verbatim, 09:50 anchor <span style="color:var(--ink-3)">(5m)</span></td><td class="n">1,728</td><td class="n">173</td><td class="n">3.86</td><td class="n neg"><b>0</b></td><td class="n">9.0%</td></tr>
+<tr><td><b>B</b> — same, on the 1-minute file <span style="color:var(--ink-3)">(2025–26)</span></td><td class="n">1,728</td><td class="n">199</td><td class="n">3.86</td><td class="n neg"><b>0</b></td><td class="n">9.3%</td></tr>
+<tr class="hi"><td><b>C</b> — the 10:00 candle itself, full sample</td><td class="n">2,620</td><td class="n">1,489</td><td class="n">3.97</td><td class="n neg"><b>0</b></td><td class="n">0.5%</td></tr>
+</tbody></table></div>
+
+<p>Sweep B deserves a note. Your indicator's <code>dailyOpen</code> is the open of the <b>09:50 bar</b> — the ASX pre-open auction print, not a broker daily open. That bar appears on only 173 of 1,514 sessions in my 5-minute export. On a session without it, <code>side</code> stays 0 and the strategy cannot signal at all. Your TradingView feed evidently carries it far more often than my export does, and I could not verify by how much: this session runs in an isolated cloud container with no route to your desktop.</p>
+
+<p>In Sweep C, every one of the top fifteen in-sample cells has an <b>out-of-sample profit factor below 1.0</b>, ranging from 0.678 to 0.904. Selection on the first 1,091 sessions produced nothing that worked on the next 398.</p>
+
+<h2>Why no amount of tuning fixes it</h2>
+
+<ol class="chain">
+<li><b>Gross expectancy is zero.</b> With costs switched off entirely, the 10:00 candle's direction is worth between −0.26 and +0.50 points depending on the holding horizon. Every t-statistic is below 1.5 in absolute value, and the sign flips between horizons. This is not an edge being eaten by the spread — there is nothing to eat.</li>
+<li><b>Directional accuracy never beats chance.</b> Measured against the next 1, 2, 3, 6, 12, 24 and 71 bars: 46.05%, 48.87%, 49.42%, 48.59%, 47.42%, 48.45%, 50.46%. The one statistically significant reading is <em>below</em> 50% — mild mean reversion over the first five minutes, worth +0.27 points gross against a 2-point cost.</li>
+<li><b>The search loses to coin flips.</b> The best of 2,620 real cells reached t = +0.70 in sample. Twelve identical searches over <em>randomised</em> candle directions returned maxima of +0.46, +0.55, +0.56, +0.57, +0.63, +0.76, +0.76, +0.81, +0.88, +0.99, +1.31 and +1.79. Seven of twelve beat the real result. A finding must clear the shuffled <em>maximum</em>, not the shuffled mean.</li>
+</ol>
+
+<div class="scroll"><table>
+<thead><tr><th>Directional baseline — no filter, no stop, costs on</th><th class="n">Continuation</th><th class="n">Fade</th></tr></thead>
+<tbody>
+<tr><td>Hold 1 bar (5 min)</td><td class="n neg">PF 0.439 · t −12.06 · 0/7 yrs</td><td class="n neg">PF 0.531 · t −9.24 · 0/7</td></tr>
+<tr><td>Hold 6 bars (30 min)</td><td class="n neg">PF 0.716 · t −4.97 · 0/7</td><td class="n neg">PF 0.715 · t −4.92 · 0/7</td></tr>
+<tr><td>Hold to the close</td><td class="n neg">PF 0.868 · t −2.21 · 2/7</td><td class="n neg">PF 0.845 · t −2.68 · 1/7</td></tr>
+</tbody></table></div>
+
+<h2>The one thing with a pulse</h2>
+<p class="sub">Gap continuation with an ADR-0.3 trail — and why it is still not tradeable</p>
+
+<p>One configuration from Sweep A held up out of sample: enter in the direction of the overnight gap when it exceeds a quarter of average daily range, stop 30 points, trail at 0.3 × ADR, break-even at half-risk.</p>
+
+<div class="grid">
+  <div class="cell"><span class="k">Full sample</span><span class="v">1.154</span><span class="n">profit factor, n = 773, +848 pts</span></div>
+  <div class="cell"><span class="k">Out of sample</span><span class="v ok">1.244</span><span class="n">n = 197, t = +1.15</span></div>
+  <div class="cell"><span class="k">Years positive</span><span class="v">6 / 7</span><span class="n">win rate 37.9%</span></div>
+  <div class="cell"><span class="k">Significance</span><span class="v bad">t = 1.46</span><span class="n">against a required bar of 4.19</span></div>
+</div>
+
+<p>Three things disqualify it from live capital, and I would rather name them than bury them.</p>
+
+<p><b>It dies on cost.</b> PF 1.154 at 2.0 points, 1.080 at 2.5, <b>1.013 at 3.0</b>, and 0.893 at 4.0. The entire result lives inside an assumption about your spread that has never been measured.</p>
+
+<p><b>The exit is a spike, not a plateau.</b> The stop dimension behaves well — ADR 0.5, ADR 0.75, fixed 20 and fixed 30 all land between PF 1.14 and 1.16. The exit dimension does not: every alternative sits at PF 1.00 (1R 1.008, 2R 1.016, 3R 1.011, ADR-0.5 target 0.982, time exit 0.991) and only <code>trail 0.3 × ADR</code> reaches 1.154. When one setting carries the whole result and its neighbours are flat, that is the shape of a fitted parameter.</p>
+
+<p><b>The Monte Carlo is conditional on that cost.</b> Ten thousand bootstrap resamples give a 92.8% probability of profit at 2.0 points — and <b>54.8% at 3.0</b>, barely a coin flip. The probability of a drawdown reaching 15% of net profit is 100% at both.</p>
+
+<h2>What I could not do, and why</h2>
+<div class="note ochre">
+<p><b>The spread is still unmeasured.</b> Every cost figure in this report is an assumption. The gap-continuation result flips from viable to worthless between 2.0 and 3.0 points, so the single highest-value next step is a Dukascopy bid/ask download for AU200 around 10:00 Melbourne. Nothing else changes as much per hour spent.</p>
+<p><b>09:50 coverage is unverified against your feed.</b> My exports carry the pre-open bar on 11% of sessions; yours clearly carries it more often. Sweep B's sample of 173 sessions is a floor, not the true one.</p>
+<p><b>TradingView is unreachable from here.</b> The MCP server addresses localhost and this session runs in an isolated cloud container, so your running desktop is not visible to it regardless.</p>
+</div>
+
+<h2>Where this leaves the strategy</h2>
+<p>The 10 AM Body Break is closed on AU200. Not because one configuration failed, but because the object it is built on — the direction of the 10:00 candle — has been measured directly and carries no information at any horizon tested. Stops, targets, trails, body filters, session cutoffs and flip logic are all transformations of a signal whose expected value is zero, and a transformation of zero is zero.</p>
+<p>The gap-continuation result is the only direction worth another hour, and only after the spread is measured. If the true round-trip cost is near 2 points it becomes worth a forward test; if it is near 3, it is already dead and the measurement will have saved the effort.</p>
+
+<footer>
+Sources in repository: <code>research/v2/</code> (engine, self-tests, three sweeps, 1-minute re-resolution) · <code>RESULTS_LEDGER.md</code> · <code>trader_playbooks/bugs/BUG_REGISTRY.md</code> BUG-039, BUG-040.<br>
+Data: AU200 5-minute, 1,489 sessions, 25 Aug 2020 – 3 Aug 2026; 1-minute, 398 sessions, 2025–26. In-sample cut at 1 Jan 2025, fixed before ranking.
+</footer>
+</div>

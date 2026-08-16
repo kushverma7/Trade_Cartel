@@ -2415,3 +2415,41 @@ SuperTrend(3.1, 97) stack does not call the direction of the AU200 open.
 session count of the file actually used, and check whether a longer file for the
 same instrument exists in the data directory. A result on a subsample is not a
 result on the sample.
+
+## H89 — The AU200 10:00 candle has no directional information (2026-08-16)
+
+**Belief:** the direction of the 10:00–10:05 Melbourne candle on AU200 does not
+predict subsequent price at any horizon from 5 minutes to the cash close.
+
+**Evidence (all on 1,455–1,489 sessions, 2020-08 .. 2026-08):**
+1. Gross expectancy with costs OFF: −0.26 to +0.50 points across five horizons,
+   every |t| < 1.5, sign inconsistent between horizons.
+2. Directional accuracy vs the next 1/2/3/6/12/24/71 bars: 46.05%, 48.87%,
+   49.42%, 48.59%, 47.42%, 48.45%, 50.46%. Never significantly above 50%; the
+   single significant reading (z = −3.01, 5 minutes) is BELOW it.
+3. A 2,620-cell search reached a best in-sample t of +0.70. Twelve identical
+   searches over randomised directions produced maxima up to +1.79, and 7 of 12
+   beat the real result.
+4. All fifteen best in-sample cells had out-of-sample PF below 1.0 (0.678–0.904).
+
+**Invalidation:** a measurement showing directional accuracy significantly above
+50% on an out-of-sample window of at least 300 sessions, or a gross (zero-cost)
+expectancy with |t| > 3 that holds sign across at least three horizons. A live
+backtest PF is NOT sufficient — that is what produced BUG-039.
+
+**Consequence:** decline further 10:00-candle entry-logic tuning. The signal
+layer, not the exit layer, is the binding constraint, and it has been measured.
+
+## H90 — Cost, not signal, is the binding constraint on AU200 open strategies (2026-08-16)
+
+**Belief:** at roughly one trade per session, a 2–4 point round-trip cost exceeds
+the entire gross edge available in the AU200 open families tested.
+
+**Evidence:** across 6,622 cells in Sweep A only 2.3% reached PF > 1.0, against
+~50% expected from a fair coin. The single survivor's PF falls 1.154 → 1.080 →
+1.013 → 0.893 across costs of 2.0, 2.5, 3.0, 4.0.
+
+**Invalidation:** a measured AU200 spread at 10:00 Melbourne materially below
+2 points round trip would move several of these cells back above water and this
+belief would need rewriting. **THE SPREAD IS STILL UNMEASURED — this belief
+rests on an assumption and is flagged as such.**
