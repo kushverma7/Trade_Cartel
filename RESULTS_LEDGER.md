@@ -5236,3 +5236,69 @@ The 10:00 AU200 candle carries no directional information at any horizon from 5
 minutes to the close. No stop, target, trail, filter or session cutoff can
 manufacture an edge from a signal whose gross expectancy is zero. The previously
 reported PF 5.032 was BUG-039 and the PF 0.444 live result was correct.
+
+---
+
+## 2026-08-16 — AMD + 1 FVG Distribution Signal on AU200 — **NOT SIGNIFICANT**
+
+Exact port of the supplied v5 indicator (`research/v2/amd.py`), signal layer
+line-for-line. Sessions as specified in America/New_York: accumulation
+19:00-01:00, manipulation 01:00-07:00, distribution 07:00-13:00.
+
+**Data coverage decides what is testable, and it is restrictive.** On AU200 those
+windows map to 09:00-15:00 / 15:00-21:00 / 21:00-03:00 Melbourne — the indicator
+builds its range from the entire ASX cash day and then trades the overnight book.
+
+| dataset | cycles with bars in all three windows | distribution-window coverage |
+|---|---|---|
+| 5m, 2020-2026 | 425 of 1,525 (27.9%) | **median 2 bars of 72** — untestable |
+| 1m→5m, 2025-2026 | **215 of 401 (53.6%)** | median 72 of 72 — complete |
+
+All results below are the 1-minute file only: **215 cycles, 2025-09-29 ..
+2026-08-06, a single regime with no second era to hold out.** The IS/OOS split is
+a time cut inside that regime (107 / 108 cycles) and is weaker than a true
+out-of-sample test. Fill assumption: entry at the signal bar's 5-minute close,
+exits on 5-minute bars with the adverse extreme first, deadline at the end of the
+distribution window, 2.0 points cost.
+
+Signals fire on 118 of 215 cycles (55%) with `requireReentry` on, 146 (68%) off.
+Long/short balance 60/58 — no directional bias in the sweep detection.
+
+Grid 252 cells, 161 with >= 30 IS trades. Bar: t >= sqrt(2 ln 161) = 3.19.
+**Cells clearing it: 0.** PF > 1.0: 49 of 161 (30.4%).
+
+| best IS cell | IS n | IS PF | IS t | OOS n | OOS PF | OOS t |
+|---|---|---|---|---|---|---|
+| reentry on, stop 15, hold the window | 56 | 1.710 | 1.66 | 62 | 0.932 | −0.22 |
+| reentry off, stop 15, hold the window | 65 | 1.594 | 1.58 | 81 | 0.758 | −1.01 |
+| reentry on, stop 15, 2R | 56 | 1.549 | 1.54 | 62 | 0.829 | −0.71 |
+
+Every top-12 in-sample cell falls to OOS PF between 0.758 and 1.022.
+
+**Untuned baseline** (stop 30, hold to the end of the distribution window, all 215 cycles):
+
+| variant | cost 0.0 | cost 2.0 | cost 3.0 |
+|---|---|---|---|
+| requireReentry ON  (n=118) | PF 1.365, +4.17/trade, t +1.37 | PF 1.174 | PF 1.090 |
+| requireReentry OFF (n=146) | PF 1.223, +2.69/trade, t +1.00 | PF 1.052 | PF 0.977 |
+
+**This differs from the 10:00-candle result in one interesting way.** There the
+gross (zero-cost) expectancy was ~0 — nothing to work with. Here it is **+4.17
+points per trade**, positive at every cost level tested, and the indicator's own
+default (`requireReentry = true`) is the better setting. But directional accuracy
+is exactly **50.00% (z = 0.00)**, so the positive expectancy is entirely positive
+SKEW — winners larger than losers — not an ability to call direction.
+
+**Shuffle null, against the MAXIMUM:** real search maximum t = +1.66; twelve
+searches over randomised signal directions returned +1.32, +1.43, +1.67, +1.70,
++1.70, +1.83, +2.05, +2.16, +2.25, +2.42, +2.45, +2.51. **10 of 12 beat the real
+result.** The search adds nothing over coin flips.
+
+**VERDICT: NOT SIGNIFICANT, but not dead the way the 10:00 candle is.** The
+positive gross skew on 118 trades is the first thing this session has produced
+that is worth another look, and the honest reasons it cannot be traded yet are:
+(a) 118 trades in one 11-month regime, (b) it fails the multiple-testing bar and
+the shuffle null, (c) every tuned variant collapses out of sample, and (d) the
+2-point cost assumption was calibrated on the ASX cash session while this trades
+the **overnight book**, where the spread is wider — and that spread is still
+unmeasured. Item (d) could erase the entire result on its own.
