@@ -1235,3 +1235,31 @@ absurdity assertion did not fire because PF 5.0 with a 16-point stop and a
 was wrong. This is the failure mode the evidence hierarchy's rule 2 names: a PF
 is a joint claim about a signal AND a fill assumption, and here the signal itself
 depended on an unstated data assumption.
+
+## BUG-040 — A reference level used as a stop can land on the FAVOURABLE side
+
+**Found:** 2026-08-16, `research/v2/sweep.py`, first run of the rebuilt engine.
+Caught by the standing absurdity assertion, before any result was reported.
+**Symptom:** the top 18 cells of a 7,182-cell sweep all showed PF 99.000,
+**100.0% win rate**, n=486, t=+58.23, 5/5 years positive.
+**Root cause:** the cells were `sig=gap mode=fade` with `stop=ref`. Fading an
+up-gap goes short at the 10:00 open; the reference level (the previous cash
+close) is *below* that entry, i.e. on the profitable side. `resolve()` tests
+`s * (adverse - stop) <= 0` first, which for a short with the stop below the
+entry is true on the very first bar, so every trade "stopped out" instantly at a
+gain.
+**Diagnostic tell, worth memorising:** all nine exit methods returned
+byte-identical results. When changing the exit changes nothing, the exit was
+never binding and the trade is being closed by something else.
+**Fix — R8:** `if s * (entry - stop) <= 0: continue`. A level on the favourable
+side of the entry is a target, not a stop, and the cell is discarded rather than
+silently reinterpreted.
+**Second fix — R9:** `metrics()` now returns `None` for any result with a win
+rate above 90% or below 10%, or a PF above 20. The absurdity assertion is no
+longer a habit I have to remember to apply; a sweep cannot rank such a cell at
+all.
+
+**Why this one matters more than the number it produced:** BUG-039 was caught by
+the user in live trading. BUG-040 is the same *class* of error — a level used
+without checking what it actually is — caught by the harness in the first run
+after the guard was installed. The guard works.
