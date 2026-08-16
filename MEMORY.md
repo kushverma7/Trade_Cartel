@@ -1352,3 +1352,42 @@ trail 0.3 x ADR, BE at half-risk. n=773, PF 1.154 full sample, OOS PF 1.244,
    localhost and we are not on his machine. Do not promise live chart reads here.
 4. Report published: reports/au200_10am_rebuild.html
    https://claude.ai/code/artifact/39222dfc-6238-49e6-b959-bb1505e6f5d6
+
+
+## 2026-08-16 — "Omar no wick" Pine: searched exhaustively, NOT RECOVERABLE
+
+Kush: *"I have given you the pine of omar no wick in one of the session to
+include in the strategy."* I searched every surface available on this container
+and it is not here.
+
+What was searched, and the result:
+
+| Surface | Method | Result |
+|---|---|---|
+| Working tree | `grep -ri "omar\|nowick\|no wick\|wickless"` | 2 hits, both false positives — `wendell_supply_demand.md` and a Wendell transcript, both the ordinary phrase "if there were no wicks" about drawing distal lines |
+| Full git history | all 50 commits, both branches, `--diff-filter=A` over every file ever added | zero |
+| All 39 `.pine` files | `indicators/`, `strategies/`, `indicators/aicartel_*`, `indicators/top10_*` | zero |
+| `documents/*.pdf` (22 files) | raw stream zlib-decompress + regex (pypdf is broken here — `_cffi_backend` / cryptography rust binding panics) | zero. `Legendary_Trader_Pine_Scripts_Raw_Source.pdf` is Market Cipher B, not this |
+| `sources/session_archive/02_user_turns_verbatim.md` (157 KB of verbatim user turns) | `grep -oin "wick[a-z]*"` | exactly **1** hit, inside a VAL-sweep bug write-up. Unrelated |
+| claude-mem database | `find / -name "*claude-mem*.db"` | no database on this container |
+| Prior session transcripts | `/root/.claude/projects/-home-user-Trade-Cartel/` | **only the current session's `.jsonl` exists** |
+
+### Root cause — and the standing rule that follows
+
+Claude Code on the web runs in an **ephemeral container**. The repo is cloned
+fresh at session start and the container is reclaimed after inactivity. A file
+pasted into chat lives only in that session's transcript. **If it was never
+written to disk AND committed, it is destroyed with the container.** That is
+what happened here — same mechanism as gap-analysis §6 ("Everything before
+2026-07-13 ... no transcript, no summary, no commit").
+
+**STANDING RULE — COMMIT ON RECEIPT.** The moment Kush pastes Pine, a
+transcript, a CSV or a report, the FIRST action is to write it to
+`trader_playbooks/sources/` (or `indicators/`) verbatim and commit it, before
+any analysis, discussion or refactor. Do not analyse first and save later —
+sessions get cut off mid-turn and the upload dies with the container. This
+generalises the existing "do the capture when the finding lands" rule from
+CLAUDE.md to *inbound* material as well as outbound findings.
+
+Corollary for recovery: the only place "Omar no wick" can still exist is Kush's
+own claude.ai chat history. Re-pasting it is cheaper than any search I can run.
