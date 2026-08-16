@@ -18,19 +18,23 @@ DESIGN RULES (each one exists because something went wrong without it):
   R6  Costs are charged per trade, both legs, always.
   R7  Nothing is reported without n, date range and the fill assumption.
 """
-import csv, datetime as dt, zoneinfo, math, statistics as st, random
+import csv, gzip, datetime as dt, zoneinfo, math, statistics as st, random
 from collections import defaultdict
 
 UTC = dt.timezone.utc
 MEL = zoneinfo.ZoneInfo("Australia/Melbourne")
-U = "/root/.claude/uploads/af36979e-ba34-557a-a8b0-0a27e52e3758/"
+U = "/home/user/Trade_Cartel/data/"   # repo copy; the uploads dir is ephemeral
 
 OPEN_MIN, CLOSE_MIN = 600, 960          # 10:00 .. 16:00 Melbourne cash session
 
 
+def _open(path):
+    return gzip.open(path, "rt") if path.endswith(".gz") else open(path)
+
+
 def _load(path):
     by = defaultdict(list)
-    for r in csv.DictReader(open(path)):
+    for r in csv.DictReader(_open(path)):
         t = dt.datetime.strptime(r["timestamp"][:19], "%Y-%m-%d %H:%M:%S")\
               .replace(tzinfo=UTC).astimezone(MEL)
         by[t.date()].append((t.hour * 60 + t.minute, float(r["open"]), float(r["high"]),
@@ -41,7 +45,7 @@ def _load(path):
 
 
 class Data:
-    def __init__(self, path=U + "30348eaf-au200_aud_5m.csv", tf=5):
+    def __init__(self, path=U + "au200_5m.csv.gz", tf=5):
         raw = _load(path)
         self.tf = tf
         self.bars = {}
