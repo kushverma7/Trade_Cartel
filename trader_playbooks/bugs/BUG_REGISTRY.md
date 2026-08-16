@@ -1185,3 +1185,53 @@ future, this one made it relive the past.
 **Detection that worked:** the standing absurdity assertion. A 12% win rate is
 outside the plausible band for the stated targets, so it was treated as a bug
 before it was read as a result. The rule paid for itself.
+
+## BUG-039 — A "proxy daily open" that silently became a different level than the Pine's
+
+**Found:** 2026-08-16, `research/body_break_sweep.py` / `body_break_stress.py`
+(my harness) vs `strategies/au200_10am_body_break.pine` (delivered code).
+**Symptom:** simulated PF 5.032 / 63.3% win / n=327. The user's live TradingView
+run of the delivered Pine on OANDA AU200AUD, 5m, last 365 days, DEEP backtesting
+returned **PF 0.444 / 26.79% win / n=280 / -353.95 AUD**. Opposite sign.
+
+**Root cause — two separate defects that compound:**
+
+1. *The harness's proxy resolved to the Melbourne-midnight open.* `signals()`
+   sets `do` from the first bar with `hour < 10`. `au200_aud_5m.csv` contains
+   overnight bars on 544 of its 1635 sessions (2023-04-14 onward) and cash-only
+   bars on the other 1091. On the 544, `do` = the **00:00 Melbourne** open, a
+   median **15.5 points** (mean 21.8) away from the 10:00 open. On the 1091 it is
+   the 10:00 bar's own open, which forces `side = 0` mathematically — those
+   sessions produced **43 signals in total, versus 544 from the overnight days**.
+   So 93% of the "six-year" result came from 33% of the sessions, and rested
+   entirely on an overnight-gap filter the strategy never claims to have.
+
+2. *The Pine's daily open is a different level again.* `request.security(...,
+   "D", open)` on OANDA AU200AUD returns the 24h daily bar's open, which rolls
+   near 07:00 Melbourne (the 07:00-09:50 gap in the feed is that roll). Distance
+   from the 10:00 open: median **0.0 points**, mean 3.8. Since `stopPx =
+   dailyOpen`, the live stop sits essentially *on* the entry, while the simulated
+   stop was a median **16.7 points** away. The harness also had a
+   `risk <= 0.5 -> skip` guard that the Pine does not; the Pine only checks
+   `close - dailyOpen > 0 and <= maxRisk`, so it happily takes sub-point stops.
+   With a trailing distance of half the 10:00 body (median 2.75 points), the
+   result is a near-instant stop-out on most trades — exactly a 26.8% win rate.
+
+3. *Contributory:* the exit block issues `strategy.exit("Lx1", qty_percent=50)`
+   AND `strategy.exit("Lx2")` on the same entry. Two live exit orders on one
+   position can over-fill.
+
+**Prevention (new standing rule):** *a level referenced by name is not a level.*
+When a simulator and a Pine script both say "daily open", measure the two series
+against each other and report the median absolute difference **before** running
+any sweep. If a proxy is used, print how many sessions it is defined on, how many
+signals come from each subset, and what the proxy's distance from the intended
+anchor actually is. A proxy that changes behaviour between eras of the data is a
+regime split, not a proxy.
+
+**Detection that worked:** none of mine. The user's live run caught it. The
+absurdity assertion did not fire because PF 5.0 with a 16-point stop and a
+3-point trail is internally consistent — the numbers were coherent, the *level*
+was wrong. This is the failure mode the evidence hierarchy's rule 2 names: a PF
+is a joint claim about a signal AND a fill assumption, and here the signal itself
+depended on an unstated data assumption.
