@@ -5376,3 +5376,63 @@ diagnosis is "edge too small", not "no edge".** The two levers that matter are
 result, and (b) trade frequency — at ~1 trade/session a +0.26 point edge can
 never pay a 2-point toll, so any viable version needs setups with far larger
 expected moves rather than more filters.
+
+---
+
+## 2026-08-16 — Quarter level -> sweep -> MSS -> retest, staged (PRELIMINARY)
+
+Testing the claim: "Never trade a Quarter level just because price reaches or
+crosses it. Trade the confirmed failure after liquidity is taken."
+
+Each stage adds ONE gate, everything else fixed. Quarter grid per
+yotov_quarters_theory.md (10:1 ratio): AU200/US30 large quarter 250 pts,
+tolerance 25; XAUUSD large quarter $25, tolerance $2.50.
+Entry at bar close, exits on the same series, adverse extreme first.
+Costs: AU200 2.0, US30 3.0, XAUUSD 0.5.
+
+### AU200 5m, 139,898 bars, 2020-08 .. 2026-08
+| stage | n | PF | win | net | avg | t |
+|---|---|---|---|---|---|---|
+| A touch the level (naive) | 22,343 | 0.911 | 5.2% | −14,016 | −0.63 | −3.14 |
+| B + liquidity swept | 2,810 | 1.202 | 9.9% | +5,138 | +1.83 | +2.63 |
+| **C + market structure shift** | **450** | **1.524** | 22.7% | **+3,317** | **+7.37** | **+3.08** |
+| D + displacement on the MSS bar | 343 | 1.272 | 23.6% | +1,589 | +4.63 | +1.65 |
+| E + retest holds (full model) | 242 | 1.339 | 25.2% | +1,509 | +6.24 | +1.76 |
+
+### US30 15m, 56,165 bars, 2019-12 .. 2026-07
+| stage | n | PF | win | net | avg | t |
+|---|---|---|---|---|---|---|
+| A touch | 11,010 | 0.975 | 19.4% | −7,251 | −0.66 | −0.98 |
+| B + swept | 7,792 | 0.932 | 26.4% | −16,444 | −2.11 | −2.60 |
+| C + MSS | 723 | 0.983 | 45.4% | −431 | −0.60 | −0.20 |
+| D + displacement | 461 | 1.007 | 50.5% | +114 | +0.25 | +0.06 |
+| **E + retest (full model)** | **255** | **1.266** | **55.7%** | **+2,342** | **+9.19** | **+1.74** |
+
+### XAUUSD 15m, 157,366 bars — the model FAILS here
+| stage | n | PF | win | net | t |
+|---|---|---|---|---|---|
+| A touch | 15,776 | 0.891 | 26.6% | −6,808 | −6.31 |
+| B + swept | 11,797 | 0.854 | 31.2% | −6,848 | −7.69 |
+| C + MSS | 1,565 | 0.813 | 45.2% | −1,224 | −3.52 |
+| D + displacement | 1,231 | 0.826 | 48.3% | −901 | −2.85 |
+| E + retest | 752 | 0.861 | 45.1% | −468 | −1.87 |
+
+### Reading
+1. **The naive quarter-level touch loses on all three instruments** (PF 0.911,
+   0.975, 0.891 across 49,129 trades). The claim's premise holds.
+2. **On the two index products the gates add value.** US30 improves
+   monotonically A->E with the win rate climbing 19.4% -> 55.7%. AU200 turns
+   −14,016 points into +3,317 by stage C.
+3. **AU200 and US30 disagree on WHICH gate matters.** AU200 peaks at C and the
+   displacement filter HURTS it (1.524 -> 1.272). US30 needs the full chain and
+   peaks at E. That disagreement is a warning, not a detail.
+4. **Gold rejects the model at every stage.** Not instrument-agnostic.
+
+### STATUS: PRELIMINARY — NOT VALIDATED. Do not trade on this table.
+Still missing: IS/OOS split, shuffle null against the search maximum, parameter
+sensitivity, Monte Carlo, 1-minute re-resolution. Only 15 cells were run, so the
+bar is t >= 2.33 and AU200 stage C (t=3.08) is the only cell above it — but that
+is an unadjusted first look, which is exactly the kind of number that turned out
+to be BUG-039 last time.
+**Steps 5 (VIX) and 6 (Mag 7) of the model were NOT tested — no such data in
+this repo — so this tests a strict subset of the strategy.**
