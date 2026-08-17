@@ -1,0 +1,1328 @@
+//@version=6
+// ════════════════════════════════════════════════════════════════════
+// CONTEXT -> LIQUIDITY -> STRUCTURE SHIFT -> RETEST -> VIX -> MAG 7
+// Signals-only indicator, built for manual verification.
+// ════════════════════════════════════════════════════════════════════
+// Every step is individually switchable and individually displayed, so you
+// can see WHICH confirmation is missing rather than only that a signal did
+// not print. The dashboard shows all six live.
+//
+// STEP 1 CONTEXT   quarter grid + previous-day / swing levels. No level in
+//                  range -> no setup, per "if price is in the middle of
+//                  nowhere, no trade".
+// STEP 2 LIQUIDITY the level must be SWEPT, not touched. Wick beyond, close
+//                  back inside. "Level touched != trade. Level swept = setup
+//                  becomes active."
+// STEP 3 STRUCTURE after the sweep, structure must break the other way, with
+//                  displacement. Without it, NO TRADE — this is what stops
+//                  you shorting a real breakout.
+// STEP 4 RETEST    do not chase the break. Price must return to the level and
+//                  hold. The signal prints on the retest, not the sweep.
+// STEP 5 VIX       NQ up / VIX down for longs, and vice versa. Weighted only
+//                  when VIX is reacting AT ITS OWN pivot level, not drifting
+//                  in the middle of nowhere.
+// STEP 6 MAG 7     breadth across AAPL MSFT NVDA AMZN META GOOGL TSLA.
+//                  Disagreement -> reduce size or pass.
+//
+// ⚠ SESSION WARNING, READ THIS BEFORE TRUSTING STEPS 5 AND 6.
+//   VIX and the Mag 7 only trade during US cash hours. On AU200 during the
+//   Melbourne morning, or on any instrument outside 09:30-16:00 New York,
+//   those series are STALE — they hold their last print and will look
+//   "confirmed" when nothing is actually happening. The dashboard shows a
+//   US-hours flag; when it reads CLOSED, treat steps 5 and 6 as unavailable
+//   rather than as passing. There is an input to enforce that automatically.
+//
+// BACKTEST STATUS of steps 1-4 (research/v2/quarters_sweep_mss.py):
+//   the naive touch loses on AU200, US30 and gold across 49,129 trades.
+//   Adding sweep + structure shift takes AU200 from -14,016 pts to +3,317.
+//   US30 improves monotonically to a 55.7% win rate with the full chain.
+//   GOLD REJECTS THE MODEL AT EVERY STAGE. Preliminary — no out-of-sample
+//   test yet. Steps 5 and 6 have never been tested by me at all.
+// ════════════════════════════════════════════════════════════════════
+indicator("Liquidity Sweep -> MSS -> Retest  [VIX + Mag7]", overlay = true,
+     max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500)
+
+// ── step 1: context ──────────────────────────────────────────────────
+qTz      = input.string("Australia/Melbourne", "Timezone", group = "1 Context")
+qLarge   = input.float(250.0, "Large quarter size (AU200/US30 250, gold 25)", minval = 0.01, group = "1 Context")
+qTol     = input.float(25.0,  "Undershoot / overshoot tolerance (small quarter)", minval = 0.01, group = "1 Context")
+qUseQtr  = input.bool(true,  "Quarter levels", group = "1 Context")
+qUsePD   = input.bool(true,  "Previous day high / low", group = "1 Context")
+qUseSw   = input.bool(true,  "Swing high / low", group = "1 Context")
+qSwLen   = input.int(5, "Swing lookback", minval = 2, group = "1 Context")
+qGrid    = input.bool(true, "Draw the quarter grid", group = "1 Context")
+
+// ── steps 2-4: the sequence ─────────────────────────────────────────
+qMssBars = input.int(24, "Structure shift must occur within N bars of the sweep", minval = 1, group = "2 Sequence")
+qDisplOn = input.bool(true,  "Require displacement on the structure-break bar", group = "2 Sequence")
+qDispl   = input.float(1.2, "Displacement = bar range / ATR at least", minval = 0.1, step = 0.1, group = "2 Sequence")
+qRetOn   = input.bool(true,  "Require the retest (step 4)", group = "2 Sequence")
+qRetBars = input.int(24, "Retest must occur within N bars", minval = 1, group = "2 Sequence")
+
+// ── step 5: VIX ──────────────────────────────────────────────────────
+qVixOn   = input.bool(true, "Use VIX confirmation", group = "5 VIX")
+qVixSym  = input.symbol("TVC:VIX", "VIX symbol", group = "5 VIX")
+qVixLen  = input.int(6, "VIX direction measured over N bars", minval = 1, group = "5 VIX")
+qVixLvl  = input.bool(true, "Require VIX to be reacting at its OWN pivot level", group = "5 VIX")
+qVixPiv  = input.int(5, "VIX pivot lookback", minval = 2, group = "5 VIX")
+qVixTol  = input.float(0.5, "VIX 'at its level' tolerance (VIX points)", minval = 0.01, step = 0.1, group = "5 VIX")
+
+// ── step 6: Mag 7 ────────────────────────────────────────────────────
+qMagOn   = input.bool(true, "Use Magnificent 7 breadth", group = "6 Mag 7")
+qMagLen  = input.int(6, "Breadth measured over N bars", minval = 1, group = "6 Mag 7")
+qMagMin  = input.int(5, "Need at least N of 7 agreeing", minval = 1, maxval = 7, group = "6 Mag 7")
+
+// ── gating ───────────────────────────────────────────────────────────
+qNeed    = input.int(2, "Of steps 5 and 6, how many must pass", minval = 0, maxval = 2, group = "7 Gate")
+qUSonly  = input.bool(true, "Treat steps 5 and 6 as UNAVAILABLE outside US cash hours", group = "7 Gate")
+qShowW   = input.bool(true, "Show a marker when a setup is armed but unconfirmed", group = "7 Gate")
+
+// ════════════════════ context ═══════════════════════════════════════
+qAtr = ta.atr(14)
+qPDH = request.security(syminfo.tickerid, "D", high[1], lookahead = barmerge.lookahead_off)
+qPDL = request.security(syminfo.tickerid, "D", low[1],  lookahead = barmerge.lookahead_off)
+
+qSHr = ta.pivothigh(qSwLen, qSwLen)
+qSLr = ta.pivotlow (qSwLen, qSwLen)
+var float qSwH = na
+var float qSwL = na
+if not na(qSHr)
+    qSwH := qSHr
+if not na(qSLr)
+    qSwL := qSLr
+
+qQ = math.round(close / qLarge) * qLarge
+
+// nearest level of interest to the current close
+f_pick() =>
+    best = float(na)
+    bd   = float(na)
+    if qUseQtr
+        best := qQ
+        bd   := math.abs(close - qQ)
+    if qUsePD and not na(qPDH) and (na(bd) or math.abs(close - qPDH) < bd)
+        best := qPDH
+        bd   := math.abs(close - qPDH)
+    if qUsePD and not na(qPDL) and (na(bd) or math.abs(close - qPDL) < bd)
+        best := qPDL
+        bd   := math.abs(close - qPDL)
+    if qUseSw and not na(qSwH) and (na(bd) or math.abs(close - qSwH) < bd)
+        best := qSwH
+        bd   := math.abs(close - qSwH)
+    if qUseSw and not na(qSwL) and (na(bd) or math.abs(close - qSwL) < bd)
+        best := qSwL
+        bd   := math.abs(close - qSwL)
+    best
+
+qLvl    = f_pick()
+qInPlay = not na(qLvl) and math.abs(close - qLvl) <= qTol      // step 1
+
+// ════════════════════ step 5: VIX ═══════════════════════════════════
+qVix  = request.security(qVixSym, timeframe.period, close, lookahead = barmerge.lookahead_off)
+qVixH = request.security(qVixSym, timeframe.period, high,  lookahead = barmerge.lookahead_off)
+qVixL = request.security(qVixSym, timeframe.period, low,   lookahead = barmerge.lookahead_off)
+qVpH = ta.pivothigh(qVixH, qVixPiv, qVixPiv)
+qVpL = ta.pivotlow (qVixL, qVixPiv, qVixPiv)
+var float qVixR = na
+var float qVixS = na
+if not na(qVpH)
+    qVixR := qVpH
+if not na(qVpL)
+    qVixS := qVpL
+
+qVixDn = not na(qVix) and qVix < qVix[qVixLen]
+qVixUp = not na(qVix) and qVix > qVix[qVixLen]
+qVixAtR = not na(qVixR) and not na(qVixH) and math.abs(qVixH - qVixR) <= qVixTol   // at resistance
+qVixAtS = not na(qVixS) and not na(qVixL) and math.abs(qVixL - qVixS) <= qVixTol   // at support
+
+// long wants VIX falling, ideally rejecting ITS resistance
+f_vixOk(dir) =>
+    base = dir > 0 ? qVixDn : qVixUp
+    lvl  = dir > 0 ? qVixAtR : qVixAtS
+    not qVixOn ? true : (qVixLvl ? (base and lvl) : base)
+
+// ════════════════════ step 6: Mag 7 ═════════════════════════════════
+f_mom(sym) =>
+    v = request.security(sym, timeframe.period, close, lookahead = barmerge.lookahead_off)
+    na(v) or na(v[qMagLen]) ? 0 : (v > v[qMagLen] ? 1 : v < v[qMagLen] ? -1 : 0)
+
+qM1 = f_mom("NASDAQ:AAPL")
+qM2 = f_mom("NASDAQ:MSFT")
+qM3 = f_mom("NASDAQ:NVDA")
+qM4 = f_mom("NASDAQ:AMZN")
+qM5 = f_mom("NASDAQ:META")
+qM6 = f_mom("NASDAQ:GOOGL")
+qM7 = f_mom("NASDAQ:TSLA")
+qMagUp = (qM1 > 0 ? 1 : 0) + (qM2 > 0 ? 1 : 0) + (qM3 > 0 ? 1 : 0) + (qM4 > 0 ? 1 : 0) + (qM5 > 0 ? 1 : 0) + (qM6 > 0 ? 1 : 0) + (qM7 > 0 ? 1 : 0)
+qMagDn = (qM1 < 0 ? 1 : 0) + (qM2 < 0 ? 1 : 0) + (qM3 < 0 ? 1 : 0) + (qM4 < 0 ? 1 : 0) + (qM5 < 0 ? 1 : 0) + (qM6 < 0 ? 1 : 0) + (qM7 < 0 ? 1 : 0)
+f_magOk(dir) => not qMagOn ? true : (dir > 0 ? qMagUp >= qMagMin : qMagDn >= qMagMin)
+
+// US cash hours, New York
+qNyH = hour(time, "America/New_York")
+qNyM = minute(time, "America/New_York")
+qNyMin = qNyH * 60 + qNyM
+qUSopen = qNyMin >= 570 and qNyMin < 960 and dayofweek != dayofweek.saturday and dayofweek != dayofweek.sunday
+
+// ════════════════════ steps 2-4: the state machine ══════════════════
+var int   qState = 0        // 0 idle, ±1 swept, ±2 structure broken
+var float qSLvl  = na       // the level that was swept
+var float qSExt  = na       // sweep extreme — the invalidation point
+var float qMssRef = na      // the swing that must break
+var int   qBar   = 0
+
+// step 2: swept — wick beyond, close back inside
+qSweepLo = qInPlay and low  < qLvl and close > qLvl
+qSweepHi = qInPlay and high > qLvl and close < qLvl
+
+if qState == 0
+    if qSweepLo
+        qState := 1
+        qSLvl  := qLvl
+        qSExt  := low
+        qMssRef := qSwH
+        qBar   := bar_index
+    else if qSweepHi
+        qState := -1
+        qSLvl  := qLvl
+        qSExt  := high
+        qMssRef := qSwL
+        qBar   := bar_index
+
+if qState == 1
+    qSExt := math.min(qSExt, low)
+if qState == -1
+    qSExt := math.max(qSExt, high)
+
+// step 3: structure shift, with displacement
+qDisplOk = not qDisplOn or (high - low) >= qDispl * qAtr
+qMssUp = qState == 1  and not na(qMssRef) and close > qMssRef and qDisplOk
+qMssDn = qState == -1 and not na(qMssRef) and close < qMssRef and qDisplOk
+
+var int qMssBar = 0
+if qMssUp
+    qState := 2
+    qMssBar := bar_index
+if qMssDn
+    qState := -2
+    qMssBar := bar_index
+
+if (qState == 1 or qState == -1) and bar_index - qBar > qMssBars
+    qState := 0
+    if na(qMssRef)
+        qMssRef := na
+
+// step 4: retest
+qDir = 0
+if qState == 2 or qState == -2
+    s = qState > 0 ? 1 : -1
+    if not qRetOn
+        qDir := s
+        qState := 0
+    else
+        back = s > 0 ? low  <= qSLvl + qTol : high >= qSLvl - qTol
+        hold = s > 0 ? close > qSLvl        : close < qSLvl
+        if back and hold and bar_index > qMssBar
+            qDir := s
+            qState := 0
+        else if not hold and bar_index > qMssBar
+            qState := 0
+        else if bar_index - qMssBar > qRetBars
+            qState := 0
+
+// ════════════════════ gate ══════════════════════════════════════════
+qAvail = not qUSonly or qUSopen
+qV = qDir != 0 and qAvail ? (f_vixOk(qDir) ? 1 : 0) : 0
+qG = qDir != 0 and qAvail ? (f_magOk(qDir) ? 1 : 0) : 0
+qExtra = (qVixOn ? qV : 1) + (qMagOn ? qG : 1)
+qPass  = qDir != 0 and (qAvail ? qExtra >= qNeed : qNeed == 0)
+
+qBuy  = qPass and qDir > 0
+qSell = qPass and qDir < 0
+qWeak = qShowW and qDir != 0 and not qPass
+
+// ════════════════════ drawing ═══════════════════════════════════════
+var line[] qGl = array.new_line()
+if qGrid and barstate.islast
+    for i = 0 to array.size(qGl) - 1
+        line.delete(array.get(qGl, i))
+    array.clear(qGl)
+    base = math.floor(low / qLarge) * qLarge - qLarge
+    for k = 0 to 8
+        p = base + k * qLarge
+        array.push(qGl, line.new(bar_index - 300, p, bar_index + 20, p,
+             color = color.new(color.purple, 45), width = 2, extend = extend.right))
+        array.push(qGl, line.new(bar_index - 300, p + qTol, bar_index + 20, p + qTol,
+             color = color.new(color.purple, 82), style = line.style_dotted, extend = extend.right))
+        array.push(qGl, line.new(bar_index - 300, p - qTol, bar_index + 20, p - qTol,
+             color = color.new(color.purple, 82), style = line.style_dotted, extend = extend.right))
+
+plot(qUsePD ? qPDH : na, "PDH", color.new(color.maroon, 25), 1, plot.style_linebr)
+plot(qUsePD ? qPDL : na, "PDL", color.new(color.teal, 25),   1, plot.style_linebr)
+plot(qUseSw ? qSwH : na, "Swing high", color.new(color.gray, 35), 1, plot.style_linebr)
+plot(qUseSw ? qSwL : na, "Swing low",  color.new(color.gray, 35), 1, plot.style_linebr)
+
+plotshape(qSweepLo and qState == 1,  "Sweep low",  shape.xcross, location.belowbar, color.new(color.orange, 0), size = size.tiny)
+plotshape(qSweepHi and qState == -1, "Sweep high", shape.xcross, location.abovebar, color.new(color.orange, 0), size = size.tiny)
+plotshape(qMssUp, "MSS up",   shape.triangleup,   location.belowbar, color.new(color.lime, 0), size = size.tiny)
+plotshape(qMssDn, "MSS down", shape.triangledown, location.abovebar, color.new(color.fuchsia, 0), size = size.tiny)
+plotshape(qBuy,  "BUY",  shape.labelup,   location.belowbar, color.new(color.green, 0), text = "BUY",  textcolor = color.white, size = size.small)
+plotshape(qSell, "SELL", shape.labeldown, location.abovebar, color.new(color.red, 0),   text = "SELL", textcolor = color.white, size = size.small)
+plotshape(qWeak and qDir > 0, "weak long",  shape.circle, location.belowbar, color.new(color.green, 55), size = size.tiny)
+plotshape(qWeak and qDir < 0, "weak short", shape.circle, location.abovebar, color.new(color.red, 55),   size = size.tiny)
+
+// ── the dashboard: every step, live ─────────────────────────────────
+f_mk(b) => b ? "✓" : "✗"
+f_cl(b) => b ? color.new(color.green, 55) : color.new(color.red, 60)
+
+var table qT = table.new(position.top_right, 3, 9, border_width = 1)
+if barstate.islast
+    table.cell(qT, 0, 0, "STEP", text_color = color.white, bgcolor = color.new(color.blue, 25))
+    table.cell(qT, 1, 0, "STATE", text_color = color.white, bgcolor = color.new(color.blue, 25))
+    table.cell(qT, 2, 0, "DETAIL", text_color = color.white, bgcolor = color.new(color.blue, 25))
+
+    table.cell(qT, 0, 1, "1 context")
+    table.cell(qT, 1, 1, f_mk(qInPlay), bgcolor = f_cl(qInPlay))
+    table.cell(qT, 2, 1, na(qLvl) ? "no level" : str.tostring(qLvl, "#.##") + "  d=" + str.tostring(math.abs(close - qLvl), "#.#"))
+
+    swept = qState != 0
+    table.cell(qT, 0, 2, "2 liquidity")
+    table.cell(qT, 1, 2, f_mk(swept), bgcolor = f_cl(swept))
+    table.cell(qT, 2, 2, swept ? (qState > 0 ? "sell-side taken" : "buy-side taken") : "not swept")
+
+    mss = math.abs(qState) == 2
+    table.cell(qT, 0, 3, "3 structure")
+    table.cell(qT, 1, 3, f_mk(mss), bgcolor = f_cl(mss))
+    table.cell(qT, 2, 3, mss ? "shifted" : (swept ? "waiting" : "-"))
+
+    table.cell(qT, 0, 4, "4 retest")
+    table.cell(qT, 1, 4, f_mk(qDir != 0), bgcolor = f_cl(qDir != 0))
+    table.cell(qT, 2, 4, qDir == 0 ? (mss ? "waiting" : "-") : "held")
+
+    vok = qDir != 0 and f_vixOk(qDir)
+    table.cell(qT, 0, 5, "5 VIX")
+    table.cell(qT, 1, 5, qAvail ? f_mk(vok) : "n/a", bgcolor = qAvail ? f_cl(vok) : color.new(color.gray, 60))
+    table.cell(qT, 2, 5, (na(qVix) ? "no data" : str.tostring(qVix, "#.##")) + (qVixDn ? " falling" : qVixUp ? " rising" : " flat") + (qVixAtR ? " @res" : qVixAtS ? " @sup" : ""))
+
+    gok = qDir != 0 and f_magOk(qDir)
+    table.cell(qT, 0, 6, "6 Mag 7")
+    table.cell(qT, 1, 6, qAvail ? f_mk(gok) : "n/a", bgcolor = qAvail ? f_cl(gok) : color.new(color.gray, 60))
+    table.cell(qT, 2, 6, str.tostring(qMagUp) + " up / " + str.tostring(qMagDn) + " down")
+
+    table.cell(qT, 0, 7, "US hours")
+    table.cell(qT, 1, 7, qUSopen ? "OPEN" : "CLOSED", bgcolor = qUSopen ? color.new(color.green, 55) : color.new(color.orange, 45))
+    table.cell(qT, 2, 7, qUSopen ? "5 and 6 are live" : "5 and 6 are STALE — do not trust them")
+
+    table.cell(qT, 0, 8, "SIGNAL", text_color = color.white, bgcolor = color.new(color.blue, 25))
+    table.cell(qT, 1, 8, qBuy ? "BUY" : qSell ? "SELL" : qDir != 0 ? "WEAK" : "-", text_color = color.white,
+         bgcolor = qBuy ? color.new(color.green, 10) : qSell ? color.new(color.red, 10) : color.new(color.gray, 45))
+    table.cell(qT, 2, 8, qDir == 0 ? "" : str.tostring(qExtra) + " of 2 extras")
+
+alertcondition(qBuy,  "BUY",  "Sweep -> MSS -> retest confirmed long, VIX and Mag 7 agree.")
+alertcondition(qSell, "SELL", "Sweep -> MSS -> retest confirmed short, VIX and Mag 7 agree.")
+alertcondition(qWeak, "Weak setup", "Structure confirmed but VIX / Mag 7 do not agree — reduce size or pass.")
+
+// ════════════════════════════════════════════════════════════════════
+// MANDATORY KEY LEVELS MODULE (repo standing rule, 2026-07-28).
+// Pasted verbatim. Do not edit; do not reimplement (BUG-013).
+// ════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+// SKILL: KEY_LEVELS_MODULE  (SpacemanBTC IDWM Key Levels V13.1)
+// ════════════════════════════════════════════════════════════════════
+// STANDING RULE (user directive, 2026-07-28):
+//   "add it into anything that you build and make sure it also displays
+//    the levels as it is in the indicator"
+//   -> EVERY strategy/indicator built in this repo from now on MUST
+//      paste this block in. No exceptions, no re-implementations.
+//
+// SOURCE: user-supplied 'Key Levels SpacemanBTC IDWM' v13.1 (@sbtnc base).
+//   Archived verbatim at indicators/key_levels_spaceman.pine.
+//
+// WHY A VERBATIM PORT AND NOT A REWRITE:
+//   Three prior attempts to "reimplement the look" all failed the user's
+//   eye test (BUG-013 in bugs/BUG_REGISTRY.md). The drawing idiom the
+//   indicator uses -- xloc.bar_time + timenow projection + var-created
+//   drawings inside barstate.islast + the label-merge pass -- is what
+//   produces the exact visual. Reproducing the look means running THAT
+//   code, not code that is "equivalent in spirit".
+//
+// PORT DELTAS FROM THE v5 ORIGINAL (the only changes made):
+//   1. //@version=5 -> the host script's //@version=6 header.
+//   2. indicator(...) declaration dropped; host strategy(...) must carry
+//      overlay=true and max_lines_count >= 100 (500 recommended once the
+//      host draws its own lines too).
+//   3. Input group titles prefixed "KL " so they sit together in the
+//      settings panel and never collide with the host's groups.
+//   4. Levels additionally exported into klPrices[] / klNames[] so the
+//      host's trade logic can consume them. The ORIGINAL had no such
+//      export; drawing behaviour is untouched by it.
+//   5. (2026-08-02, BUG-024) The yearly high/low/mid EXPORT is gated behind
+//      kl_export_yearly, default false. The original requests them for the
+//      CURRENT 12M period with lookahead_on, which leaks the completed year's
+//      extreme into a backtest. Drawing is unchanged -- only the klPrices[]
+//      export is gated, so the visual the standing directive protects is
+//      identical. The request.security calls themselves are NOT touched:
+//      adding a [1] offset would show the PREVIOUS year's range, a different
+//      level from what the indicator draws.
+//   Everything else -- defaults, colours, text, merge logic, line
+//   geometry, the original's own quirks -- is byte-for-byte the source.
+//
+// KNOWN ORIGINAL QUIRKS DELIBERATELY PRESERVED (do NOT "fix" these; the
+// user's chart looks the way it does BECAUSE of them):
+//   - ush_label / usl_label / uso_label are created with the LONDON text
+//     constants, then corrected by label.set_text on the same bar.
+//   - weeklyl_line is created at y=weekly_open, then corrected to
+//     weeklyl_open by line.set_y on the same bar.
+//   - monthlyh_line's x1 is set from monthlyl_time, not monthlyh_time.
+//   - yearly H/L use current-year high/low (no [1] offset) by design --
+//     the labels say "Current Year High/Low", not "Prev".
+//
+// HOST REQUIREMENTS
+//   - //@version=6
+//   - overlay=true
+//   - max_lines_count >= 100, max_labels_count >= 100
+//   - Must NOT already define: f_LevelMerge, get_limit_right, or any
+//     identifier below. Check before pasting.
+//
+// COLLISION-SAFE NAME LIST (everything this module declares):
+//   displayStyle mergebool distanceright radistance labelsize linesize
+//   linestyle GlobalTextType globalcoloring GlobalColor
+//   daily_time daily_open dailyh_time dailyh_open dailyl_time dailyl_open
+//   cdailyh_open cdailyl_open monday_time monday_high monday_low
+//   weekly_* weeklyh_* weeklyl_* monthly_* monthlyh_* monthlyl_*
+//   quarterly_* quarterlyh_* quarterlyl_* yearly_* yearlyh_* yearlyl_*
+//   intra_* intrah_* intral_* is_*_enabled is_*_mid *TextType *Color
+//   *text Londont USt Asiat London US Asia clondon* flondon* onelondonfalse
+//   cus* fus* oneusfalse casia* fasia* oneasiafalse londontime ustime
+//   asiatime linewidthint DEFAULT_* fontsize linestyles pricearray
+//   labelarray can_show_* f_LevelMerge get_limit_right untested_monday
+//   klPrices klNames f_klPush
+// ════════════════════════════════════════════════════════════════════
+
+// ── KL inputs ────────────────────────────────────────────────────────
+displayStyle  = input.string(defval='Standard', title='Display Style', options=['Standard', 'Right Anchored'], inline='Display', group='KL Display')
+mergebool     = input.bool(defval=true, title='Merge Levels?', inline='Display', group='KL Display')
+distanceright = input.int(defval=30, title='Distance', minval=5, maxval=500, inline='Dist', group='KL Display')
+radistance    = input.int(defval=250, title='Anchor Distance', minval=5, maxval=500, inline='Dist', group='KL Display')
+labelsize     = input.string(defval='Medium', title='Text Size', options=['Small', 'Medium', 'Large'], group='KL Display')
+linesize      = input.string(defval='Small', title='Line Width', options=['Small', 'Medium', 'Large'], inline='Line', group='KL Display')
+linestyle     = input.string(defval='Solid', title='Line Style', options=['Solid', 'Dashed', 'Dotted'], inline='Line', group='KL Display')
+
+GlobalTextType    = input.bool(defval=false, title='Global Text ShortHand', tooltip='Enable for shorthand text on all text', group='KL Display')
+var globalcoloring = input.bool(defval=false, title='Global Coloring', tooltip='Enable for all color controls via one color', inline='GC', group='KL Display')
+GlobalColor        = input.color(title='', defval=color.white, inline='GC', group='KL Display')
+
+[daily_time, daily_open]   = request.security(syminfo.tickerid, 'D', [time, open], lookahead=barmerge.lookahead_on)
+[dailyh_time, dailyh_open] = request.security(syminfo.tickerid, 'D', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[dailyl_time, dailyl_open] = request.security(syminfo.tickerid, 'D', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+cdailyh_open = request.security(syminfo.tickerid, 'D', high, lookahead=barmerge.lookahead_on)
+cdailyl_open = request.security(syminfo.tickerid, 'D', low, lookahead=barmerge.lookahead_on)
+var monday_time = time
+var monday_high = high
+var monday_low  = low
+
+[weekly_time, weekly_open]   = request.security(syminfo.tickerid, 'W', [time, open], lookahead=barmerge.lookahead_on)
+[weeklyh_time, weeklyh_open] = request.security(syminfo.tickerid, 'W', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[weeklyl_time, weeklyl_open] = request.security(syminfo.tickerid, 'W', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+[monthly_time, monthly_open]   = request.security(syminfo.tickerid, 'M', [time, open], lookahead=barmerge.lookahead_on)
+[monthlyh_time, monthlyh_open] = request.security(syminfo.tickerid, 'M', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[monthlyl_time, monthlyl_open] = request.security(syminfo.tickerid, 'M', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+[quarterly_time, quarterly_open]   = request.security(syminfo.tickerid, '3M', [time, open], lookahead=barmerge.lookahead_on)
+[quarterlyh_time, quarterlyh_open] = request.security(syminfo.tickerid, '3M', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[quarterlyl_time, quarterlyl_open] = request.security(syminfo.tickerid, '3M', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+[yearly_time, yearly_open]   = request.security(syminfo.tickerid, '12M', [time, open], lookahead=barmerge.lookahead_on)
+[yearlyh_time, yearlyh_open] = request.security(syminfo.tickerid, '12M', [time, high], lookahead=barmerge.lookahead_on)
+[yearlyl_time, yearlyl_open] = request.security(syminfo.tickerid, '12M', [time, low], lookahead=barmerge.lookahead_on)
+
+[intra_time, intra_open]   = request.security(syminfo.tickerid, '240', [time, open], lookahead=barmerge.lookahead_on)
+[intrah_time, intrah_open] = request.security(syminfo.tickerid, '240', [time[1], high[1]], lookahead=barmerge.lookahead_on)
+[intral_time, intral_open] = request.security(syminfo.tickerid, '240', [time[1], low[1]], lookahead=barmerge.lookahead_on)
+
+var is_intra_enabled      = input.bool(defval=false, title='Open', group='KL 4H', inline='4H')
+var is_intrarange_enabled = input.bool(defval=false, title='Prev H/L', group='KL 4H', inline='4H')
+var is_intram_enabled     = input.bool(defval=false, title='Prev Mid', group='KL 4H', inline='4H')
+IntraTextType             = input.bool(defval=false, title='ShortHand', group='KL 4H', inline='4Hsh')
+
+var is_daily_enabled      = input.bool(defval=true, title='Open', group='KL Daily', inline='Daily')
+var is_dailyrange_enabled = input.bool(defval=false, title='Prev H/L', group='KL Daily', inline='Daily')
+var is_dailym_enabled     = input.bool(defval=false, title='Prev Mid', group='KL Daily', inline='Daily')
+DailyTextType             = input.bool(defval=false, title='ShortHand', group='KL Daily', inline='Dailysh')
+
+var is_monday_enabled = input.bool(defval=true, title='Range', group='KL Monday Range', inline='Monday')
+var is_monday_mid     = input.bool(defval=true, title='Mid', group='KL Monday Range', inline='Monday')
+var untested_monday   = false
+MondayTextType        = input.bool(defval=false, title='ShortHand', group='KL Monday Range', inline='Mondaysh')
+
+var is_weekly_enabled      = input.bool(defval=true, title='Open', group='KL Weekly', inline='Weekly')
+var is_weeklyrange_enabled = input.bool(defval=true, title='Prev H/L', group='KL Weekly', inline='Weekly')
+var is_weekly_mid          = input.bool(defval=true, title='Prev Mid', group='KL Weekly', inline='Weekly')
+WeeklyTextType             = input.bool(defval=false, title='ShortHand', group='KL Weekly', inline='Weeklysh')
+
+var is_monthly_enabled      = input.bool(defval=true, title='Open', group='KL Monthly', inline='Monthly')
+var is_monthlyrange_enabled = input.bool(defval=true, title='Prev H/L', group='KL Monthly', inline='Monthly')
+var is_monthly_mid          = input.bool(defval=true, title='Prev Mid', group='KL Monthly', inline='Monthly')
+MonthlyTextType             = input.bool(defval=false, title='ShortHand', group='KL Monthly', inline='Monthlysh')
+
+var is_quarterly_enabled      = input.bool(defval=true, title='Open', group='KL Quarterly', inline='Quarterly')
+var is_quarterlyrange_enabled = input.bool(defval=false, title='Prev H/L', group='KL Quarterly', inline='Quarterly')
+var is_quarterly_mid          = input.bool(defval=true, title='Prev Mid', group='KL Quarterly', inline='Quarterly')
+QuarterlyTextType             = input.bool(defval=false, title='ShortHand', group='KL Quarterly', inline='Quarterlysh')
+
+var is_yearly_enabled      = input.bool(defval=true, title='Open', group='KL Yearly', inline='Yearly')
+var is_yearlyrange_enabled = input.bool(defval=false, title='Current H/L', group='KL Yearly', inline='Yearly')
+var is_yearly_mid          = input.bool(defval=true, title='Mid', group='KL Yearly', inline='Yearly')
+YearlyTextType             = input.bool(defval=false, title='ShortHand', group='KL Yearly', inline='Yearlysh')
+
+var is_londonrange_enabled = input.bool(defval=false, title='London Range', group='KL FX Sessions', inline='FX')
+var is_usrange_enabled     = input.bool(defval=false, title='New York Range', group='KL FX Sessions', inline='FX')
+var is_asiarange_enabled   = input.bool(defval=false, title='Asia Range', group='KL FX Sessions', inline='FX')
+SessionTextType            = input.bool(defval=false, title='ShortHand', group='KL FX Sessions', inline='FXColor')
+
+Londont = input.session("0800-1600", "London Session", group='KL FX Sessions')
+USt     = input.session("1400-2100", "New York Session", group='KL FX Sessions')
+Asiat   = input.session("0000-0900", "Tokyo Session", group='KL FX Sessions')
+
+DailyColor     = input.color(title='', defval=#08bcd4, group='KL Daily', inline='Dailysh')
+MondayColor    = input.color(title='', defval=color.white, group='KL Monday Range', inline='Mondaysh')
+WeeklyColor    = input.color(title='', defval=#fffcbc, group='KL Weekly', inline='Weeklysh')
+MonthlyColor   = input.color(title='', defval=#08d48c, group='KL Monthly', inline='Monthlysh')
+YearlyColor    = input.color(title='', defval=color.red, group='KL Yearly', inline='Yearlysh')
+quarterlyColor = input.color(title='', defval=color.red, group='KL Quarterly', inline='Quarterlysh')
+IntraColor     = input.color(title='', defval=color.orange, group='KL 4H', inline='4Hsh')
+LondonColor    = input.color(title='', defval=color.white, group='KL FX Sessions', inline='FXColor')
+USColor        = input.color(title='', defval=color.white, group='KL FX Sessions', inline='FXColor')
+AsiaColor      = input.color(title='', defval=color.white, group='KL FX Sessions', inline='FXColor')
+
+var pdhtext = GlobalTextType or DailyTextType ? 'PDH' : 'Prev Day High'
+var pdltext = GlobalTextType or DailyTextType ? 'PDL' : 'Prev Day Low'
+var dotext  = GlobalTextType or DailyTextType ? 'DO' : 'Daily Open'
+var pdmtext = GlobalTextType or DailyTextType ? 'PDM' : 'Prev Day Mid'
+
+var pwhtext = GlobalTextType or WeeklyTextType ? 'PWH' : 'Prev Week High'
+var pwltext = GlobalTextType or WeeklyTextType ? 'PWL' : 'Prev Week Low'
+var wotext  = GlobalTextType or WeeklyTextType ? 'WO' : 'Weekly Open'
+var pwmtext = GlobalTextType or WeeklyTextType ? 'PWM' : 'Prev Week Mid'
+
+var pmhtext = GlobalTextType or MonthlyTextType ? 'PMH' : 'Prev Month High'
+var pmltext = GlobalTextType or MonthlyTextType ? 'PML' : 'Prev Month Low'
+var motext  = GlobalTextType or MonthlyTextType ? 'MO' : 'Monthly Open'
+var pmmtext = GlobalTextType or MonthlyTextType ? 'PMM' : 'Prev Month Mid'
+
+var pqhtext = GlobalTextType or QuarterlyTextType ? 'PQH' : 'Prev Quarter High'
+var pqltext = GlobalTextType or QuarterlyTextType ? 'PQL' : 'Prev Quarter Low'
+var qotext  = GlobalTextType or QuarterlyTextType ? 'QO' : 'Quarterly Open'
+var pqmtext = GlobalTextType or QuarterlyTextType ? 'PQM' : 'Prev Quarter Mid'
+
+var cyhtext = GlobalTextType or YearlyTextType ? 'CYH' : 'Current Year High'
+var cyltext = GlobalTextType or YearlyTextType ? 'CYL' : 'Current Year Low'
+var yotext  = GlobalTextType or YearlyTextType ? 'YO' : 'Yearly Open'
+var cymtext = GlobalTextType or YearlyTextType ? 'CYM' : 'Current Year Mid'
+
+var pihtext = GlobalTextType or IntraTextType ? 'P-4H-H' : 'Prev 4H High'
+var piltext = GlobalTextType or IntraTextType ? 'P-4H-L' : 'Prev 4H Low'
+var iotext  = GlobalTextType or IntraTextType ? '4H-O' : '4H Open'
+var pimtext = GlobalTextType or IntraTextType ? 'P-4H-M' : 'Prev 4H Mid'
+
+var pmonhtext = GlobalTextType or MondayTextType ? 'MDAY-H' : 'Monday High'
+var pmonltext = GlobalTextType or MondayTextType ? 'MDAY-L' : 'Monday Low'
+var pmonmtext = GlobalTextType or MondayTextType ? 'MDAY-M' : 'Monday Mid'
+
+var lhtext = GlobalTextType or SessionTextType ? 'Lon-H' : 'London High'
+var lltext = GlobalTextType or SessionTextType ? 'Lon-L' : 'London Low'
+var lotext = GlobalTextType or SessionTextType ? 'Lon-O' : 'London Open'
+
+var ushtext = GlobalTextType or SessionTextType ? 'NY-H' : 'New York High'
+var usltext = GlobalTextType or SessionTextType ? 'NY-L' : 'New York Low'
+var usotext = GlobalTextType or SessionTextType ? 'NY-O' : 'New York Open'
+
+var asiahtext = GlobalTextType or SessionTextType ? 'AS-H' : 'Asia High'
+var asialtext = GlobalTextType or SessionTextType ? 'AS-L' : 'Asia Low'
+var asiaotext = GlobalTextType or SessionTextType ? 'AS-O' : 'Asia Open'
+
+if globalcoloring == true
+    DailyColor := GlobalColor
+    MondayColor := GlobalColor
+    WeeklyColor := GlobalColor
+    MonthlyColor := GlobalColor
+    YearlyColor := GlobalColor
+    quarterlyColor := GlobalColor
+    IntraColor := GlobalColor
+    LondonColor := GlobalColor
+    USColor := GlobalColor
+    AsiaColor := GlobalColor
+
+if weekly_time != weekly_time[1]
+    untested_monday := false
+
+if is_monday_enabled == true and untested_monday == false
+    untested_monday := true
+    monday_time := daily_time
+    monday_high := cdailyh_open
+    monday_low  := cdailyl_open
+
+linewidthint = 1
+if linesize == 'Small'
+    linewidthint := 1
+if linesize == 'Medium'
+    linewidthint := 2
+if linesize == 'Large'
+    linewidthint := 3
+
+var DEFAULT_LINE_WIDTH = linewidthint
+var DEFAULT_TAIL_WIDTH = linewidthint
+
+fontsize = size.small
+if labelsize == 'Small'
+    fontsize := size.small
+if labelsize == 'Medium'
+    fontsize := size.normal
+if labelsize == 'Large'
+    fontsize := size.large
+
+linestyles = line.style_solid
+if linestyle == 'Dashed'
+    linestyles := line.style_dashed
+if linestyle == 'Dotted'
+    linestyles := line.style_dotted
+
+var DEFAULT_LABEL_SIZE   = fontsize
+var DEFAULT_LABEL_STYLE  = label.style_none
+var DEFAULT_EXTEND_RIGHT = distanceright
+
+// PORT DELTA 5: source wrote `London = time(...)` (an int series) and then
+// `if London`. v5 relied on the int->bool coercion where na = false. Made
+// explicit so v6 cannot reinterpret it. Provably identical: time() returns
+// the bar time inside the session and na outside it.
+bool London = not na(time(timeframe.period, Londont))
+bool US     = not na(time(timeframe.period, USt))
+bool Asia   = not na(time(timeframe.period, Asiat))
+
+var clondonhigh = 0.0
+var clondonlow  = close
+var londontime  = time
+var flondonhigh = 0.0
+var flondonlow  = 0.0
+var flondonopen = 0.0
+var onelondonfalse = false
+if London
+    if high > clondonhigh
+        clondonhigh := high
+    if low < clondonlow
+        clondonlow := low
+    if onelondonfalse
+        londontime := time
+        flondonopen := open
+    flondonhigh := clondonhigh
+    flondonlow := clondonlow
+    onelondonfalse := false
+else
+    if onelondonfalse == false
+        flondonhigh := clondonhigh
+        flondonlow := clondonlow
+    onelondonfalse := true
+    clondonhigh := 0.0
+    clondonlow := close
+
+var cushigh = 0.0
+var cuslow  = close
+var ustime  = time
+var fushigh = 0.0
+var fuslow  = 0.0
+var fusopen = 0.0
+var oneusfalse = false
+if US
+    if high > cushigh
+        cushigh := high
+    if low < cuslow
+        cuslow := low
+    if oneusfalse
+        ustime := time
+        fusopen := open
+    fushigh := cushigh
+    fuslow := cuslow
+    oneusfalse := false
+else
+    if oneusfalse == false
+        fushigh := cushigh
+        fuslow := cuslow
+    oneusfalse := true
+    cushigh := 0.0
+    cuslow := close
+
+var casiahigh = 0.0
+var casialow  = close
+var asiatime  = time
+var fasiahigh = 0.0
+var fasialow  = 0.0
+var fasiaopen = 0.0
+var oneasiafalse = false
+if Asia
+    if high > casiahigh
+        casiahigh := high
+    if low < casialow
+        casialow := low
+    if oneasiafalse
+        asiatime := time
+        fasiaopen := open
+    fasiahigh := casiahigh
+    fasialow := casialow
+    oneasiafalse := false
+else
+    if oneasiafalse == false
+        fasiahigh := casiahigh
+        fasialow := casialow
+    oneasiafalse := true
+    casiahigh := 0.0
+    casialow := close
+
+// ── level export (PORT ADDITION — drawing untouched) ─────────────────
+// Every enabled level is pushed here EVERY bar, so host trade logic can
+// use the exact same numbers the chart is drawing. Cleared each bar.
+var klPrices = array.new_float(0)
+var klNames  = array.new_string(0)
+// PORT DELTA 5 (BUG-024): the yearly high/low are requested for the CURRENT
+// 12M period with lookahead_on, so on a historical bar they return the
+// completed year's extreme -- future information. Harmless for DRAWING (live
+// has no future, and these are deliberately the running-year range, unlike
+// every other timeframe which shows the PREVIOUS period). But they must not
+// reach trade logic, so their export is gated OFF by default. Turn it on only
+// for a live/forward run, never for a backtest.
+kl_export_yearly = input.bool(false, "KL Export yearly H/L/mid to klPrices (BACKTEST-UNSAFE)", group="KL Levels")
+
+f_klPush(bool on, float px, string nm) =>
+    if on and not na(px)
+        array.push(klPrices, px)
+        array.push(klNames, nm)
+
+array.clear(klPrices)
+array.clear(klNames)
+f_klPush(is_daily_enabled, daily_open, dotext)
+f_klPush(is_dailyrange_enabled, dailyh_open, pdhtext)
+f_klPush(is_dailyrange_enabled, dailyl_open, pdltext)
+f_klPush(is_dailym_enabled, (dailyh_open + dailyl_open) / 2, pdmtext)
+f_klPush(is_weekly_enabled, weekly_open, wotext)
+f_klPush(is_weeklyrange_enabled, weeklyh_open, pwhtext)
+f_klPush(is_weeklyrange_enabled, weeklyl_open, pwltext)
+f_klPush(is_weekly_mid, (weeklyh_open + weeklyl_open) / 2, pwmtext)
+f_klPush(is_monthly_enabled, monthly_open, motext)
+f_klPush(is_monthlyrange_enabled, monthlyh_open, pmhtext)
+f_klPush(is_monthlyrange_enabled, monthlyl_open, pmltext)
+f_klPush(is_monthly_mid, (monthlyh_open + monthlyl_open) / 2, pmmtext)
+f_klPush(is_quarterly_enabled, quarterly_open, qotext)
+f_klPush(is_quarterlyrange_enabled, quarterlyh_open, pqhtext)
+f_klPush(is_quarterlyrange_enabled, quarterlyl_open, pqltext)
+f_klPush(is_quarterly_mid, (quarterlyh_open + quarterlyl_open) / 2, pqmtext)
+f_klPush(is_yearly_enabled, yearly_open, yotext)
+f_klPush(is_yearlyrange_enabled and kl_export_yearly, yearlyh_open, cyhtext)
+f_klPush(is_yearlyrange_enabled and kl_export_yearly, yearlyl_open, cyltext)
+f_klPush(is_yearly_mid and kl_export_yearly, (yearlyh_open + yearlyl_open) / 2, cymtext)
+f_klPush(is_intra_enabled, intra_open, iotext)
+f_klPush(is_intrarange_enabled, intrah_open, pihtext)
+f_klPush(is_intrarange_enabled, intral_open, piltext)
+f_klPush(is_intram_enabled, (intrah_open + intral_open) / 2, pimtext)
+f_klPush(is_monday_enabled, monday_high, pmonhtext)
+f_klPush(is_monday_enabled, monday_low, pmonltext)
+f_klPush(is_monday_mid, (monday_high + monday_low) / 2, pmonmtext)
+f_klPush(is_londonrange_enabled, flondonhigh, lhtext)
+f_klPush(is_londonrange_enabled, flondonlow, lltext)
+f_klPush(is_londonrange_enabled, flondonopen, lotext)
+f_klPush(is_usrange_enabled, fushigh, ushtext)
+f_klPush(is_usrange_enabled, fuslow, usltext)
+f_klPush(is_usrange_enabled, fusopen, usotext)
+f_klPush(is_asiarange_enabled, fasiahigh, asiahtext)
+f_klPush(is_asiarange_enabled, fasialow, asialtext)
+f_klPush(is_asiarange_enabled, fasiaopen, asiaotext)
+
+// ── drawing (VERBATIM from source) ───────────────────────────────────
+var pricearray = array.new_float(0)
+var labelarray = array.new_label(0)
+f_LevelMerge(pricearray, labelarray, currentprice, currentlabel, currentcolor) =>
+    if array.includes(pricearray, currentprice)
+        whichindex = array.indexof(pricearray, currentprice)
+        labelhold = array.get(labelarray, whichindex)
+        whichtext = label.get_text(labelhold)
+        label.set_text(labelhold, label.get_text(currentlabel) + ' / ' + whichtext)
+        label.set_text(currentlabel, '')
+        label.set_textcolor(labelhold, currentcolor)
+    else
+        array.push(pricearray, currentprice)
+        array.push(labelarray, currentlabel)
+
+var can_show_daily   = is_daily_enabled and timeframe.isintraday
+var can_show_weekly  = is_weekly_enabled and not timeframe.isweekly and not timeframe.ismonthly
+var can_show_monthly = is_monthly_enabled and not timeframe.ismonthly
+
+get_limit_right(bars) =>
+    timenow + (time - time[1]) * bars
+
+if barstate.islast
+    is_weekly_open  = dayofweek == dayofweek.monday
+    is_monthly_open = dayofmonth == 1
+    can_draw_daily  = (is_weekly_enabled ? not is_weekly_open : true) and (is_monthly_enabled ? not is_monthly_open : true)
+    can_draw_weekly = is_monthly_enabled ? not (is_monthly_open and is_weekly_open) : true
+    can_draw_intra  = is_intra_enabled
+    can_draw_intrah = is_intrarange_enabled
+    can_draw_intral = is_intrarange_enabled
+    can_draw_intram = is_intram_enabled
+    pricearray := array.new_float(0)
+    labelarray := array.new_label(0)
+
+    if is_londonrange_enabled
+        london_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            londontime := get_limit_right(radistance)
+        var londonh_line  = line.new(x1=londontime, x2=london_limit_right, y1=flondonhigh, y2=flondonhigh, color=LondonColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var londonl_line  = line.new(x1=londontime, x2=london_limit_right, y1=flondonlow, y2=flondonlow, color=LondonColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var londono_line  = line.new(x1=londontime, x2=london_limit_right, y1=flondonopen, y2=flondonopen, color=LondonColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var londonh_label = label.new(x=london_limit_right, y=flondonhigh, text=lhtext, style=DEFAULT_LABEL_STYLE, textcolor=LondonColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        var londonl_label = label.new(x=london_limit_right, y=flondonlow, text=lltext, style=DEFAULT_LABEL_STYLE, textcolor=LondonColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        var londono_label = label.new(x=london_limit_right, y=flondonopen, text=lotext, style=DEFAULT_LABEL_STYLE, textcolor=LondonColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(londonh_line, londontime)
+        line.set_x2(londonh_line, london_limit_right)
+        line.set_y1(londonh_line, flondonhigh)
+        line.set_y2(londonh_line, flondonhigh)
+        line.set_x1(londonl_line, londontime)
+        line.set_x2(londonl_line, london_limit_right)
+        line.set_y1(londonl_line, flondonlow)
+        line.set_y2(londonl_line, flondonlow)
+        line.set_x1(londono_line, londontime)
+        line.set_x2(londono_line, london_limit_right)
+        line.set_y1(londono_line, flondonopen)
+        line.set_y2(londono_line, flondonopen)
+        label.set_x(londonh_label, london_limit_right)
+        label.set_y(londonh_label, flondonhigh)
+        label.set_text(londonh_label, lhtext)
+        label.set_x(londonl_label, london_limit_right)
+        label.set_y(londonl_label, flondonlow)
+        label.set_text(londonl_label, lltext)
+        label.set_x(londono_label, london_limit_right)
+        label.set_y(londono_label, flondonopen)
+        label.set_text(londono_label, lotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, flondonhigh, londonh_label, LondonColor)
+            f_LevelMerge(pricearray, labelarray, flondonlow, londonl_label, LondonColor)
+            f_LevelMerge(pricearray, labelarray, flondonopen, londono_label, LondonColor)
+
+    if is_usrange_enabled
+        us_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            ustime := get_limit_right(radistance)
+        var ush_line  = line.new(x1=ustime, x2=us_limit_right, y1=fushigh, y2=fushigh, color=USColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var usl_line  = line.new(x1=ustime, x2=us_limit_right, y1=fuslow, y2=fuslow, color=USColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var uso_line  = line.new(x1=ustime, x2=us_limit_right, y1=fusopen, y2=fusopen, color=USColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var ush_label = label.new(x=us_limit_right, y=fushigh, text=lhtext, style=DEFAULT_LABEL_STYLE, textcolor=USColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        var usl_label = label.new(x=us_limit_right, y=fuslow, text=lltext, style=DEFAULT_LABEL_STYLE, textcolor=USColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        var uso_label = label.new(x=us_limit_right, y=fusopen, text=lotext, style=DEFAULT_LABEL_STYLE, textcolor=USColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(ush_line, ustime)
+        line.set_x2(ush_line, us_limit_right)
+        line.set_y1(ush_line, fushigh)
+        line.set_y2(ush_line, fushigh)
+        line.set_x1(usl_line, ustime)
+        line.set_x2(usl_line, us_limit_right)
+        line.set_y1(usl_line, fuslow)
+        line.set_y2(usl_line, fuslow)
+        line.set_x1(uso_line, ustime)
+        line.set_x2(uso_line, us_limit_right)
+        line.set_y1(uso_line, fusopen)
+        line.set_y2(uso_line, fusopen)
+        label.set_x(ush_label, us_limit_right)
+        label.set_y(ush_label, fushigh)
+        label.set_text(ush_label, ushtext)
+        label.set_x(usl_label, us_limit_right)
+        label.set_y(usl_label, fuslow)
+        label.set_text(usl_label, usltext)
+        label.set_x(uso_label, us_limit_right)
+        label.set_y(uso_label, fusopen)
+        label.set_text(uso_label, usotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, fushigh, ush_label, USColor)
+            f_LevelMerge(pricearray, labelarray, fuslow, usl_label, USColor)
+            f_LevelMerge(pricearray, labelarray, fusopen, uso_label, USColor)
+
+    if is_asiarange_enabled
+        asia_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            asiatime := get_limit_right(radistance)
+        var asiah_line  = line.new(x1=asiatime, x2=asia_limit_right, y1=fasiahigh, y2=fasiahigh, color=AsiaColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var asial_line  = line.new(x1=asiatime, x2=asia_limit_right, y1=fasialow, y2=fasialow, color=AsiaColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var asiao_line  = line.new(x1=asiatime, x2=asia_limit_right, y1=fasiaopen, y2=fasiaopen, color=AsiaColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var asiah_label = label.new(x=asia_limit_right, y=fasiahigh, text=asiahtext, style=DEFAULT_LABEL_STYLE, textcolor=AsiaColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        var asial_label = label.new(x=asia_limit_right, y=fasialow, text=asialtext, style=DEFAULT_LABEL_STYLE, textcolor=AsiaColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        var asiao_label = label.new(x=asia_limit_right, y=fasiaopen, text=asiaotext, style=DEFAULT_LABEL_STYLE, textcolor=AsiaColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(asiah_line, asiatime)
+        line.set_x2(asiah_line, asia_limit_right)
+        line.set_y1(asiah_line, fasiahigh)
+        line.set_y2(asiah_line, fasiahigh)
+        line.set_x1(asial_line, asiatime)
+        line.set_x2(asial_line, asia_limit_right)
+        line.set_y1(asial_line, fasialow)
+        line.set_y2(asial_line, fasialow)
+        line.set_x1(asiao_line, asiatime)
+        line.set_x2(asiao_line, asia_limit_right)
+        line.set_y1(asiao_line, fasiaopen)
+        line.set_y2(asiao_line, fasiaopen)
+        label.set_x(asiah_label, asia_limit_right)
+        label.set_y(asiah_label, fasiahigh)
+        label.set_text(asiah_label, asiahtext)
+        label.set_x(asial_label, asia_limit_right)
+        label.set_y(asial_label, fasialow)
+        label.set_text(asial_label, asialtext)
+        label.set_x(asiao_label, asia_limit_right)
+        label.set_y(asiao_label, fasiaopen)
+        label.set_text(asiao_label, asiaotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, fasiahigh, asiah_label, AsiaColor)
+            f_LevelMerge(pricearray, labelarray, fasialow, asial_label, AsiaColor)
+            f_LevelMerge(pricearray, labelarray, fasiaopen, asiao_label, AsiaColor)
+
+    if can_draw_intra
+        intra_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            intra_time := get_limit_right(radistance)
+        var intra_line  = line.new(x1=intra_time, x2=intra_limit_right, y1=intra_open, y2=intra_open, color=IntraColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var intra_label = label.new(x=intra_limit_right, y=intra_open, text=iotext, style=DEFAULT_LABEL_STYLE, textcolor=IntraColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(intra_line, intra_time)
+        line.set_x2(intra_line, intra_limit_right)
+        line.set_y1(intra_line, intra_open)
+        line.set_y2(intra_line, intra_open)
+        label.set_x(intra_label, intra_limit_right)
+        label.set_y(intra_label, intra_open)
+        label.set_text(intra_label, iotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, intra_open, intra_label, IntraColor)
+
+    if can_draw_intrah
+        intrah_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            intrah_time := get_limit_right(radistance)
+        var intrah_line  = line.new(x1=intrah_time, x2=intrah_limit_right, y1=intrah_open, y2=intrah_open, color=IntraColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var intrah_label = label.new(x=intrah_limit_right, y=intrah_open, text=pihtext, style=DEFAULT_LABEL_STYLE, textcolor=IntraColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(intrah_line, intrah_time)
+        line.set_x2(intrah_line, intrah_limit_right)
+        line.set_y1(intrah_line, intrah_open)
+        line.set_y2(intrah_line, intrah_open)
+        label.set_x(intrah_label, intrah_limit_right)
+        label.set_y(intrah_label, intrah_open)
+        label.set_text(intrah_label, pihtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, intrah_open, intrah_label, IntraColor)
+
+    if can_draw_intral
+        intral_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            intral_time := get_limit_right(radistance)
+        var intral_line  = line.new(x1=intral_time, x2=intral_limit_right, y1=intral_open, y2=intral_open, color=IntraColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var intral_label = label.new(x=intral_limit_right, y=intral_open, text=piltext, style=DEFAULT_LABEL_STYLE, textcolor=IntraColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(intral_line, intral_time)
+        line.set_x2(intral_line, intral_limit_right)
+        line.set_y1(intral_line, intral_open)
+        line.set_y2(intral_line, intral_open)
+        label.set_x(intral_label, intral_limit_right)
+        label.set_y(intral_label, intral_open)
+        label.set_text(intral_label, piltext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, intral_open, intral_label, IntraColor)
+
+    if can_draw_intram
+        intram_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        intram_time = intrah_time
+        intram_open = (intral_open + intrah_open) / 2
+        if displayStyle == 'Right Anchored'
+            intram_time := get_limit_right(radistance)
+        var intram_line  = line.new(x1=intram_time, x2=intram_limit_right, y1=intram_open, y2=intram_open, color=IntraColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var intram_label = label.new(x=intram_limit_right, y=intram_open, text=pimtext, style=DEFAULT_LABEL_STYLE, textcolor=IntraColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(intram_line, intram_time)
+        line.set_x2(intram_line, intram_limit_right)
+        line.set_y1(intram_line, intram_open)
+        line.set_y2(intram_line, intram_open)
+        label.set_x(intram_label, intram_limit_right)
+        label.set_y(intram_label, intram_open)
+        label.set_text(intram_label, pimtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, intram_open, intram_label, IntraColor)
+
+    if is_monday_enabled
+        monday_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            monday_time := get_limit_right(radistance)
+        var monday_line  = line.new(x1=monday_time, x2=monday_limit_right, y1=monday_high, y2=monday_high, color=MondayColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var monday_label = label.new(x=monday_limit_right, y=monday_high, text=pmonhtext, style=DEFAULT_LABEL_STYLE, textcolor=MondayColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(monday_line, monday_time)
+        line.set_x2(monday_line, monday_limit_right)
+        line.set_y1(monday_line, monday_high)
+        line.set_y2(monday_line, monday_high)
+        label.set_x(monday_label, monday_limit_right)
+        label.set_y(monday_label, monday_high)
+        label.set_text(monday_label, pmonhtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, monday_high, monday_label, MondayColor)
+
+    if is_monday_enabled
+        monday_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            monday_time := get_limit_right(radistance)
+        var monday_low_line  = line.new(x1=monday_time, x2=monday_limit_right, y1=monday_low, y2=monday_low, color=MondayColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var monday_low_label = label.new(x=monday_limit_right, y=monday_low, text=pmonltext, style=DEFAULT_LABEL_STYLE, textcolor=MondayColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(monday_low_line, monday_time)
+        line.set_x2(monday_low_line, monday_limit_right)
+        line.set_y1(monday_low_line, monday_low)
+        line.set_y2(monday_low_line, monday_low)
+        label.set_x(monday_low_label, monday_limit_right)
+        label.set_y(monday_low_label, monday_low)
+        label.set_text(monday_low_label, pmonltext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, monday_low, monday_low_label, MondayColor)
+
+    if is_monday_mid
+        mondaym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        mondaym_open = (monday_high + monday_low) / 2
+        if displayStyle == 'Right Anchored'
+            monday_time := get_limit_right(radistance)
+        var mondaym_line  = line.new(x1=monday_time, x2=mondaym_limit_right, y1=mondaym_open, y2=mondaym_open, color=MondayColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var mondaym_label = label.new(x=mondaym_limit_right, y=mondaym_open, text=pmonmtext, style=DEFAULT_LABEL_STYLE, textcolor=MondayColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(mondaym_line, monday_time)
+        line.set_x2(mondaym_line, mondaym_limit_right)
+        line.set_y1(mondaym_line, mondaym_open)
+        line.set_y2(mondaym_line, mondaym_open)
+        label.set_x(mondaym_label, mondaym_limit_right)
+        label.set_y(mondaym_label, mondaym_open)
+        label.set_text(mondaym_label, pmonmtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, mondaym_open, mondaym_label, MondayColor)
+
+    if is_daily_enabled
+        daily_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            daily_time := get_limit_right(radistance)
+        var daily_line  = line.new(x1=daily_time, x2=daily_limit_right, y1=daily_open, y2=daily_open, color=DailyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var daily_label = label.new(x=daily_limit_right, y=daily_open, text=dotext, style=DEFAULT_LABEL_STYLE, textcolor=DailyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(daily_line, daily_time)
+        line.set_x2(daily_line, daily_limit_right)
+        line.set_y1(daily_line, daily_open)
+        line.set_y2(daily_line, daily_open)
+        label.set_x(daily_label, daily_limit_right)
+        label.set_y(daily_label, daily_open)
+        label.set_text(daily_label, dotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, daily_open, daily_label, DailyColor)
+
+    if is_dailyrange_enabled
+        dailyh_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            dailyh_time := get_limit_right(radistance)
+        var dailyh_line  = line.new(x1=dailyh_time, x2=dailyh_limit_right, y1=dailyh_open, y2=dailyh_open, color=DailyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var dailyh_label = label.new(x=dailyh_limit_right, y=dailyh_open, text=pdhtext, style=DEFAULT_LABEL_STYLE, textcolor=DailyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(dailyh_line, dailyh_time)
+        line.set_x2(dailyh_line, dailyh_limit_right)
+        line.set_y1(dailyh_line, dailyh_open)
+        line.set_y2(dailyh_line, dailyh_open)
+        label.set_x(dailyh_label, dailyh_limit_right)
+        label.set_y(dailyh_label, dailyh_open)
+        label.set_text(dailyh_label, pdhtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, dailyh_open, dailyh_label, DailyColor)
+
+    if is_dailyrange_enabled
+        dailyl_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            dailyl_time := get_limit_right(radistance)
+        var dailyl_line  = line.new(x1=dailyl_time, x2=dailyl_limit_right, y1=dailyl_open, y2=dailyl_open, color=DailyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var dailyl_label = label.new(x=dailyl_limit_right, y=dailyl_open, text=pdltext, style=DEFAULT_LABEL_STYLE, textcolor=DailyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(dailyl_line, dailyl_time)
+        line.set_x2(dailyl_line, dailyl_limit_right)
+        line.set_y1(dailyl_line, dailyl_open)
+        line.set_y2(dailyl_line, dailyl_open)
+        label.set_x(dailyl_label, dailyl_limit_right)
+        label.set_y(dailyl_label, dailyl_open)
+        label.set_text(dailyl_label, pdltext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, dailyl_open, dailyl_label, DailyColor)
+
+    if is_dailym_enabled
+        dailym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        dailym_time = dailyh_time
+        dailym_open = (dailyl_open + dailyh_open) / 2
+        if displayStyle == 'Right Anchored'
+            dailym_time := get_limit_right(radistance)
+        var dailym_line  = line.new(x1=dailym_time, x2=dailym_limit_right, y1=dailym_open, y2=dailym_open, color=DailyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var dailym_label = label.new(x=dailym_limit_right, y=dailym_open, text=pdmtext, style=DEFAULT_LABEL_STYLE, textcolor=DailyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(dailym_line, dailym_time)
+        line.set_x2(dailym_line, dailym_limit_right)
+        line.set_y1(dailym_line, dailym_open)
+        line.set_y2(dailym_line, dailym_open)
+        label.set_x(dailym_label, dailym_limit_right)
+        label.set_y(dailym_label, dailym_open)
+        label.set_text(dailym_label, pdmtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, dailym_open, dailym_label, DailyColor)
+
+    if is_weekly_enabled
+        weekly_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        cweekly_time = weekly_time
+        if displayStyle == 'Right Anchored'
+            cweekly_time := get_limit_right(radistance)
+        var weekly_line  = line.new(x1=cweekly_time, x2=weekly_limit_right, y1=weekly_open, y2=weekly_open, color=WeeklyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var weekly_label = label.new(x=weekly_limit_right, y=weekly_open, text=wotext, style=DEFAULT_LABEL_STYLE, textcolor=WeeklyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(weekly_line, cweekly_time)
+        line.set_x2(weekly_line, weekly_limit_right)
+        line.set_y1(weekly_line, weekly_open)
+        line.set_y2(weekly_line, weekly_open)
+        label.set_x(weekly_label, weekly_limit_right)
+        label.set_y(weekly_label, weekly_open)
+        label.set_text(weekly_label, wotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, weekly_open, weekly_label, WeeklyColor)
+
+    if is_weeklyrange_enabled
+        weeklyh_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            weeklyh_time := get_limit_right(radistance)
+        var weeklyh_line  = line.new(x1=weeklyh_time, x2=weeklyh_limit_right, y1=weeklyh_open, y2=weeklyh_open, color=WeeklyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var weeklyh_label = label.new(x=weeklyh_limit_right, y=weeklyh_open, text=pwhtext, style=DEFAULT_LABEL_STYLE, textcolor=WeeklyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(weeklyh_line, weeklyh_time)
+        line.set_x2(weeklyh_line, weeklyh_limit_right)
+        line.set_y1(weeklyh_line, weeklyh_open)
+        line.set_y2(weeklyh_line, weeklyh_open)
+        label.set_x(weeklyh_label, weeklyh_limit_right)
+        label.set_y(weeklyh_label, weeklyh_open)
+        label.set_text(weeklyh_label, pwhtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, weeklyh_open, weeklyh_label, WeeklyColor)
+
+    if is_weeklyrange_enabled
+        weeklyl_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            weeklyl_time := get_limit_right(radistance)
+        var weeklyl_line  = line.new(x1=weeklyl_time, x2=weeklyl_limit_right, y1=weekly_open, y2=weekly_open, color=WeeklyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var weeklyl_label = label.new(x=weeklyl_limit_right, y=weeklyl_open, text=pwltext, style=DEFAULT_LABEL_STYLE, textcolor=WeeklyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(weeklyl_line, weeklyl_time)
+        line.set_x2(weeklyl_line, weeklyl_limit_right)
+        line.set_y1(weeklyl_line, weeklyl_open)
+        line.set_y2(weeklyl_line, weeklyl_open)
+        label.set_x(weeklyl_label, weeklyl_limit_right)
+        label.set_y(weeklyl_label, weeklyl_open)
+        label.set_text(weeklyl_label, pwltext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, weeklyl_open, weeklyl_label, WeeklyColor)
+
+    if is_weekly_mid
+        weeklym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        weeklym_time = weeklyh_time
+        weeklym_open = (weeklyl_open + weeklyh_open) / 2
+        if displayStyle == 'Right Anchored'
+            weeklym_time := get_limit_right(radistance)
+        var weeklym_line  = line.new(x1=weeklym_time, x2=weeklym_limit_right, y1=weeklym_open, y2=weeklym_open, color=WeeklyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var weeklym_label = label.new(x=weeklym_limit_right, y=weeklym_open, text=pwmtext, style=DEFAULT_LABEL_STYLE, textcolor=WeeklyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(weeklym_line, weeklym_time)
+        line.set_x2(weeklym_line, weeklym_limit_right)
+        line.set_y1(weeklym_line, weeklym_open)
+        line.set_y2(weeklym_line, weeklym_open)
+        label.set_x(weeklym_label, weeklym_limit_right)
+        label.set_y(weeklym_label, weeklym_open)
+        label.set_text(weeklym_label, pwmtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, weeklym_open, weeklym_label, WeeklyColor)
+
+    if is_yearlyrange_enabled
+        yearlyl_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            yearlyl_time := get_limit_right(radistance)
+        var yearlyl_line  = line.new(x1=yearlyl_time, x2=yearlyl_limit_right, y1=yearlyl_open, y2=yearlyl_open, color=YearlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var yearlyl_label = label.new(x=yearlyl_limit_right, y=yearlyl_open, text=cyltext, style=DEFAULT_LABEL_STYLE, textcolor=YearlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(yearlyl_line, yearlyl_time)
+        line.set_x2(yearlyl_line, yearlyl_limit_right)
+        line.set_y1(yearlyl_line, yearlyl_open)
+        line.set_y2(yearlyl_line, yearlyl_open)
+        label.set_x(yearlyl_label, yearlyl_limit_right)
+        label.set_y(yearlyl_label, yearlyl_open)
+        label.set_text(yearlyl_label, cyltext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, yearlyl_open, yearlyl_label, YearlyColor)
+
+    if is_yearlyrange_enabled
+        yearlyh_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            yearlyh_time := get_limit_right(radistance)
+        var yearlyh_line  = line.new(x1=yearlyh_time, x2=yearlyh_limit_right, y1=yearlyh_open, y2=yearlyh_open, color=YearlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var yearlyh_label = label.new(x=yearlyh_limit_right, y=yearlyh_open, text=cyhtext, style=DEFAULT_LABEL_STYLE, textcolor=YearlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(yearlyh_line, yearlyh_time)
+        line.set_x2(yearlyh_line, yearlyh_limit_right)
+        line.set_y1(yearlyh_line, yearlyh_open)
+        line.set_y2(yearlyh_line, yearlyh_open)
+        label.set_x(yearlyh_label, yearlyh_limit_right)
+        label.set_y(yearlyh_label, yearlyh_open)
+        label.set_text(yearlyh_label, cyhtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, yearlyh_open, yearlyh_label, YearlyColor)
+
+    if is_yearly_enabled
+        yearly_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            yearly_time := get_limit_right(radistance)
+        var yearly_line  = line.new(x1=yearly_time, x2=yearly_limit_right, y1=yearly_open, y2=yearly_open, color=YearlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var yearly_label = label.new(x=yearly_limit_right, y=yearly_open, text=yotext, style=DEFAULT_LABEL_STYLE, textcolor=YearlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(yearly_line, yearly_time)
+        line.set_x2(yearly_line, yearly_limit_right)
+        line.set_y1(yearly_line, yearly_open)
+        line.set_y2(yearly_line, yearly_open)
+        label.set_x(yearly_label, yearly_limit_right)
+        label.set_y(yearly_label, yearly_open)
+        label.set_text(yearly_label, yotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, yearly_open, yearly_label, YearlyColor)
+
+    if is_yearly_mid
+        yearlym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        yearlym_time = yearlyh_time
+        yearlym_open = (yearlyl_open + yearlyh_open) / 2
+        if displayStyle == 'Right Anchored'
+            yearlym_time := get_limit_right(radistance)
+        var yearlym_line  = line.new(x1=yearlym_time, x2=yearlym_limit_right, y1=yearlym_open, y2=yearlym_open, color=YearlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var yearlym_label = label.new(x=yearlym_limit_right, y=yearlym_open, text=cymtext, style=DEFAULT_LABEL_STYLE, textcolor=YearlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(yearlym_line, yearlym_time)
+        line.set_x2(yearlym_line, yearlym_limit_right)
+        line.set_y1(yearlym_line, yearlym_open)
+        line.set_y2(yearlym_line, yearlym_open)
+        label.set_x(yearlym_label, yearlym_limit_right)
+        label.set_y(yearlym_label, yearlym_open)
+        label.set_text(yearlym_label, cymtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, yearlym_open, yearlym_label, YearlyColor)
+
+    if is_quarterly_enabled
+        quarterly_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            quarterly_time := get_limit_right(radistance)
+        var quarterly_line  = line.new(x1=quarterly_time, x2=quarterly_limit_right, y1=quarterly_open, y2=quarterly_open, color=quarterlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var quarterly_label = label.new(x=quarterly_limit_right, y=quarterly_open, text=qotext, style=DEFAULT_LABEL_STYLE, textcolor=quarterlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(quarterly_line, quarterly_time)
+        line.set_x2(quarterly_line, quarterly_limit_right)
+        line.set_y1(quarterly_line, quarterly_open)
+        line.set_y2(quarterly_line, quarterly_open)
+        label.set_x(quarterly_label, quarterly_limit_right)
+        label.set_y(quarterly_label, quarterly_open)
+        label.set_text(quarterly_label, qotext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, quarterly_open, quarterly_label, quarterlyColor)
+
+    if is_quarterlyrange_enabled
+        quarterlyh_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            quarterlyh_time := get_limit_right(radistance)
+        var quarterlyh_line  = line.new(x1=quarterlyh_time, x2=quarterlyh_limit_right, y1=quarterlyh_open, y2=quarterlyh_open, color=quarterlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var quarterlyh_label = label.new(x=quarterlyh_limit_right, y=quarterlyh_open, text=pqhtext, style=DEFAULT_LABEL_STYLE, textcolor=quarterlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(quarterlyh_line, quarterlyh_time)
+        line.set_x2(quarterlyh_line, quarterlyh_limit_right)
+        line.set_y1(quarterlyh_line, quarterlyh_open)
+        line.set_y2(quarterlyh_line, quarterlyh_open)
+        label.set_x(quarterlyh_label, quarterlyh_limit_right)
+        label.set_y(quarterlyh_label, quarterlyh_open)
+        label.set_text(quarterlyh_label, pqhtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, quarterlyh_open, quarterlyh_label, quarterlyColor)
+
+    if is_quarterlyrange_enabled
+        quarterlyl_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            quarterlyl_time := get_limit_right(radistance)
+        var quarterlyl_line  = line.new(x1=quarterlyl_time, x2=quarterlyl_limit_right, y1=quarterlyl_open, y2=quarterlyl_open, color=quarterlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var quarterlyl_label = label.new(x=quarterlyl_limit_right, y=quarterlyl_open, text=pqltext, style=DEFAULT_LABEL_STYLE, textcolor=quarterlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(quarterlyl_line, quarterlyl_time)
+        line.set_x2(quarterlyl_line, quarterlyl_limit_right)
+        line.set_y1(quarterlyl_line, quarterlyl_open)
+        line.set_y2(quarterlyl_line, quarterlyl_open)
+        label.set_x(quarterlyl_label, quarterlyl_limit_right)
+        label.set_y(quarterlyl_label, quarterlyl_open)
+        label.set_text(quarterlyl_label, pqltext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, quarterlyl_open, quarterlyl_label, quarterlyColor)
+
+    if is_quarterly_mid
+        quarterlym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        quarterlym_time = quarterlyh_time
+        quarterlym_open = (quarterlyl_open + quarterlyh_open) / 2
+        if displayStyle == 'Right Anchored'
+            quarterlym_time := get_limit_right(radistance)
+        var quarterlym_line  = line.new(x1=quarterlym_time, x2=quarterlym_limit_right, y1=quarterlym_open, y2=quarterlym_open, color=quarterlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var quarterlym_label = label.new(x=quarterlym_limit_right, y=quarterlym_open, text=pqmtext, style=DEFAULT_LABEL_STYLE, textcolor=quarterlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(quarterlym_line, quarterlym_time)
+        line.set_x2(quarterlym_line, quarterlym_limit_right)
+        line.set_y1(quarterlym_line, quarterlym_open)
+        line.set_y2(quarterlym_line, quarterlym_open)
+        label.set_x(quarterlym_label, quarterlym_limit_right)
+        label.set_y(quarterlym_label, quarterlym_open)
+        label.set_text(quarterlym_label, pqmtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, quarterlym_open, quarterlym_label, quarterlyColor)
+
+    if is_monthlyrange_enabled
+        monthlyl_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            monthlyl_time := get_limit_right(radistance)
+        var monthlyl_line  = line.new(x1=monthlyl_time, x2=monthlyl_limit_right, y1=monthlyl_open, y2=monthlyl_open, color=MonthlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var monthlyl_label = label.new(x=monthlyl_limit_right, y=monthlyl_open, text=pmltext, style=DEFAULT_LABEL_STYLE, textcolor=MonthlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(monthlyl_line, monthlyl_time)
+        line.set_x2(monthlyl_line, monthlyl_limit_right)
+        line.set_y1(monthlyl_line, monthlyl_open)
+        line.set_y2(monthlyl_line, monthlyl_open)
+        label.set_x(monthlyl_label, monthlyl_limit_right)
+        label.set_y(monthlyl_label, monthlyl_open)
+        label.set_text(monthlyl_label, pmltext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, monthlyl_open, monthlyl_label, MonthlyColor)
+
+    if is_monthlyrange_enabled
+        monthlyh_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            monthlyh_time := get_limit_right(radistance)
+        var monthlyh_line  = line.new(x1=monthlyh_time, x2=monthlyh_limit_right, y1=monthlyh_open, y2=monthlyh_open, color=MonthlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var monthlyh_label = label.new(x=monthlyh_limit_right, y=monthlyh_open, text=pmhtext, style=DEFAULT_LABEL_STYLE, textcolor=MonthlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(monthlyh_line, monthlyl_time)
+        line.set_x2(monthlyh_line, monthlyh_limit_right)
+        line.set_y1(monthlyh_line, monthlyh_open)
+        line.set_y2(monthlyh_line, monthlyh_open)
+        label.set_x(monthlyh_label, monthlyh_limit_right)
+        label.set_y(monthlyh_label, monthlyh_open)
+        label.set_text(monthlyh_label, pmhtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, monthlyh_open, monthlyh_label, MonthlyColor)
+
+    if is_monthly_mid
+        monthlym_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        monthlym_time = monthlyh_time
+        monthlym_open = (monthlyl_open + monthlyh_open) / 2
+        if displayStyle == 'Right Anchored'
+            monthlym_time := get_limit_right(radistance)
+        var monthlym_line  = line.new(x1=monthlym_time, x2=monthlym_limit_right, y1=monthlym_open, y2=monthlym_open, color=MonthlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var monthlym_label = label.new(x=monthlym_limit_right, y=monthlym_open, text=pmmtext, style=DEFAULT_LABEL_STYLE, textcolor=MonthlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(monthlym_line, monthlym_time)
+        line.set_x2(monthlym_line, monthlym_limit_right)
+        line.set_y1(monthlym_line, monthlym_open)
+        line.set_y2(monthlym_line, monthlym_open)
+        label.set_x(monthlym_label, monthlym_limit_right)
+        label.set_y(monthlym_label, monthlym_open)
+        label.set_text(monthlym_label, pmmtext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, monthlym_open, monthlym_label, MonthlyColor)
+
+    if is_monthly_enabled
+        monthly_limit_right = get_limit_right(DEFAULT_EXTEND_RIGHT)
+        if displayStyle == 'Right Anchored'
+            monthly_time := get_limit_right(radistance)
+        var monthlyLine  = line.new(x1=monthly_time, x2=monthly_limit_right, y1=monthly_open, y2=monthly_open, color=MonthlyColor, width=DEFAULT_LINE_WIDTH, xloc=xloc.bar_time, style=linestyles)
+        var monthlyLabel = label.new(x=monthly_limit_right, y=monthly_open, text=motext, style=DEFAULT_LABEL_STYLE, textcolor=MonthlyColor, size=DEFAULT_LABEL_SIZE, xloc=xloc.bar_time)
+        line.set_x1(monthlyLine, monthly_time)
+        line.set_x2(monthlyLine, monthly_limit_right)
+        line.set_y1(monthlyLine, monthly_open)
+        line.set_y2(monthlyLine, monthly_open)
+        label.set_x(monthlyLabel, monthly_limit_right)
+        label.set_y(monthlyLabel, monthly_open)
+        label.set_text(monthlyLabel, motext)
+        if mergebool
+            f_LevelMerge(pricearray, labelarray, monthly_open, monthlyLabel, MonthlyColor)
+        if timeframe.isweekly and dayofweek(monthly_time) != dayofweek.monday
+            line.set_x1(monthlyLine, monthly_time - (weekly_time - weekly_time[1]))
+// ════════════════════ END KEY_LEVELS_MODULE ═════════════════════════
