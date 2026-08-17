@@ -40,3 +40,32 @@ Prose in a registry did not stop BUG-012 recurring, and a memory MCP that
 was never populated meant four months of continuity rested entirely on
 hand-written markdown. Anything that matters gets committed, in git, in the
 session it happens — not summarised later.
+
+
+---
+
+## 2026-08-16 session (added 2026-08-17)
+
+- `05_session_2026-08-16_full.jsonl.gz` — the raw session JSONL, verbatim,
+  388 records, 2026-08-16T00:24:56Z .. 2026-08-17T01:55Z.
+- `06_user_turns_verbatim_2026-08-16.md` — the 13 user turns from it, unedited.
+
+**KNOWN GAP, stated rather than papered over.** This session was compacted
+before the archived range begins. Everything that happened BEFORE
+2026-08-16T00:24:56Z — the delivery of the 10 AM Body Break strategy that
+turned out to be BUG-039, the corpus PDF builds, the quarters-theory
+extraction, the four-trader hybrid work — survives ONLY as the compaction
+summary, which is Turn 1 of the verbatim file. The raw exchange for that
+portion is not on disk and cannot be recovered.
+
+**Images are not recoverable.** The two handwritten note photos and every
+chart screenshot were referenced by upload id, and the uploads directory was
+cleared when the container recycled mid-session. The archive marks them
+`[IMAGE ATTACHED]` and my transcriptions of the two note pages are preserved in
+the assistant turns of the full JSONL, but the images themselves are gone.
+
+**Why this file now exists.** The user asked whether every conversation was
+saved. It was not: distilled knowledge was committed continuously, but the
+conversation itself lived only on ephemeral container disk. Archiving the
+session transcript is now part of the learning-capture rule, not an
+afterthought.
