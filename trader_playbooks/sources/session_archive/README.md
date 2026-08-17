@@ -69,3 +69,41 @@ saved. It was not: distilled knowledge was committed continuously, but the
 conversation itself lived only on ephemeral container disk. Archiving the
 session transcript is now part of the learning-capture rule, not an
 afterthought.
+
+
+---
+
+## 2026-08-17 recovery sweep
+
+The user pushed back that nothing should have been lost. A full sweep of
+container-local disk found material that had never been archived:
+
+- `07_subagent_runs_2026-07-13_to_08-11.md` — 39 subagent runs across roughly a
+  month of prior sessions, each with the task it was given and the result it
+  returned, verbatim. 272 KB.
+- `raw/subagents_2026-07-13_to_08-11.jsonl.xz` — all 1,284 raw records from
+  those 39 transcripts. 68 MB of JSONL compressed to 1.3 MB; every record is
+  present, only base64 image payloads were replaced with a marker.
+- `05_session_2026-08-16_full.jsonl.gz` re-generated at full current length.
+
+Checked and found to contain NO conversation data: `/root/.claude/backups/*`
+(feature flags and account state only), `/root/.claude/sessions/` (key
+material), tool-results directory (empty).
+
+### What is still genuinely unrecoverable
+
+1. **The pre-compaction portion of the 2026-08-16 session.** The main thread
+   JSONL begins at the compaction point. Everything before it survives only as
+   the compaction summary, preserved as Turn 1 of
+   `06_user_turns_verbatim_2026-08-16.md`. The raw exchange is not on disk in
+   any form.
+2. **Uploaded files attached before 2026-08-16 13:30.** The uploads directory
+   was recreated empty at the first container recycle. Price CSVs survived only
+   because copies had been committed to `data/`. The AU200 1-minute file was
+   never committed and is gone. All images — the two handwritten note pages and
+   every chart screenshot — are gone; only my transcriptions of them, in the
+   assistant turns, remain.
+
+Neither gap is recoverable by any means available inside the container. Both
+are consequences of nothing being pushed to git at the time, which is the
+failure the standing rule in CLAUDE.md now prevents.
