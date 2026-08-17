@@ -1400,6 +1400,41 @@ CLAUDE.md to *inbound* material as well as outbound findings.
 Corollary for recovery: the only place "Omar no wick" can still exist is Kush's
 own claude.ai chat history. Re-pasting it is cheaper than any search I can run.
 
+### 2026-08-17 UPDATE — the recovery sweep settles it
+
+The 2026-08-17 archive sweep (base-branch commits 1ebd739, 5a9668e) recovered
+material that did not exist when the search above was run: 39 subagent runs
+spanning 2026-07-13 to 2026-08-11 (`07_subagent_runs_*.md`, 272 KB, plus all
+1,284 raw records in `raw/subagents_*.jsonl.xz`) and the full 2026-08-16
+session JSONL. I searched all of it.
+
+**"omarnowick" occurs exactly once in the entire recovered corpus, and it is
+Kush asking for it, not supplying it:**
+
+> `06_user_turns_verbatim_2026-08-16.md`, Turn 7 — 2026-08-16T09:00:12.381Z
+> *"Give me the omarnowick pine"*
+
+All 13 archived user turns of that session are accounted for: none contains a
+pasted Pine script by that name. The 39 subagent runs contain zero matches for
+`omar`, `no wick`, `nowick` or `wickless`, and zero wick-geometry Pine
+(`upper wick` / `lower wick` / body-ratio) of any kind.
+
+So the request has now been made at least twice — once in that session, once in
+mine — and the supply has never been located in any surviving record. Two named
+gaps in the archive are the only places it could have been supplied and still be
+invisible, and the archive README states both are unrecoverable by any means
+inside the container:
+  1. the pre-compaction portion of the 2026-08-16 session (the main JSONL
+     begins at the compaction point; everything earlier survives only as the
+     compaction summary), and
+  2. uploaded files attached before 2026-08-16 13:30 — the uploads directory
+     was recreated empty at the first container recycle. If the Pine arrived as
+     an attachment rather than pasted text, that is where it went.
+
+**Do not run this search a fourth time.** It has now been run against the
+working tree, full git history, all PDFs, the pre-existing archive, and the
+2026-08-17 recovered corpus. The answer does not change. Ask Kush to re-paste.
+
 
 ## 2026-08-16 (later still) — the written strategy tested. Cost, not concept.
 
