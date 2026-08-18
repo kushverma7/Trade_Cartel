@@ -1,0 +1,143 @@
+//@version=6
+// ════════════════════════════════════════════════════════════════════
+// SESSION DIAGNOSTIC — settles A1 and A2 of research/nq/SPEC.md
+// ════════════════════════════════════════════════════════════════════
+// This prints nothing but FACTS about the chart you run it on. No signals,
+// no opinions. Its only job is to answer, on YOUR data feed:
+//
+//   A1  What is "the day"? On a futures instrument the session runs
+//       18:00-17:00 ET, so "Daily Open" and "PDH/PDL" have two defensible
+//       definitions that give DIFFERENT prices on most days:
+//         futures day  starts 18:00 ET
+//         cash day     starts 09:30 ET
+//       Both are computed and both are drawn. Read the gap between them.
+//       Picking one silently is exactly what produced BUG-039 in this repo:
+//       a level referenced by name that resolved to two different prices,
+//       turning a simulated PF 5.03 into a live PF 0.444.
+//
+//   A2  Where do the sessions actually fall? The defaults below are MINE,
+//       not an industry standard. Change them and watch every level move.
+//
+// It also reports the exchange's own session, the chart timezone, whether
+// the feed carries the overnight book at all, and the DST offset — because
+// a fixed "UTC+10"-style offset ignoring daylight saving is BUG-037 here
+// and it split one rule into two apparent setups for half of every year.
+// ════════════════════════════════════════════════════════════════════
+indicator("Session Diagnostic", overlay = true, max_lines_count = 500, max_labels_count = 500)
+
+tzName  = input.string("America/New_York", "Reference timezone",
+     options = ["America/New_York", "Australia/Melbourne", "Europe/London", "UTC"])
+futOpen = input.int(18 * 60, "Futures day starts (min past midnight, 1080 = 18:00)", minval = 0, maxval = 1439, group = "A1 day")
+cashOpen= input.int(9 * 60 + 30, "Cash day starts (570 = 09:30)", minval = 0, maxval = 1439, group = "A1 day")
+h4Anch  = input.int(18 * 60, "4H anchor (1080 = 18:00 ET)", minval = 0, maxval = 1439, group = "A3 4H")
+asiaS   = input.int(20 * 60, "Asia start",   minval = 0, maxval = 1439, group = "A2 sessions")
+asiaE   = input.int(24 * 60, "Asia end",     minval = 0, maxval = 1440, group = "A2 sessions")
+lonS    = input.int(3 * 60,  "London start", minval = 0, maxval = 1439, group = "A2 sessions")
+lonE    = input.int(8 * 60,  "London end",   minval = 0, maxval = 1440, group = "A2 sessions")
+nyS     = input.int(9 * 60 + 30, "NY start", minval = 0, maxval = 1439, group = "A2 sessions")
+nyE     = input.int(16 * 60, "NY end",       minval = 0, maxval = 1440, group = "A2 sessions")
+drawBg  = input.bool(true, "Shade the sessions", group = "A2 sessions")
+
+mn = hour(time, tzName) * 60 + minute(time, tzName)
+inWin(s, e) => s < e ? (mn >= s and mn < e) : (mn >= s or mn < e)
+
+inAsia = inWin(asiaS, asiaE)
+inLon  = inWin(lonS, lonE)
+inNY   = inWin(nyS, nyE)
+
+// ── A1: the two competing "days", computed side by side ─────────────
+newFut  = inWin(futOpen, futOpen + 1)  and not inWin(futOpen, futOpen + 1)[1]
+newCash = inWin(cashOpen, cashOpen + 1) and not inWin(cashOpen, cashOpen + 1)[1]
+
+var float futO = na, var float futH = na, var float futL = na
+var float pFutH = na, var float pFutL = na, var float pFutO = na
+if newFut
+    pFutH := futH, pFutL := futL, pFutO := futO
+    futO := open, futH := high, futL := low
+else
+    futH := na(futH) ? high : math.max(futH, high)
+    futL := na(futL) ? low  : math.min(futL, low)
+
+var float cshO = na, var float cshH = na, var float cshL = na
+var float pCshH = na, var float pCshL = na, var float pCshO = na
+if newCash
+    pCshH := cshH, pCshL := cshL, pCshO := cshO
+    cshO := open, cshH := high, cshL := low
+else
+    cshH := na(cshH) ? high : math.max(cshH, high)
+    cshL := na(cshL) ? low  : math.min(cshL, low)
+
+gapOpen = na(futO) or na(cshO) ? na : math.abs(futO - cshO)
+gapPDH  = na(pFutH) or na(pCshH) ? na : math.abs(pFutH - pCshH)
+gapPDL  = na(pFutL) or na(pCshL) ? na : math.abs(pFutL - pCshL)
+
+// running average of the disagreement — the number that decides A1
+var float sumG = 0.0, var int nG = 0
+if newCash and not na(gapPDH)
+    sumG := sumG + gapPDH + gapPDL
+    nG := nG + 1
+avgGap = nG > 0 ? sumG / (nG * 2) : na
+
+// ── feed coverage: does this symbol even have an overnight book? ────
+var int barsNY = 0, var int barsAsia = 0, var int barsLon = 0, var int barsAll = 0
+barsAll := barsAll + 1
+if inNY
+    barsNY := barsNY + 1
+if inAsia
+    barsAsia := barsAsia + 1
+if inLon
+    barsLon := barsLon + 1
+
+// ── DST: current offset of the reference zone, in hours ─────────────
+utcMin = hour(time, "UTC") * 60 + minute(time, "UTC")
+offMin = mn - utcMin
+offMin := offMin > 720 ? offMin - 1440 : offMin < -720 ? offMin + 1440 : offMin
+
+bgcolor(drawBg and inAsia ? color.new(color.blue, 92) : na, title = "Asia")
+bgcolor(drawBg and inLon  ? color.new(color.orange, 92) : na, title = "London")
+bgcolor(drawBg and inNY   ? color.new(color.green, 92) : na, title = "New York")
+
+plot(futO,  "Futures-day open", color.new(color.red, 0),   2, plot.style_linebr)
+plot(cshO,  "Cash-day open",    color.new(color.blue, 0),  2, plot.style_linebr)
+plot(pFutH, "PDH futures day",  color.new(color.red, 45),  1, plot.style_linebr)
+plot(pFutL, "PDL futures day",  color.new(color.red, 45),  1, plot.style_linebr)
+plot(pCshH, "PDH cash day",     color.new(color.blue, 45), 1, plot.style_linebr)
+plot(pCshL, "PDL cash day",     color.new(color.blue, 45), 1, plot.style_linebr)
+
+var table t = table.new(position.top_right, 2, 14, border_width = 1)
+if barstate.islast
+    hh = str.tostring(math.floor(math.abs(offMin) / 60), "#")
+    sgn = offMin < 0 ? "-" : "+"
+    table.cell(t, 0, 0, "SESSION DIAGNOSTIC", text_color = color.white, bgcolor = color.new(color.blue, 15))
+    table.cell(t, 1, 0, syminfo.ticker + "  " + timeframe.period, text_color = color.white, bgcolor = color.new(color.blue, 15))
+    table.cell(t, 0, 1, "chart timezone")
+    table.cell(t, 1, 1, tzName + "  (UTC" + sgn + hh + " now)")
+    table.cell(t, 0, 2, "exchange session")
+    table.cell(t, 1, 2, syminfo.session + "  tz " + syminfo.timezone)
+    table.cell(t, 0, 3, "A1  futures-day open")
+    table.cell(t, 1, 3, str.tostring(futO, "#.##"))
+    table.cell(t, 0, 4, "A1  cash-day open")
+    table.cell(t, 1, 4, str.tostring(cshO, "#.##"))
+    table.cell(t, 0, 5, "A1  open disagreement")
+    table.cell(t, 1, 5, str.tostring(gapOpen, "#.##"),
+         bgcolor = na(gapOpen) ? color.gray : gapOpen < 1 ? color.new(color.green, 60) : color.new(color.red, 45))
+    table.cell(t, 0, 6, "A1  PDH / PDL gap")
+    table.cell(t, 1, 6, str.tostring(gapPDH, "#.#") + " / " + str.tostring(gapPDL, "#.#"))
+    table.cell(t, 0, 7, "A1  AVG gap, all days")
+    table.cell(t, 1, 7, str.tostring(avgGap, "#.##") + "  over " + str.tostring(nG) + " days",
+         bgcolor = na(avgGap) ? color.gray : avgGap < 1 ? color.new(color.green, 55) : color.new(color.red, 40))
+    table.cell(t, 0, 8, "bars in NY session")
+    table.cell(t, 1, 8, str.tostring(barsNY) + "  (" + str.tostring(barsAll > 0 ? 100.0 * barsNY / barsAll : 0, "#.#") + "%)")
+    table.cell(t, 0, 9, "bars in London")
+    table.cell(t, 1, 9, str.tostring(barsLon) + "  (" + str.tostring(barsAll > 0 ? 100.0 * barsLon / barsAll : 0, "#.#") + "%)")
+    table.cell(t, 0, 10, "bars in Asia")
+    table.cell(t, 1, 10, str.tostring(barsAsia) + "  (" + str.tostring(barsAll > 0 ? 100.0 * barsAsia / barsAll : 0, "#.#") + "%)")
+    table.cell(t, 0, 11, "overnight book?")
+    table.cell(t, 1, 11, barsAsia > 0 ? "YES — sessions are testable" : "NO — Asia/London levels are undefined",
+         bgcolor = barsAsia > 0 ? color.new(color.green, 60) : color.new(color.red, 40))
+    table.cell(t, 0, 12, "4H anchor")
+    table.cell(t, 1, 12, str.tostring(math.floor(h4Anch / 60)) + ":" + str.tostring(h4Anch % 60, "00") + " " + tzName)
+    table.cell(t, 0, 13, "VERDICT")
+    table.cell(t, 1, 13, na(avgGap) ? "collecting…" : avgGap < 1 ? "A1 is moot — the two days agree" : "A1 MATTERS — pick one and state it",
+         text_color = color.white,
+         bgcolor = na(avgGap) ? color.new(color.gray, 40) : avgGap < 1 ? color.new(color.green, 25) : color.new(color.red, 20))
