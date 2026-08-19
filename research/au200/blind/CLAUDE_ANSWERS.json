@@ -1,0 +1,511 @@
+{
+ "001": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "002": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "003": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "004": {
+  "answer": "N3",
+  "patterns": [
+   "Doji(C)"
+  ]
+ },
+ "005": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "006": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "007": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "008": {
+  "answer": "S3",
+  "patterns": [
+   "Three Black Crows(A)"
+  ]
+ },
+ "009": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "010": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "011": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "012": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "013": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "014": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "015": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "016": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "017": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "018": {
+  "answer": "N3",
+  "patterns": [
+   "Doji(C)"
+  ]
+ },
+ "019": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "020": {
+  "answer": "N3",
+  "patterns": [
+   "Doji(C)"
+  ]
+ },
+ "021": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "022": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "023": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "024": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "025": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "026": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "027": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "028": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "029": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "030": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "031": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "032": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "033": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "034": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "035": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "036": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "037": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "038": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "039": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "040": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "041": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "042": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "043": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "044": {
+  "answer": "S3",
+  "patterns": [
+   "Evening Star(A)"
+  ]
+ },
+ "045": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "046": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "047": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "048": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "049": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "050": {
+  "answer": "L1",
+  "patterns": [
+   "Tweezer Bottom(C)"
+  ]
+ },
+ "051": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "052": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "053": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "054": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "055": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "056": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "057": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "058": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "059": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "060": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "061": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "062": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "063": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "064": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "065": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "066": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "067": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "068": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "069": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "070": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "071": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "072": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "073": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "074": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "075": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "076": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "077": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "078": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "079": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "080": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "081": {
+  "answer": "N3",
+  "patterns": [
+   "Doji(C)"
+  ]
+ },
+ "082": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "083": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "084": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "085": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "086": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "087": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "088": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "089": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "090": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "091": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "092": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "093": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "094": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "095": {
+  "answer": "S2",
+  "patterns": [
+   "Shooting Star(B)"
+  ]
+ },
+ "096": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "097": {
+  "answer": "L3",
+  "patterns": [
+   "Bullish Engulfing(A)"
+  ]
+ },
+ "098": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "099": {
+  "answer": "N3",
+  "patterns": [
+   "Doji(C)"
+  ]
+ },
+ "100": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "101": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "102": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "103": {
+  "answer": "L2",
+  "patterns": [
+   "Hammer(B)",
+   "Doji(C)"
+  ]
+ },
+ "104": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "105": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "106": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "107": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "108": {
+  "answer": "N3",
+  "patterns": [
+   "Doji(C)"
+  ]
+ },
+ "109": {
+  "answer": "L2",
+  "patterns": [
+   "Hammer(B)"
+  ]
+ },
+ "110": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "111": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "112": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "113": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "114": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "115": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "116": {
+  "answer": "L3",
+  "patterns": [
+   "Three White Soldiers(A)"
+  ]
+ },
+ "117": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "118": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "119": {
+  "answer": "N2",
+  "patterns": []
+ },
+ "120": {
+  "answer": "N2",
+  "patterns": []
+ }
+}
