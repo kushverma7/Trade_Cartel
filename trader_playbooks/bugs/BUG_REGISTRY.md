@@ -1263,3 +1263,25 @@ all.
 the user in live trading. BUG-040 is the same *class* of error — a level used
 without checking what it actually is — caught by the harness in the first run
 after the guard was installed. The guard works.
+
+## BUG-041 — redact.py flags its own redaction output as a leak (2026-08-20)
+
+**Symptom:** `python3 session_archive/redact.py` reports
+`LEAK raw/subagents_2026-07-13_to_08-11.jsonl.xz: \1=[REDACTED]`
+on an archive that contains **zero** real credentials.
+
+**Root cause:** the replacement template is written as a literal `\1=[REDACTED]`
+rather than an interpolated backreference, so the string `\1=[REDACTED]` ends up
+in the redacted text. The scanner's own credential pattern then matches that
+residue on the next run. The detector is matching its own output.
+
+**Why it matters:** a false LEAK is worse than no scanner. It trains the reader
+to dismiss the warning, which is exactly how a real one gets waved through. A
+credential scanner must be silent when clean.
+
+**Prevention:** the redaction replacement must never be able to satisfy the
+detection pattern. Assert it directly — run the detector over its own
+replacement string in a unit test and require no match. Verified separately that
+the flagged file holds 0 lines matching any live-credential pattern.
+
+**Status:** OPEN — reported, not yet fixed.
