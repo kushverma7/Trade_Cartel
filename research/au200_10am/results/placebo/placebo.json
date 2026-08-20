@@ -1,0 +1,34 @@
+{
+  "ashort": {
+    "actual_total_pnl": -180.67,
+    "actual_mean_pnl": -0.6792,
+    "actual_pf": 0.939,
+    "sign_flip_p_value": 0.6685,
+    "t_test_p_value": 0.6562,
+    "beats_random": false
+  },
+  "flipshort": {
+    "actual_total_pnl": 102.91,
+    "actual_mean_pnl": 1.0189,
+    "actual_pf": 1.1372,
+    "sign_flip_p_value": 0.316,
+    "t_test_p_value": 0.6228,
+    "beats_random": false
+  },
+  "along": {
+    "actual_total_pnl": -513.38,
+    "actual_mean_pnl": -2.1939,
+    "actual_pf": 0.8117,
+    "sign_flip_p_value": 0.9195,
+    "t_test_p_value": 0.1659,
+    "beats_random": false
+  },
+  "fliplong": {
+    "actual_total_pnl": 375.03,
+    "actual_mean_pnl": 3.3485,
+    "actual_pf": 1.3843,
+    "sign_flip_p_value": 0.0765,
+    "t_test_p_value": 0.163,
+    "beats_random": false
+  }
+}
