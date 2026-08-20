@@ -26,3 +26,7 @@ build/
 *.key
 *_secret*
 lse_*.json
+
+# AU200 research — raw data (large, reproducible via fetch_2yr.mjs)
+research/au200_10am/data/raw/*.csv
+research/au200_10am/data/raw/*.bi5
