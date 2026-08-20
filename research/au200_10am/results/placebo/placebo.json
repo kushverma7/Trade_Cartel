@@ -1,34 +1,34 @@
 {
   "ashort": {
-    "actual_total_pnl": -180.67,
-    "actual_mean_pnl": -0.6792,
-    "actual_pf": 0.939,
-    "sign_flip_p_value": 0.6685,
-    "t_test_p_value": 0.6562,
+    "actual_total_pnl": -420.11,
+    "actual_mean_pnl": -0.8826,
+    "actual_pf": 0.9158,
+    "sign_flip_p_value": 0.788,
+    "t_test_p_value": 0.4121,
     "beats_random": false
   },
   "flipshort": {
-    "actual_total_pnl": 102.91,
-    "actual_mean_pnl": 1.0189,
-    "actual_pf": 1.1372,
-    "sign_flip_p_value": 0.316,
-    "t_test_p_value": 0.6228,
+    "actual_total_pnl": -146.51,
+    "actual_mean_pnl": -0.8618,
+    "actual_pf": 0.8954,
+    "sign_flip_p_value": 0.7045,
+    "t_test_p_value": 0.5823,
     "beats_random": false
   },
   "along": {
-    "actual_total_pnl": -513.38,
-    "actual_mean_pnl": -2.1939,
-    "actual_pf": 0.8117,
-    "sign_flip_p_value": 0.9195,
-    "t_test_p_value": 0.1659,
+    "actual_total_pnl": -575.77,
+    "actual_mean_pnl": -1.2939,
+    "actual_pf": 0.8757,
+    "sign_flip_p_value": 0.8805,
+    "t_test_p_value": 0.2328,
     "beats_random": false
   },
   "fliplong": {
-    "actual_total_pnl": 375.03,
-    "actual_mean_pnl": 3.3485,
-    "actual_pf": 1.3843,
-    "sign_flip_p_value": 0.0765,
-    "t_test_p_value": 0.163,
+    "actual_total_pnl": 453.35,
+    "actual_mean_pnl": 2.5186,
+    "actual_pf": 1.3289,
+    "sign_flip_p_value": 0.067,
+    "t_test_p_value": 0.135,
     "beats_random": false
   }
 }

@@ -319,14 +319,15 @@ def bnh_comparison(df1: pd.DataFrame) -> dict:
 # ─── Report generation ────────────────────────────────────────────────────────
 
 def generate_report(summary, mfe_mae, sltp_df, first_passage, temporal_all,
-                    bootstrap_all, placebo_all, year_oos_res, bnh, trade_path_res):
+                    bootstrap_all, placebo_all, year_oos_res, bnh, trade_path_res,
+                    n_1m_bars=0, n_sessions=0, data_start='', data_end=''):
 
     lines = []
     A = lines.append
 
     A("# AU200 10AM Strategy — Full Quantitative Research Report")
     A("")
-    A(f"**Date:** 2026-08-20  |  **Data:** AUSIDXAUD (Dukascopy) 2024-01-01 → 2026-08-20  |  **Timezone:** Australia/Melbourne (DST-aware)")
+    A(f"**Date:** 2026-08-20  |  **Data:** AUSIDXAUD (Dukascopy) {data_start} → {data_end}  |  **Timezone:** Australia/Melbourne (DST-aware)")
     A("")
     A("---")
     A("")
@@ -375,8 +376,8 @@ def generate_report(summary, mfe_mae, sltp_df, first_passage, temporal_all,
     A("### 1.1 Data Source")
     A("- **Instrument:** AUSIDXAUD (Dukascopy AU200 CFD, bid-side M1 candles)")
     A("- **Download:** `dukascopy-node` npm library, format=array, batchSize=150")
-    A("- **Total 1-min bars:** 599,920 (after dedup and OHLC validation)")
-    A("- **Sessions analysed:** 500 (days with both 09:50 and 10:00 Melbourne 5-min bars)")
+    A(f"- **Total 1-min bars:** {n_1m_bars:,} (after dedup and OHLC validation)")
+    A(f"- **Sessions analysed:** {n_sessions} (days with both 09:50 and 10:00 Melbourne 5-min bars)")
     A("- **Timezone:** Australia/Melbourne via pytz (AEST UTC+10 / AEDT UTC+11, DST-aware)")
     A("")
     A("### 1.2 Strategy Logic (Pine Script Reference)")
@@ -725,9 +726,16 @@ def main():
     with open(RES_DIR / "placebo" / "placebo.json", 'w') as f:
         json.dump(placebo_all, f, indent=2)
 
+    n_1m = len(df1)
+    n_sess = summary.get('_primary', {}).get('n_trades', 0)
+    d_start = str(df1.index[0].date())
+    d_end   = str(df1.index[-1].date())
+
     print("Generating final report...")
     report = generate_report(summary, mfe_mae, sltp_df, first_passage, temporal_all,
-                              bootstrap_all, placebo_all, year_oos_res, bnh, trade_path_res)
+                              bootstrap_all, placebo_all, year_oos_res, bnh, trade_path_res,
+                              n_1m_bars=n_1m, n_sessions=n_sess,
+                              data_start=d_start, data_end=d_end)
 
     out_path = REP_DIR / "AU200_10AM_FULL_RESEARCH_REPORT.md"
     out_path.write_text(report)

@@ -1,6 +1,6 @@
 # AU200 10AM Strategy — Full Quantitative Research Report
 
-**Date:** 2026-08-20  |  **Data:** AUSIDXAUD (Dukascopy) 2024-01-01 → 2026-08-20  |  **Timezone:** Australia/Melbourne (DST-aware)
+**Date:** 2026-08-20  |  **Data:** AUSIDXAUD (Dukascopy) 2021-08-20 → 2026-08-20  |  **Timezone:** Australia/Melbourne (DST-aware)
 
 ---
 
@@ -14,12 +14,12 @@
 
 | Branch | Trades | Win Rate | PF | Total PnL (pts) | Sharpe |
 |--------|--------|----------|----|-----------------|--------|
-| A Short | 266 | 17.3% | 0.939 | -180.67 | -0.4338 |
-| A Long | 234 | 16.2% | 0.8117 | -513.38 | -1.4424 |
-| Flip Long | 112 | 21.4% | 1.3843 | 375.03 | 2.1066 |
-| Flip Short | 101 | 8.9% | 1.1372 | 102.91 | 0.7793 |
-| Primary (A+A) | 500 | 16.8% | 0.878 | -694.05 | -0.8989 |
-| All Branches | 713 | 16.4% | 0.9709 | -216.11 | -0.1991 |
+| A Short | 476 | 15.6% | 0.9158 | -420.11 | -0.5973 |
+| A Long | 445 | 14.4% | 0.8757 | -575.77 | -0.899 |
+| Flip Long | 180 | 15.0% | 1.3289 | 453.35 | 1.7763 |
+| Flip Short | 170 | 7.6% | 0.8954 | -146.51 | -0.671 |
+| Primary (A+A) | 921 | 15.0% | 0.8965 | -995.88 | -0.7414 |
+| All Branches | 1271 | 14.0% | 0.9444 | -689.03 | -0.3786 |
 
 ---
 
@@ -28,8 +28,8 @@
 ### 1.1 Data Source
 - **Instrument:** AUSIDXAUD (Dukascopy AU200 CFD, bid-side M1 candles)
 - **Download:** `dukascopy-node` npm library, format=array, batchSize=150
-- **Total 1-min bars:** 599,920 (after dedup and OHLC validation)
-- **Sessions analysed:** 500 (days with both 09:50 and 10:00 Melbourne 5-min bars)
+- **Total 1-min bars:** 1,149,411 (after dedup and OHLC validation)
+- **Sessions analysed:** 921 (days with both 09:50 and 10:00 Melbourne 5-min bars)
 - **Timezone:** Australia/Melbourne via pytz (AEST UTC+10 / AEDT UTC+11, DST-aware)
 
 ### 1.2 Strategy Logic (Pine Script Reference)
@@ -57,40 +57,40 @@ Flip S  : side==+1, stop entry at bLo-17, SL=bHi+17, TP=entry-39
 ## 2. BASELINE RESULTS — PHASE 1
 
 ### A Short (side==-1)
-- Trades: 266  |  TP: 46  |  SL: 110  |  Timeout: 110
-- Win Rate (TP/all): 17.3%  |  Required for BE: 30.4%
-- Profit Factor: 0.939  |  Total PnL: -180.67 pts
-- Avg Win: 23.78 pts  |  Avg Loss: -20.02 pts
-- Annualised Sharpe: -0.4338
-- Max Drawdown: 272.82 pts
+- Trades: 476  |  TP: 74  |  SL: 177  |  Timeout: 225
+- Win Rate (TP/all): 15.6%  |  Required for BE: 30.4%
+- Profit Factor: 0.9158  |  Total PnL: -420.11 pts
+- Avg Win: 21.96 pts  |  Avg Loss: -18.68 pts
+- Annualised Sharpe: -0.5973
+- Max Drawdown: 900.09 pts
 
 ### A Long (side==+1)
-- Trades: 234  |  TP: 38  |  SL: 101  |  Timeout: 95
-- Win Rate (TP/all): 16.2%  |  Required for BE: 30.4%
-- Profit Factor: 0.8117  |  Total PnL: -513.38 pts
-- Avg Win: 23.05 pts  |  Avg Loss: -19.75 pts
-- Annualised Sharpe: -1.4424
-- Max Drawdown: 504.14 pts
+- Trades: 445  |  TP: 64  |  SL: 170  |  Timeout: 211
+- Win Rate (TP/all): 14.4%  |  Required for BE: 30.4%
+- Profit Factor: 0.8757  |  Total PnL: -575.77 pts
+- Avg Win: 21.57 pts  |  Avg Loss: -18.02 pts
+- Annualised Sharpe: -0.899
+- Max Drawdown: 707.05 pts
 
 ### Flip Long (conditional on A Short SL hit))
-- Trades: 112  |  TP: 24  |  SL: 11  |  Timeout: 77
-- Win Rate (TP/all): 21.4%  |  Required for BE: 30.4%
-- Profit Factor: 1.3843  |  Total PnL: 375.03 pts
-- Avg Win: 22.9 pts  |  Avg Loss: -18.41 pts
-- Annualised Sharpe: 2.1066
+- Trades: 180  |  TP: 27  |  SL: 13  |  Timeout: 140
+- Win Rate (TP/all): 15.0%  |  Required for BE: 30.4%
+- Profit Factor: 1.3289  |  Total PnL: 453.35 pts
+- Avg Win: 19.91 pts  |  Avg Loss: -15.66 pts
+- Annualised Sharpe: 1.7763
 - Max Drawdown: 225.44 pts
 
 ### Flip Short (conditional on A Long SL hit)
-- Trades: 101  |  TP: 9  |  SL: 8  |  Timeout: 84
-- Win Rate (TP/all): 8.9%  |  Required for BE: 30.4%
-- Profit Factor: 1.1372  |  Total PnL: 102.91 pts
-- Avg Win: 15.79 pts  |  Avg Loss: -16.3 pts
-- Annualised Sharpe: 0.7793
-- Max Drawdown: 203.34 pts
+- Trades: 170  |  TP: 13  |  SL: 16  |  Timeout: 141
+- Win Rate (TP/all): 7.6%  |  Required for BE: 30.4%
+- Profit Factor: 0.8954  |  Total PnL: -146.51 pts
+- Avg Win: 15.88 pts  |  Avg Loss: -15.56 pts
+- Annualised Sharpe: -0.671
+- Max Drawdown: 319.32 pts
 
 ### Combined Primary (A Short + A Long)
-- Trades: 500  |  Win Rate: 16.8%  |  PF: 0.878
-- Total PnL: -694.05 pts  |  Sharpe: -0.8989
+- Trades: 921  |  Win Rate: 15.0%  |  PF: 0.8965
+- Total PnL: -995.88 pts  |  Sharpe: -0.7414
 
 ---
 
@@ -102,42 +102,42 @@ MAE = Maximum Adverse Excursion (worst point against trade)
 ### ASHORT
 | Metric | P10 | P25 | P50 | P75 | P90 | P95 | Mean |
 |--------|-----|-----|-----|-----|-----|-----|------|
-| MFE    | 1.2 | 6.1 | 14.6 | 31.9 | 39.9 | 41.0 | 18.9 |
-| MAE    | 4.0 | 9.1 | 18.0 | 23.6 | 29.8 | 33.6 | 17.7 |
-- % trades reaching TP level (MFE≥39): 17.3%
-- % trades reaching SL level (MAE≥17): 56.4%
-- % trades with MFE≥20: 41.7%
-- % trades with MFE≥10: 64.3%
+| MFE    | 2.0 | 6.1 | 14.8 | 30.6 | 39.6 | 40.5 | 18.3 |
+| MAE    | 4.0 | 9.1 | 17.4 | 23.0 | 29.3 | 32.0 | 16.8 |
+- % trades reaching TP level (MFE≥39): 15.5%
+- % trades reaching SL level (MAE≥17): 52.7%
+- % trades with MFE≥20: 39.7%
+- % trades with MFE≥10: 62.8%
 
 ### FLIPSHORT
 | Metric | P10 | P25 | P50 | P75 | P90 | P95 | Mean |
 |--------|-----|-----|-----|-----|-----|-----|------|
-| MFE    | 2.0 | 6.0 | 15.1 | 25.1 | 38.1 | 39.4 | 16.7 |
-| MAE    | 3.6 | 6.9 | 13.4 | 24.4 | 36.0 | 39.0 | 16.7 |
-- % trades reaching TP level (MFE≥39): 8.9%
-- % trades reaching SL level (MAE≥17): 41.6%
-- % trades with MFE≥20: 33.7%
-- % trades with MFE≥10: 65.3%
+| MFE    | 2.0 | 5.0 | 13.2 | 22.8 | 34.6 | 39.2 | 15.5 |
+| MAE    | 3.6 | 7.0 | 13.2 | 23.1 | 35.5 | 38.5 | 16.2 |
+- % trades reaching TP level (MFE≥39): 7.6%
+- % trades reaching SL level (MAE≥17): 38.2%
+- % trades with MFE≥20: 31.8%
+- % trades with MFE≥10: 59.4%
 
 ### ALONG
 | Metric | P10 | P25 | P50 | P75 | P90 | P95 | Mean |
 |--------|-----|-----|-----|-----|-----|-----|------|
-| MFE    | 1.1 | 5.4 | 15.0 | 31.9 | 39.5 | 40.4 | 18.1 |
-| MAE    | 4.0 | 10.1 | 18.1 | 22.9 | 29.1 | 31.4 | 17.2 |
-- % trades reaching TP level (MFE≥39): 16.2%
-- % trades reaching SL level (MAE≥17): 55.1%
-- % trades with MFE≥20: 40.6%
-- % trades with MFE≥10: 63.7%
+| MFE    | 1.1 | 6.0 | 14.0 | 28.5 | 39.4 | 40.3 | 17.6 |
+| MAE    | 3.4 | 8.5 | 17.4 | 22.1 | 28.0 | 31.0 | 16.2 |
+- % trades reaching TP level (MFE≥39): 14.4%
+- % trades reaching SL level (MAE≥17): 52.1%
+- % trades with MFE≥20: 39.1%
+- % trades with MFE≥10: 62.7%
 
 ### FLIPLONG
 | Metric | P10 | P25 | P50 | P75 | P90 | P95 | Mean |
 |--------|-----|-----|-----|-----|-----|-----|------|
-| MFE    | 2.7 | 5.9 | 13.5 | 31.2 | 39.4 | 40.0 | 18.2 |
-| MAE    | 4.1 | 6.0 | 15.5 | 25.3 | 35.8 | 42.4 | 17.2 |
-- % trades reaching TP level (MFE≥39): 21.4%
-- % trades reaching SL level (MAE≥17): 47.3%
-- % trades with MFE≥20: 37.5%
-- % trades with MFE≥10: 61.6%
+| MFE    | 2.1 | 5.6 | 13.2 | 25.2 | 39.1 | 39.9 | 16.8 |
+| MAE    | 2.9 | 5.1 | 11.0 | 22.0 | 32.6 | 41.9 | 15.2 |
+- % trades reaching TP level (MFE≥39): 15.0%
+- % trades reaching SL level (MAE≥17): 40.0%
+- % trades with MFE≥20: 34.4%
+- % trades with MFE≥10: 62.2%
 
 ---
 
@@ -148,60 +148,60 @@ Probability of price reaching symmetric excursion levels post-entry:
 ### ASHORT
 | Level | P(reach favour) | P(reach adverse) |
 |-------|----------------|-----------------|
-| ±5 pts | 77.4% | 86.1% |
-| ±10 pts | 64.3% | 72.2% |
-| ±15 pts | 49.2% | 60.5% |
-| ±17 pts | 45.1% | 56.4% |
-| ±20 pts | 41.7% | 39.9% |
-| ±25 pts | 36.5% | 20.7% |
-| ±30 pts | 28.2% | 10.2% |
-| ±39 pts | 17.3% | 3.0% |
-| ±50 pts | 1.9% | 1.1% |
+| ±5 pts | 77.9% | 86.1% |
+| ±10 pts | 62.8% | 71.6% |
+| ±15 pts | 49.4% | 58.4% |
+| ±17 pts | 44.1% | 52.7% |
+| ±20 pts | 39.7% | 37.0% |
+| ±25 pts | 33.0% | 17.4% |
+| ±30 pts | 26.3% | 8.6% |
+| ±39 pts | 15.6% | 2.1% |
+| ±50 pts | 1.1% | 0.8% |
 | ±75 pts | 0.0% | 0.0% |
 | ±100 pts | 0.0% | 0.0% |
 
 ### FLIPSHORT
 | Level | P(reach favour) | P(reach adverse) |
 |-------|----------------|-----------------|
-| ±5 pts | 77.2% | 80.2% |
-| ±10 pts | 65.3% | 61.4% |
-| ±15 pts | 50.5% | 48.5% |
-| ±17 pts | 41.6% | 41.6% |
-| ±20 pts | 33.7% | 33.7% |
-| ±25 pts | 26.7% | 22.8% |
-| ±30 pts | 16.8% | 15.8% |
-| ±39 pts | 8.9% | 5.0% |
-| ±50 pts | 0.0% | 1.0% |
+| ±5 pts | 75.3% | 81.8% |
+| ±10 pts | 59.4% | 59.4% |
+| ±15 pts | 45.3% | 45.3% |
+| ±17 pts | 39.4% | 38.2% |
+| ±20 pts | 31.8% | 30.6% |
+| ±25 pts | 22.9% | 20.6% |
+| ±30 pts | 14.7% | 15.3% |
+| ±39 pts | 7.6% | 4.1% |
+| ±50 pts | 0.6% | 1.2% |
 | ±75 pts | 0.0% | 0.0% |
 | ±100 pts | 0.0% | 0.0% |
 
 ### ALONG
 | Level | P(reach favour) | P(reach adverse) |
 |-------|----------------|-----------------|
-| ±5 pts | 76.1% | 86.3% |
-| ±10 pts | 63.7% | 75.2% |
-| ±15 pts | 50.4% | 59.8% |
-| ±17 pts | 44.9% | 55.1% |
-| ±20 pts | 40.6% | 41.9% |
-| ±25 pts | 33.3% | 19.7% |
-| ±30 pts | 26.9% | 9.0% |
-| ±39 pts | 16.2% | 0.4% |
-| ±50 pts | 0.0% | 0.4% |
+| ±5 pts | 78.0% | 84.7% |
+| ±10 pts | 62.7% | 71.2% |
+| ±15 pts | 48.1% | 56.4% |
+| ±17 pts | 44.3% | 52.1% |
+| ±20 pts | 39.1% | 37.3% |
+| ±25 pts | 30.8% | 16.6% |
+| ±30 pts | 23.2% | 7.2% |
+| ±39 pts | 14.4% | 0.7% |
+| ±50 pts | 0.2% | 0.2% |
 | ±75 pts | 0.0% | 0.0% |
 | ±100 pts | 0.0% | 0.0% |
 
 ### FLIPLONG
 | Level | P(reach favour) | P(reach adverse) |
 |-------|----------------|-----------------|
-| ±5 pts | 81.2% | 84.8% |
-| ±10 pts | 61.6% | 62.5% |
-| ±15 pts | 48.2% | 50.9% |
-| ±17 pts | 44.6% | 47.3% |
-| ±20 pts | 37.5% | 35.7% |
-| ±25 pts | 31.2% | 25.0% |
-| ±30 pts | 26.8% | 18.8% |
-| ±39 pts | 21.4% | 8.9% |
-| ±50 pts | 0.0% | 0.9% |
+| ±5 pts | 78.9% | 78.3% |
+| ±10 pts | 62.2% | 55.6% |
+| ±15 pts | 48.3% | 43.3% |
+| ±17 pts | 42.2% | 40.0% |
+| ±20 pts | 34.4% | 27.8% |
+| ±25 pts | 26.1% | 20.0% |
+| ±30 pts | 21.1% | 14.4% |
+| ±39 pts | 15.0% | 6.7% |
+| ±50 pts | 0.0% | 0.6% |
 | ±75 pts | 0.0% | 0.0% |
 | ±100 pts | 0.0% | 0.0% |
 
@@ -212,28 +212,28 @@ Probability of price reaching symmetric excursion levels post-entry:
 ### ASHORT — Mean forward return at N minutes post-entry
 | Minutes | N | Mean PnL | Median | Win% | P25 | P75 |
 |---------|---|----------|--------|------|-----|-----|
-| 1 | 266 | -1.22 | -0.13 | 43.6% | -3.03 | 2.00 |
-| 5 | 266 | -1.74 | -0.73 | 43.2% | -7.02 | 3.90 |
-| 10 | 266 | -1.13 | -0.92 | 46.2% | -8.55 | 6.54 |
-| 15 | 266 | -0.69 | 0.42 | 50.7% | -9.06 | 7.02 |
-| 30 | 266 | -0.24 | 0.05 | 50.0% | -10.39 | 9.26 |
-| 60 | 258 | -1.26 | -1.95 | 46.9% | -15.23 | 11.98 |
-| 90 | 258 | -2.29 | -4.02 | 44.2% | -19.27 | 18.48 |
-| 120 | 258 | -2.90 | -2.08 | 46.1% | -20.30 | 14.95 |
-| 180 | 258 | -2.80 | -2.03 | 46.9% | -20.68 | 18.89 |
+| 1 | 476 | -1.06 | -0.13 | 43.7% | -3.02 | 1.90 |
+| 5 | 476 | -1.44 | -0.88 | 43.7% | -6.24 | 3.97 |
+| 10 | 476 | -0.59 | -0.91 | 47.5% | -7.08 | 5.94 |
+| 15 | 476 | -0.22 | -0.60 | 48.9% | -7.47 | 6.70 |
+| 30 | 476 | -0.17 | -0.15 | 49.2% | -9.98 | 9.00 |
+| 60 | 442 | -1.15 | -1.54 | 47.5% | -14.26 | 12.00 |
+| 90 | 442 | -2.24 | -2.88 | 45.2% | -16.32 | 14.85 |
+| 120 | 442 | -2.92 | -2.06 | 45.9% | -19.75 | 13.62 |
+| 180 | 442 | -2.83 | -2.56 | 45.7% | -19.93 | 14.06 |
 
 ### ALONG — Mean forward return at N minutes post-entry
 | Minutes | N | Mean PnL | Median | Win% | P25 | P75 |
 |---------|---|----------|--------|------|-----|-----|
-| 1 | 234 | -1.53 | -1.03 | 38.0% | -4.00 | 1.26 |
-| 5 | 234 | -1.12 | -0.78 | 46.2% | -5.98 | 3.96 |
-| 10 | 234 | -1.78 | -1.08 | 44.9% | -7.28 | 5.36 |
-| 15 | 234 | -1.81 | -0.13 | 48.7% | -9.83 | 5.93 |
-| 30 | 234 | -1.68 | -1.68 | 46.6% | -11.99 | 8.51 |
-| 60 | 221 | -1.62 | -2.47 | 43.4% | -14.00 | 11.03 |
-| 90 | 221 | -1.69 | -2.03 | 46.6% | -17.31 | 16.00 |
-| 120 | 221 | -2.08 | -2.10 | 47.5% | -18.47 | 14.10 |
-| 180 | 221 | -3.33 | -4.69 | 45.2% | -20.94 | 15.00 |
+| 1 | 445 | -1.24 | -0.91 | 40.7% | -3.10 | 1.17 |
+| 5 | 444 | -0.65 | -0.92 | 45.5% | -5.03 | 4.00 |
+| 10 | 444 | -1.00 | -0.97 | 46.0% | -6.47 | 5.37 |
+| 15 | 444 | -1.03 | 0.00 | 49.1% | -8.33 | 6.09 |
+| 30 | 444 | -0.93 | -1.12 | 47.8% | -10.62 | 9.31 |
+| 60 | 395 | -1.39 | -1.94 | 45.1% | -13.35 | 10.03 |
+| 90 | 395 | -1.04 | -0.90 | 48.6% | -15.97 | 13.80 |
+| 120 | 395 | -0.75 | -0.13 | 49.4% | -17.22 | 13.54 |
+| 180 | 395 | -1.53 | -3.97 | 45.3% | -17.97 | 14.98 |
 
 ---
 
@@ -244,30 +244,30 @@ Best SL/TP combinations by Profit Factor (top 10 per primary branch):
 ### ASHORT
 | SL | TP | PF | Win% | Total PnL |
 |----|----|----|------|-----------|
-| 50 | 25 | 16.167 | 36.5% | 2275.0 |
-| 50 | 30 | 15.000 | 28.2% | 2100.0 |
-| 50 | 20 | 14.667 | 41.4% | 2050.0 |
-| 50 | 15 | 13.000 | 48.9% | 1800.0 |
-| 50 | 39 | 11.960 | 17.3% | 1644.0 |
-| 50 | 10 | 11.267 | 63.5% | 1540.0 |
-| 40 | 25 | 8.571 | 36.1% | 2120.0 |
-| 40 | 30 | 8.036 | 28.2% | 1970.0 |
-| 40 | 20 | 7.786 | 41.0% | 1900.0 |
-| 40 | 15 | 6.857 | 48.1% | 1640.0 |
+| 50 | 25 | 19.625 | 33.0% | 3725.0 |
+| 50 | 20 | 18.800 | 39.5% | 3560.0 |
+| 50 | 30 | 18.750 | 26.3% | 3550.0 |
+| 50 | 15 | 17.550 | 49.2% | 3310.0 |
+| 50 | 10 | 14.850 | 62.4% | 2770.0 |
+| 50 | 39 | 14.430 | 15.5% | 2686.0 |
+| 40 | 25 | 10.833 | 32.8% | 3540.0 |
+| 40 | 30 | 10.417 | 26.3% | 3390.0 |
+| 40 | 20 | 10.333 | 39.1% | 3360.0 |
+| 40 | 15 | 9.625 | 48.5% | 3105.0 |
 
 ### ALONG
 | SL | TP | PF | Win% | Total PnL |
 |----|----|----|------|-----------|
-| 40 | 25 | 48.750 | 33.3% | 1910.0 |
-| 40 | 20 | 47.500 | 40.6% | 1860.0 |
-| 40 | 30 | 47.250 | 26.9% | 1850.0 |
-| 40 | 15 | 44.250 | 50.4% | 1730.0 |
-| 50 | 25 | 39.000 | 33.3% | 1900.0 |
-| 50 | 20 | 38.000 | 40.6% | 1850.0 |
-| 50 | 30 | 37.800 | 26.9% | 1840.0 |
-| 40 | 10 | 37.250 | 63.7% | 1450.0 |
-| 40 | 39 | 37.050 | 16.2% | 1442.0 |
-| 50 | 15 | 35.400 | 50.4% | 1720.0 |
+| 50 | 20 | 69.600 | 39.1% | 3430.0 |
+| 50 | 25 | 68.500 | 30.8% | 3375.0 |
+| 50 | 15 | 64.200 | 48.1% | 3160.0 |
+| 50 | 30 | 61.800 | 23.1% | 3040.0 |
+| 50 | 10 | 55.800 | 62.7% | 2740.0 |
+| 50 | 39 | 49.920 | 14.4% | 2446.0 |
+| 40 | 20 | 28.833 | 38.9% | 3340.0 |
+| 40 | 25 | 28.333 | 30.6% | 3280.0 |
+| 40 | 15 | 26.500 | 47.6% | 3060.0 |
+| 40 | 30 | 25.750 | 23.1% | 2970.0 |
 
 ---
 
@@ -276,34 +276,37 @@ Best SL/TP combinations by Profit Factor (top 10 per primary branch):
 ### 7.1 Year-by-Year (all branches combined)
 | Year | Trades | Win Rate | Total PnL |
 |------|--------|----------|-----------|
-| 2024 | 197 | 9.1% | -370.5 |
+| 2021 | 104 | 24.0% | 327.4 |
+| 2022 | 168 | 10.1% | -440.0 |
+| 2023 | 216 | 6.5% | -131.1 |
+| 2024 | 267 | 8.6% | -599.8 |
 | 2025 | 298 | 17.8% | 362.8 |
 | 2026 | 218 | 21.1% | -208.4 |
 
 ### 7.2 Month Breakdown (all branches combined)
 | Month | Trades | Win Rate | Total PnL |
 |-------|--------|----------|-----------|
-| Jan | 84 | 15.5% | -140.1 |
-| Feb | 76 | 21.1% | 306.9 |
-| Mar | 78 | 17.9% | 26.1 |
-| Apr | 58 | 22.4% | -37.5 |
-| May | 49 | 18.4% | -84.9 |
-| Jun | 53 | 22.6% | 139.4 |
-| Jul | 60 | 16.7% | -155.1 |
-| Aug | 45 | 11.1% | 0.7 |
-| Sep | 40 | 17.5% | 31.8 |
-| Oct | 66 | 9.1% | -189.3 |
-| Nov | 57 | 10.5% | -75.4 |
-| Dec | 47 | 12.8% | -38.8 |
+| Jan | 109 | 12.8% | -166.1 |
+| Feb | 116 | 19.8% | 368.0 |
+| Mar | 109 | 17.4% | 146.2 |
+| Apr | 106 | 14.1% | -266.6 |
+| May | 87 | 11.5% | -227.3 |
+| Jun | 86 | 19.8% | 284.2 |
+| Jul | 113 | 14.2% | -240.2 |
+| Aug | 104 | 9.6% | -179.6 |
+| Sep | 85 | 20.0% | 308.3 |
+| Oct | 117 | 8.6% | -475.1 |
+| Nov | 119 | 13.5% | 41.7 |
+| Dec | 120 | 9.2% | -282.4 |
 
 ### 7.3 Day-of-Week Breakdown (all branches combined)
 | Day | Trades | Win Rate | Total PnL |
 |-----|--------|----------|-----------|
-| Mon | 146 | 14.4% | -327.0 |
-| Tue | 132 | 24.2% | 684.6 |
-| Wed | 148 | 14.2% | -445.2 |
-| Thu | 140 | 15.0% | -33.6 |
-| Fri | 147 | 15.0% | -94.8 |
+| Mon | 241 | 13.3% | -300.7 |
+| Tue | 242 | 19.0% | 714.9 |
+| Wed | 272 | 12.9% | -799.3 |
+| Thu | 256 | 13.3% | -27.8 |
+| Fri | 260 | 11.9% | -276.2 |
 
 ---
 
@@ -313,11 +316,11 @@ Best SL/TP combinations by Profit Factor (top 10 per primary branch):
 
 | Branch | Actual PnL | CI Lo | CI Hi | Profitable? |
 |--------|------------|-------|-------|-------------|
-| ashort | -180.7 | -935.2 | 615.3 | NO |
-| flipshort | 102.9 | -318.4 | 528.4 | NO |
-| along | -513.4 | -1259.0 | 182.4 | NO |
-| fliplong | 375.0 | -150.9 | 880.1 | NO |
-| _primary | -694.0 | -1801.8 | 419.8 | NO |
+| ashort | -420.1 | -1408.5 | 603.8 | NO |
+| flipshort | -146.5 | -646.3 | 368.6 | NO |
+| along | -575.8 | -1498.0 | 432.8 | NO |
+| fliplong | 453.4 | -162.7 | 1023.7 | NO |
+| _primary | -995.9 | -2408.5 | 416.7 | NO |
 
 ---
 
@@ -328,10 +331,10 @@ p-value = fraction of 2000 permutations with total PnL ≥ actual
 
 | Branch | Actual PnL | PF | Sign-flip p | t-test p | Rejects H0? |
 |--------|------------|-----|-------------|----------|-------------|
-| ashort | -180.7 | 0.939 | 0.6685 | 0.6562 | NO |
-| flipshort | 102.9 | 1.1372 | 0.3160 | 0.6228 | NO |
-| along | -513.4 | 0.8117 | 0.9195 | 0.1659 | NO |
-| fliplong | 375.0 | 1.3843 | 0.0765 | 0.1630 | NO |
+| ashort | -420.1 | 0.9158 | 0.7880 | 0.4121 | NO |
+| flipshort | -146.5 | 0.8954 | 0.7045 | 0.5823 | NO |
+| along | -575.8 | 0.8757 | 0.8805 | 0.2328 | NO |
+| fliplong | 453.4 | 1.3289 | 0.0670 | 0.1350 | NO |
 
 ---
 
@@ -341,19 +344,22 @@ Train on all prior years, test on current year:
 
 | Test Year | IS Trades | OOS Trades | IS PF | OOS PF | OOS PnL |
 |-----------|-----------|-----------|-------|--------|---------|
-| 2025 | 197 | 298 | 0.789 | 1.1257 | 362.8 |
-| 2026 | 495 | 218 | 0.9983 | 0.9248 | -208.4 |
+| 2022 | 104 | 168 | 1.3228 | 0.7425 | -440.0 |
+| 2023 | 272 | 216 | 0.9587 | 0.9162 | -131.1 |
+| 2024 | 488 | 267 | 0.9432 | 0.7553 | -599.8 |
+| 2025 | 755 | 298 | 0.8748 | 1.1257 | 362.8 |
+| 2026 | 1053 | 218 | 0.9501 | 0.9248 | -208.4 |
 
 ---
 
 ## 11. BUY-AND-HOLD COMPARISON
 
-- Period start price: 7599.6
+- Period start price: 7479.7
 - Period end price:   9095.0
-- B&H return:         1495.3 pts (19.68%)
+- B&H return:         1615.3 pts (21.60%)
 
-- All-branch strategy total PnL: -216.1 pts
-- Primary-branch total PnL: -694.0 pts
+- All-branch strategy total PnL: -689.0 pts
+- Primary-branch total PnL: -995.9 pts
 
 ---
 
@@ -365,8 +371,8 @@ AU200 (AUS200) typical costs (Dukascopy-style):
 - **Total friction per trade: ~3–7 pts**
 
 Impact on primary branches:
-- A Short: Raw PnL=-180.7 → After costs @3pt=-978.7 to @7pt=-2042.7 pts
-- A Long: Raw PnL=-513.4 → After costs @3pt=-1215.4 to @7pt=-2151.4 pts
+- A Short: Raw PnL=-420.1 → After costs @3pt=-1848.1 to @7pt=-3752.1 pts
+- A Long: Raw PnL=-575.8 → After costs @3pt=-1910.8 to @7pt=-3690.8 pts
 
 ---
 
@@ -374,10 +380,10 @@ Impact on primary branches:
 
 | Gate | Requirement | Status |
 |------|-------------|--------|
-| Random null (primary, p<0.05) | p=0.1659 | FAIL |
-| Bootstrap CI entirely positive | CI=[-1801.8,419.8] | FAIL |
-| Beats buy-and-hold | Strategy=-694.0 vs BnH=1495.3 | FAIL |
-| Sufficient sample (n≥200 primary) | n=500 | PASS |
+| Random null (primary, p<0.05) | p=0.2328 | FAIL |
+| Bootstrap CI entirely positive | CI=[-2408.5,416.7] | FAIL |
+| Beats buy-and-hold | Strategy=-995.9 vs BnH=1615.3 | FAIL |
+| Sufficient sample (n≥200 primary) | n=921 | PASS |
 
 ---
 
@@ -387,16 +393,16 @@ Impact on primary branches:
 
 **Primary branches (A Short, A Long):**
 - Both branches have PF < 1.0 — they are net losers before costs
-- Win rate 16.8% vs breakeven required 30.4%
+- Win rate 15.0% vs breakeven required 30.4%
 - After realistic costs (3–7 pts/trade), losses deepen significantly
 - Placebo tests: results are consistent with random noise
 - Conclusion: **No exploitable edge in the primary branches over this sample**
 
 **Flip branches (Flip Long, Flip Short):**
-- Flip Long: PF=1.3843 — marginally positive
-- Flip Short: PF=1.1372 — marginally positive
-- Only 112 and 101 trades respectively — insufficient for statistical confidence
-- Flip Long Sharpe: 2.1066 (over 2 years) — possibly overfitted to regime
+- Flip Long: PF=1.3289 — marginally positive
+- Flip Short: PF=0.8954 — marginally positive
+- Only 180 and 170 trades respectively — insufficient for statistical confidence
+- Flip Long Sharpe: 1.7763 (over 2 years) — possibly overfitted to regime
 - Dominant outcome is TIMEOUT (neither TP nor SL hit) — edge is marginal drift, not momentum
 
 **Overall recommendation:** Do not trade the primary branches as described. The flip branches warrant

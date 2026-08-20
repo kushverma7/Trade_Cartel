@@ -1,22 +1,7 @@
 """
-AU200 10AM Strategy Engine — full trade reconstruction.
+AU200 10AM Strategy Engine — vectorized, memory-efficient.
 
-Pine Script logic (process_orders_on_close=true):
-  dOpen  = open  of the 09:50 Melbourne 5-min bar
-  bHi    = max(open, close) of the 10:00 Melbourne 5-min bar
-  bLo    = min(open, close) of the 10:00 Melbourne 5-min bar
-  side   = +1 if 10:00 close > dOpen else -1
-
-  A Short : side == -1  → entry=bLo,  SL=bHi+17, TP=bLo-39
-  A Long  : side == +1  → entry=bHi,  SL=bLo-17, TP=bHi+39
-  Flip Long  (triggered after A Short hits SL): entry=bHi+17, SL=bLo-17, TP=(bHi+17)+39
-  Flip Short (triggered after A Long  hits SL): entry=bLo-17, SL=bHi+17, TP=(bLo-17)-39
-
-process_orders_on_close=true means the entry/exit prices are exact (no slippage assumed here).
-
-Outputs:
-  results/baseline/trades_all.csv          — every trade row
-  results/baseline/summary.json            — aggregate stats per branch + combined
+Pre-groups 1-min data by date into numpy arrays. Resolves exits without pandas iterrows.
 """
 
 import pandas as pd
@@ -24,222 +9,176 @@ import numpy as np
 import json
 from pathlib import Path
 from datetime import time as dtime
+import pytz
 
-PROC_DIR    = Path("/home/user/Trade_Cartel/research/au200_10am/data/processed")
-RES_DIR     = Path("/home/user/Trade_Cartel/research/au200_10am/results")
-BASE_DIR    = RES_DIR / "baseline"
+PROC_DIR = Path("/home/user/Trade_Cartel/research/au200_10am/data/processed")
+BASE_DIR = Path("/home/user/Trade_Cartel/research/au200_10am/results/baseline")
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 
 SL_PTS = 17.0
 TP_PTS = 39.0
-
-# ─── Load data ────────────────────────────────────────────────────────────────
-
-def load_data():
-    import pytz
-    mel_tz = pytz.timezone("Australia/Melbourne")
-
-    def read_mel_csv(path):
-        df = pd.read_csv(path, index_col=0)
-        # Parse with utc=True to handle mixed AEST/AEDT offsets, then convert to Melbourne
-        df.index = pd.to_datetime(df.index, utc=True).tz_convert(mel_tz)
-        return df
-
-    df5 = read_mel_csv(PROC_DIR / "au200_5m_melbourne.csv.gz")
-    df1 = read_mel_csv(PROC_DIR / "au200_1m_melbourne.csv.gz")
-    return df5, df1
+MAX_BARS = 180
+MEL_TZ = pytz.timezone("Australia/Melbourne")
 
 
-# ─── Session extraction ────────────────────────────────────────────────────────
+# ─── Load + pre-group 1-min data by date ─────────────────────────────────────
 
-T0950 = dtime(9, 50)
-T1000 = dtime(10, 0)
+def load_1m_by_date():
+    """Returns dict: date -> {'hi': np.array, 'lo': np.array, 'cl': np.array, 'times': list}
+    Only bars at/after 10:05 Melbourne time."""
+    print("  Loading 1-min data...")
+    df = pd.read_csv(PROC_DIR / "au200_1m_melbourne.csv.gz", index_col=0)
+    df.index = pd.to_datetime(df.index, utc=True).tz_convert(MEL_TZ)
 
-def extract_sessions(df5: pd.DataFrame):
-    """Extract all sessions where both 09:50 and 10:00 bars exist."""
-    df5 = df5.copy()
+    # Filter to bars >= 10:05 (after 10:00 5-min bar closes)
+    df = df[df.index.time >= dtime(10, 5)].copy()
+    df['date'] = df.index.date
+
+    print(f"  Bars at/after 10:05: {len(df):,}")
+
+    by_date = {}
+    for date, grp in df.groupby('date'):
+        grp_sorted = grp.head(MAX_BARS)
+        by_date[date] = {
+            'hi': grp_sorted['high'].values,
+            'lo': grp_sorted['low'].values,
+            'cl': grp_sorted['close'].values,
+        }
+    print(f"  Unique dates: {len(by_date)}")
+    return by_date
+
+
+# ─── Load + extract sessions ──────────────────────────────────────────────────
+
+def load_sessions():
+    print("  Loading 5-min data...")
+    df5 = pd.read_csv(PROC_DIR / "au200_5m_melbourne.csv.gz", index_col=0)
+    df5.index = pd.to_datetime(df5.index, utc=True).tz_convert(MEL_TZ)
+
     df5['bar_time'] = df5.index.time
-    df5['date']     = df5.index.date
+    df5['date'] = df5.index.date
 
-    rows_0950 = df5[df5['bar_time'] == T0950][['date','open','high','low','close']].copy()
-    rows_0950.columns = ['date','o0950','h0950','l0950','c0950']
-    rows_0950 = rows_0950.set_index('date')
+    T0950 = dtime(9, 50)
+    T1000 = dtime(10, 0)
 
-    rows_1000 = df5[df5['bar_time'] == T1000][['date','open','high','low','close']].copy()
-    rows_1000.columns = ['date','o1000','h1000','l1000','c1000']
-    rows_1000 = rows_1000.set_index('date')
+    r0950 = df5[df5['bar_time'] == T0950][['date','open']].copy()
+    r0950.columns = ['date','o0950']
+    r0950 = r0950.set_index('date')
 
-    sess = rows_0950.join(rows_1000, how='inner')
-    sess = sess.dropna()
+    r1000 = df5[df5['bar_time'] == T1000][['date','open','close']].copy()
+    r1000.columns = ['date','o1000','c1000']
+    r1000 = r1000.set_index('date')
+
+    sess = r0950.join(r1000, how='inner').dropna()
     sess['dOpen'] = sess['o0950']
     sess['bHi']   = sess[['o1000','c1000']].max(axis=1)
     sess['bLo']   = sess[['o1000','c1000']].min(axis=1)
     sess['side']  = np.where(sess['c1000'] > sess['dOpen'], 1, -1)
 
-    # Exact entry prices per branch
-    sess['entry_ashort']    = sess['bLo']
-    sess['sl_ashort']       = sess['bHi'] + SL_PTS
-    sess['tp_ashort']       = sess['bLo'] - TP_PTS
-
-    sess['entry_along']     = sess['bHi']
-    sess['sl_along']        = sess['bLo'] - SL_PTS
-    sess['tp_along']        = sess['bHi'] + TP_PTS
-
-    # Flip entries (triggered at the SL level of primary trade)
-    sess['entry_fliplong']  = sess['bHi'] + SL_PTS   # = sl_ashort
-    sess['sl_fliplong']     = sess['bLo'] - SL_PTS
-    sess['tp_fliplong']     = sess['entry_fliplong'] + TP_PTS
-
-    sess['entry_flipshort'] = sess['bLo'] - SL_PTS   # = sl_along
-    sess['sl_flipshort']    = sess['bHi'] + SL_PTS
-    sess['tp_flipshort']    = sess['entry_flipshort'] - TP_PTS
-
+    print(f"  Sessions (both 09:50 + 10:00): {len(sess)}")
     return sess
 
 
-# ─── Forward path resolution ──────────────────────────────────────────────────
+# ─── Resolve single trade via numpy ──────────────────────────────────────────
 
-def resolve_trade_on_1m(date, entry_price, sl_price, tp_price, direction,
-                         df1: pd.DataFrame, is_stop_entry=False, max_bars=180):
+def resolve(hi, lo, cl, entry, sl, tp, direction, is_stop):
     """
-    Walk 1-minute bars forward from 10:05 (after 10:00 5-min bar closes).
-    direction: +1 = long, -1 = short
-    is_stop_entry: if True, wait for price to reach entry_price first
-    Returns dict or None (if stop entry never triggered).
+    hi/lo/cl: numpy arrays of 1-min bars from 10:05
+    is_stop: if True, wait for price to reach entry level first (flip trades)
+    direction: +1 long, -1 short
+    Returns: (outcome, bars_held, pnl, mfe, mae) or None if stop never triggered
     """
-    day_bars = df1[df1.index.date == date]
-    active_bars = day_bars[day_bars.index.time >= dtime(10, 5)]
-    active_bars = active_bars.head(max_bars)
-
-    if active_bars.empty:
+    n = len(hi)
+    if n == 0:
         return None
 
     mfe = 0.0
     mae = 0.0
-    entry_triggered = not is_stop_entry  # market entry: already in from bar 0
-    bars_to_entry   = 0  # 0 = entered immediately
+    entry_bar = 0
 
-    for i, (ts, row) in enumerate(active_bars.iterrows()):
-        hi = row['high']
-        lo = row['low']
-
-        if not entry_triggered:
-            # Check if stop entry level reached this bar
-            if direction == 1 and hi >= entry_price:
-                entry_triggered = True
-                bars_to_entry = i + 1
-            elif direction == -1 and lo <= entry_price:
-                entry_triggered = True
-                bars_to_entry = i + 1
-            else:
-                continue  # not yet entered
-
-        # Trade is active — track excursions and check TP/SL
+    if is_stop:
+        # Find first bar where entry level is reached
         if direction == 1:
-            fav = hi - entry_price
-            adv = entry_price - lo
-            tp_hit = hi >= tp_price
-            sl_hit = lo <= sl_price
+            triggered = np.where(hi >= entry)[0]
         else:
-            fav = entry_price - lo
-            adv = hi - entry_price
-            tp_hit = lo <= tp_price
-            sl_hit = hi >= sl_price
+            triggered = np.where(lo <= entry)[0]
+        if len(triggered) == 0:
+            return None
+        entry_bar = triggered[0]
 
-        mfe = max(mfe, fav)
-        mae = max(mae, adv)
+    # Slice from entry bar
+    hi_s = hi[entry_bar:]
+    lo_s = lo[entry_bar:]
+    cl_s = cl[entry_bar:]
 
-        if tp_hit and sl_hit:
-            # Both in same bar — assume SL hit first (conservative)
-            exit_price = sl_price
-            pnl = (sl_price - entry_price) * direction
-            return dict(outcome='SL', exit_price=exit_price, exit_bar=str(ts),
-                        bars_held=i+1, bars_to_entry=bars_to_entry, pnl=pnl, mfe=mfe, mae=mae)
+    if direction == 1:
+        fav = hi_s - entry
+        adv = entry - lo_s
+        tp_hit = hi_s >= tp
+        sl_hit = lo_s <= sl
+    else:
+        fav = entry - lo_s
+        adv = hi_s - entry
+        tp_hit = lo_s <= tp
+        sl_hit = hi_s >= sl
 
-        if tp_hit:
-            exit_price = tp_price
-            pnl = (tp_price - entry_price) * direction
-            return dict(outcome='TP', exit_price=exit_price, exit_bar=str(ts),
-                        bars_held=i+1, bars_to_entry=bars_to_entry, pnl=pnl, mfe=mfe, mae=mae)
+    for i in range(len(hi_s)):
+        mfe = max(mfe, float(fav[i]))
+        mae = max(mae, float(adv[i]))
 
-        if sl_hit:
-            exit_price = sl_price
-            pnl = (sl_price - entry_price) * direction
-            return dict(outcome='SL', exit_price=exit_price, exit_bar=str(ts),
-                        bars_held=i+1, bars_to_entry=bars_to_entry, pnl=pnl, mfe=mfe, mae=mae)
+        both = tp_hit[i] and sl_hit[i]
+        if both or sl_hit[i]:
+            pnl = (sl - entry) * direction
+            return ('SL', entry_bar + i + 1, float(pnl), mfe, mae)
+        if tp_hit[i]:
+            pnl = (tp - entry) * direction
+            return ('TP', entry_bar + i + 1, float(pnl), mfe, mae)
 
-    if not entry_triggered:
-        return None  # stop entry never triggered
-
-    # Timed out
-    last = active_bars.iloc[-1]
-    exit_price = last['close']
-    pnl = (exit_price - entry_price) * direction
-    return dict(outcome='TIMEOUT', exit_price=exit_price, exit_bar=str(active_bars.index[-1]),
-                bars_held=len(active_bars), bars_to_entry=bars_to_entry, pnl=pnl, mfe=mfe, mae=mae)
+    # Timeout
+    pnl = (float(cl_s[-1]) - entry) * direction
+    return ('TIMEOUT', entry_bar + len(hi_s), float(pnl), mfe, mae)
 
 
 # ─── Run branches ──────────────────────────────────────────────────────────────
 
-def run_branch(sess: pd.DataFrame, df1: pd.DataFrame, branch: str):
-    """Run a single branch across all qualifying sessions."""
+def run_branch(sess, by_date, branch):
     trades = []
 
     for date, row in sess.iterrows():
-        side = row['side']
+        side  = int(row['side'])
+        bHi   = float(row['bHi'])
+        bLo   = float(row['bLo'])
 
         if branch == 'ashort':
-            if side != -1:
-                continue
-            entry = row['entry_ashort']
-            sl    = row['sl_ashort']
-            tp    = row['tp_ashort']
-            direction = -1
-
+            if side != -1: continue
+            entry, sl, tp, direction, is_stop = bLo, bHi+SL_PTS, bLo-TP_PTS, -1, False
         elif branch == 'along':
-            if side != 1:
-                continue
-            entry = row['entry_along']
-            sl    = row['sl_along']
-            tp    = row['tp_along']
-            direction = 1
-
+            if side != 1: continue
+            entry, sl, tp, direction, is_stop = bHi, bLo-SL_PTS, bHi+TP_PTS, 1, False
         elif branch == 'fliplong':
-            if side != -1:
-                continue
-            entry = row['entry_fliplong']
-            sl    = row['sl_fliplong']
-            tp    = row['tp_fliplong']
-            direction = 1
-
+            if side != -1: continue
+            entry = bHi + SL_PTS
+            entry, sl, tp, direction, is_stop = entry, bLo-SL_PTS, entry+TP_PTS, 1, True
         elif branch == 'flipshort':
-            if side != 1:
-                continue
-            entry = row['entry_flipshort']
-            sl    = row['sl_flipshort']
-            tp    = row['tp_flipshort']
-            direction = -1
+            if side != 1: continue
+            entry = bLo - SL_PTS
+            entry, sl, tp, direction, is_stop = entry, bHi+SL_PTS, entry-TP_PTS, -1, True
 
-        else:
-            raise ValueError(f"Unknown branch: {branch}")
-
-        is_flip = branch in ('fliplong', 'flipshort')
-        result = resolve_trade_on_1m(date, entry, sl, tp, direction, df1,
-                                     is_stop_entry=is_flip)
-        if result is None:
+        bars = by_date.get(date)
+        if bars is None:
             continue
 
+        res = resolve(bars['hi'], bars['lo'], bars['cl'], entry, sl, tp, direction, is_stop)
+        if res is None:
+            continue
+
+        outcome, bars_held, pnl, mfe, mae = res
         trades.append({
-            'date': str(date),
-            'branch': branch,
-            'direction': direction,
-            'dOpen': row['dOpen'],
-            'bHi': row['bHi'],
-            'bLo': row['bLo'],
-            'entry': entry,
-            'sl': sl,
-            'tp': tp,
-            **result,
+            'date': str(date), 'branch': branch, 'direction': direction,
+            'bHi': bHi, 'bLo': bLo, 'dOpen': float(row['dOpen']),
+            'entry': entry, 'sl': sl, 'tp': tp,
+            'outcome': outcome, 'bars_held': bars_held,
+            'pnl': round(pnl, 4), 'mfe': round(mfe, 4), 'mae': round(mae, 4),
         })
 
     return pd.DataFrame(trades)
@@ -247,43 +186,28 @@ def run_branch(sess: pd.DataFrame, df1: pd.DataFrame, branch: str):
 
 # ─── Stats ────────────────────────────────────────────────────────────────────
 
-def compute_stats(df: pd.DataFrame) -> dict:
-    if df.empty:
-        return {}
-    n  = len(df)
-    tp = (df['outcome'] == 'TP').sum()
-    sl = (df['outcome'] == 'SL').sum()
-    to = (df['outcome'] == 'TIMEOUT').sum()
-    wr = tp / n
-
-    total_pnl = df['pnl'].sum()
-    gross_win  = df.loc[df['pnl'] > 0, 'pnl'].sum()
-    gross_loss = df.loc[df['pnl'] < 0, 'pnl'].abs().sum()
-    pf = gross_win / gross_loss if gross_loss > 0 else np.nan
-
-    avg_win  = df.loc[df['pnl'] > 0, 'pnl'].mean() if tp > 0 else np.nan
-    avg_loss = df.loc[df['pnl'] < 0, 'pnl'].mean() if sl + to > 0 else np.nan
-
+def compute_stats(df):
+    if df.empty: return {}
+    n   = len(df)
+    tp  = (df['outcome'] == 'TP').sum()
+    sl  = (df['outcome'] == 'SL').sum()
+    to  = (df['outcome'] == 'TIMEOUT').sum()
+    wr  = tp / n
+    gw  = df.loc[df['pnl'] > 0, 'pnl'].sum()
+    gl  = df.loc[df['pnl'] < 0, 'pnl'].abs().sum()
+    pf  = gw / gl if gl > 0 else float('nan')
     equity = df['pnl'].cumsum()
-    dd = (equity.cummax() - equity)
-    max_dd = dd.max()
-
-    sharpe = np.nan
-    if df['pnl'].std() > 0:
-        sharpe = df['pnl'].mean() / df['pnl'].std() * np.sqrt(252)
-
+    mdd = (equity.cummax() - equity).max()
+    sh  = df['pnl'].mean() / df['pnl'].std() * np.sqrt(252) if df['pnl'].std() > 0 else float('nan')
     return {
-        'n_trades': int(n),
-        'n_tp': int(tp),
-        'n_sl': int(sl),
-        'n_timeout': int(to),
+        'n_trades': int(n), 'n_tp': int(tp), 'n_sl': int(sl), 'n_timeout': int(to),
         'win_rate': round(float(wr), 4),
-        'total_pnl_pts': round(float(total_pnl), 2),
+        'total_pnl_pts': round(float(df['pnl'].sum()), 2),
         'profit_factor': round(float(pf), 4) if not np.isnan(pf) else None,
-        'avg_win_pts': round(float(avg_win), 2) if not np.isnan(avg_win) else None,
-        'avg_loss_pts': round(float(avg_loss), 2) if not np.isnan(avg_loss) else None,
-        'max_drawdown_pts': round(float(max_dd), 2),
-        'annualized_sharpe': round(float(sharpe), 4) if not np.isnan(sharpe) else None,
+        'avg_win_pts': round(float(df.loc[df['pnl']>0,'pnl'].mean()), 2) if gw > 0 else None,
+        'avg_loss_pts': round(float(df.loc[df['pnl']<0,'pnl'].mean()), 2) if gl > 0 else None,
+        'max_drawdown_pts': round(float(mdd), 2),
+        'annualized_sharpe': round(float(sh), 4) if not np.isnan(sh) else None,
         'avg_mfe_pts': round(float(df['mfe'].mean()), 2),
         'avg_mae_pts': round(float(df['mae'].mean()), 2),
         'avg_bars_held': round(float(df['bars_held'].mean()), 1),
@@ -293,60 +217,36 @@ def compute_stats(df: pd.DataFrame) -> dict:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print("=== AU200 10AM Strategy Engine ===\n")
-
+    print("=== AU200 10AM Strategy Engine (vectorized) ===\n")
     print("Loading data...")
-    df5, df1 = load_data()
-    print(f"  5-min bars: {len(df5):,}")
-    print(f"  1-min bars: {len(df1):,}")
-
-    print("Extracting sessions...")
-    sess = extract_sessions(df5)
-    print(f"  Sessions with both 09:50 and 10:00 bars: {len(sess)}")
-    print(f"  Side=+1 (long bias): {(sess['side']==1).sum()}")
-    print(f"  Side=-1 (short bias): {(sess['side']==-1).sum()}")
+    by_date = load_1m_by_date()
+    sess    = load_sessions()
 
     all_trades = []
-    summary = {}
+    summary    = {}
 
     for branch in ['ashort', 'along', 'fliplong', 'flipshort']:
         print(f"\nRunning branch: {branch}...")
-        df_branch = run_branch(sess, df1, branch)
-        print(f"  Trades: {len(df_branch)}")
-        if not df_branch.empty:
-            stats = compute_stats(df_branch)
-            summary[branch] = stats
-            print(f"  Win rate: {stats['win_rate']:.1%}  PF: {stats['profit_factor']}  Total PnL: {stats['total_pnl_pts']} pts")
-            all_trades.append(df_branch)
+        df_b = run_branch(sess, by_date, branch)
+        print(f"  Trades: {len(df_b)}")
+        if not df_b.empty:
+            st = compute_stats(df_b)
+            summary[branch] = st
+            print(f"  Win rate: {st['win_rate']:.1%}  PF: {st['profit_factor']}  PnL: {st['total_pnl_pts']} pts")
+            all_trades.append(df_b)
+            df_b.to_csv(BASE_DIR / f"trades_{branch}.csv", index=False)
 
-    # Combined (all branches together as if trading all signals)
     if all_trades:
-        df_all = pd.concat(all_trades, ignore_index=True)
-        df_all = df_all.sort_values('date').reset_index(drop=True)
+        df_all = pd.concat(all_trades).sort_values('date').reset_index(drop=True)
         df_all.to_csv(BASE_DIR / "trades_all.csv", index=False)
-        print(f"\nAll trades saved: {len(df_all)}")
         summary['_combined_all'] = compute_stats(df_all)
 
-    # Also save per-branch
-    for branch in ['ashort', 'along', 'fliplong', 'flipshort']:
-        bt = [t for t in all_trades if not t.empty and t['branch'].iloc[0] == branch]
-        if bt:
-            bt[0].to_csv(BASE_DIR / f"trades_{branch}.csv", index=False)
+        primary = pd.concat([t for t in all_trades if t['branch'].iloc[0] in ('ashort','along')])
+        primary = primary.sort_values('date').reset_index(drop=True)
+        primary.to_csv(BASE_DIR / "trades_primary.csv", index=False)
+        summary['_primary'] = compute_stats(primary)
 
-    # Primary branch: the one the signal fires (A Short when side=-1, A Long when side=+1)
-    primary_trades = []
-    for branch in ['ashort', 'along']:
-        bt = [t for t in all_trades if not t.empty and t['branch'].iloc[0] == branch]
-        if bt:
-            primary_trades.append(bt[0])
-    if primary_trades:
-        df_primary = pd.concat(primary_trades, ignore_index=True).sort_values('date')
-        summary['_primary'] = compute_stats(df_primary)
-        df_primary.to_csv(BASE_DIR / "trades_primary.csv", index=False)
-
-    # Save summary
-    out_json = BASE_DIR / "summary.json"
-    with open(out_json, 'w') as f:
+    with open(BASE_DIR / "summary.json", 'w') as f:
         json.dump(summary, f, indent=2)
 
     print("\n=== SUMMARY ===")
@@ -355,8 +255,7 @@ def main():
         for stat, val in v.items():
             print(f"  {stat}: {val}")
 
-    print(f"\nSaved: {out_json}")
-    print("Strategy engine complete.")
+    print("\nDone.")
 
 if __name__ == "__main__":
     main()
