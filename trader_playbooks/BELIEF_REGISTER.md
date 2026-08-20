@@ -2453,3 +2453,54 @@ the entire gross edge available in the AU200 open families tested.
 2 points round trip would move several of these cells back above water and this
 belief would need rewriting. **THE SPREAD IS STILL UNMEASURED — this belief
 rests on an assumption and is flagged as such.**
+
+## H91 — The gold spread is MEASURED, and it is $0.63 (2026-08-20)
+
+**Belief:** XAU/USD median spread in the Melbourne 10:00-16:00 window is
+**$0.630 per ounce** (p90 $0.860, p99 $1.660), so a round trip costs about
+**$1.26** before slippage.
+
+**Evidence:** Dukascopy bid and ask 1-minute feeds pulled separately across the
+339 setup days; 185,601 paired minute observations.
+
+**Consequence:** this partially discharges H90's flagged assumption — for GOLD.
+AU200's spread is still unmeasured, and the same Dukascopy bid/ask route now
+demonstrably works, so that measurement is a small job, not a blocked one.
+
+**Invalidation:** the user's actual broker quoting materially wider or tighter
+than Dukascopy's ECN.
+
+## H92 — The 10AM Body Break does not transfer to gold (2026-08-20)
+
+**Belief:** the structure has no directional content on XAU/USD, and separately
+cannot be constructed at all for ~4.5 months a year.
+
+**Evidence:** 34-phase study, 339 setup days. 64 first-passage tests with zero
+significant results; target dollars equal stop dollars within 2%; the traded
+clock time ranks mid-pack against nearby anchors; sole candidate PF 0.841 on an
+untouched holdout; every bootstrap CI contains zero. Separately: 09:50 absent on
+180/180 AEDT+NY-EST weekdays because the daily break sits at 09:00-10:00
+Melbourne then.
+
+**Invalidation:** a pre-registered test on a DIFFERENT anchor tied to gold's own
+session structure (post-break reopen, London fix, NY cash open) showing
+first-passage asymmetry. Re-running these same rules on more data will not do it.
+
+## H93 — The flip is not a sweep, on either market (2026-08-20)
+
+**Belief:** the reversal leg of this family is not capturing failed breakouts,
+stop runs, trapped participants or swept liquidity.
+
+**Evidence:** GOLD, tested directly — flips WITHOUT a prior opposite breakout
+outperform flips that follow a genuine committed breakout, on both flip
+directions, by a factor of 2-4 (Flip Long exp $4.53 vs $1.84; Flip Short $4.16
+vs $0.95). The sweep reading predicts the opposite ordering. This is the second
+independent rejection: AU200 Phase 3 rejected the opposite-side sweep hypothesis
+on all seven pre-registered criteria.
+
+**Consequence:** stop attributing this family's behaviour to liquidity mechanics.
+The better-performing flips come from narrow-range mornings, which is a
+volatility artefact against a fixed dollar stop.
+
+**Invalidation:** a market where the "after a real opposite breakout" partition
+is the stronger one, pre-registered before looking.

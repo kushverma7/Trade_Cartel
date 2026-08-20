@@ -5436,3 +5436,45 @@ is an unadjusted first look, which is exactly the kind of number that turned out
 to be BUG-039 last time.
 **Steps 5 (VIX) and 6 (Mag 7) of the model were NOT tested — no such data in
 this repo — so this tests a strict subset of the strategy.**
+
+---
+
+## GOLD 10AM BODY BREAK — FULL 34-PHASE STUDY (2026-08-20)
+
+Data: **Dukascopy XAU/USD 1-minute bid+ask**, 2024-08-20 → 2026-08-19, 708,679
+rows, 0 duplicates / 0 zero-price / 0 invalid OHLC. LSE was requested but
+`LSE_API_KEY` is absent from this container (host now reachable, 401 not 403).
+Melbourne clock via per-bar `zoneinfo`. Sample: **339 setup days / 523 weekdays**.
+Exits SL $17 / TP $39 per ounce. Cost **$1.26** = 2 x measured median spread
+($0.630, from the ask feed, 185,601 minute observations).
+
+| Logic | N | Win % | Expectancy | PF (costed) | Net $ | DEV PF | VAL PF | **HOLD PF** |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| A Short | 147 | 39.5 | 0.32 | 1.032 | +47 | 0.987 | 0.399 | 1.395 |
+| A Long | 165 | 43.0 | 0.72 | 1.080 | +119 | 0.859 | 1.871 | 1.091 |
+| Flip Long | 150 | 43.3 | 1.75 | 1.199 | +262 | 1.485 | 1.720 | **0.841** |
+| Flip Short | 145 | 42.8 | 1.04 | 1.126 | +151 | 1.026 | 0.357 | 1.774 |
+| All four | 362 | 43.1 | 1.90 | 1.210 | +689 | — | — | 1.369 |
+
+### STATUS: VALID — NEGATIVE RESULT. Out-of-sample tested; holdout opened once.
+
+**VERDICT: NO EVIDENCE OF GOLD EDGE.** Five independent negatives:
+1. 64 first-passage tests (4 logics x 16 barriers, $1..$100), **zero** CIs
+   exclude 50%; min p = 0.135. Same at 0.10x-3.00x ATR barriers.
+2. Target dollars ~= stop dollars within 2% on every branch. ALL net P&L is
+   end-of-day residual on trades that touched neither barrier. Held to EOD with
+   no barriers, Flip Long is PF 0.952.
+3. Clock placebo on 338 shared days: the traded 09:50/10:00 pair ranks 6th of 8
+   on A Short and 7th of 8 on A Long against its own neighbours.
+4. Only DEV+VAL survivor (Flip Long) returns **PF 0.841** on the sealed holdout.
+   VAL-to-HOLD rank correlation is negative — a reshuffle, not decay.
+5. Every block-bootstrap expectancy 90% CI contains zero. K = 1,158 evaluations,
+   so the bar is t >= 3.76; best p anywhere in the study is 0.033.
+
+**STRUCTURAL FINDING (independent of the above):** the gold maintenance break
+tracks NY 17:00-18:00 and lands on **09:00-10:00 Melbourne** whenever Melbourne
+is AEDT and New York is EST. The 09:50 reference candle is absent on **180 of
+180** such weekdays. The strategy is untradeable on gold ~4.5 months a year.
+
+Report: `research/gold_10am/report/GOLD_10AM_2024_2026_FULL_REPORT.md`
+Ledger: `research/gold_10am/results/research_ledger.csv` (G01-G26)

@@ -1295,7 +1295,7 @@ but the reference level is a dropdown (security daily / 10:00 / 07:00 / 00:00),
 a minimum-risk guard is added, and an on-chart table prints the security daily
 open, the 10:00 open and the gap between them so the divergence is visible.
 
-### CURRENT STATE AND NEXT ACTION
+### SUPERSEDED HANDOFF (2026-08-16)
 - The 10 AM Body Break is CLOSED as a source of edge on AU200 unless the 00:00
   anchor can be justified as a real overnight-gap filter and tested on data that
   covers overnight bars for all sessions (the current file covers 544 of 1635).
@@ -1397,3 +1397,41 @@ THREE FINDINGS WORTH CARRYING FORWARD:
   reference /root/.claude/uploads paths again.
 - Gold is only available at 15m in the repo (data/xauusd_15m.csv.gz); there is
   no gold 5m, so the "or gold 5 mins" option could not be honoured.
+
+
+### CURRENT STATE AND NEXT ACTION (2026-08-20)
+
+**Two threads are live. Read both before doing anything.**
+
+**1. MANUAL VISUAL TEST — PAUSED AT CHART 089, NOT ABANDONED.**
+The user is personally classifying all 120 blind AU200 charts. 88 responses are
+recorded in `research/au200/blind/MANUAL_RESPONSES.md` (001-088). Chart 089 was
+sent and is unanswered. The answer key is frozen and UNOPENED.
+Procedure when it resumes: send `research/au200/blind/charts_v2/NNN.png`, record
+`| NNN | XX |`, commit, send the next. **Zero feedback. No partial scoring. No
+comment on any pattern in the answers.** After 120, freeze the file and wait for
+the literal command "LOCK AND SCORE MANUAL TEST" before opening the key.
+Post-lock the user also wants: comparison against ChatGPT's independent
+classifications, a re-check against the candlestick books, and investigation of
+disagreements.
+
+**2. GOLD 10AM STUDY — COMPLETE. Verdict NO EVIDENCE OF GOLD EDGE.**
+`research/gold_10am/`, 34 phases, report in `report/`, ledger G01-G26. See
+RESULTS_LEDGER.md for the numbers and H91/H92/H93 for the beliefs.
+
+**Standing facts learned this session:**
+- **dukascopy.com is reachable and gives BID AND ASK separately.** That is how
+  the gold spread finally got measured ($0.630 median). The identical route will
+  measure the AU200 spread, which still gates three results (H90, gap
+  continuation, AMD FVG). This is now a small job. DO IT.
+- **api.londonstrategicedge.com is reachable now (401, not the old 403 tunnel
+  refusal). What is missing is LSE_API_KEY** — this container never had it.
+  `research/gold_10am/code/fetch.py --source lse` re-runs the whole gold study
+  against the vault the moment a key is exported. Do NOT reuse the key pasted on
+  2026-08-17: public repo, was to be rotated.
+- **Gold's ATR moved 5.7x inside two years** (median pre-entry 5m ATR $0.82 in
+  2024, $4.68 in 2026). Any fixed-dollar exit compared across this window is
+  comparing two different instruments. Normalise.
+- **The gold maintenance break is at NY 17:00-18:00 and its Melbourne clock time
+  is set by TWO DST calendars.** 07:00-08:00 (AEST+EDT), 08:00-09:00 (AEDT+EDT),
+  09:00-10:00 (AEDT+EST). The third case kills 09:50 completely, Nov-Mar.
