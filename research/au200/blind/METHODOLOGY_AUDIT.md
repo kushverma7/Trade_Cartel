@@ -42,3 +42,29 @@ No formal L1/L2/L3 rubric was ever defined in this project, deliberately. The
 scale is direction plus the participant's own confidence, and the experiment
 tests that unaided judgement. Imposing a rubric now would change what is being
 measured, mid-measurement.
+
+## Items 8-10, completed
+
+**8. OHLC integrity — PASS.** 947 drawn 5-minute bars rebuilt independently from
+the raw 1-minute Dukascopy file and compared to the bars actually rendered.
+Zero mismatches.
+
+**9. Sample selection — PASS.** 120 drawn uniformly, seed 20260819, from 1,232
+eligible Logic A days. Against the 1,112 not drawn: 10:00 body size p=0.412,
+10:00 range p=0.504, entry time p=0.758, all representative. Year spread
+chi-square 4.87 on 7 df, no year over-represented. Per-year counts and the
+direction balance are deliberately withheld while the test runs, since either
+could steer the remaining answers.
+
+**10. Response file — PASS.** 68 rows, ids strictly increasing, zero duplicates,
+no gaps in 001-068, zero malformed rows. Next chart 069. Answer values not
+printed.
+
+**1. Source books.** Not part of this experiment's methodology, and that is
+deliberate. The MANUAL VISUAL TEST measures unaided visual judgement; no book
+rule is applied, encoded or shown. The candlestick playbook was used only in the
+earlier, separate classifier experiment, whose answers are excluded here.
+
+## Verdict
+
+No data or methodology flaw found. The blind-test infrastructure passes.
