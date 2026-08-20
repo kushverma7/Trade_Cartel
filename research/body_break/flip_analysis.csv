@@ -1,0 +1,4 @@
+MFEBeforeFlipBucket,Flips,FlipWinRate,FlipAvgNet,FlipPF
+0-5,265,48.3,-0.32,0.927
+5-10,32,53.1,-0.36,0.955
+10-20,15,53.3,-2.47,0.800
