@@ -1,0 +1,27 @@
+id,date,hypothesis,sample,logic,parameters,result,verdict,type,notes
+G01,2026-08-20,LSE vault can supply XAUUSD 1m for the window,n/a,n/a,api.londonstrategicedge.com,HTTP 401 - host reachable but LSE_API_KEY absent from this container,BLOCKED,n/a,Container recycled since 2026-08-17; key was a live credential in a public repo and was to be rotated. Pipeline retains --source lse for a re-run.
+G02,2026-08-20,Dukascopy XAU/USD can substitute,2024-08-20..2026-08-19,n/a,1m bid+ask,"708,679 bid rows; 0 duplicates, 0 zero-price, 0 invalid OHLC",ACCEPTED,confirmatory,Bid and ask both pulled so the spread is measured not assumed.
+G03,2026-08-20,A Melbourne 09:50 candle exists on every trading day,523 weekdays,n/a,zoneinfo Australia/Melbourne,09:50 present on 340/625 calendar days; 0/180 AEDT+NY-EST weekdays,REJECTED,confirmatory,"Maintenance break tracks NY 17:00-18:00; lands on 09:00-10:00 Melbourne in the southern summer. Structural, not a data defect."
+G04,2026-08-20,Engine reconstructs the strategy correctly,339 setups,all,V1-V7,All 7 mechanical checks pass; 8 hand reconstructions correct,ACCEPTED,confirmatory,DST verified: 09:50 AEST = 23:50 UTC and 09:50 AEDT = 22:50 UTC.
+G05,2026-08-20,Baseline 17/39 is profitable gross,full,all four,SL 17 TP 39 cost 0,PF 1.168/1.239/1.373/1.304,EXPLORATORY,exploratory,Gross of costs. Not a result on its own.
+G06,2026-08-20,The signal predicts direction (first passage),full,all four,16 symmetric barriers,"64 tests, zero 95% CIs exclude 50%; min p = 0.135",REJECTED,confirmatory,The single cleanest test in the study.
+G07,2026-08-20,Profit comes from the barrier contest,full,all four,SL 17 TP 39,TP dollars ~= SL dollars for every branch; all net sits in the EOD bucket,REJECTED,confirmatory,The barrier contest is a wash; the residual is end-of-day drift.
+G08,2026-08-20,A stop tighter than $17 helps,DEV,all four,SL 2..100,No plateau; surfaces are flat and noisy,REJECTED,exploratory,Winner MAE p80 is $11.67-14.42 so a tighter stop is plausible a priori.
+G09,2026-08-20,A different target helps,DEV,all four,TP 2..200,No stable region,REJECTED,exploratory,
+G10,2026-08-20,SL x TP has a broad profitable plateau,DEV,all four,400 cells,No contiguous warm region in any branch,REJECTED,exploratory,
+G11,2026-08-20,Flips capture failed breakouts / sweeps,full,FLIP_L FLIP_S,prior opposite breakout yes/no,"Flips WITHOUT a prior opposite breakout do better (exp 4.53/4.16) than with (1.84/0.95)",REJECTED,confirmatory,Directly contradicts the sweep narrative. Same direction as the AU200 Phase 3 rejection.
+G12,2026-08-20,10AM candle structure conditions the outcome,DEV,all four,7 vars x 3 terciles,No monotonic relationship survives in more than one branch,REJECTED,exploratory,
+G13,2026-08-20,An alternative side definition is better,DEV,all four,4 definitions,No definition dominates,REJECTED,exploratory,
+G14,2026-08-20,Volatility regime conditions the edge,DEV,all four,ATR quintiles,No monotonic pattern,REJECTED,exploratory,
+G15,2026-08-20,Entry time conditions the edge,full,all four,10 Melbourne bands,Scattered; no band consistent across branches,REJECTED,exploratory,
+G16,2026-08-20,Session context conditions the edge,full,all four,Asia/London/overlap/NY,No consistent pattern,REJECTED,exploratory,
+G17,2026-08-20,The edge exists in both AEST and AEDT,full,all four,DST split,"Signs flip: A Short AEST 1.465 vs AEDT 0.441; Flip Short 1.681 vs 0.461",REJECTED,confirmatory,AEDT n is small because of G03 - only the Oct and Mar/Apr shoulders survive.
+G18,2026-08-20,Exit management beats fixed exits,DEV,all four,BE/partial/trail,No variant beats plain fixed exits in more than one branch,REJECTED,exploratory,
+G19,2026-08-20,NFP days differ,full,all four,first-Friday rule,No material difference,REJECTED,exploratory,Only the rule-derivable event is tagged. CPI/PPI/PCE/FOMC not tagged - no verified calendar reachable.
+G20,2026-08-20,The edge survives the measured spread,DEV,all four,cost $1.26,"A Short ~1.00, A Long 0.86, Flip Short ~1.03, Flip Long 1.48",PARTIAL,confirmatory,Flip Long is the only DEV survivor. Measured median spread $0.630.
+G21,2026-08-20,Flip Long survives the untouched holdout,HOLD,FLIP_L,SL 17 TP 39 cost 1.26,PF 0.841 exp -$1.96 on 53 trades,REJECTED,confirmatory,The decisive test. Holdout opened once.
+G22,2026-08-20,The edge survives walk-forward,full,all four,6/2 and 9/3,"Signs flip with the window design; Flip Short +1.540 (6/2) vs 0.676 (9/3)",REJECTED,confirmatory,
+G23,2026-08-20,09:50/10:00 beats nearby clock times,338 shared days,all four,8 anchor pairs,The base pair ranks mid-pack; neighbours score higher on every branch,REJECTED,confirmatory,The placebo that settles whether 10AM is special.
+G24,2026-08-20,Results exceed random placebos,full,all four,3 nulls x 2000 iters,Minimum p across 12 tests = 0.033,REJECTED,confirmatory,Selection-adjusted bar is t>=3.76 (p~0.0002) at K=1158.
+G25,2026-08-20,Bootstrap expectancy excludes zero,full,all four,block bootstrap b=10,Every 90% CI contains zero,REJECTED,confirmatory,Flip Long best case [-1.31 5.05].
+G26,2026-08-20,Monte Carlo shows a durable profit,full,all four,5000 runs,"Flip Long P(profit) 95.4% but 5th pct +$3 over two years",REJECTED,confirmatory,A distribution centred on a rounding error is not an edge.
