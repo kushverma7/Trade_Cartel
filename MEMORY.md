@@ -1354,6 +1354,88 @@ trail 0.3 x ADR, BE at half-risk. n=773, PF 1.154 full sample, OOS PF 1.244,
    https://claude.ai/code/artifact/39222dfc-6238-49e6-b959-bb1505e6f5d6
 
 
+## 2026-08-16 — "Omar no wick" Pine: searched exhaustively, NOT RECOVERABLE
+
+Kush: *"I have given you the pine of omar no wick in one of the session to
+include in the strategy."* I searched every surface available on this container
+and it is not here.
+
+What was searched, and the result:
+
+| Surface | Method | Result |
+|---|---|---|
+| Working tree | `grep -ri "omar\|nowick\|no wick\|wickless"` | 2 hits, both false positives — `wendell_supply_demand.md` and a Wendell transcript, both the ordinary phrase "if there were no wicks" about drawing distal lines |
+| Full git history | all 50 commits, both branches, `--diff-filter=A` over every file ever added | zero |
+| All 39 `.pine` files | `indicators/`, `strategies/`, `indicators/aicartel_*`, `indicators/top10_*` | zero |
+| `documents/*.pdf` (22 files) | raw stream zlib-decompress + regex (pypdf is broken here — `_cffi_backend` / cryptography rust binding panics) | zero. `Legendary_Trader_Pine_Scripts_Raw_Source.pdf` is Market Cipher B, not this |
+| `sources/session_archive/02_user_turns_verbatim.md` (157 KB of verbatim user turns) | `grep -oin "wick[a-z]*"` | exactly **1** hit, inside a VAL-sweep bug write-up. Unrelated |
+| claude-mem database | `find / -name "*claude-mem*.db"` | no database on this container |
+| Prior session transcripts | `/root/.claude/projects/-home-user-Trade-Cartel/` | **only the current session's `.jsonl` exists** |
+
+### Root cause — and the standing rule that follows
+
+Claude Code on the web runs in an **ephemeral container**. The repo is cloned
+fresh at session start and the container is reclaimed after inactivity. A file
+pasted into chat lives only in that session's transcript. **If it was never
+written to disk AND committed, it is destroyed with the container.** That is
+what happened here — same mechanism as gap-analysis §6 ("Everything before
+2026-07-13 ... no transcript, no summary, no commit").
+
+**Corroborated by an independent session.** The 2026-08-16 "(later still)"
+entry below — written on the base branch, without knowledge of this search —
+records that *"the uploads directory was cleared mid-session ... Do not
+reference /root/.claude/uploads paths again."* That directory is where pasted
+files landed. I checked it during the merge: `/root/.claude/uploads` no longer
+exists. That is almost certainly where the Omar Pine went, and it independently
+confirms the diagnosis below rather than resting on my search alone.
+
+**STANDING RULE — COMMIT ON RECEIPT.** The moment Kush pastes Pine, a
+transcript, a CSV or a report, the FIRST action is to write it to
+`trader_playbooks/sources/` (or `indicators/`) verbatim and commit it, before
+any analysis, discussion or refactor. Do not analyse first and save later —
+sessions get cut off mid-turn and the upload dies with the container. This
+generalises the existing "do the capture when the finding lands" rule from
+CLAUDE.md to *inbound* material as well as outbound findings.
+
+Corollary for recovery: the only place "Omar no wick" can still exist is Kush's
+own claude.ai chat history. Re-pasting it is cheaper than any search I can run.
+
+### 2026-08-17 UPDATE — the recovery sweep settles it
+
+The 2026-08-17 archive sweep (base-branch commits 1ebd739, 5a9668e) recovered
+material that did not exist when the search above was run: 39 subagent runs
+spanning 2026-07-13 to 2026-08-11 (`07_subagent_runs_*.md`, 272 KB, plus all
+1,284 raw records in `raw/subagents_*.jsonl.xz`) and the full 2026-08-16
+session JSONL. I searched all of it.
+
+**"omarnowick" occurs exactly once in the entire recovered corpus, and it is
+Kush asking for it, not supplying it:**
+
+> `06_user_turns_verbatim_2026-08-16.md`, Turn 7 — 2026-08-16T09:00:12.381Z
+> *"Give me the omarnowick pine"*
+
+All 13 archived user turns of that session are accounted for: none contains a
+pasted Pine script by that name. The 39 subagent runs contain zero matches for
+`omar`, `no wick`, `nowick` or `wickless`, and zero wick-geometry Pine
+(`upper wick` / `lower wick` / body-ratio) of any kind.
+
+So the request has now been made at least twice — once in that session, once in
+mine — and the supply has never been located in any surviving record. Two named
+gaps in the archive are the only places it could have been supplied and still be
+invisible, and the archive README states both are unrecoverable by any means
+inside the container:
+  1. the pre-compaction portion of the 2026-08-16 session (the main JSONL
+     begins at the compaction point; everything earlier survives only as the
+     compaction summary), and
+  2. uploaded files attached before 2026-08-16 13:30 — the uploads directory
+     was recreated empty at the first container recycle. If the Pine arrived as
+     an attachment rather than pasted text, that is where it went.
+
+**Do not run this search a fourth time.** It has now been run against the
+working tree, full git history, all PDFs, the pre-existing archive, and the
+2026-08-17 recovered corpus. The answer does not change. Ask Kush to re-paste.
+
+
 ## 2026-08-16 (later still) — the written strategy tested. Cost, not concept.
 
 Kush supplied two handwritten pages and then a full 20-section written
