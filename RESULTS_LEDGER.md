@@ -5456,7 +5456,12 @@ Exits SL $17 / TP $39 per ounce. Cost **$1.26** = 2 x measured median spread
 | Flip Short | 145 | 42.8 | 1.04 | 1.126 | +151 | 1.026 | 0.357 | 1.774 |
 | All four | 362 | 43.1 | 1.90 | 1.210 | +689 | — | — | 1.369 |
 
-### STATUS: VALID — NEGATIVE RESULT. Out-of-sample tested; holdout opened once.
+### STATUS: VALID BUT FEED-SPECIFIC — awaiting LSE tick replication.
+Out-of-sample tested and holdout opened once, but on DUKASCOPY 1-MINUTE data,
+which is NOT the feed or the resolution the study was commissioned on. Do not
+cite this as the final gold verdict until GOLD_LSE_TICK_REPLICATION_REPORT.md
+exists. The 09:50 gap finding and every execution-dependent number are the
+feed-sensitive parts.
 
 **VERDICT: NO EVIDENCE OF GOLD EDGE.** Five independent negatives:
 1. 64 first-passage tests (4 logics x 16 barriers, $1..$100), **zero** CIs

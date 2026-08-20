@@ -1,7 +1,21 @@
 # Gold 10AM — Full Research Report
 ### XAU/USD, Australia/Melbourne clock, 2024-08-20 → 2026-08-19
 
-**Verdict: NO EVIDENCE OF GOLD EDGE.**
+> ## STATUS: FEED-SPECIFIC FALSIFICATION STUDY — NOT THE FINAL GOLD VERDICT
+>
+> This study was run on **Dukascopy 1-minute** data because `LSE_API_KEY` was
+> unavailable. The requested study — **London Strategic Edge XAU/USD TICK
+> data** — is pending and is a separate deliverable
+> (`GOLD_LSE_TICK_REPLICATION_REPORT.md`).
+>
+> Until that replication is complete, the verdict below stands as
+> *"the negative result holds on the Dukascopy 1-minute feed"*, not as
+> *"gold has no edge"*. Two things in particular are feed-sensitive and must be
+> re-tested on LSE ticks rather than assumed: the **09:50 maintenance-gap
+> finding** (Sections 5–7) and every **execution-dependent** number, which here
+> rests on 1-minute OHLC rather than a real bid/ask tape.
+
+**Verdict on the Dukascopy 1-minute feed: NO EVIDENCE OF GOLD EDGE.**
 
 ---
 
