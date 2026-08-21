@@ -109,8 +109,9 @@ strategy("10AM Body Pierce + Flip [XAUUSD v2]", overlay=true,
 // ── logic switches ──────────────────────────────────────────────────
 grpL       = "10AM — logics"
 useALong   = input.bool(true,  "Logic A LONG  (pierce ABOVE a bullish 10AM body)", group=grpL, tooltip="The leg that carried the result: +4.77 pts/trade over 134 trades.")
-useAShort  = input.bool(true,  "Logic A SHORT (pierce BELOW a bearish 10AM body)", group=grpL, tooltip="+0.21 pts/trade over 101 trades — statistically zero. On by default only for symmetry.")
-useFlip    = input.bool(false, "Flip (reversal back through the 10AM body)",       group=grpL, tooltip="Holdout expectancy -0.36. Off by design.")
+useAShort  = input.bool(false,  "Logic A SHORT (pierce BELOW a bearish 10AM body)", group=grpL, tooltip="+0.21 pts/trade over 101 trades — statistically zero. On by default only for symmetry.")
+useFlipLong  = input.bool(true,  "Flip LONG  (reversal UP through a bearish 10AM body)",  group=grpL, tooltip="Holds up across every split tested: holdout expectancy +2.5 to +3.2, PF 1.54-1.75.")
+useFlipShort = input.bool(false, "Flip SHORT (reversal DOWN through a bullish 10AM body)", group=grpL, tooltip="+0.79 pts/trade, PF 1.15, 7 of 13 months green. Weakest of the four. Off by default.")
 oneTradeDay= input.bool(true,  "One trade per logic per day (latch)",              group=grpL)
 
 // ── session ─────────────────────────────────────────────────────────
@@ -120,10 +121,19 @@ anchHr  = input.int(10, "Anchor candle hour",   minval=0, maxval=23, group=grpS,
 anchMn  = input.int(0,  "Anchor candle minute", minval=0, maxval=59, group=grpS)
 endHr   = input.int(23, "Flatten / no new entries after hour", minval=1, maxval=23, group=grpS)
 
-// ── risk ────────────────────────────────────────────────────────────
-grpR    = "10AM — risk (points)"
-slPts   = input.float(12.0, "Stop Loss (points)",   minval=0.5, step=0.5, group=grpR, tooltip="12 gave the smoothest curve of everything tested: max drawdown 118 points against 630 net, MAR 5.35, and it holds out of sample (MAR 1.62). 15 earns marginally more per trade but draws down 174.")
-tpPts   = input.float(25.0, "Take Profit (points)", minval=3.0, step=0.5, group=grpR, tooltip="25 sits just under the median favourable excursion of 27.4 points, so slightly over half of all signals can reach it; it is hit first on ~37% of trades. Targets at or below 10 points LOSE money at every stop distance tested. A 3-point target loses 0.8 to 1.8 points a trade on every leg -- the spread plus a larger stop behind it cannot be cleared.")
+// ── risk, PER LEG ───────────────────────────────────────────────────
+// A and Flip are different trades and want different stops. Verified on the
+// tick data: for A-Long, signals that breach 13.5 against end the day at
+// -24.56 on average, so stopping them at -13.5 SAVES 11.06 points a trade --
+// that stop is doing real work. For Flip-Long the same test at 5.5 gives
+// -4.98 against a -5.50 stop, i.e. stopping is a wash. The tight Flip stop is
+// variance control, not edge; size it as such.
+grpR    = "Risk — A (body pierce)"
+aSlPts  = input.float(14.0, "A  Stop Loss (points)",   minval=0.5, step=0.5, group=grpR, tooltip="Sits at the 80th percentile of what A-Long winners actually need: the median genuine winner retraces 7.9 points before reaching target, p80 is 13.45. A 13.5-14 stop therefore keeps ~80% of eventual winners while cutting the group that ends the day at -24.6.")
+aTpPts  = input.float(26.0, "A  Take Profit (points)", minval=3.0, step=0.5, group=grpR, tooltip="Just under the 28.5-point median favourable excursion for A-Long. 57% of A-Long signals reach +26 at some point. Targets at or below 10 points LOSE at every stop distance tested.")
+grpF    = "Risk — Flip (reversal)"
+fSlPts  = input.float(6.0,  "Flip  Stop Loss (points)",   minval=0.5, step=0.5, group=grpF, tooltip="WARNING: this discards 57.8% of Flip-Long signals that would have reached +31. The median eventual Flip winner retraces 10.4 points first, NOT 2.8. Kept small because breached Flip trades average -4.98 to the close, so the stop costs almost nothing -- but it is not free edge.")
+fTpPts  = input.float(30.0, "Flip  Take Profit (points)", minval=3.0, step=0.5, group=grpF, tooltip="Just above the 22.6-point median Flip-Long favourable excursion. Only 43% of Flip-Long signals ever reach +31.")
 
 // ── state ───────────────────────────────────────────────────────────
 h = hour(time, tz)
@@ -157,26 +167,30 @@ ready = not na(dOpen) and not na(bHi) and not na(bLo) and side != 0
 aFree = not oneTradeDay or not aDone
 fFree = not oneTradeDay or not fDone
 
-buyA  = useALong  and ready and aFree and afterAnch and side ==  1 and close > bHi
-sellA = useAShort and ready and aFree and afterAnch and side == -1 and close < bLo
-flipB = useFlip   and ready and fFree and afterAnch and side == -1 and close > bHi
-flipS = useFlip   and ready and fFree and afterAnch and side ==  1 and close < bLo
+buyA  = useALong    and ready and aFree and afterAnch and side ==  1 and close > bHi
+sellA = useAShort   and ready and aFree and afterAnch and side == -1 and close < bLo
+flipB = useFlipLong and ready and fFree and afterAnch and side == -1 and close > bHi
+flipS = useFlipShort and ready and fFree and afterAnch and side ==  1 and close < bLo
 
 flat = strategy.position_size == 0
 
 if (buyA or flipB) and flat
-    idL = buyA ? "A_L" : "F_L"
+    idL   = buyA ? "A_L" : "F_L"
+    slL   = buyA ? aSlPts : fSlPts
+    tpL   = buyA ? aTpPts : fTpPts
     strategy.entry(idL, strategy.long)
-    strategy.exit("x" + idL, idL, stop=close - slPts, limit=close + tpPts)
+    strategy.exit("x" + idL, idL, stop=close - slL, limit=close + tpL)
     if buyA
         aDone := true
     else
         fDone := true
 
 if (sellA or flipS) and flat
-    idS = sellA ? "A_S" : "F_S"
+    idS   = sellA ? "A_S" : "F_S"
+    slS   = sellA ? aSlPts : fSlPts
+    tpS   = sellA ? aTpPts : fTpPts
     strategy.entry(idS, strategy.short)
-    strategy.exit("x" + idS, idS, stop=close + slPts, limit=close - tpPts)
+    strategy.exit("x" + idS, idS, stop=close + slS, limit=close - tpS)
     if sellA
         aDone := true
     else
