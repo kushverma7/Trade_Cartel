@@ -1,0 +1,20 @@
+{
+  "sha256": "f5be07253e91d1112005294e5c0714b4b295c432b07044e0982ac4328635b96c",
+  "bytes": 1003329131,
+  "rows": 91629949,
+  "first_tick_utc": "2025-08-20T14:00:00.001Z",
+  "last_tick_utc": "2026-08-20T13:59:59.926Z",
+  "first_tick_melbourne": "2025-08-21T00:00:00.001",
+  "last_tick_melbourne": "2026-08-20T23:59:59.926",
+  "columns": [
+    "timestamp_utc",
+    "timestamp_melbourne",
+    "bid",
+    "ask",
+    "bid_volume",
+    "ask_volume",
+    "mid",
+    "spread"
+  ],
+  "failures": []
+}

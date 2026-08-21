@@ -1,0 +1,404 @@
+{
+  "total_ticks": 91629949,
+  "first_tick_utc": "2025-08-20T14:00:00.001Z",
+  "last_tick_utc": "2026-08-20T13:59:59.926Z",
+  "first_tick_melbourne": "2025-08-21T00:00:00.001",
+  "last_tick_melbourne": "2026-08-20T23:59:59.926",
+  "timestamps_out_of_order": 0,
+  "duplicate_timestamps": 0,
+  "exact_duplicate_rows": 0,
+  "exact_duplicate_row_indices_sample": [],
+  "missing_bid": 0,
+  "missing_ask": 0,
+  "missing_bid_volume": 0,
+  "missing_ask_volume": 0,
+  "bid_le_zero": 0,
+  "ask_le_zero": 0,
+  "bid_gt_ask": 0,
+  "zero_spread": 0,
+  "extreme_spread_gt_5.0": 40300,
+  "negative_spread": 0,
+  "mid_recompute_max_abs_error": 0.0,
+  "invalid_price_rows": 0,
+  "spread_stats": {
+    "min": 0.0009999999992942321,
+    "p01": 0.3899999999994179,
+    "median": 0.6700000000000728,
+    "mean": 0.7404689734794071,
+    "p99": 2.199999999999818,
+    "p99_99": 8.646999999999935,
+    "max": 15.0
+  },
+  "price_range": {
+    "bid_min": 3321.045,
+    "bid_max": 5596.805,
+    "ask_min": 3321.815,
+    "ask_max": 5599.715
+  },
+  "volume_stats": {
+    "bid_volume_min": 9.999999747378752e-06,
+    "bid_volume_max": 0.02930000051856041,
+    "bid_volume_mean": 0.00013560234219767153,
+    "bid_volume_zero_count": 0,
+    "ask_volume_min": 9.999999747378752e-06,
+    "ask_volume_max": 0.018300000578165054,
+    "ask_volume_mean": 0.0001381289039272815,
+    "ask_volume_zero_count": 0
+  },
+  "days_requested_melbourne": 365,
+  "days_with_data": 312,
+  "ticks_per_day": {
+    "mean": 293685.733974359,
+    "median": 281549.0,
+    "min": 24535,
+    "max": 817963,
+    "min_day": "2026-07-04",
+    "max_day": "2026-01-30"
+  },
+  "days_with_no_data": [
+    "2025-08-24",
+    "2025-08-31",
+    "2025-09-07",
+    "2025-09-14",
+    "2025-09-21",
+    "2025-09-28",
+    "2025-10-05",
+    "2025-10-12",
+    "2025-10-19",
+    "2025-10-26",
+    "2025-11-02",
+    "2025-11-09",
+    "2025-11-16",
+    "2025-11-23",
+    "2025-11-30",
+    "2025-12-07",
+    "2025-12-14",
+    "2025-12-21",
+    "2025-12-28",
+    "2026-01-04",
+    "2026-01-11",
+    "2026-01-18",
+    "2026-01-25",
+    "2026-02-01",
+    "2026-02-08",
+    "2026-02-15",
+    "2026-02-22",
+    "2026-03-01",
+    "2026-03-08",
+    "2026-03-15",
+    "2026-03-22",
+    "2026-03-29",
+    "2026-04-04",
+    "2026-04-05",
+    "2026-04-12",
+    "2026-04-19",
+    "2026-04-26",
+    "2026-05-03",
+    "2026-05-10",
+    "2026-05-17",
+    "2026-05-24",
+    "2026-05-31",
+    "2026-06-07",
+    "2026-06-14",
+    "2026-06-21",
+    "2026-06-28",
+    "2026-07-05",
+    "2026-07-12",
+    "2026-07-19",
+    "2026-07-26",
+    "2026-08-02",
+    "2026-08-09",
+    "2026-08-16"
+  ],
+  "days_with_no_data_count": 53,
+  "missing_day_reasons": {
+    "2025-08-24": "Sunday",
+    "2025-08-31": "Sunday",
+    "2025-09-07": "Sunday",
+    "2025-09-14": "Sunday",
+    "2025-09-21": "Sunday",
+    "2025-09-28": "Sunday",
+    "2025-10-05": "Sunday",
+    "2025-10-12": "Sunday",
+    "2025-10-19": "Sunday",
+    "2025-10-26": "Sunday",
+    "2025-11-02": "Sunday",
+    "2025-11-09": "Sunday",
+    "2025-11-16": "Sunday",
+    "2025-11-23": "Sunday",
+    "2025-11-30": "Sunday",
+    "2025-12-07": "Sunday",
+    "2025-12-14": "Sunday",
+    "2025-12-21": "Sunday",
+    "2025-12-28": "Sunday",
+    "2026-01-04": "Sunday",
+    "2026-01-11": "Sunday",
+    "2026-01-18": "Sunday",
+    "2026-01-25": "Sunday",
+    "2026-02-01": "Sunday",
+    "2026-02-08": "Sunday",
+    "2026-02-15": "Sunday",
+    "2026-02-22": "Sunday",
+    "2026-03-01": "Sunday",
+    "2026-03-08": "Sunday",
+    "2026-03-15": "Sunday",
+    "2026-03-22": "Sunday",
+    "2026-03-29": "Sunday",
+    "2026-04-04": "Saturday",
+    "2026-04-05": "Sunday",
+    "2026-04-12": "Sunday",
+    "2026-04-19": "Sunday",
+    "2026-04-26": "Sunday",
+    "2026-05-03": "Sunday",
+    "2026-05-10": "Sunday",
+    "2026-05-17": "Sunday",
+    "2026-05-24": "Sunday",
+    "2026-05-31": "Sunday",
+    "2026-06-07": "Sunday",
+    "2026-06-14": "Sunday",
+    "2026-06-21": "Sunday",
+    "2026-06-28": "Sunday",
+    "2026-07-05": "Sunday",
+    "2026-07-12": "Sunday",
+    "2026-07-19": "Sunday",
+    "2026-07-26": "Sunday",
+    "2026-08-02": "Sunday",
+    "2026-08-09": "Sunday",
+    "2026-08-16": "Sunday"
+  },
+  "by_year": {
+    "2025": {
+      "ticks": 30760509,
+      "trading_days": 114
+    },
+    "2026": {
+      "ticks": 60869440,
+      "trading_days": 198
+    }
+  },
+  "by_month": {
+    "2025-08": {
+      "ticks": 1295544,
+      "trading_days": 9
+    },
+    "2025-09": {
+      "ticks": 5720031,
+      "trading_days": 26
+    },
+    "2025-10": {
+      "ticks": 9257323,
+      "trading_days": 27
+    },
+    "2025-11": {
+      "ticks": 6676705,
+      "trading_days": 25
+    },
+    "2025-12": {
+      "ticks": 7810906,
+      "trading_days": 27
+    },
+    "2026-01": {
+      "ticks": 9319889,
+      "trading_days": 27
+    },
+    "2026-02": {
+      "ticks": 7538339,
+      "trading_days": 24
+    },
+    "2026-03": {
+      "ticks": 9230163,
+      "trading_days": 26
+    },
+    "2026-04": {
+      "ticks": 7506250,
+      "trading_days": 25
+    },
+    "2026-05": {
+      "ticks": 8481206,
+      "trading_days": 26
+    },
+    "2026-06": {
+      "ticks": 8109612,
+      "trading_days": 26
+    },
+    "2026-07": {
+      "ticks": 7425625,
+      "trading_days": 27
+    },
+    "2026-08": {
+      "ticks": 3258356,
+      "trading_days": 17
+    }
+  },
+  "hours_requested": 8760,
+  "hours_with_ticks": 5911,
+  "hours_empty": 2849,
+  "hours_empty_expected_closed_market": 2849,
+  "hours_empty_unexpected": 0,
+  "hours_empty_unexpected_list": [],
+  "unresolved_download_hours": 0,
+  "unresolved_download_hours_list": [],
+  "empty_hour_reasons": {
+    "Saturday - market closed": 1248,
+    "Sunday before the 18:00 NY weekly reopen": 936,
+    "Friday after the 17:00 NY weekly close": 364,
+    "daily 17:00-18:00 NY settlement break": 200,
+    "Christmas Day": 18,
+    "New Year's Day": 18,
+    "Good Friday": 17,
+    "Christmas Eve (early close)": 10,
+    "New Year's Eve (early close)": 7,
+    "eve of holiday: Good Friday": 6,
+    "US Juneteenth (early close)": 4,
+    "US Independence Day observed (early close)": 4,
+    "US Labor Day (early close)": 3,
+    "US Thanksgiving (early close)": 3,
+    "US Martin Luther King Jr. Day (early close)": 3,
+    "US Presidents' Day (early close)": 3,
+    "US Memorial Day (early close)": 3,
+    "day after US Thanksgiving (early close)": 2
+  },
+  "gap_threshold_minutes": 5.0,
+  "gaps_total": 264,
+  "gaps_by_class": {
+    "maintenance": 199,
+    "weekend": 48,
+    "holiday": 11,
+    "UNEXPLAINED": 6
+  },
+  "gaps_unexplained_count": 6,
+  "gaps_unexplained_total_minutes": 51.29,
+  "gaps_unexplained_longest_minutes": 20.49,
+  "gaps_unexplained_top50": [
+    {
+      "start_utc": "2025-12-07T23:15:39.489000+00:00",
+      "end_utc": "2025-12-07T23:36:08.877000+00:00",
+      "start_melbourne": "2025-12-08 10:15:39.489000",
+      "minutes": 20.49,
+      "class": "UNEXPLAINED",
+      "detail": "NY 2025-12-07 Sun 18:15 -> 2025-12-07 Sun 18:36; 19 of 20 minutes were open-market"
+    },
+    {
+      "start_utc": "2026-02-12T23:01:15.635000+00:00",
+      "end_utc": "2026-02-12T23:09:05.076000+00:00",
+      "start_melbourne": "2026-02-13 10:01:15.635000",
+      "minutes": 7.82,
+      "class": "UNEXPLAINED",
+      "detail": "NY 2026-02-12 Thu 18:01 -> 2026-02-12 Thu 18:09; 6 of 7 minutes were open-market"
+    },
+    {
+      "start_utc": "2025-11-28T08:14:31.549000+00:00",
+      "end_utc": "2025-11-28T08:21:41.605000+00:00",
+      "start_melbourne": "2025-11-28 19:14:31.549000",
+      "minutes": 7.17,
+      "class": "UNEXPLAINED",
+      "detail": "NY 2025-11-28 Fri 03:14 -> 2025-11-28 Fri 03:21; 6 of 7 minutes were open-market"
+    },
+    {
+      "start_utc": "2025-12-07T23:36:08.877000+00:00",
+      "end_utc": "2025-12-07T23:41:37.675000+00:00",
+      "start_melbourne": "2025-12-08 10:36:08.877000",
+      "minutes": 5.48,
+      "class": "UNEXPLAINED",
+      "detail": "NY 2025-12-07 Sun 18:36 -> 2025-12-07 Sun 18:41; 4 of 5 minutes were open-market"
+    },
+    {
+      "start_utc": "2025-11-28T08:06:26.193000+00:00",
+      "end_utc": "2025-11-28T08:11:45.389000+00:00",
+      "start_melbourne": "2025-11-28 19:06:26.193000",
+      "minutes": 5.32,
+      "class": "UNEXPLAINED",
+      "detail": "NY 2025-11-28 Fri 03:06 -> 2025-11-28 Fri 03:11; 4 of 5 minutes were open-market"
+    },
+    {
+      "start_utc": "2025-12-07T23:09:40.462000+00:00",
+      "end_utc": "2025-12-07T23:14:41.323000+00:00",
+      "start_melbourne": "2025-12-08 10:09:40.462000",
+      "minutes": 5.01,
+      "class": "UNEXPLAINED",
+      "detail": "NY 2025-12-07 Sun 18:09 -> 2025-12-07 Sun 18:14; 4 of 5 minutes were open-market"
+    }
+  ],
+  "gaps_longest_10": [
+    {
+      "start_utc": "2026-04-02T20:58:58.311000+00:00",
+      "end_utc": "2026-04-05T22:00:11.413000+00:00",
+      "start_melbourne": "2026-04-03 07:58:58.311000",
+      "minutes": 4381.22,
+      "class": "holiday",
+      "detail": "holiday: Good Friday; 1 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2026-07-03T16:58:58.207000+00:00",
+      "end_utc": "2026-07-05T22:00:01.514000+00:00",
+      "start_melbourne": "2026-07-04 02:58:58.207000",
+      "minutes": 3181.06,
+      "class": "holiday",
+      "detail": "US Independence Day observed (early close); 1 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2026-06-19T16:58:59.181000+00:00",
+      "end_utc": "2026-06-21T22:00:01.445000+00:00",
+      "start_melbourne": "2026-06-20 02:58:59.181000",
+      "minutes": 3181.04,
+      "class": "holiday",
+      "detail": "US Juneteenth (early close); 1 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2025-11-28T19:43:59.978000+00:00",
+      "end_utc": "2025-11-30T23:00:01.135000+00:00",
+      "start_melbourne": "2025-11-29 06:43:59.978000",
+      "minutes": 3076.02,
+      "class": "holiday",
+      "detail": "day after US Thanksgiving (early close); 0 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2025-10-31T20:59:58.982000+00:00",
+      "end_utc": "2025-11-02T23:00:00.693000+00:00",
+      "start_melbourne": "2025-11-01 07:59:58.982000",
+      "minutes": 3000.03,
+      "class": "weekend",
+      "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2026-01-30T21:59:51.954000+00:00",
+      "end_utc": "2026-02-01T23:06:26.655000+00:00",
+      "start_melbourne": "2026-01-31 08:59:51.954000",
+      "minutes": 2946.58,
+      "class": "weekend",
+      "detail": "Saturday - market closed; 5 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2026-07-24T20:59:01.103000+00:00",
+      "end_utc": "2026-07-26T22:00:04.075000+00:00",
+      "start_melbourne": "2026-07-25 06:59:01.103000",
+      "minutes": 2941.05,
+      "class": "weekend",
+      "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2026-07-17T20:59:02.662000+00:00",
+      "end_utc": "2026-07-19T22:00:03.067000+00:00",
+      "start_melbourne": "2026-07-18 06:59:02.662000",
+      "minutes": 2941.01,
+      "class": "weekend",
+      "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2026-08-14T20:59:01.732000+00:00",
+      "end_utc": "2026-08-16T22:00:02.399000+00:00",
+      "start_melbourne": "2026-08-15 06:59:01.732000",
+      "minutes": 2941.01,
+      "class": "weekend",
+      "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+    },
+    {
+      "start_utc": "2026-07-31T20:59:02.882000+00:00",
+      "end_utc": "2026-08-02T22:00:01.623000+00:00",
+      "start_melbourne": "2026-08-01 06:59:02.882000",
+      "minutes": 2940.98,
+      "class": "weekend",
+      "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+    }
+  ]
+}

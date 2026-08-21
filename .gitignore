@@ -33,3 +33,12 @@ Trade_Cartel_Source_Corpus_FULL.pdf
 Trade_Cartel_Source_Corpus_COMPLETE.pdf
 Trade_Cartel_Transcripts_And_Lessons.pdf
 Trade_Cartel_Quarters_Theory_Complete.pdf
+
+# Gold tick dataset — bulk binary, exceeds GitHub's 100 MB per-file limit.
+# The pipeline in research/gold_tick_data/dukascopy/code/ rebuilds all of it
+# from Dukascopy in ~15 minutes, and logs/manifest_by_hour.csv carries a SHA256
+# for every raw file, so the artefacts are reproducible rather than stored.
+research/gold_tick_data/dukascopy/raw/
+research/gold_tick_data/dukascopy/processed/*.parquet
+research/gold_tick_data/dukascopy/processed/*.csv.gz
+research/gold_tick_data/dukascopy/processed/parts/

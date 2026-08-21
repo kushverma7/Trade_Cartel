@@ -1,0 +1,2114 @@
+[
+  {
+    "start_utc": "2025-08-20T20:59:59.122000+00:00",
+    "end_utc": "2025-08-20T22:00:01.104000+00:00",
+    "start_melbourne": "2025-08-21 06:59:59.122000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-08-21T20:59:59.922000+00:00",
+    "end_utc": "2025-08-21T22:00:01.176000+00:00",
+    "start_melbourne": "2025-08-22 06:59:59.922000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-08-22T20:59:59.088000+00:00",
+    "end_utc": "2025-08-24T22:00:01.417000+00:00",
+    "start_melbourne": "2025-08-23 06:59:59.088000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-08-25T20:59:59.768000+00:00",
+    "end_utc": "2025-08-25T22:00:00.603000+00:00",
+    "start_melbourne": "2025-08-26 06:59:59.768000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-08-26T20:59:59.421000+00:00",
+    "end_utc": "2025-08-26T22:00:00.468000+00:00",
+    "start_melbourne": "2025-08-27 06:59:59.421000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-08-27T20:59:59.595000+00:00",
+    "end_utc": "2025-08-27T22:00:02.065000+00:00",
+    "start_melbourne": "2025-08-28 06:59:59.595000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-08-28T20:59:59.428000+00:00",
+    "end_utc": "2025-08-28T22:00:01.179000+00:00",
+    "start_melbourne": "2025-08-29 06:59:59.428000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-08-29T20:59:58.327000+00:00",
+    "end_utc": "2025-08-31T22:00:11.001000+00:00",
+    "start_melbourne": "2025-08-30 06:59:58.327000",
+    "minutes": 2940.21,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-01T18:28:57.573000+00:00",
+    "end_utc": "2025-09-01T22:00:01.504000+00:00",
+    "start_melbourne": "2025-09-02 04:28:57.573000",
+    "minutes": 211.07,
+    "class": "holiday",
+    "detail": "US Labor Day (early close); 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-02T20:59:59.049000+00:00",
+    "end_utc": "2025-09-02T22:00:06.627000+00:00",
+    "start_melbourne": "2025-09-03 06:59:59.049000",
+    "minutes": 60.13,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-03T20:59:59.061000+00:00",
+    "end_utc": "2025-09-03T22:00:11.015000+00:00",
+    "start_melbourne": "2025-09-04 06:59:59.061000",
+    "minutes": 60.2,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-04T20:59:59.068000+00:00",
+    "end_utc": "2025-09-04T22:00:01.206000+00:00",
+    "start_melbourne": "2025-09-05 06:59:59.068000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-05T20:59:59.050000+00:00",
+    "end_utc": "2025-09-07T22:00:01.141000+00:00",
+    "start_melbourne": "2025-09-06 06:59:59.050000",
+    "minutes": 2940.03,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-08T20:59:59.827000+00:00",
+    "end_utc": "2025-09-08T22:00:01.142000+00:00",
+    "start_melbourne": "2025-09-09 06:59:59.827000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-09T20:59:59.803000+00:00",
+    "end_utc": "2025-09-09T22:00:01.104000+00:00",
+    "start_melbourne": "2025-09-10 06:59:59.803000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-10T20:59:59.390000+00:00",
+    "end_utc": "2025-09-10T22:00:00.490000+00:00",
+    "start_melbourne": "2025-09-11 06:59:59.390000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-11T20:59:59.704000+00:00",
+    "end_utc": "2025-09-11T22:00:01.094000+00:00",
+    "start_melbourne": "2025-09-12 06:59:59.704000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-12T20:59:58.800000+00:00",
+    "end_utc": "2025-09-14T22:00:01.641000+00:00",
+    "start_melbourne": "2025-09-13 06:59:58.800000",
+    "minutes": 2940.05,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-15T20:59:59.746000+00:00",
+    "end_utc": "2025-09-15T22:00:00.549000+00:00",
+    "start_melbourne": "2025-09-16 06:59:59.746000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-16T20:59:59.847000+00:00",
+    "end_utc": "2025-09-16T22:00:01.043000+00:00",
+    "start_melbourne": "2025-09-17 06:59:59.847000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-17T20:59:59.600000+00:00",
+    "end_utc": "2025-09-17T22:00:10.788000+00:00",
+    "start_melbourne": "2025-09-18 06:59:59.600000",
+    "minutes": 60.19,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-18T20:59:59.908000+00:00",
+    "end_utc": "2025-09-18T22:00:01.195000+00:00",
+    "start_melbourne": "2025-09-19 06:59:59.908000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-19T20:59:59.060000+00:00",
+    "end_utc": "2025-09-21T22:00:00.936000+00:00",
+    "start_melbourne": "2025-09-20 06:59:59.060000",
+    "minutes": 2940.03,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-22T20:59:59.784000+00:00",
+    "end_utc": "2025-09-22T22:00:00.800000+00:00",
+    "start_melbourne": "2025-09-23 06:59:59.784000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-23T20:59:59.747000+00:00",
+    "end_utc": "2025-09-23T22:00:00.826000+00:00",
+    "start_melbourne": "2025-09-24 06:59:59.747000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-24T20:59:59.293000+00:00",
+    "end_utc": "2025-09-24T22:00:01.174000+00:00",
+    "start_melbourne": "2025-09-25 06:59:59.293000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-25T20:59:59.701000+00:00",
+    "end_utc": "2025-09-25T22:00:00.819000+00:00",
+    "start_melbourne": "2025-09-26 06:59:59.701000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-26T20:59:59.061000+00:00",
+    "end_utc": "2025-09-28T22:00:02.426000+00:00",
+    "start_melbourne": "2025-09-27 06:59:59.061000",
+    "minutes": 2940.06,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-29T20:59:59.809000+00:00",
+    "end_utc": "2025-09-29T22:00:00.651000+00:00",
+    "start_melbourne": "2025-09-30 06:59:59.809000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-09-30T20:59:59.893000+00:00",
+    "end_utc": "2025-09-30T22:00:01.043000+00:00",
+    "start_melbourne": "2025-10-01 06:59:59.893000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-01T20:59:59.558000+00:00",
+    "end_utc": "2025-10-01T22:00:01.915000+00:00",
+    "start_melbourne": "2025-10-02 06:59:59.558000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-02T20:59:59.719000+00:00",
+    "end_utc": "2025-10-02T22:00:01.134000+00:00",
+    "start_melbourne": "2025-10-03 06:59:59.719000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-03T20:59:58.929000+00:00",
+    "end_utc": "2025-10-05T22:00:01.208000+00:00",
+    "start_melbourne": "2025-10-04 06:59:58.929000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-06T20:59:59.087000+00:00",
+    "end_utc": "2025-10-06T22:00:01.990000+00:00",
+    "start_melbourne": "2025-10-07 07:59:59.087000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-07T20:59:59.160000+00:00",
+    "end_utc": "2025-10-07T22:00:00.385000+00:00",
+    "start_melbourne": "2025-10-08 07:59:59.160000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-08T20:59:58.671000+00:00",
+    "end_utc": "2025-10-08T22:00:01.296000+00:00",
+    "start_melbourne": "2025-10-09 07:59:58.671000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-09T20:59:59.020000+00:00",
+    "end_utc": "2025-10-09T22:00:01.088000+00:00",
+    "start_melbourne": "2025-10-10 07:59:59.020000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-10T20:59:58.594000+00:00",
+    "end_utc": "2025-10-12T22:00:04.300000+00:00",
+    "start_melbourne": "2025-10-11 07:59:58.594000",
+    "minutes": 2940.1,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-13T20:59:59.070000+00:00",
+    "end_utc": "2025-10-13T22:00:01.568000+00:00",
+    "start_melbourne": "2025-10-14 07:59:59.070000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-14T20:59:59.104000+00:00",
+    "end_utc": "2025-10-14T22:00:01.165000+00:00",
+    "start_melbourne": "2025-10-15 07:59:59.104000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-15T20:59:59.829000+00:00",
+    "end_utc": "2025-10-15T22:00:01.053000+00:00",
+    "start_melbourne": "2025-10-16 07:59:59.829000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-16T20:59:59.949000+00:00",
+    "end_utc": "2025-10-16T22:00:03.795000+00:00",
+    "start_melbourne": "2025-10-17 07:59:59.949000",
+    "minutes": 60.06,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-17T20:59:58.420000+00:00",
+    "end_utc": "2025-10-19T22:00:10.971000+00:00",
+    "start_melbourne": "2025-10-18 07:59:58.420000",
+    "minutes": 2940.21,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-20T20:59:59.047000+00:00",
+    "end_utc": "2025-10-20T22:00:01.480000+00:00",
+    "start_melbourne": "2025-10-21 07:59:59.047000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-21T20:59:59.021000+00:00",
+    "end_utc": "2025-10-21T22:00:01.434000+00:00",
+    "start_melbourne": "2025-10-22 07:59:59.021000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-22T20:59:59.008000+00:00",
+    "end_utc": "2025-10-22T22:00:08.250000+00:00",
+    "start_melbourne": "2025-10-23 07:59:59.008000",
+    "minutes": 60.15,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-23T20:59:59.258000+00:00",
+    "end_utc": "2025-10-23T22:00:00.387000+00:00",
+    "start_melbourne": "2025-10-24 07:59:59.258000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-24T20:59:58.706000+00:00",
+    "end_utc": "2025-10-26T22:00:11.400000+00:00",
+    "start_melbourne": "2025-10-25 07:59:58.706000",
+    "minutes": 2940.21,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-27T20:59:59.500000+00:00",
+    "end_utc": "2025-10-27T22:00:06.466000+00:00",
+    "start_melbourne": "2025-10-28 07:59:59.500000",
+    "minutes": 60.12,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-28T20:59:58.576000+00:00",
+    "end_utc": "2025-10-28T22:00:07.474000+00:00",
+    "start_melbourne": "2025-10-29 07:59:58.576000",
+    "minutes": 60.15,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-29T20:59:59.532000+00:00",
+    "end_utc": "2025-10-29T22:00:16.584000+00:00",
+    "start_melbourne": "2025-10-30 07:59:59.532000",
+    "minutes": 60.28,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-30T20:59:59.505000+00:00",
+    "end_utc": "2025-10-30T22:00:40.892000+00:00",
+    "start_melbourne": "2025-10-31 07:59:59.505000",
+    "minutes": 60.69,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-10-31T20:59:58.982000+00:00",
+    "end_utc": "2025-11-02T23:00:00.693000+00:00",
+    "start_melbourne": "2025-11-01 07:59:58.982000",
+    "minutes": 3000.03,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-03T21:59:59.758000+00:00",
+    "end_utc": "2025-11-03T23:00:00.330000+00:00",
+    "start_melbourne": "2025-11-04 08:59:59.758000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-04T21:59:59.147000+00:00",
+    "end_utc": "2025-11-04T23:00:01.143000+00:00",
+    "start_melbourne": "2025-11-05 08:59:59.147000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-05T21:59:59.819000+00:00",
+    "end_utc": "2025-11-05T23:00:02.208000+00:00",
+    "start_melbourne": "2025-11-06 08:59:59.819000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-06T21:59:59.432000+00:00",
+    "end_utc": "2025-11-06T23:00:46.401000+00:00",
+    "start_melbourne": "2025-11-07 08:59:59.432000",
+    "minutes": 60.78,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-07T21:59:59.056000+00:00",
+    "end_utc": "2025-11-09T23:00:00.327000+00:00",
+    "start_melbourne": "2025-11-08 08:59:59.056000",
+    "minutes": 2940.02,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-10T21:59:59.877000+00:00",
+    "end_utc": "2025-11-10T23:00:01.221000+00:00",
+    "start_melbourne": "2025-11-11 08:59:59.877000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-11T21:59:59.962000+00:00",
+    "end_utc": "2025-11-11T23:00:00.722000+00:00",
+    "start_melbourne": "2025-11-12 08:59:59.962000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-12T21:59:59.792000+00:00",
+    "end_utc": "2025-11-12T23:00:01.585000+00:00",
+    "start_melbourne": "2025-11-13 08:59:59.792000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-13T21:59:59.787000+00:00",
+    "end_utc": "2025-11-13T23:00:00.477000+00:00",
+    "start_melbourne": "2025-11-14 08:59:59.787000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-14T21:59:58.394000+00:00",
+    "end_utc": "2025-11-16T23:00:00.863000+00:00",
+    "start_melbourne": "2025-11-15 08:59:58.394000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-17T21:59:59.056000+00:00",
+    "end_utc": "2025-11-17T23:00:00.697000+00:00",
+    "start_melbourne": "2025-11-18 08:59:59.056000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-18T21:59:59.770000+00:00",
+    "end_utc": "2025-11-18T23:00:06.097000+00:00",
+    "start_melbourne": "2025-11-19 08:59:59.770000",
+    "minutes": 60.11,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-19T21:59:59.765000+00:00",
+    "end_utc": "2025-11-19T23:00:01.195000+00:00",
+    "start_melbourne": "2025-11-20 08:59:59.765000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-20T21:59:59.901000+00:00",
+    "end_utc": "2025-11-20T23:00:01.014000+00:00",
+    "start_melbourne": "2025-11-21 08:59:59.901000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-21T21:59:59.062000+00:00",
+    "end_utc": "2025-11-23T23:00:00.596000+00:00",
+    "start_melbourne": "2025-11-22 08:59:59.062000",
+    "minutes": 2940.03,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-24T21:59:59.052000+00:00",
+    "end_utc": "2025-11-24T23:00:01.813000+00:00",
+    "start_melbourne": "2025-11-25 08:59:59.052000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-25T21:59:59.199000+00:00",
+    "end_utc": "2025-11-25T23:00:00.602000+00:00",
+    "start_melbourne": "2025-11-26 08:59:59.199000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-26T21:59:59.048000+00:00",
+    "end_utc": "2025-11-26T23:00:10.670000+00:00",
+    "start_melbourne": "2025-11-27 08:59:59.048000",
+    "minutes": 60.19,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-27T19:28:56.948000+00:00",
+    "end_utc": "2025-11-27T23:00:02.621000+00:00",
+    "start_melbourne": "2025-11-28 06:28:56.948000",
+    "minutes": 211.09,
+    "class": "holiday",
+    "detail": "US Thanksgiving (early close); 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-11-28T08:06:26.193000+00:00",
+    "end_utc": "2025-11-28T08:11:45.389000+00:00",
+    "start_melbourne": "2025-11-28 19:06:26.193000",
+    "minutes": 5.32,
+    "class": "UNEXPLAINED",
+    "detail": "NY 2025-11-28 Fri 03:06 -> 2025-11-28 Fri 03:11; 4 of 5 minutes were open-market"
+  },
+  {
+    "start_utc": "2025-11-28T08:14:31.549000+00:00",
+    "end_utc": "2025-11-28T08:21:41.605000+00:00",
+    "start_melbourne": "2025-11-28 19:14:31.549000",
+    "minutes": 7.17,
+    "class": "UNEXPLAINED",
+    "detail": "NY 2025-11-28 Fri 03:14 -> 2025-11-28 Fri 03:21; 6 of 7 minutes were open-market"
+  },
+  {
+    "start_utc": "2025-11-28T19:43:59.978000+00:00",
+    "end_utc": "2025-11-30T23:00:01.135000+00:00",
+    "start_melbourne": "2025-11-29 06:43:59.978000",
+    "minutes": 3076.02,
+    "class": "holiday",
+    "detail": "day after US Thanksgiving (early close); 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-01T21:59:59.828000+00:00",
+    "end_utc": "2025-12-01T23:00:10.698000+00:00",
+    "start_melbourne": "2025-12-02 08:59:59.828000",
+    "minutes": 60.18,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-02T21:59:59.818000+00:00",
+    "end_utc": "2025-12-02T23:00:44.425000+00:00",
+    "start_melbourne": "2025-12-03 08:59:59.818000",
+    "minutes": 60.74,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-03T21:59:59.572000+00:00",
+    "end_utc": "2025-12-03T23:00:00.201000+00:00",
+    "start_melbourne": "2025-12-04 08:59:59.572000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-04T21:59:58.790000+00:00",
+    "end_utc": "2025-12-04T23:00:00.669000+00:00",
+    "start_melbourne": "2025-12-05 08:59:58.790000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-05T21:59:58.427000+00:00",
+    "end_utc": "2025-12-07T23:00:01.197000+00:00",
+    "start_melbourne": "2025-12-06 08:59:58.427000",
+    "minutes": 2940.05,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-07T23:09:40.462000+00:00",
+    "end_utc": "2025-12-07T23:14:41.323000+00:00",
+    "start_melbourne": "2025-12-08 10:09:40.462000",
+    "minutes": 5.01,
+    "class": "UNEXPLAINED",
+    "detail": "NY 2025-12-07 Sun 18:09 -> 2025-12-07 Sun 18:14; 4 of 5 minutes were open-market"
+  },
+  {
+    "start_utc": "2025-12-07T23:15:39.489000+00:00",
+    "end_utc": "2025-12-07T23:36:08.877000+00:00",
+    "start_melbourne": "2025-12-08 10:15:39.489000",
+    "minutes": 20.49,
+    "class": "UNEXPLAINED",
+    "detail": "NY 2025-12-07 Sun 18:15 -> 2025-12-07 Sun 18:36; 19 of 20 minutes were open-market"
+  },
+  {
+    "start_utc": "2025-12-07T23:36:08.877000+00:00",
+    "end_utc": "2025-12-07T23:41:37.675000+00:00",
+    "start_melbourne": "2025-12-08 10:36:08.877000",
+    "minutes": 5.48,
+    "class": "UNEXPLAINED",
+    "detail": "NY 2025-12-07 Sun 18:36 -> 2025-12-07 Sun 18:41; 4 of 5 minutes were open-market"
+  },
+  {
+    "start_utc": "2025-12-08T21:59:59.509000+00:00",
+    "end_utc": "2025-12-08T23:00:00.466000+00:00",
+    "start_melbourne": "2025-12-09 08:59:59.509000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-09T21:59:59.936000+00:00",
+    "end_utc": "2025-12-09T23:00:01.189000+00:00",
+    "start_melbourne": "2025-12-10 08:59:59.936000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-10T21:59:58.819000+00:00",
+    "end_utc": "2025-12-10T23:00:11.142000+00:00",
+    "start_melbourne": "2025-12-11 08:59:58.819000",
+    "minutes": 60.21,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-11T21:59:59.092000+00:00",
+    "end_utc": "2025-12-11T23:00:00.766000+00:00",
+    "start_melbourne": "2025-12-12 08:59:59.092000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-12T21:59:58.419000+00:00",
+    "end_utc": "2025-12-14T23:00:00.610000+00:00",
+    "start_melbourne": "2025-12-13 08:59:58.419000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-15T21:59:59.899000+00:00",
+    "end_utc": "2025-12-15T23:00:00.541000+00:00",
+    "start_melbourne": "2025-12-16 08:59:59.899000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-16T21:59:58.925000+00:00",
+    "end_utc": "2025-12-16T23:00:01.041000+00:00",
+    "start_melbourne": "2025-12-17 08:59:58.925000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-17T21:59:59.723000+00:00",
+    "end_utc": "2025-12-17T23:01:27.345000+00:00",
+    "start_melbourne": "2025-12-18 08:59:59.723000",
+    "minutes": 61.46,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-18T21:59:59.302000+00:00",
+    "end_utc": "2025-12-18T23:00:00.716000+00:00",
+    "start_melbourne": "2025-12-19 08:59:59.302000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-19T21:59:59.052000+00:00",
+    "end_utc": "2025-12-21T23:00:00.607000+00:00",
+    "start_melbourne": "2025-12-20 08:59:59.052000",
+    "minutes": 2940.03,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-22T21:59:59.110000+00:00",
+    "end_utc": "2025-12-22T23:00:01.126000+00:00",
+    "start_melbourne": "2025-12-23 08:59:59.110000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-23T21:59:59.063000+00:00",
+    "end_utc": "2025-12-23T23:00:00.501000+00:00",
+    "start_melbourne": "2025-12-24 08:59:59.063000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-24T18:43:59.795000+00:00",
+    "end_utc": "2025-12-25T23:04:07.432000+00:00",
+    "start_melbourne": "2025-12-25 05:43:59.795000",
+    "minutes": 1700.13,
+    "class": "holiday",
+    "detail": "holiday: Christmas Day; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-26T21:59:58.938000+00:00",
+    "end_utc": "2025-12-28T23:00:01.198000+00:00",
+    "start_melbourne": "2025-12-27 08:59:58.938000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-29T21:59:59.061000+00:00",
+    "end_utc": "2025-12-29T23:00:00.540000+00:00",
+    "start_melbourne": "2025-12-30 08:59:59.061000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-30T21:59:59.734000+00:00",
+    "end_utc": "2025-12-30T23:00:06.475000+00:00",
+    "start_melbourne": "2025-12-31 08:59:59.734000",
+    "minutes": 60.11,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2025-12-31T21:58:59.943000+00:00",
+    "end_utc": "2026-01-01T23:00:00.596000+00:00",
+    "start_melbourne": "2026-01-01 08:58:59.943000",
+    "minutes": 1501.01,
+    "class": "holiday",
+    "detail": "holiday: New Year's Day; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-02T21:59:58.578000+00:00",
+    "end_utc": "2026-01-04T23:00:01.144000+00:00",
+    "start_melbourne": "2026-01-03 08:59:58.578000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-05T21:59:59.018000+00:00",
+    "end_utc": "2026-01-05T23:00:08.149000+00:00",
+    "start_melbourne": "2026-01-06 08:59:59.018000",
+    "minutes": 60.15,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-06T21:59:59.046000+00:00",
+    "end_utc": "2026-01-06T23:00:00.599000+00:00",
+    "start_melbourne": "2026-01-07 08:59:59.046000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-07T21:59:59.927000+00:00",
+    "end_utc": "2026-01-07T23:00:00.727000+00:00",
+    "start_melbourne": "2026-01-08 08:59:59.927000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-08T21:59:59.839000+00:00",
+    "end_utc": "2026-01-08T23:00:00.603000+00:00",
+    "start_melbourne": "2026-01-09 08:59:59.839000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-09T21:59:59.063000+00:00",
+    "end_utc": "2026-01-11T23:00:00.676000+00:00",
+    "start_melbourne": "2026-01-10 08:59:59.063000",
+    "minutes": 2940.03,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-12T21:59:59.784000+00:00",
+    "end_utc": "2026-01-12T23:00:00.753000+00:00",
+    "start_melbourne": "2026-01-13 08:59:59.784000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-13T21:59:59.797000+00:00",
+    "end_utc": "2026-01-13T23:00:01.103000+00:00",
+    "start_melbourne": "2026-01-14 08:59:59.797000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-14T21:59:59.044000+00:00",
+    "end_utc": "2026-01-14T23:00:05.581000+00:00",
+    "start_melbourne": "2026-01-15 08:59:59.044000",
+    "minutes": 60.11,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-15T21:59:59.062000+00:00",
+    "end_utc": "2026-01-15T23:00:00.473000+00:00",
+    "start_melbourne": "2026-01-16 08:59:59.062000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-16T21:59:59.050000+00:00",
+    "end_utc": "2026-01-18T23:00:01.736000+00:00",
+    "start_melbourne": "2026-01-17 08:59:59.050000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-19T19:28:51.648000+00:00",
+    "end_utc": "2026-01-19T23:00:00.514000+00:00",
+    "start_melbourne": "2026-01-20 06:28:51.648000",
+    "minutes": 211.15,
+    "class": "holiday",
+    "detail": "US Martin Luther King Jr. Day (early close); 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-20T21:59:59.984000+00:00",
+    "end_utc": "2026-01-20T23:00:01.115000+00:00",
+    "start_melbourne": "2026-01-21 08:59:59.984000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-21T21:59:59.106000+00:00",
+    "end_utc": "2026-01-21T23:00:01.302000+00:00",
+    "start_melbourne": "2026-01-22 08:59:59.106000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-22T21:59:59.015000+00:00",
+    "end_utc": "2026-01-22T23:00:00.434000+00:00",
+    "start_melbourne": "2026-01-23 08:59:59.015000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-23T21:59:58.487000+00:00",
+    "end_utc": "2026-01-25T23:00:03.340000+00:00",
+    "start_melbourne": "2026-01-24 08:59:58.487000",
+    "minutes": 2940.08,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-26T21:59:59.864000+00:00",
+    "end_utc": "2026-01-26T23:00:01.078000+00:00",
+    "start_melbourne": "2026-01-27 08:59:59.864000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-27T21:59:58.573000+00:00",
+    "end_utc": "2026-01-27T23:00:03.230000+00:00",
+    "start_melbourne": "2026-01-28 08:59:58.573000",
+    "minutes": 60.08,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-28T21:59:58.375000+00:00",
+    "end_utc": "2026-01-28T23:00:00.842000+00:00",
+    "start_melbourne": "2026-01-29 08:59:58.375000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-29T21:59:58.127000+00:00",
+    "end_utc": "2026-01-29T23:00:01.834000+00:00",
+    "start_melbourne": "2026-01-30 08:59:58.127000",
+    "minutes": 60.06,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-01-30T21:59:51.954000+00:00",
+    "end_utc": "2026-02-01T23:06:26.655000+00:00",
+    "start_melbourne": "2026-01-31 08:59:51.954000",
+    "minutes": 2946.58,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 5 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-02T21:59:58.587000+00:00",
+    "end_utc": "2026-02-02T23:00:04.116000+00:00",
+    "start_melbourne": "2026-02-03 08:59:58.587000",
+    "minutes": 60.09,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-03T21:59:58.507000+00:00",
+    "end_utc": "2026-02-03T23:00:00.622000+00:00",
+    "start_melbourne": "2026-02-04 08:59:58.507000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-04T21:59:59.323000+00:00",
+    "end_utc": "2026-02-04T23:00:00.669000+00:00",
+    "start_melbourne": "2026-02-05 08:59:59.323000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-05T21:59:58.816000+00:00",
+    "end_utc": "2026-02-05T23:00:03.790000+00:00",
+    "start_melbourne": "2026-02-06 08:59:58.816000",
+    "minutes": 60.08,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-06T21:59:58.310000+00:00",
+    "end_utc": "2026-02-08T23:00:00.863000+00:00",
+    "start_melbourne": "2026-02-07 08:59:58.310000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-09T21:59:58.558000+00:00",
+    "end_utc": "2026-02-09T23:00:01.075000+00:00",
+    "start_melbourne": "2026-02-10 08:59:58.558000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-10T21:59:58.347000+00:00",
+    "end_utc": "2026-02-10T23:00:01.426000+00:00",
+    "start_melbourne": "2026-02-11 08:59:58.347000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-11T21:59:59.066000+00:00",
+    "end_utc": "2026-02-11T23:00:00.594000+00:00",
+    "start_melbourne": "2026-02-12 08:59:59.066000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-12T21:59:59.061000+00:00",
+    "end_utc": "2026-02-12T23:00:00.143000+00:00",
+    "start_melbourne": "2026-02-13 08:59:59.061000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-12T23:01:15.635000+00:00",
+    "end_utc": "2026-02-12T23:09:05.076000+00:00",
+    "start_melbourne": "2026-02-13 10:01:15.635000",
+    "minutes": 7.82,
+    "class": "UNEXPLAINED",
+    "detail": "NY 2026-02-12 Thu 18:01 -> 2026-02-12 Thu 18:09; 6 of 7 minutes were open-market"
+  },
+  {
+    "start_utc": "2026-02-13T21:59:58.760000+00:00",
+    "end_utc": "2026-02-15T23:00:01.643000+00:00",
+    "start_melbourne": "2026-02-14 08:59:58.760000",
+    "minutes": 2940.05,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-16T19:28:56.390000+00:00",
+    "end_utc": "2026-02-16T23:00:01.084000+00:00",
+    "start_melbourne": "2026-02-17 06:28:56.390000",
+    "minutes": 211.08,
+    "class": "holiday",
+    "detail": "US Presidents' Day (early close); 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-17T21:59:59.810000+00:00",
+    "end_utc": "2026-02-17T23:00:00.630000+00:00",
+    "start_melbourne": "2026-02-18 08:59:59.810000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-18T21:59:59.792000+00:00",
+    "end_utc": "2026-02-18T23:00:00.804000+00:00",
+    "start_melbourne": "2026-02-19 08:59:59.792000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-19T21:59:58.440000+00:00",
+    "end_utc": "2026-02-19T23:00:01.091000+00:00",
+    "start_melbourne": "2026-02-20 08:59:58.440000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-20T21:59:58.314000+00:00",
+    "end_utc": "2026-02-22T23:00:00.736000+00:00",
+    "start_melbourne": "2026-02-21 08:59:58.314000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-23T21:59:58.579000+00:00",
+    "end_utc": "2026-02-23T23:00:00.545000+00:00",
+    "start_melbourne": "2026-02-24 08:59:58.579000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-24T21:59:58.538000+00:00",
+    "end_utc": "2026-02-24T23:00:01.119000+00:00",
+    "start_melbourne": "2026-02-25 08:59:58.538000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-25T21:59:58.362000+00:00",
+    "end_utc": "2026-02-25T23:00:01.361000+00:00",
+    "start_melbourne": "2026-02-26 08:59:58.362000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-26T21:59:58.584000+00:00",
+    "end_utc": "2026-02-26T23:00:02.330000+00:00",
+    "start_melbourne": "2026-02-27 08:59:58.584000",
+    "minutes": 60.06,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-02-27T21:59:59.799000+00:00",
+    "end_utc": "2026-03-01T23:00:15.012000+00:00",
+    "start_melbourne": "2026-02-28 08:59:59.799000",
+    "minutes": 2940.25,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-02T21:59:58.427000+00:00",
+    "end_utc": "2026-03-02T23:00:00.893000+00:00",
+    "start_melbourne": "2026-03-03 08:59:58.427000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-03T21:59:59.948000+00:00",
+    "end_utc": "2026-03-03T23:00:00.461000+00:00",
+    "start_melbourne": "2026-03-04 08:59:59.948000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-04T21:59:58.646000+00:00",
+    "end_utc": "2026-03-04T23:00:51.062000+00:00",
+    "start_melbourne": "2026-03-05 08:59:58.646000",
+    "minutes": 60.87,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-05T21:59:58.434000+00:00",
+    "end_utc": "2026-03-05T23:00:00.674000+00:00",
+    "start_melbourne": "2026-03-06 08:59:58.434000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-06T21:59:49.173000+00:00",
+    "end_utc": "2026-03-08T22:00:01.991000+00:00",
+    "start_melbourne": "2026-03-07 08:59:49.173000",
+    "minutes": 2880.21,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-09T20:59:59.922000+00:00",
+    "end_utc": "2026-03-09T22:00:00.777000+00:00",
+    "start_melbourne": "2026-03-10 07:59:59.922000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-10T20:59:58.234000+00:00",
+    "end_utc": "2026-03-10T22:01:03.053000+00:00",
+    "start_melbourne": "2026-03-11 07:59:58.234000",
+    "minutes": 61.08,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-11T20:59:58.456000+00:00",
+    "end_utc": "2026-03-11T22:00:05.208000+00:00",
+    "start_melbourne": "2026-03-12 07:59:58.456000",
+    "minutes": 60.11,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-12T20:59:57.997000+00:00",
+    "end_utc": "2026-03-12T22:00:00.435000+00:00",
+    "start_melbourne": "2026-03-13 07:59:57.997000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-13T20:59:57.914000+00:00",
+    "end_utc": "2026-03-15T22:00:01.361000+00:00",
+    "start_melbourne": "2026-03-14 07:59:57.914000",
+    "minutes": 2940.06,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-16T20:59:59.846000+00:00",
+    "end_utc": "2026-03-16T22:00:00.564000+00:00",
+    "start_melbourne": "2026-03-17 07:59:59.846000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-17T20:59:59.867000+00:00",
+    "end_utc": "2026-03-17T22:00:01.084000+00:00",
+    "start_melbourne": "2026-03-18 07:59:59.867000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-18T20:59:58.467000+00:00",
+    "end_utc": "2026-03-18T22:00:00.661000+00:00",
+    "start_melbourne": "2026-03-19 07:59:58.467000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-19T20:59:58.075000+00:00",
+    "end_utc": "2026-03-19T22:00:00.797000+00:00",
+    "start_melbourne": "2026-03-20 07:59:58.075000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-20T20:59:53.585000+00:00",
+    "end_utc": "2026-03-22T22:00:04.225000+00:00",
+    "start_melbourne": "2026-03-21 07:59:53.585000",
+    "minutes": 2940.18,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-23T20:59:58.525000+00:00",
+    "end_utc": "2026-03-23T22:00:04.503000+00:00",
+    "start_melbourne": "2026-03-24 07:59:58.525000",
+    "minutes": 60.1,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-24T20:59:58.191000+00:00",
+    "end_utc": "2026-03-24T22:00:01.339000+00:00",
+    "start_melbourne": "2026-03-25 07:59:58.191000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-25T20:59:58.235000+00:00",
+    "end_utc": "2026-03-25T22:00:02.174000+00:00",
+    "start_melbourne": "2026-03-26 07:59:58.235000",
+    "minutes": 60.07,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-26T20:59:59.890000+00:00",
+    "end_utc": "2026-03-26T22:00:05.039000+00:00",
+    "start_melbourne": "2026-03-27 07:59:59.890000",
+    "minutes": 60.09,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-27T20:59:58.466000+00:00",
+    "end_utc": "2026-03-29T22:00:00.568000+00:00",
+    "start_melbourne": "2026-03-28 07:59:58.466000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-30T20:59:58.525000+00:00",
+    "end_utc": "2026-03-30T22:00:00.871000+00:00",
+    "start_melbourne": "2026-03-31 07:59:58.525000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-03-31T20:59:58.849000+00:00",
+    "end_utc": "2026-03-31T22:00:00.486000+00:00",
+    "start_melbourne": "2026-04-01 07:59:58.849000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-01T20:59:58.714000+00:00",
+    "end_utc": "2026-04-01T22:00:29.732000+00:00",
+    "start_melbourne": "2026-04-02 07:59:58.714000",
+    "minutes": 60.52,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-02T20:58:58.311000+00:00",
+    "end_utc": "2026-04-05T22:00:11.413000+00:00",
+    "start_melbourne": "2026-04-03 07:58:58.311000",
+    "minutes": 4381.22,
+    "class": "holiday",
+    "detail": "holiday: Good Friday; 1 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-06T20:59:58.927000+00:00",
+    "end_utc": "2026-04-06T22:00:00.631000+00:00",
+    "start_melbourne": "2026-04-07 06:59:58.927000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-07T20:59:58.757000+00:00",
+    "end_utc": "2026-04-07T22:00:01.563000+00:00",
+    "start_melbourne": "2026-04-08 06:59:58.757000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-08T20:59:59.775000+00:00",
+    "end_utc": "2026-04-08T22:00:01.306000+00:00",
+    "start_melbourne": "2026-04-09 06:59:59.775000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-09T20:59:58.816000+00:00",
+    "end_utc": "2026-04-09T22:00:01.273000+00:00",
+    "start_melbourne": "2026-04-10 06:59:58.816000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-10T20:59:59.140000+00:00",
+    "end_utc": "2026-04-12T22:00:19.033000+00:00",
+    "start_melbourne": "2026-04-11 06:59:59.140000",
+    "minutes": 2940.33,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-13T20:59:59.090000+00:00",
+    "end_utc": "2026-04-13T22:00:00.690000+00:00",
+    "start_melbourne": "2026-04-14 06:59:59.090000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-14T20:59:59.820000+00:00",
+    "end_utc": "2026-04-14T22:00:00.690000+00:00",
+    "start_melbourne": "2026-04-15 06:59:59.820000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-15T20:59:59.040000+00:00",
+    "end_utc": "2026-04-15T22:00:00.119000+00:00",
+    "start_melbourne": "2026-04-16 06:59:59.040000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-16T20:59:59.753000+00:00",
+    "end_utc": "2026-04-16T22:00:00.557000+00:00",
+    "start_melbourne": "2026-04-17 06:59:59.753000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-17T20:59:58.420000+00:00",
+    "end_utc": "2026-04-19T22:00:04.595000+00:00",
+    "start_melbourne": "2026-04-18 06:59:58.420000",
+    "minutes": 2940.1,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-20T20:59:58.793000+00:00",
+    "end_utc": "2026-04-20T22:00:01.356000+00:00",
+    "start_melbourne": "2026-04-21 06:59:58.793000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-21T20:59:59.050000+00:00",
+    "end_utc": "2026-04-21T22:00:00.843000+00:00",
+    "start_melbourne": "2026-04-22 06:59:59.050000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-22T20:59:59.989000+00:00",
+    "end_utc": "2026-04-22T22:00:01.054000+00:00",
+    "start_melbourne": "2026-04-23 06:59:59.989000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-23T20:59:59.026000+00:00",
+    "end_utc": "2026-04-23T22:00:02.441000+00:00",
+    "start_melbourne": "2026-04-24 06:59:59.026000",
+    "minutes": 60.06,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-24T20:59:58.924000+00:00",
+    "end_utc": "2026-04-26T22:00:01.114000+00:00",
+    "start_melbourne": "2026-04-25 06:59:58.924000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-27T20:59:59.499000+00:00",
+    "end_utc": "2026-04-27T22:00:00.541000+00:00",
+    "start_melbourne": "2026-04-28 06:59:59.499000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-28T20:59:59.791000+00:00",
+    "end_utc": "2026-04-28T22:00:01.066000+00:00",
+    "start_melbourne": "2026-04-29 06:59:59.791000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-29T20:59:59.143000+00:00",
+    "end_utc": "2026-04-29T22:00:01.778000+00:00",
+    "start_melbourne": "2026-04-30 06:59:59.143000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-04-30T20:59:58.581000+00:00",
+    "end_utc": "2026-04-30T22:00:01.556000+00:00",
+    "start_melbourne": "2026-05-01 06:59:58.581000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-01T20:59:55.123000+00:00",
+    "end_utc": "2026-05-03T22:00:01.510000+00:00",
+    "start_melbourne": "2026-05-02 06:59:55.123000",
+    "minutes": 2940.11,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-04T20:59:58.520000+00:00",
+    "end_utc": "2026-05-04T22:00:00.623000+00:00",
+    "start_melbourne": "2026-05-05 06:59:58.520000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-05T20:59:58.431000+00:00",
+    "end_utc": "2026-05-05T22:00:01.094000+00:00",
+    "start_melbourne": "2026-05-06 06:59:58.431000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-06T20:59:59.978000+00:00",
+    "end_utc": "2026-05-06T22:00:00.993000+00:00",
+    "start_melbourne": "2026-05-07 06:59:59.978000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-07T20:59:59.837000+00:00",
+    "end_utc": "2026-05-07T22:00:02.264000+00:00",
+    "start_melbourne": "2026-05-08 06:59:59.837000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-08T20:59:59.702000+00:00",
+    "end_utc": "2026-05-10T22:00:02.395000+00:00",
+    "start_melbourne": "2026-05-09 06:59:59.702000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-11T20:59:59.804000+00:00",
+    "end_utc": "2026-05-11T22:00:00.791000+00:00",
+    "start_melbourne": "2026-05-12 06:59:59.804000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-12T20:59:59.650000+00:00",
+    "end_utc": "2026-05-12T22:00:07.242000+00:00",
+    "start_melbourne": "2026-05-13 06:59:59.650000",
+    "minutes": 60.13,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-13T20:59:58.320000+00:00",
+    "end_utc": "2026-05-13T22:00:00.636000+00:00",
+    "start_melbourne": "2026-05-14 06:59:58.320000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-14T20:59:59.951000+00:00",
+    "end_utc": "2026-05-14T22:00:06.440000+00:00",
+    "start_melbourne": "2026-05-15 06:59:59.951000",
+    "minutes": 60.11,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-15T20:59:58.107000+00:00",
+    "end_utc": "2026-05-17T22:00:01.233000+00:00",
+    "start_melbourne": "2026-05-16 06:59:58.107000",
+    "minutes": 2940.05,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-18T20:59:59.798000+00:00",
+    "end_utc": "2026-05-18T22:00:01.282000+00:00",
+    "start_melbourne": "2026-05-19 06:59:59.798000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-19T20:59:58.540000+00:00",
+    "end_utc": "2026-05-19T22:00:00.606000+00:00",
+    "start_melbourne": "2026-05-20 06:59:58.540000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-20T20:59:58.930000+00:00",
+    "end_utc": "2026-05-20T22:00:01.002000+00:00",
+    "start_melbourne": "2026-05-21 06:59:58.930000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-21T20:59:59.789000+00:00",
+    "end_utc": "2026-05-21T22:00:01.622000+00:00",
+    "start_melbourne": "2026-05-22 06:59:59.789000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-22T20:59:59.132000+00:00",
+    "end_utc": "2026-05-24T22:00:02.048000+00:00",
+    "start_melbourne": "2026-05-23 06:59:59.132000",
+    "minutes": 2940.05,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-25T18:28:57.922000+00:00",
+    "end_utc": "2026-05-25T22:00:01.683000+00:00",
+    "start_melbourne": "2026-05-26 04:28:57.922000",
+    "minutes": 211.06,
+    "class": "holiday",
+    "detail": "US Memorial Day (early close); 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-26T20:59:58.904000+00:00",
+    "end_utc": "2026-05-26T22:00:06.283000+00:00",
+    "start_melbourne": "2026-05-27 06:59:58.904000",
+    "minutes": 60.12,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-27T20:59:59.237000+00:00",
+    "end_utc": "2026-05-27T22:00:01.094000+00:00",
+    "start_melbourne": "2026-05-28 06:59:59.237000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-28T20:59:58.623000+00:00",
+    "end_utc": "2026-05-28T22:00:01.298000+00:00",
+    "start_melbourne": "2026-05-29 06:59:58.623000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-05-29T20:59:58.020000+00:00",
+    "end_utc": "2026-05-31T22:00:03.851000+00:00",
+    "start_melbourne": "2026-05-30 06:59:58.020000",
+    "minutes": 2940.1,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-01T20:59:59.986000+00:00",
+    "end_utc": "2026-06-01T22:00:01.212000+00:00",
+    "start_melbourne": "2026-06-02 06:59:59.986000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-02T20:59:59.059000+00:00",
+    "end_utc": "2026-06-02T22:00:00.712000+00:00",
+    "start_melbourne": "2026-06-03 06:59:59.059000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-03T20:59:59.966000+00:00",
+    "end_utc": "2026-06-03T22:00:01.317000+00:00",
+    "start_melbourne": "2026-06-04 06:59:59.966000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-04T20:59:59.739000+00:00",
+    "end_utc": "2026-06-04T22:00:00.510000+00:00",
+    "start_melbourne": "2026-06-05 06:59:59.739000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-05T20:59:58.277000+00:00",
+    "end_utc": "2026-06-07T22:00:00.835000+00:00",
+    "start_melbourne": "2026-06-06 06:59:58.277000",
+    "minutes": 2940.04,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-08T20:59:58.852000+00:00",
+    "end_utc": "2026-06-08T22:00:00.715000+00:00",
+    "start_melbourne": "2026-06-09 06:59:58.852000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-09T20:59:59.797000+00:00",
+    "end_utc": "2026-06-09T22:00:01.646000+00:00",
+    "start_melbourne": "2026-06-10 06:59:59.797000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-10T20:59:59.917000+00:00",
+    "end_utc": "2026-06-10T22:00:00.630000+00:00",
+    "start_melbourne": "2026-06-11 06:59:59.917000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-11T20:59:59.770000+00:00",
+    "end_utc": "2026-06-11T22:00:01.522000+00:00",
+    "start_melbourne": "2026-06-12 06:59:59.770000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-12T20:59:59.091000+00:00",
+    "end_utc": "2026-06-14T22:00:04.134000+00:00",
+    "start_melbourne": "2026-06-13 06:59:59.091000",
+    "minutes": 2940.08,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-15T20:59:59.771000+00:00",
+    "end_utc": "2026-06-15T22:00:00.536000+00:00",
+    "start_melbourne": "2026-06-16 06:59:59.771000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-16T20:59:59.821000+00:00",
+    "end_utc": "2026-06-16T22:00:00.398000+00:00",
+    "start_melbourne": "2026-06-17 06:59:59.821000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-17T20:59:59.689000+00:00",
+    "end_utc": "2026-06-17T22:00:00.894000+00:00",
+    "start_melbourne": "2026-06-18 06:59:59.689000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-18T20:59:58.392000+00:00",
+    "end_utc": "2026-06-18T22:00:00.607000+00:00",
+    "start_melbourne": "2026-06-19 06:59:58.392000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-19T16:58:59.181000+00:00",
+    "end_utc": "2026-06-21T22:00:01.445000+00:00",
+    "start_melbourne": "2026-06-20 02:58:59.181000",
+    "minutes": 3181.04,
+    "class": "holiday",
+    "detail": "US Juneteenth (early close); 1 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-22T20:59:58.407000+00:00",
+    "end_utc": "2026-06-22T22:00:00.814000+00:00",
+    "start_melbourne": "2026-06-23 06:59:58.407000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-23T20:59:59.066000+00:00",
+    "end_utc": "2026-06-23T22:00:01.521000+00:00",
+    "start_melbourne": "2026-06-24 06:59:59.066000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-24T20:59:58.771000+00:00",
+    "end_utc": "2026-06-24T22:00:01.360000+00:00",
+    "start_melbourne": "2026-06-25 06:59:58.771000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-25T20:59:59.346000+00:00",
+    "end_utc": "2026-06-25T22:00:10.871000+00:00",
+    "start_melbourne": "2026-06-26 06:59:59.346000",
+    "minutes": 60.19,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-26T20:59:58.849000+00:00",
+    "end_utc": "2026-06-28T22:00:00.646000+00:00",
+    "start_melbourne": "2026-06-27 06:59:58.849000",
+    "minutes": 2940.03,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-29T20:59:59.874000+00:00",
+    "end_utc": "2026-06-29T22:00:00.638000+00:00",
+    "start_melbourne": "2026-06-30 06:59:59.874000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-06-30T20:59:59.776000+00:00",
+    "end_utc": "2026-06-30T22:00:01.523000+00:00",
+    "start_melbourne": "2026-07-01 06:59:59.776000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-01T20:59:59.090000+00:00",
+    "end_utc": "2026-07-01T22:00:00.813000+00:00",
+    "start_melbourne": "2026-07-02 06:59:59.090000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-02T20:59:59.975000+00:00",
+    "end_utc": "2026-07-02T22:00:01.148000+00:00",
+    "start_melbourne": "2026-07-03 06:59:59.975000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-03T16:58:58.207000+00:00",
+    "end_utc": "2026-07-05T22:00:01.514000+00:00",
+    "start_melbourne": "2026-07-04 02:58:58.207000",
+    "minutes": 3181.06,
+    "class": "holiday",
+    "detail": "US Independence Day observed (early close); 1 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-06T20:59:59.944000+00:00",
+    "end_utc": "2026-07-06T22:00:00.612000+00:00",
+    "start_melbourne": "2026-07-07 06:59:59.944000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-07T20:59:59.571000+00:00",
+    "end_utc": "2026-07-07T22:00:02.279000+00:00",
+    "start_melbourne": "2026-07-08 06:59:59.571000",
+    "minutes": 60.05,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-08T20:59:59.700000+00:00",
+    "end_utc": "2026-07-08T22:00:03.173000+00:00",
+    "start_melbourne": "2026-07-09 06:59:59.700000",
+    "minutes": 60.06,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-09T20:59:59.477000+00:00",
+    "end_utc": "2026-07-09T22:00:00.573000+00:00",
+    "start_melbourne": "2026-07-10 06:59:59.477000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-10T20:59:59.116000+00:00",
+    "end_utc": "2026-07-12T22:00:09.539000+00:00",
+    "start_melbourne": "2026-07-11 06:59:59.116000",
+    "minutes": 2940.17,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-13T20:59:59.828000+00:00",
+    "end_utc": "2026-07-13T22:00:02.052000+00:00",
+    "start_melbourne": "2026-07-14 06:59:59.828000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-14T20:59:59.906000+00:00",
+    "end_utc": "2026-07-14T22:00:00.479000+00:00",
+    "start_melbourne": "2026-07-15 06:59:59.906000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-15T20:59:59.661000+00:00",
+    "end_utc": "2026-07-15T22:00:00.547000+00:00",
+    "start_melbourne": "2026-07-16 06:59:59.661000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-16T20:59:59.817000+00:00",
+    "end_utc": "2026-07-16T22:00:01.152000+00:00",
+    "start_melbourne": "2026-07-17 06:59:59.817000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-17T20:59:02.662000+00:00",
+    "end_utc": "2026-07-19T22:00:03.067000+00:00",
+    "start_melbourne": "2026-07-18 06:59:02.662000",
+    "minutes": 2941.01,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-20T20:59:59.795000+00:00",
+    "end_utc": "2026-07-20T22:00:00.500000+00:00",
+    "start_melbourne": "2026-07-21 06:59:59.795000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-21T20:59:59.678000+00:00",
+    "end_utc": "2026-07-21T22:00:00.595000+00:00",
+    "start_melbourne": "2026-07-22 06:59:59.678000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-22T20:59:59.757000+00:00",
+    "end_utc": "2026-07-22T22:00:00.919000+00:00",
+    "start_melbourne": "2026-07-23 06:59:59.757000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-23T20:59:59.780000+00:00",
+    "end_utc": "2026-07-23T22:00:00.900000+00:00",
+    "start_melbourne": "2026-07-24 06:59:59.780000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-24T20:59:01.103000+00:00",
+    "end_utc": "2026-07-26T22:00:04.075000+00:00",
+    "start_melbourne": "2026-07-25 06:59:01.103000",
+    "minutes": 2941.05,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-27T20:59:59.441000+00:00",
+    "end_utc": "2026-07-27T22:00:00.617000+00:00",
+    "start_melbourne": "2026-07-28 06:59:59.441000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-28T20:59:59.845000+00:00",
+    "end_utc": "2026-07-28T22:00:02.034000+00:00",
+    "start_melbourne": "2026-07-29 06:59:59.845000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-29T20:59:59.857000+00:00",
+    "end_utc": "2026-07-29T22:00:01.457000+00:00",
+    "start_melbourne": "2026-07-30 06:59:59.857000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-30T20:59:59.164000+00:00",
+    "end_utc": "2026-07-30T22:00:00.579000+00:00",
+    "start_melbourne": "2026-07-31 06:59:59.164000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-07-31T20:59:02.882000+00:00",
+    "end_utc": "2026-08-02T22:00:01.623000+00:00",
+    "start_melbourne": "2026-08-01 06:59:02.882000",
+    "minutes": 2940.98,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-03T20:59:59.798000+00:00",
+    "end_utc": "2026-08-03T22:00:00.880000+00:00",
+    "start_melbourne": "2026-08-04 06:59:59.798000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-04T20:59:59.771000+00:00",
+    "end_utc": "2026-08-04T22:00:00.405000+00:00",
+    "start_melbourne": "2026-08-05 06:59:59.771000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-05T20:59:59.731000+00:00",
+    "end_utc": "2026-08-05T22:00:00.410000+00:00",
+    "start_melbourne": "2026-08-06 06:59:59.731000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-06T20:59:59.059000+00:00",
+    "end_utc": "2026-08-06T22:00:00.984000+00:00",
+    "start_melbourne": "2026-08-07 06:59:59.059000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-07T20:59:49.302000+00:00",
+    "end_utc": "2026-08-09T22:00:01.132000+00:00",
+    "start_melbourne": "2026-08-08 06:59:49.302000",
+    "minutes": 2940.2,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-10T20:59:59.607000+00:00",
+    "end_utc": "2026-08-10T22:00:01.273000+00:00",
+    "start_melbourne": "2026-08-11 06:59:59.607000",
+    "minutes": 60.03,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-11T20:59:59.663000+00:00",
+    "end_utc": "2026-08-11T22:00:00.495000+00:00",
+    "start_melbourne": "2026-08-12 06:59:59.663000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-12T20:59:59.082000+00:00",
+    "end_utc": "2026-08-12T22:00:00.517000+00:00",
+    "start_melbourne": "2026-08-13 06:59:59.082000",
+    "minutes": 60.02,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-13T20:59:59.532000+00:00",
+    "end_utc": "2026-08-13T22:00:00.311000+00:00",
+    "start_melbourne": "2026-08-14 06:59:59.532000",
+    "minutes": 60.01,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-14T20:59:01.732000+00:00",
+    "end_utc": "2026-08-16T22:00:02.399000+00:00",
+    "start_melbourne": "2026-08-15 06:59:01.732000",
+    "minutes": 2941.01,
+    "class": "weekend",
+    "detail": "Saturday - market closed; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-17T20:59:59.147000+00:00",
+    "end_utc": "2026-08-17T22:00:01.709000+00:00",
+    "start_melbourne": "2026-08-18 06:59:59.147000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-18T20:59:59.955000+00:00",
+    "end_utc": "2026-08-18T22:00:40.697000+00:00",
+    "start_melbourne": "2026-08-19 06:59:59.955000",
+    "minutes": 60.68,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  },
+  {
+    "start_utc": "2026-08-19T20:59:58.156000+00:00",
+    "end_utc": "2026-08-19T22:00:00.467000+00:00",
+    "start_melbourne": "2026-08-20 06:59:58.156000",
+    "minutes": 60.04,
+    "class": "maintenance",
+    "detail": "daily 17:00-18:00 NY settlement break; 0 open minute(s) inside the gap"
+  }
+]
