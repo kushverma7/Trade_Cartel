@@ -43,3 +43,7 @@ research/gold_tick_data/dukascopy/processed/*.parquet
 research/gold_tick_data/dukascopy/processed/*.csv.gz
 research/gold_tick_data/dukascopy/processed/parts/
 research/gold_tick_data/dukascopy/processed/parts*/
+
+# 10AM study: regenerable intermediates (session_ticks is 1.25 GB)
+research/gold_10am_flip/data/*.npy
+research/gold_10am_flip/data/*.pkl
