@@ -2504,3 +2504,52 @@ volatility artefact against a fixed dollar stop.
 
 **Invalidation:** a market where the "after a real opposite breakout" partition
 is the stronger one, pre-registered before looking.
+
+## H94 — The 10:00 candle's BODY is inert; the 10:00 OPEN is not (2026-08-21)
+
+**Belief:** on XAU/USD, the body of the 10:00 Melbourne candle carries no
+directional information. What the "10AM body pierce" family actually harvests is
+generic displacement-from-the-open momentum, which is real but is a property of
+the anchor and of the session, not of the candle.
+
+**Evidence:** 91,629,949 Dukascopy ticks, 2025-08-21 to 2026-08-20, exits
+resolved on real bid/ask in arrival order. The best of 1,456 configurations
+(A-both, SL 15 / TP 25) returns +2.81 points a trade, PF 1.35, t 2.21, 12 of 13
+months green. Re-running the identical sweep and the identical selection rule on
+data where each day's 10:00 body size is transplanted from a random other day --
+real open, real path, only the candle-to-session link destroyed -- the procedure
+selects the SAME setup and returns +2.83, t 2.17. Across 7 permutations the
+null's mean selected expectancy is **+2.95, higher than the real +2.81**;
+p = 0.571. Separately, random-time longs on the same days with the same exits
+average **-0.45** points (400 resamples, best +1.68) against the breakout
+entries' +2.81, z = 5.81.
+
+**Consequence:** stop testing variations of "what did the 10AM candle do". Test
+the anchor instead: displacement from the 10:00 reopen, sized against the
+session's own volatility. Also retire the fixed-dollar stop here -- random longs
+lose in a +35% year purely because a 15-point stop against a 25-point target
+needs a >37.5% hit rate.
+
+**Invalidation:** a permutation test in which scrambling the candle body
+materially degrades the selected result. That is the test this belief was built
+on and the one that must be beaten to overturn it.
+
+## H95 — A smooth in-sample equity curve is the EXPECTED output of a grid search (2026-08-21)
+
+**Belief:** in this repo's typical setting -- one instrument, ~250 setups, a few
+hundred trades, a sweep of order 10^3 configurations -- selecting on curve
+smoothness produces a smooth curve whether or not an edge exists. Smoothness is
+therefore not evidence.
+
+**Evidence:** ranking 1,456 configurations by equity R-squared returned, at the
+top, systems with expectancy -0.86 and PF 0.51 (a straight line pointing DOWN
+scores R-squared 0.99). Ranking by MAR returned a config with 12 of 13 green
+months whose walk-forward pooled result is expectancy +1.52 with a maximum
+drawdown (173.6) LARGER than its net profit (151.6), and whose null-permutation
+p-value is 0.571.
+
+**Consequence:** never quote R-squared or "months green" as a robustness claim.
+The only smoothness numbers that count are walk-forward, and they must be paired
+with a null that runs the WHOLE selection procedure, not a t-test on the winner.
+
+**Invalidation:** none expected; this is a property of selection, not of a market.

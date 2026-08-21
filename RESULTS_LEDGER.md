@@ -5483,3 +5483,27 @@ is AEDT and New York is EST. The 09:50 reference candle is absent on **180 of
 
 Report: `research/gold_10am/report/GOLD_10AM_2024_2026_FULL_REPORT.md`
 Ledger: `research/gold_10am/results/research_ledger.csv` (G01-G26)
+
+
+## GOLD 10AM BODY PIERCE + FLIP — tick-exact (2026-08-21)
+
+Data: 91,629,949 Dukascopy XAUUSD ticks, 2025-08-21 → 2026-08-20 Australia/
+Melbourne, 257 constructible days. Fills: long buys the ask and sells the bid,
+short the reverse; exits resolved on real quotes in arrival order. No assumed
+cost. Anchor: the 10:00 candle's own open (09:50 is absent on 91 of 261
+weekdays).
+
+| ID | Config | n | Window | Exp (pts) | PF | maxDD | Verdict |
+|----|--------|---|--------|-----------|----|-------|---------|
+| GF01 | As supplied (A-short+Flip), SL18/TP40, 09:50 anchor | 206 | 170 days | +0.72 | 1.07 | 606 | NOT VALID — t 0.42 |
+| GF02 | A_S leg alone, SL18/TP40 | 101 | 257 days | +0.207 | ~1.0 | — | NOT VALID — zero, confirms H92 |
+| GF03 | A_L leg alone, SL15/TP25 | 134 | 257 days | +4.77 | 1.66 | — | NOT VALID — train +6.07 / test +1.22 |
+| GF04 | A-both, SL15/TP25 (robust-selected on train) | 235 | 257 days | +2.81 | 1.35 | 174 | **NOT VALID — null p 0.571** |
+| GF05 | Walk-forward, re-selected each fold | 100 | 4 folds OOS | +1.52 | 1.14 | 173.6 | NOT VALID — t 0.58, maxDD > net |
+| GF06 | Random-time long control, SL15/TP25 | 257×400 | 257 days | −0.45 | — | — | CONTROL (benchmark) |
+| GF07 | Permutation null, full selection re-run | 7 perms | 257 days | +2.95 mean | — | — | CONTROL — null BEATS the real result |
+
+Headline: the selection procedure applied to scrambled candles produces a
+slightly BETTER average result (+2.95) than it produces on real candles (+2.81).
+The body is inert. Entry timing is not: random-time longs lose 0.45 points a
+trade against the breakout's +2.81, z 5.81. See H94, H95.

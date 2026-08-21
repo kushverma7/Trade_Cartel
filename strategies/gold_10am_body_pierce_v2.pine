@@ -48,15 +48,19 @@
 //     body size is transplanted from a random other day, destroying any link
 //     between the candle and the session that follows — the procedure picks
 //     the SAME setup (A-both, SL 15, TP 25) and returns expectancy +2.83,
-//     t = 2.17. Indistinguishable from the real +2.81. Other permutations
-//     returned +4.69 and +3.28, beating the real result outright.
+//     t = 2.17 — indistinguishable from the real +2.81, t 2.21. Across 7
+//     permutations the null's MEAN selected expectancy is +2.95, HIGHER than
+//     the real result: p = 0.57. Four of the seven beat it outright.
 //     => the 10:00 candle's BODY carries no information. What survives the
 //        permutation is the generic "move away from the 10:00 open, then go
 //        with it" breakout, which the body test merely rides.
 //
 //   • WALK-FORWARD. Re-selecting parameters inside each fold and trading only
-//     the days after it: fold 1 expectancy -3.86, fold 2 +1.22. The parameter
-//     choice is stable; the outcome is not.
+//     the days after it: folds run -3.86, +1.22, +6.25, -2.60 points a trade,
+//     and the rule picks three DIFFERENT setups across four folds. Pooled:
+//     100 out-of-sample trades, expectancy +1.52, PF 1.14, net +151.6 against
+//     a max drawdown of 173.6 — the honest curve makes less than it loses at
+//     its worst point.
 //
 //   • What IS robust: entry TIMING. Random-time longs on the same days with
 //     the same exits average -0.45 points (400 resamples, best +1.68). The
