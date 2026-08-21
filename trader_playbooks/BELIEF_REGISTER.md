@@ -2553,3 +2553,49 @@ The only smoothness numbers that count are walk-forward, and they must be paired
 with a null that runs the WHOLE selection procedure, not a t-test on the winner.
 
 **Invalidation:** none expected; this is a property of selection, not of a market.
+
+## H96 — The Quarterly-Theory quarter label on the 10AM setup is the DST calendar relabelled (2026-08-21)
+
+**Belief:** partitioning the verified bullish-10AM first-break trades by their
+New York Quarterly-Theory phase carries no information. The quarter label is a
+deterministic function of the date's DST regime, and the differences between
+quarters are smaller than a random split of the same group sizes produces.
+
+**Evidence:** 145 tick-verified trades. The 90-minute quarter is PERFECTLY
+determined by the signal's NY hour -- NY 18:00 and 19:00 are always Q1 (79
+trades), NY 20:00 is always Q2 (65) -- and the NY hour is fixed by which of the
+Melbourne/New-York DST regimes the date falls in. Permutation test holding group
+sizes fixed: observed best-bucket PF 1.75 against a null MEDIAN of 1.88,
+p = 0.79; best-worst spread 0.21 against null p = 0.85. Micro quarters the same:
+best bucket 2.46 against a null median of 2.48, p = 0.54, spread p = 0.88. The
+reported "Micro Q3 PF 3.57" did not reproduce under correct timezone handling
+(1.96 on n=24), and a random 22-trade subset of these 145 reaches PF >= 3.57
+3.2% of the time on its own.
+
+**Consequence:** do not condition the 10AM system on quarter phase. Splitting by
+quarter is splitting the year into two calendar blocks, so any apparent edge is
+a statement about which months traded well.
+
+**Invalidation:** a quarter partition on an instrument or window where the label
+is NOT collinear with a DST block, clearing a size-matched permutation null.
+
+## H97 — The Q1 -> Q2 expansion ladder is a ratio artifact, not gold (2026-08-21)
+
+**Belief:** "a compressed Q1 is followed by proportionally larger Q2 expansion"
+is produced by the arithmetic of dividing by a small number, not by any Q1->Q2
+relationship.
+
+**Evidence:** 1,024 complete NY 90-minute Q1->Q2 pairs from the tick data
+reproduce the reported monotonic ladder (1.66x, 1.25x, 1.03x, 0.81x across Q1
+size quartiles). Re-pairing every real Q1 with a Q2 drawn from a RANDOM UNRELATED
+cycle -- destroying any link while preserving both marginal distributions --
+yields a ladder that is monotonic AND STEEPER: 2.54x, 1.35x, 0.94x, 0.52x.
+Selecting on a small denominator guarantees a large ratio; regression to the mean
+supplies the rest.
+
+**Consequence:** the real ladder being FLATTER than the shuffled one is the only
+signal present, and it points the other way -- toward mild volatility clustering,
+where a large Q1 is followed by a larger-than-random Q2.
+
+**Invalidation:** any conditional-range claim that beats its own shuffled-pairing
+control. Ratios of a quantity to a selected-on quantity always need that control.

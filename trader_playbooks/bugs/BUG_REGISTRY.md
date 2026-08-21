@@ -1370,3 +1370,30 @@ across the interval — which is exactly what a calendar is not. Always keep a
 negative control in the test set: the classifier that got this wrong still passed
 a suite of eight cases, because every case was one where endpoint matching
 happened to work.
+
+---
+
+## BUG-045 — A naive local wall clock stored as epoch ms is not an instant (2026-08-21)
+
+**Symptom:** mapping the verified 10AM trades onto Quarterly-Theory phases in New
+York time produced a partition with no Q2 at all (85/0/1/59 across the 90-minute
+quarters) where the collaborating analysis had a clean 79/65 split.
+
+**Root cause:** the study's `t_signal` carries `timestamp_melbourne` -- a NAIVE
+Melbourne wall clock stored as epoch milliseconds, exactly as the tick dataset
+documents it. `datetime.fromtimestamp(ms/1000, utc)` reads that as a UTC instant,
+which silently shifts every label by 10 or 11 hours and lands the trades in the
+wrong quarter entirely. The correct order is: recover the naive wall clock,
+LOCALISE it to Australia/Melbourne, and only then convert to New York, so both
+DST calendars apply in the right sequence. After the fix the 90-minute split
+reproduced the collaborator's counts exactly (79 and 65).
+
+**Why it matters beyond this study:** the dataset deliberately stores
+timestamp_melbourne naive so every reader sees the literal local time. That
+choice makes the column safe to READ and unsafe to do ARITHMETIC on. Any code
+that converts it to another zone must localise first.
+
+**Prevention:** never pass a naive-wall-clock epoch to a timezone conversion.
+Convert through an explicit localisation. And when a partition disagrees with a
+collaborator's on COUNTS rather than on values, suspect the axis, not the data --
+matching totals with mismatched buckets is the signature of a shifted label.
