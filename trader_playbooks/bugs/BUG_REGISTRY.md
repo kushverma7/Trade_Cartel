@@ -1397,3 +1397,38 @@ that converts it to another zone must localise first.
 Convert through an explicit localisation. And when a partition disagrees with a
 collaborator's on COUNTS rather than on values, suspect the axis, not the data --
 matching totals with mismatched buckets is the signature of a shifted label.
+
+---
+
+## BUG-046 — A control drawn once is a random variable, not a baseline
+
+**Found:** 2026-08-21, gold price-level study.
+
+**Symptom:** the pivot/key-level study reported prior-day high beating its sham
+control by +9.7pp on n=122, the single positive result out of eight levels
+tested. Every other level was at or below its control.
+
+**Root cause:** the sham was drawn ONCE. Each day was paired with one randomly
+chosen other day, and that single pairing became "the baseline". Re-drawing the
+pairing 400 times showed the sham rejection rate for PDH has a standard
+deviation of 4.3pp and a mean of 48.0%. The one draw that had been used landed
+at 37.8% — 2.4 sd low. Against the control's actual distribution the real number
+(47.5%) sits at -0.5pp, p = 0.589. The entire edge was noise in the control, not
+signal in the data.
+
+**Why it matters beyond this study:** a randomised control has a sampling
+distribution exactly like the thing it is controlling. Comparing a point
+estimate to a single draw of a noisy baseline is a coin flip dressed as a test,
+and it fails in the direction that flatters the hypothesis, because a
+surprisingly LOW control reads as a surprisingly GOOD result.
+
+**Prevention:** never compare against one control draw. Redraw enough times to
+get a distribution, quote the observed value's position in it as a p-value, and
+where several variants were screened, also compute the distribution of the BEST
+control across variants — the family-wise number. Here the best of eight real
+levels beat its control by +0.6pp, which the best of eight sham levels exceeds
+with p = 0.998.
+
+**Cross-reference:** same family as the shuffled-pairing control in H97 and the
+permutation null in H95. The pattern in all three: preserve everything, sever
+only the claimed cause, and repeat until you have a distribution.

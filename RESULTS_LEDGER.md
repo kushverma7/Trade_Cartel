@@ -5507,3 +5507,15 @@ Headline: the selection procedure applied to scrambled candles produces a
 slightly BETTER average result (+2.95) than it produces on real candles (+2.81).
 The body is inert. Entry timing is not: random-time longs lose 0.45 points a
 trade against the breakout's +2.81, z 5.81. See H94, H95.
+
+| GL01 | Locked universe + body>=1, SL15/TP25 (no quarter filter) | 104 | 2025-08-21..2026-08-20 | +4.45 | 1.580 | 81.1 | baseline — minPF 1.36 |
+| GL02 | + entry within $7.50 of a $25 quarter | 59 | same | +5.92 | 1.813 | 70.9 | **NOT ADOPTED — minPF 1.28 < 1.36** |
+| GL03 | Same filter, 24 non-round grid phases | 57–68 each | same | — | 1.578 ± 0.141 | — | CONTROL — 5 of 24 beat round on minPF |
+| GL04 | Random 59-of-104 subsets, no rule | 2000 draws | same | — | 1.61 ± 0.28 | — | CONTROL — P(PF≥1.81)=0.22, P(minPF≥1.28)=0.385 |
+| GL05 | Round-number-snapped TP, SL15, locked universe | 131 | same | +3.0..+5.1 | 1.34–1.62 | 86–127 | NOT VALID — no variant beats fixed TP27 minPF 1.42 |
+| GL06 | Key levels / pivots, rejection vs 400-redraw sham | 22–157 per level | 275 days | — | — | — | CONTROL — best edge +0.6pp, family-wise p 0.998 |
+
+Headline: quarters, round numbers, key levels and pivots all measure at their
+controls. The acceptance ladder is x/S (H99). The $25 entry filter raises
+full-sample PF and lowers minimum chronological PF (H100). Reported PF 2.115 on
+the 59-trade set did not reproduce: same 59 trades, measured PF 1.813.

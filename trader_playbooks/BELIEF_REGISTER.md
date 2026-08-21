@@ -2599,3 +2599,76 @@ where a large Q1 is followed by a larger-than-random Q2.
 
 **Invalidation:** any conditional-range claim that beats its own shuffled-pairing
 control. Ratios of a quantity to a selected-on quantity always need that control.
+
+---
+
+## H98 — Round price levels carry no edge on gold beyond their spacing
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-21.
+
+**Claim:** on XAUUSD, a grid at multiples of $25 (or $5, $10, $50, $100) behaves
+indistinguishably from a grid of the same spacing at a non-round phase. What
+looks like level behaviour is an effect of SPACING on a near-random walk.
+
+**Evidence:** one year of ticks. Traverse advantage of the round phase over
+shifted phases <= +0.0106 and sign-changing across S. Time spent near levels is
+33.3% everywhere — the no-preference baseline — and round grids show marginally
+LESS of it than the S/3 control. Applied as a trade filter (entry within $7.50
+of a $25 quarter), the round grid's minimum chronological PF (1.28) is beaten by
+5 of 24 non-round phases, and by the unfiltered sample (1.36).
+
+**Consequence:** draw the grid for orientation if you like, but never let
+roundness upgrade a signal, and never claim a level effect without a phase
+control. Scale remains real (H76, H77); roundness does not.
+
+**Invalidation:** any round-phase result that beats the distribution of its own
+shifted phases on minimum chronological PF, not on full-sample PF.
+
+---
+
+## H99 — The "acceptance ladder" is the gambler's-ruin formula x/S
+
+**Status:** ACTIVE. **Confidence:** very high (closed form). **Added:** 2026-08-21.
+
+**Claim:** the observation that continuation probability from a level rises
+smoothly with acceptance, and crosses 50% at the halfway point of EVERY grid
+size, is arithmetic. For a driftless walk starting x above the bottom of an
+interval of width S, P(top before bottom) = x/S exactly, so x = S/2 gives 0.5
+for every S at every scale. Apparent fractal self-similarity across $6.25 /
+$12.50 / $25 / $50 / $100 grids is that identity, not a market property.
+
+**Evidence:** tick-exact measurement tracks x/S within a few points at every
+scale ($25 grid: 24.0 vs 20.0, 43.9 vs 40.0, 53.6 vs 50.0, 63.0 vs 60.0, 81.1 vs
+80.0). Phase-shifted grids give the same ladder.
+
+**Consequence:** an acceptance ladder is not evidence of anything until the x/S
+line is subtracted. The residual — here +1 to +5pp, growing with grid size, and
+phase-independent — is the only part that is about gold, and it is generic
+momentum, not a level effect.
+
+**Invalidation:** a residual over x/S that is large, localised on round phases,
+and stable out of sample.
+
+---
+
+## H100 — The $25-proximity entry filter improves the headline and degrades the metric
+
+**Status:** ACTIVE. **Confidence:** medium-high. **Added:** 2026-08-21.
+
+**Claim:** filtering the locked 10AM entry universe to entries within $7.50 of a
+$25 quarter raises full-sample PF (1.580 -> 1.813) while LOWERING the minimum
+profit factor across chronological splits (1.36 -> 1.28) — the metric declared
+primary for this research. It is a sample-size trade, not an edge.
+
+**Evidence:** selection reproduces exactly (131 -> body>=1 -> 104 -> 59). Random
+59-of-104 subsets with no rule reach that PF 22% of the time and that minPF 38.5%
+of the time. Phase-shifted grids of identical spacing beat it on minPF in 5 of 24
+cases. The filtered holdout PF (4.96 on 12 trades under the filtered-set split
+convention; 14.98 on 10 under the universe convention) trips the absurdity rule.
+
+**Consequence:** do not adopt the quarter-proximity filter. Removing 43% of an
+already small sample to gain 0.23 of full-sample PF is the exact trade the
+minimum-PF ranking rule exists to prevent.
+
+**Invalidation:** the filter beating the unfiltered universe on minimum
+chronological PF, on data neither researcher has touched.
