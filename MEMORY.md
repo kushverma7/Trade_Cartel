@@ -1513,3 +1513,55 @@ np.datetime64()).
 - The AU200 spread measurement still gates H90 / gap continuation / AMD FVG. The
   identical BI5 route now proven here will measure it — `E_XJO-ASX`, same
   decoder, same fetcher with a different symbol. That remains a small job.
+
+---
+
+### CURRENT STATE AND NEXT ACTION (2026-08-21, late — supersedes the block above)
+
+The dataset block above is still accurate. What changed: **strategy research on
+the dataset did start**, at the user's explicit request, and has run through six
+phases. All of it is committed and pushed to `claude/gold-tick-data-dukascopy-r3xu10`
+(PR #7, open draft, head `350a9da`, no CI in this repo).
+
+**What was asked and delivered, in order:** the 10AM logics tested tick-exactly;
+MFE/MAE excursions and practical TP/SL; a TP1 partial with a trailed runner;
+exit engineering against a LOCKED entry universe (the user split the research
+with a second researcher who owns entry work — I own exits and verification);
+a Quarterly Theory cross-check; and a price-level study covering quarters,
+round numbers, key levels and pivots.
+
+**The standing verdict on the strategy.** One thing survives its control:
+displacement from the 10:00 open beats random entry (z = 5.81). Everything else
+tested does not. The 10:00 candle BODY is inert (permutation p = 0.571). The
+exit surface is a broad flat plateau (SL 12–18 x TP 22–32) and re-optimising it
+in walk-forward is WORSE than freezing it (PF 1.03 vs 1.77). Five separate
+candidate entry upgrades — per-direction exits, time stops, break-even, $25
+quarter proximity, level confluence — each failed its own control.
+
+**The method that keeps paying, and the way it fails.** Every claim gets a
+control that preserves the geometry and severs only the claimed cause:
+permutation of the candle body, shuffled pairing for ratio ladders, phase shift
+for level grids, sham levels for pivots, random subsets for filters. Three
+"findings" died to these this session, including one of my own (BUG-046: a sham
+drawn ONCE is a random variable; a low draw reads as a good result). Two closed
+forms explain results that looked like market structure: the acceptance ladder
+is gambler's ruin x/S (H99), and the Q1->Q2 compression ladder is ratio
+selection (H97).
+
+**Captured:** H94–H100, GF01–GF07, GL01–GL06, BUG-042 through BUG-046.
+
+**NEXT ACTION — do not start unprompted:**
+1. **Unreconciled:** the collaborator reports PF 2.115 on a 59-trade set; the
+   same 59 trades measure 1.813 here, net +349 vs +435, max DD 70.9 vs 45.
+   Selection matches EXACTLY, so the gap is fills or exit handling. Flagged to
+   the user; needs their fill details. Do not chase it unilaterally.
+2. **Deferred by the user, not cancelled:** XAGUSD silver, resumable from hour
+   239/8760 via checkpoint (~15 min). XPTUSD and COPPER both 404 on this feed,
+   so there is no metals triad.
+3. Recorded but NOT acted on, per the entry-rule freeze: A_LONG is 91 of 131
+   signals, but FLIP_SHORT carries a higher win rate at small targets.
+4. Still open from 2026-08-20: the manual visual test PAUSED AT CHART 089, and
+   the AU200 spread measurement gating H90 (`E_XJO-ASX`, same BI5 route).
+
+**The real next test is data neither researcher has seen.** Everything above is
+one year, and it has now been looked at many times.
