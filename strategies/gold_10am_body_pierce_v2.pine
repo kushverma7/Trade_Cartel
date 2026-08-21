@@ -35,6 +35,28 @@
 //    exactly as it was in the test.
 //
 // ─────────────────────────────────────────────────────────────────────
+// EXCURSION DATA behind the default stop and target. 455 printed signals,
+// first of each kind per day, walked tick by tick from the entry quote to the
+// close with NO stop and NO target — a stop truncates the very distribution
+// you are trying to measure. Marked on the side the trade really exits: a
+// long on the BID, a short on the ASK. Points.
+//
+//                    MFE (runs FOR)                MAE (runs AGAINST)
+//                med    mean    p90      max     med    mean    p90      max
+//   A long      28.4    35.8   78.7    231.2    23.4    37.2   74.9    498.7
+//   A short     23.3    33.0   80.9    178.4    28.3    35.1   75.7    135.6
+//   Flip long   22.2    31.5   69.6    124.4    22.7    33.2   72.0    185.2
+//   Flip short  23.8    41.5   79.6    421.2    22.5    32.8   62.8    167.6
+//
+// The two sides are near mirror images — the shape of a market with no strong
+// directional bias at this anchor. ORDER matters more than size: the
+// favourable extreme arrives BEFORE the adverse one on only 47% of A-long
+// signals and 45% of flip-longs, so the drawdown usually comes first. That is
+// why a very tight stop cuts winners and a very wide one only enlarges losses.
+// A-short is the exception at 58%, but hands it back by the close (mean
+// end-of-day P&L -5.94), so it needs its profit taken rather than held.
+//
+// ─────────────────────────────────────────────────────────────────────
 // READ THIS BEFORE TRADING IT — the backtest does not clear its own null.
 //
 //   Full period, A-both, SL 15 / TP 25:  235 trades, +659 pts, PF 1.35,
@@ -100,8 +122,8 @@ endHr   = input.int(23, "Flatten / no new entries after hour", minval=1, maxval=
 
 // ── risk ────────────────────────────────────────────────────────────
 grpR    = "10AM — risk (points)"
-slPts   = input.float(15.0, "Stop Loss (points)",   minval=0.5, step=0.5, group=grpR)
-tpPts   = input.float(25.0, "Take Profit (points)", minval=3.0, step=0.5, group=grpR, tooltip="Minimum 3 points. Targets at or below ~10 points lost money at every stop distance tested — the spread and the stop take them first.")
+slPts   = input.float(12.0, "Stop Loss (points)",   minval=0.5, step=0.5, group=grpR, tooltip="12 gave the smoothest curve of everything tested: max drawdown 118 points against 630 net, MAR 5.35, and it holds out of sample (MAR 1.62). 15 earns marginally more per trade but draws down 174.")
+tpPts   = input.float(25.0, "Take Profit (points)", minval=3.0, step=0.5, group=grpR, tooltip="25 sits just under the median favourable excursion of 27.4 points, so slightly over half of all signals can reach it; it is hit first on ~37% of trades. Targets at or below 10 points LOSE money at every stop distance tested. A 3-point target loses 0.8 to 1.8 points a trade on every leg -- the spread plus a larger stop behind it cannot be cleared.")
 
 // ── state ───────────────────────────────────────────────────────────
 h = hour(time, tz)
