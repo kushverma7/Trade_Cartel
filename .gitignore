@@ -42,3 +42,4 @@ research/gold_tick_data/dukascopy/raw/
 research/gold_tick_data/dukascopy/processed/*.parquet
 research/gold_tick_data/dukascopy/processed/*.csv.gz
 research/gold_tick_data/dukascopy/processed/parts/
+research/gold_tick_data/dukascopy/processed/parts*/

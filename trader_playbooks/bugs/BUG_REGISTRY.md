@@ -1285,3 +1285,88 @@ replacement string in a unit test and require no match. Verified separately that
 the flagged file holds 0 lines matching any live-credential pattern.
 
 **Status:** OPEN — reported, not yet fixed.
+
+---
+
+## BUG-042 — A global back-off multiplies its own cost by the worker count (2026-08-21)
+
+**Symptom:** the Dukascopy tick fetcher ran at 12 hours/sec for the first ~800
+hours, then collapsed to 0.4 hours/sec and stayed there. No request was failing:
+295 of the last 300 hours succeeded on the first attempt, with zero retries.
+
+**Root cause:** on any 503 the fetcher set a **global** cool-off,
+`_throttle_until = now + 30`, shared by all 16 workers. Every worker checked it
+before each request. So one 503 did not cost 30 seconds — it cost 16 workers x 30
+seconds of idle capacity, and 503s arrived often enough that the pool spent most
+of its life parked. The throttle intended to be polite to the server was the
+thing destroying throughput.
+
+**Why it was hard to see:** the per-hour records looked *healthy* — no errors, no
+retries. The damage was in the time between requests, which nothing logged. The
+symptom (slow) and the evidence (clean records) pointed away from each other.
+
+**Fix:** shorten the global cool-off to 4 seconds and let each worker's own
+exponential BACKOFF ladder do the real spacing. A per-worker ladder staggers
+retries; a global pause synchronises every worker onto the same stall. Raising
+concurrency to 24 afterwards restored 12 hours/sec with a negligible error rate.
+
+**Prevention:** a back-off that blocks shared workers is priced in
+worker-seconds, not seconds. Before adding one, multiply the pause by the pool
+size and ask whether that is an acceptable cost for one failed request. Prefer
+per-request back-off; reserve global pauses for genuine 429s, and keep them
+short. And when throughput drops while the success rate stays perfect, suspect
+your own rate limiter before the server's.
+
+---
+
+## BUG-043 — np.datetime64() rejects a np.int64 scalar under NumPy 2.x (2026-08-21)
+
+**Symptom:** `ValueError: Could not convert object to NumPy datetime` from
+`np.datetime64(ts[0], "ms")`, where `ts` was a perfectly ordinary int64 array of
+epoch milliseconds. The array was fine; indexing it was fine; only the
+conversion failed.
+
+**Root cause:** `ts[0]` is a `np.int64` scalar, not a Python `int`. NumPy 2.x no
+longer accepts a NumPy integer scalar in the `np.datetime64(value, unit)`
+constructor. `np.datetime64(int(ts[0]), "ms")` works.
+
+**Why it matters here:** the message names *datetime* conversion, so the
+instinct is to distrust the timestamp column — which had just been rewritten to
+fix a genuinely different timezone problem. Two unrelated defects wearing the
+same error text sent the first fix down the wrong path.
+
+**Prevention:** wrap NumPy integer scalars in `int()` at any boundary that
+expects a Python scalar. When an error survives a fix that should have resolved
+it, re-read the traceback line rather than re-fixing the same suspect: the line
+number moving without the message changing is the tell that it is a second bug.
+
+---
+
+## BUG-044 — A range classifier that only inspects its ENDPOINTS misses what the range SPANS (2026-08-21)
+
+**Symptom:** the tick-gap classifier flagged a 73-hour hole in the gold feed
+(2026-04-02 → 2026-04-05) as UNEXPLAINED. It is the Good Friday shutdown, the
+single most predictable closure of the year.
+
+**Root cause:** the classifier tested the gap's two endpoints against a holiday
+list. The gap *starts* on Thursday 2026-04-02 and *ends* on Sunday 2026-04-05;
+Good Friday is 2026-04-03, which is neither endpoint. Same defect flagged the
+Black Friday early close, whose gap runs from Friday into Sunday. An interval was
+being classified by its boundaries instead of its contents.
+
+**Fix:** replace endpoint pattern-matching with a measurement. Walk the interval
+minute by minute against a real session calendar (`market_closed()`, in New York
+time — the clock gold's settlement break and weekly open/close actually follow)
+and count how many minutes the market was genuinely open. A gap is explained when
+a scheduled closure accounts for essentially all of it; a gap overlapping no
+closure at all is never excused, however short. This also fixed the empty-hour
+classifier, which needed the "the 18:00 open belongs to the NEXT calendar date,
+so the evening before a full holiday never opens" rule to attribute the six empty
+hours on the eve of Good Friday.
+
+**Prevention:** when classifying an interval, ask what it *contains*, not what it
+touches. Endpoint tests are only valid when the property is known to be constant
+across the interval — which is exactly what a calendar is not. Always keep a
+negative control in the test set: the classifier that got this wrong still passed
+a suite of eight cases, because every case was one where endpoint matching
+happened to work.
