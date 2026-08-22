@@ -5519,3 +5519,105 @@ Headline: quarters, round numbers, key levels and pivots all measure at their
 controls. The acceptance ladder is x/S (H99). The $25 entry filter raises
 full-sample PF and lowers minimum chronological PF (H100). Reported PF 2.115 on
 the 59-trade set did not reproduce: same 59 trades, measured PF 1.813.
+
+
+## MICRO-Q3 18:45 ANCHOR — ADVERSARIAL VALIDATION + HOLDOUT YEAR (2026-08-22)
+
+Second tick year downloaded from the same Dukascopy BI5 feed: **64,093,055 ticks**,
+2024-08-20 14:00 → 2025-08-20 14:00 UTC, median spread $0.510, 0 undecodable
+files, 0 `bid > ask`, 0 out-of-order. Never inspected while any rule was chosen.
+Same engine, same fill convention (limit TP fills AT target, stop is market-
+triggered on the real next quote).
+
+| ID | Config | n | Window | Exp (pts) | PF | maxDD | Verdict |
+|----|--------|---|--------|-----------|----|-------|---------|
+| MQ01 | Frozen 18:45 micro-Q3 spec | 25 | 2025-08-21..2026-08-20 | +15.47 | 5.125 | 15.9 | **IN-SAMPLE ONLY** |
+| MQ02 | Identical spec, unseen year | 11 | 2024-08-20..2025-08-20 | +3.10 | **1.361** | 63.1 | **NOT VALID OOS** — walk-forward predicted 1.37 |
+| MQ03 | 29 five-minute anchors, n≥10, unseen year | 11–39 each | 2024-25 | median +0.33 | median 1.17 | — | CONTROL — 18:45 ranks **9 of 29** (was 1 of 29) |
+| MQ04 | Random entry minute, real direction | 400 draws | 2025-26 | +14.44 | — | — | CONTROL — p 0.23 vs real +15.47; timing adds nothing |
+| MQ05 | Real minute, random direction | 400 draws | 2025-26 | +2.43 | — | — | CONTROL — collapses |
+| MQ06 | Real minute, inverted direction | 25 | 2025-26 | −9.56 | — | — | CONTROL — sign flips; the direction call IS the edge |
+| MQ07 | Reality Check, 18 anchors × 6,480 params = 116,640 hypotheses, 150 perms | — | 2025-26 | real best +22.44 vs null median +17.10 | — | — | **p = 0.0662** — anchor-only correction would have said 0.0233 |
+
+Headline: the walk-forward's 1.37 prediction and the holdout's 1.361 agree to two
+decimals — the method worked, and what it predicted was the collapse. Direction is
+real (inverting it flips the sign), timing is not (randomising the minute costs
+nothing). Once every parameter actually tried is priced in, p = 0.0662.
+**Classification: FILTERED BUT FRAGILE EDGE.**
+
+Code: `research/microq3/code/{build_holdout,holdout_test}.py`, `research/microq3/ADVERSARIAL.md`
+
+
+## ALL-DAY QUARTERLY THEORY STRUCTURAL SWEEP — BOTH YEARS (2026-08-22)
+
+Rather than defend one anchor: every QT sweep event across the whole 24 hours,
+both tick years, 90-minute and 6-hour cycles.
+
+| ID | Config | n | Window | Exp | PF | maxDD | Verdict |
+|----|--------|---|--------|-----|----|-------|---------|
+| GM01 | Every QT sweep event, MTM at 5/15/30/60/90 min | 7,887 | both years | **−0.60 at every horizon** | <1 | — | NOT VALID — mean spread $0.630; the loss IS the spread |
+| GM02 | Fade every QT event instead | 7,887 | both years | −0.60 | <1 | — | CONTROL — fading loses the same, so there is no information to invert |
+| GM03 | Quarter range → next quarter range | 7,887 | both years | r **+0.62 to +0.69** | — | — | **VALID** — QT predicts RANGE, not direction |
+
+Headline: mark-to-market is flat at −0.60 across every horizon rather than
+decaying toward zero, and mean spread over the same events is $0.630. The
+signature of no directional information at all. What the QT partition does carry
+is volatility clustering — usable for sizing and target width, not for entry side.
+
+Code: `research/goldmap/code/*.py`, report `research/goldmap/REPORT.md`
+
+
+## 10AM QUARTER MATRIX — THE $25 FILTER, IN AND OUT, ON BOTH YEARS (2026-08-22)
+
+Researched rule (first 5m body break wins, a filter failure SKIPS the day),
+SL 15 / TP 25, entry window to 11:00 Melbourne, spread cap 2.0.
+
+| ID | Config | n | Window | Exp (pts) | PF | maxDD | Verdict |
+|----|--------|---|--------|-----------|----|-------|---------|
+| GH01 | + $25 quarter filter | 58 | 2025-26 | +6.89 | 1.997 | 50.4 | **IN-SAMPLE ONLY** |
+| GH02 | + $25 quarter filter, unseen year | 31 | 2024-25 | −3.36 | **0.675** | 167.5 | **NOT VALID OOS** — t −1.04 |
+| GH03 | filter stripped | 103 | 2025-26 | +4.64 | 1.599 | 80.5 | in-sample, t +2.32 |
+| GH04 | filter stripped, unseen year | 62 | 2024-25 | +1.19 | **1.145** | 75.3 | positive OOS, t +0.50 |
+| GH05 | filter stripped, **POOLED** | **165** | both years | +3.34 | **1.422** | 80.5 | **BEST SURVIVING — t +2.17, p 0.0314, positive in BOTH years** |
+| GH06 | Pine v1 selection (BUG-047 substitution) | 180 | both years | +1.03 | 1.117 | 262.0 | NOT VALID — t +0.71, maxDD 262 |
+
+Headline: the $25 filter halves the trade count, **triples the drawdown**
+(80.5 → 167.5) and turns the unseen year negative (1.145 → 0.675), while leaving
+pooled PF essentially unchanged (1.422 → 1.410). It is the single worst component
+in the stack, and Phase 6's shifted-grid controls had already said so in-sample.
+`requireQuarter` now defaults to **false** in the Pine. Confirms H100 out of sample.
+
+Code: `research/goldmap/code/tenam_holdout.py`;
+ledgers `research/goldmap/results/tenam_{both_years,unfiltered_both_years}.csv`
+
+
+## ONE-YEAR IN-SAMPLE OPTIMISATION STUDY — 2025-26 ONLY (2026-08-22)
+
+***EVERY ROW BELOW IS IN-SAMPLE BY CONSTRUCTION.*** Run at explicit user
+direction with the holdout year ruled out and transferability deliberately not an
+objective. Selected as the maximum over **246,807 grid cells** on 896 QT cycles.
+Exact raw Dukascopy tick execution; R = |entry − structural stop|.
+
+| ID | Config | n | Window | Exp (R) | PF | maxDD (R) | Verdict |
+|----|--------|---|--------|---------|----|-----------|---------|
+| IS01 | Base universe, no filters | 363 events | 2025-26 | −0.288 | 0.581 | — | baseline the search starts from |
+| IS02 | Model 2 — highest PF at n≥20 | 20 | 2025-26 | +0.387 | **8.73** | 1.00 | IN-SAMPLE — clears the PF 8.10 benchmark |
+| IS03 | Model 10 — best all-day, n≥25 | 25 | 2025-26 | +0.324 | **8.09** | 1.00 | IN-SAMPLE — clears the PF 5.29 / DD ≤1R benchmark |
+| IS04 | Model 3 — highest PF at n≥30 | 31 | 2025-26 | +0.551 | 6.14 | 1.02 | IN-SAMPLE |
+| IS05 | Model 4 — highest net R | 45 | 2025-26 | +0.707 | 2.93 | 5.47 | IN-SAMPLE — net +31.81R |
+| IS06 | MaxPF configuration as it first reported | 15 | 2025-26 | — | **21.3** | — | **INVALID — 0 of 15 trades ever tested a stop** |
+| IS07 | The same 15 trades, stops actually enforced | 15 | 2025-26 | — | **3.35** | — | the honest number for IS06 |
+| IS08 | Sweep-depth surface, 13 thresholds | 16–363 | 2025-26 | — | **3.97 → 0.74 monotone** | — | **PLATEAU** — 10 ordered steps, not one fitted cell |
+| IS09 | Q2-efficiency "cliff" at 0.45 | 31 → 35 | 2025-26 | — | 6.14 → 3.87 | — | **ARTEFACT** — the drop is 3 trades: −0.04R, −1.01R, −1.02R |
+| IS10 | Activity percentile deciles | 65–120 each | 2025-26 | −0.076 to −0.480 | 0.28–0.88 | — | NOT VALID — negative in ALL TEN deciles, no hump |
+
+Headline: **both stated benchmarks were beaten in-sample** (PF 8.73 at n=20,
+PF 8.09 at n=25 with DD 1.00R). IS06/IS07 is the row that matters — a PF of 21.3
+built entirely out of a subset in which the stop was never reached, worth 3.35
+once stops are enforced. Of the three parameter surfaces only sweep depth behaves
+like structure (IS08); the Q2-efficiency threshold is three trades (IS09) and the
+activity gate is not measuring activity (IS10). **No row here is marked VALID —
+none has an out-of-sample test, by design.**
+
+Code: `research/insample/code/{cycles,resolve,search,models}.py`;
+results `research/insample/results/{models.log,top100.csv}`
