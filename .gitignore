@@ -55,3 +55,8 @@ research/gold_10am_flip/data/*.pkl
 research/microq3/data/
 research/microq3/data_holdout/
 research/gold_holdout_tick_data/
+
+# Derived tick-aligned label arrays for the goldmap phase, rebuilt in seconds by
+# research/goldmap/code/tenam_holdout.py from the NY arrays. Hundreds of MB each.
+research/goldmap/results/*.npy
+research/goldmap/data/

@@ -75,6 +75,21 @@ strategy("10AM Quarter Matrix v2 - GOLD",
 //    definitional difference swaps 5 of 60 days and moves PF from 1.813 to
 //    1.638 -- worth knowing, because it shows how thin a 60-trade sample is.
 //
+// ── UPDATE 2026-08-22: THE QUARTER FILTER IS NOW OFF BY DEFAULT ─────
+// A second tick year (2024-08 to 2025-08), unseen when this rule was written,
+// was downloaded and the rule run on it once. The $25 proximity filter is the
+// component that fails:
+//
+//   2024-25 (unseen)        n     PF     exp      net    maxDD
+//   no quarter filter      62   1.145   +1.19    +73.6     75.3
+//   with quarter filter    31   0.675   -3.36   -104.1    167.5
+//
+// Removing it also makes the rule positive in BOTH years rather than one:
+// pooled 165 trades, PF 1.422, expectancy +3.34, t = +2.17, against 89 trades,
+// PF 1.410, t = +1.56 with the filter. The same filter failed out of sample on
+// the unrelated Micro-Q3 strategy too, which is two independent replications of
+// the same failure.
+//
 // ── WHAT THE RESEARCH ACTUALLY SAYS ABOUT THE QUARTER FILTER ────────
 // Read before trading this. Holding the rule byte-identical and shifting
 // only the grid's PHASE (levels at 25k+1 ... 25k+24 instead of 25k), 5 of
@@ -126,8 +141,8 @@ string quarterChoice      = input.string("25", "Quarter Size",
      options = ["6.25", "12.5", "25", "50", "100", "250"], group = gQ)
 float  maxQuarterDistance = input.float(7.5, "Maximum Distance From Quarter ($)",
      minval = 0.0, step = 0.25, group = gQ)
-bool   requireQuarter     = input.bool(true, "Require Quarter Proximity", group = gQ,
-     tooltip = "Off = the researched entry universe with no level filter (n=104, PF 1.580, minPF 1.36). On = the filtered version (n=59, PF 1.813, minPF 1.28). The filter improves full-sample PF and degrades the minimum across chronological splits.")
+bool   requireQuarter     = input.bool(false, "Require Quarter Proximity", group = gQ,
+     tooltip = "DEFAULT CHANGED TO OFF on out-of-sample evidence. Measured on a second, previously unseen tick year (2024-08 to 2025-08), this filter turns the 10AM rule from PF 1.145 / +73.6 into PF 0.675 / -104.1, cutting the sample from 62 trades to 31 and tripling max drawdown from 75 to 168. Across both years it is the only component that is negative in one of them. Turn it on only if you want to reproduce the original study.")
 float  gridPhase          = input.float(0.0, "Grid Phase Offset ($)", minval = 0.0, step = 0.25, group = gQ,
      tooltip = "Shifts the grid off round numbers. 0 = the round grid. Set it to 8 or 17 to run the phase control yourself: if the round grid is not clearly better, roundness is not what the filter is selecting on.")
 bool   showQuarterGrid    = input.bool(true, "Show Quarter Grid", group = gQ)
