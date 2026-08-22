@@ -263,3 +263,72 @@ anchors beat it, two of them by roughly double.
 
 That is the whole case. On the year it was found in, 18:45 was the single best
 of twenty-nine. On the year before, it is unremarkable.
+
+---
+
+## 8 & 31. DATA-SNOOPING CONTROL — White-style Reality Check over the whole search
+
+The earlier permutation corrected for the anchor dimension alone (p = 0.0233).
+But the anchor was not the only thing swept. This test re-runs the **entire
+search** on data where the anchor carries no information, and compares the real
+best-of-search against the distribution of null best-of-search.
+
+Family of hypotheses: 18 anchors × 5 body minima × 3 body maxima × 4 quarter
+distances × 4 spread caps × 3 windows × 3 stops × 3 targets = **116,640**.
+Null: each day keeps its own real intraday path and receives the anchor geometry
+of a random other day, re-centred on its own anchor close. 150 permutations,
+each a full 116,640-point search.
+
+| | value |
+|---|---|
+| real best-of-search expectancy | **+22.436** |
+| null best-of-search, median | +17.096 |
+| null best-of-search, p90 | +21.682 |
+| null best-of-search, max | +30.252 |
+| **corrected p** | **0.0662** (9 of 150 nulls match or beat it) |
+
+Correcting for the anchor search alone gave p = 0.0233. Correcting for the
+**full** search gives **p = 0.0662 — not significant at 5%**. The gap between
+those two numbers is the price of the body, quarter, spread, window and exit
+sweeps, and it is what the earlier figure was quietly not paying.
+
+---
+
+## CLASSIFICATION
+
+### **LIKELY DATA-SNOOPED**
+
+Three independent lines converge and none of them is close:
+
+| test | result |
+|---|---|
+| holdout year, frozen spec | **PF 1.361**, expectancy +3.10, DD 63.1 |
+| walk-forward, honest selection | **PF 1.37**, expectancy +3.69, DD 56.2 |
+| Reality Check, 116,640 hypotheses | **p = 0.0662** |
+| 18:45 anchor rank, unseen year | **9 of 29** (was 1 of 29 in-sample) |
+| $25 grid vs 24 shifted phases | **p = 0.20**; phase +4 scores higher |
+
+The advertised PF 4.89 is a selection artefact. Two methods that cannot see the
+answer — honest in-sample selection and a year of untouched data — agree on
+**PF ≈ 1.36** to two decimal places.
+
+### But not NO EDGE
+
+The residual is real and it is small. On the unseen year the filter stack still
+lifted 1.03 → 1.36 and expectancy stayed positive at +3.10. The near-miss study
+shows the filters separate on a coherent mechanism rather than arbitrarily —
+median adverse excursion runs 32.6 for the pass group against 45.3, 60.0 and
+96.3 as more filters fail. Something is there. It is worth roughly a quarter of
+what was claimed.
+
+### What survives, ranked by evidence
+
+| component | verdict |
+|---|---|
+| low spread / execution quality | **transfers** — smooth hump, coherent MAE mechanism, and the holdout's final step is the one that helps |
+| compression (body filter) | **partial** — separates, but its rejects are still profitable (PF 1.95) |
+| bearish anchor direction | **in-sample only** — untested on the holdout as an isolated component |
+| 18:45 exact minute | **fails** — rank 9 of 29 on unseen data |
+| fixed $25 proximity | **fails** — reduces PF on the holdout; a shifted grid scores higher in-sample |
+| 30-minute expiry | **inert** — rejects one trade in a year |
+| 5-minute break timing | **worthless** — a random minute matches it (p = 0.23) |
