@@ -60,3 +60,6 @@ research/gold_holdout_tick_data/
 # research/goldmap/code/tenam_holdout.py from the NY arrays. Hundreds of MB each.
 research/goldmap/results/*.npy
 research/goldmap/data/
+
+# in-sample tick-path cache: a regenerable 1.3 GB artifact, never a repo file
+research/insample/results/*.npz
