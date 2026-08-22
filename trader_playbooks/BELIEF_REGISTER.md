@@ -2672,3 +2672,60 @@ minimum-PF ranking rule exists to prevent.
 
 **Invalidation:** the filter beating the unfiltered universe on minimum
 chronological PF, on data neither researcher has touched.
+
+## H101 — A profit factor above 8 on 20-30 trades is a claim about the TARGET, not the entry
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-22.
+
+**Claim:** when a selection rule contains a reward:risk cap below 1, a very high
+profit factor and a 90%+ win rate follow **mechanically** from the target sitting
+closer than the stop. The number describes the exit geometry, not the quality of
+the entry, and it is bought by giving up money.
+
+**Evidence:** the one-year in-sample study (2025-08-21..2026-08-20, 246,807 grid
+cells). Every benchmark-beating model carries RR <= 0.75. Substituting a plain
+fixed multiple of R for the structural target, on the SAME trades:
+
+| universe | structural target | best cell of the whole 5x6 fixed-R surface |
+|---|---|---|
+| n=20 | PF 8.73 | PF 3.93 |
+| n=25 | PF 8.09 | PF 4.17 |
+| n=31 | PF 6.14 | PF 3.27 |
+
+And the money moves the other way: the n=20 model is PF 8.73 / +7.74R on the
+structural target and PF 3.93 / **+10.87R** on a plain 1R target. Optimising PF
+selected against expectancy by 40%.
+
+**Consequence:** never report a profit factor without the reward:risk of the rule
+that produced it. When RR < 1, quote expectancy instead — PF is measuring the
+target distance. This is a companion to evidence-hierarchy rule 2 (a reported PF
+is a joint claim about a signal AND a fill assumption); it is also a joint claim
+about the target.
+
+**Invalidation:** a sub-1R-target model whose PF survives substitution with a
+fixed 1R target on the same trade list.
+
+## H102 — An exit parameter whose result is unchanged across a doubling has not been tested
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-22.
+
+**Claim:** if widening a stop from 1.25R to 2R changes the result by nothing at
+all, the stop was never a participant in the outcome. The reported drawdown is
+then a property of the selected subset, not of the risk rule, and it will not
+survive the first trade that behaves differently.
+
+**Evidence:** in the one-year in-sample study both benchmark-beating models
+returned **identical** statistics at stop 1.25R, 1.5R and 2.0R (n=20: PF 11.95,
+DD 0.73R; n=25: PF 10.58, DD 0.73R) — no trade in either subset ever ran more
+than 1.25R against. The same pathology, found independently: the MaxPF
+configuration reported PF 21.3 on 15 trades of which **zero** touched a stop;
+enforcing stops gives PF 3.35.
+
+**Consequence:** add to the pre-flight of any backtest report — count how many
+trades actually reached the stop. If it is zero, or if the metrics are invariant
+to doubling the stop, the drawdown figure is not evidence. Reinforces
+evidence-hierarchy rule 4: a drawdown under 1R on a 20-trade sample is a
+selection artefact until the stop is shown to have been hit.
+
+**Invalidation:** a model whose reported drawdown is stable across stop widths
+*because* stops are hit at every width, with the hit count reported.

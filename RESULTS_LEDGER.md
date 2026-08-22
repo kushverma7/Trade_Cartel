@@ -5621,3 +5621,24 @@ none has an out-of-sample test, by design.**
 
 Code: `research/insample/code/{cycles,resolve,search,models}.py`;
 results `research/insample/results/{models.log,top100.csv}`
+
+### Exit optimisation on the in-sample models (2026-08-22) — 34 families x 6 universes
+
+| ID | Config | n | Window | Exp (R) | PF | maxDD (R) | Verdict |
+|----|--------|---|--------|---------|----|-----------|---------|
+| IS11 | n=20 model, structural target (RR≤0.75 by rule) | 20 | 2025-26 | +0.387 | 8.73 | 1.00 | IN-SAMPLE baseline |
+| IS12 | Same 20 trades, best cell of the 5×6 fixed-R surface | 20 | 2025-26 | +0.543 | **3.93** | 1.36 | **the PF belongs to the target, not the entry (H101)** |
+| IS13 | Same 20 trades, plain 1R target | 20 | 2025-26 | **+0.543** | 3.93 | 1.36 | +10.87R vs +7.74R — 40% MORE money at half the PF |
+| IS14 | n=20 and n=25 models at stop 1.25R / 1.5R / 2.0R | 20, 25 | 2025-26 | — | 11.95 / 10.58 | 0.73 | **IDENTICAL across a doubling — the stop was never tested (H102)** |
+| IS15 | All management overlays (BE ×4, trail ×4, partials ×6) | 20–31 | 2025-26 | — | ≤ baseline | — | NOT ADOPTED — neutral where they never fire, halve PF where they do |
+| IS16 | Base universe, best of all 34 exit families | 896 | 2025-26 | −0.251 | **0.66** | 239.5 | NOT VALID — no exit rescues the raw signal |
+| IS17 | Activity band × cycle heatmap, structural exit | 152–210 per band | 2025-26 | — | 0.27–1.03 | — | NOT VALID — **20 cells, none above PF 1.04** |
+
+Headline: the exit study answers what the search could not. PF 8+ is produced by
+a sub-1R target with a 92–95% win rate, costs 40% of the expectancy, and rests on
+stops that were never reached. The only exit-side finding worth keeping is
+negative: nothing rescues the base universe (IS16) and no activity band is
+profitable (IS17). Beliefs **H101**, **H102**.
+
+Code: `research/insample/code/exits.py`; log `research/insample/results/exits.log`;
+report `research/insample/REPORT.md`
