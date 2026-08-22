@@ -26,11 +26,12 @@ It is a **selection** result. Three findings decide it:
    **n=20, PF 1.37, expectancy +3.69, max drawdown 56.2**. Training expectancy
    averaged **+23** per fold against **+3.69** realised. That gap is the
    overfitting, measured.
-2. **The entry trigger does nothing.** Replacing the "first completed 5-minute
-   body break" with a **random minute** in the same 19:00–19:30 window, on the
-   same days and in the same direction, earns **+14.45** against the real
-   **+15.47** (4,000 simulations, z = +0.95, **p = 0.21**). The break rule that
-   the strategy is named for is decorative.
+2. **The entry *timing* does nothing; only the direction call earns.** A
+   **random minute** in the same window, same days, same direction, earns
+   **+14.44** against the real **+15.47** (p = 0.23). Randomise the *side*
+   instead and it collapses to **+4.08**; invert the side and it loses
+   **−7.39**. So the precise "first completed 5-minute body break" trigger is
+   decorative, but the direction it points at is not.
 3. **18:45 is an isolated spike, not a plateau.** Across 29 anchor start times it
    ranks **1 of 29** on both PF and expectancy. The median anchor has PF 0.95.
    One 5-minute step gives 2.22 in one direction and **0.80** in the other.
@@ -381,11 +382,37 @@ order-shuffled draws of the strategy's own trades.** The trade *sequence* was
 extraordinarily lucky. Prepare for 47–63, not 15.5. Likewise "max 1 consecutive
 loss" — expect 3 to 5.
 
-**O. Random-entry placebo.** Same 25 days, same direction, entry at a **random
-minute** in 19:00–19:30, same exits, real bid/ask, 4,000 simulations:
-random-entry expectancy **+14.45 ± 1.07**, real **+15.47**, **z = +0.95,
-p = 0.2142**. The 5-minute body-break trigger adds nothing detectable. Whatever
-edge exists is in *which day and which side*, not in the trigger.
+**O. Random-entry placebo, and the decomposition it forces.** Same 25 days,
+same direction, entry at a **random minute** in 19:00–19:30, same exits, real
+bid/ask: random-entry expectancy **+14.45 ± 1.07** against the real **+15.47**,
+**z = +0.95, p = 0.2142**. The 5-minute body-break trigger adds nothing.
+
+But that null hands the simulation the real trade's *direction* for free, so it
+cannot say whether the break calls the right side. Separating the two (every
+(day, minute, direction) outcome resolved once and cached exactly, 20,000 draws
+per row):
+
+| null | expectancy | p vs real |
+|---|---|---|
+| random minute, **real** direction | **+14.44** | 0.2263 |
+| random minute, **random** direction | +2.43 | 0.0005 |
+| random minute, **inverted** direction | −9.56 | 0.0000 |
+| real minute, **random** direction | +4.08 | 0.0022 |
+| real minute, **inverted** direction | −7.39 | 0.0000 |
+| **REAL (real timing and real direction)** | **+15.47** | — |
+
+**The entire edge is the direction call; none of it is the timing.** Knowing the
+day and the side, you may enter whenever you like in the window and lose nothing
+(+14.44 vs +15.47). Knowing the day and the exact minute but guessing the side
+collapses you to +4.08, and taking the opposite side loses **−7.39**. The
+near-symmetry of the inverted rows about the random baseline confirms the break
+direction carries genuine directional information rather than noise.
+
+This reframes the strategy. It is not "act on a body break at a precise
+moment" — it is "**the 19:00–19:30 window after the reopen has directional
+persistence, and the first body break identifies which way.**" That is a simpler
+and more defensible claim than the one submitted, and it is the part most worth
+carrying forward.
 
 **P. Random-anchor placebo.** Superseded by the stronger permutation below; the
 29-anchor scan in section A is its descriptive form (median PF 0.95).
@@ -511,6 +538,9 @@ need roughly two years of forward data to distinguish PF 1.4 from PF 4.9.
 - **The spread filter** — a smooth hump peaking near $1.50–1.60, consistent with
   a real liquidity effect in a thin window.
 - **Holding overnight** — every attempt to shorten the hold costs materially.
+- **Directional persistence in the 19:00–19:30 window** — the strongest
+  structural finding in the audit. Randomising the side costs 11 points a trade
+  and inverting it costs 23. This survives independently of the anchor minute.
 - **Something about the 18:00 NY reopen region** — survives permutation at
   p = 0.023, though the exact minute does not.
 
@@ -521,8 +551,9 @@ need roughly two years of forward data to distinguish PF 1.4 from PF 4.9.
   are decoration. Round values give PF 3–4.
 - **The $6.25 body cap** — not optimised so much as inert; it can be deleted.
 - **The $25 quarter grid** — one shifted placebo beats it; 80th percentile of ten.
-- **The 5-minute body-break trigger** — worthless. A random minute matches it
-  (p = 0.21).
+- **The precise 5-minute body-break *timing*** — worthless. A random minute in
+  the window matches it (p = 0.23). Its *direction* output, by contrast, is the
+  real engine.
 
 ### Most defensible expected PF going forward
 
