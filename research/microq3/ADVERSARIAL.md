@@ -192,3 +192,74 @@ a mechanical reason.
 
 **Use the iid figures for risk planning: drawdown p95 62, p99 78; losing streak
 p95 4, p99 5.**
+
+---
+
+## 1. THE HOLDOUT YEAR — genuinely unseen data
+
+The twelve months immediately preceding the audited sample were downloaded for
+this test: **64,093,055 Dukascopy XAUUSD ticks, 2024-08-20 → 2025-08-20**. No
+part of it had been examined by either researcher, and the specification was
+frozen before the download began. It was run **once**. Nothing was re-fitted.
+
+**Data quality.** 5,905 hourly files, 0 undecodable. `bid > ask`: 0. Zero
+spreads: 0. Non-positive prices: 0. Out-of-order timestamps: 0. Median spread
+**$0.510** (against $0.670 in the audited year — a tighter market). Price range
+$2,470.70–$3,500.51. Nine of 8,760 hours never resolved; **none of them falls
+inside the 18:00–19:30 NY window**, so the test is unaffected. 3,865 one-minute
+bars inside 18:45–19:00 NY across the year.
+
+### Result
+
+| | audited 2025-26 | **HOLDOUT 2024-25** |
+|---|---|---|
+| trades | 25 | **11** |
+| profit factor | 5.125 | **1.361** |
+| expectancy | +15.47 | **+3.10** |
+| net points | +386.7 | **+34.1** |
+| win rate | 76.0% | **45.5%** |
+| max drawdown | 15.9 | **63.1** |
+
+Exits: 5 take-profits, 6 stops. Legs: 7 A-SHORT, 4 FLIP-LONG. Four of six active
+months positive.
+
+**The walk-forward called it.** The honest walk-forward on the audited year
+predicted PF 1.37 and expectancy +3.69. The unseen year delivered **PF 1.361 and
++3.10**. Two independent methods — one simulating honest parameter selection
+inside the sample, one using data that never touched the sample — agree to two
+decimal places on profit factor. The advertised 4.89 does not appear in either.
+
+### The filter stack does not transfer
+
+| stage | audited PF | **holdout PF** |
+|---|---|---|
+| bearish anchor + any break | 1.33 | **1.03** |
+| + body 1.00–6.25 | 1.63 | 1.25 |
+| + within $6.25 of a $25 level | 2.75 | **1.17** ↓ |
+| + spread ≤ $1.50 | 4.39 | 1.36 |
+| + 30-minute expiry | 5.13 | 1.36 |
+
+On the audited year the stack lifts 1.33 → 5.13. On unseen data it lifts
+1.03 → 1.36, and **the quarter filter actively reduces profit factor** (1.25 →
+1.17) rather than raising it. It also culls far harder — 38 candidates down to
+12, against 60 down to 35 in the audited year — which is exactly what a fixed
+$25 grid does when the price regime moves ($2,470–3,500 against $3,300–5,500).
+
+### 18:45 is not special on unseen data
+
+| anchor | n | PF | exp |
+|---|---|---|---|
+| 19:30 | 24 | **2.60** | +9.33 |
+| 18:35 | 13 | **2.47** | +8.86 |
+| 19:40 | 29 | 1.68 | +4.79 |
+| 19:00 | 22 | 1.45 | +3.53 |
+| 19:10 | 19 | 1.42 | +3.01 |
+| **18:45** | 11 | **1.36** | **+3.10** |
+| median of all 29 | — | 1.17 | +0.33 |
+
+**Rank 9 of 29 by profit factor, 7 of 29 by expectancy** — against rank **1 of
+29** on the audited year. It sits barely above the median anchor. Five other
+anchors beat it, two of them by roughly double.
+
+That is the whole case. On the year it was found in, 18:45 was the single best
+of twenty-nine. On the year before, it is unremarkable.
