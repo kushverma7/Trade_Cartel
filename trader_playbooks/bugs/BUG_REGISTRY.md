@@ -1432,3 +1432,60 @@ with p = 0.998.
 **Cross-reference:** same family as the shuffled-pairing control in H97 and the
 permutation null in H95. The pattern in all three: preserve everything, sever
 only the claimed cause, and repeat until you have a distribution.
+
+---
+
+## BUG-047 — A rejected signal that does not end the day becomes a search for one that passes
+
+**Found:** 2026-08-21, auditing the supplied "10AM Quarter Matrix v1" Pine against
+the tick engine.
+
+**Symptom:** the script's header documents "first valid break wins, maximum one
+trade per day". It traded 117 days where the documented rule trades 60, at
+roughly half the expectancy.
+
+**Root cause:** the entry filter and the day-latch were wired to different
+conditions.
+
+```pinescript
+tradePermission = validAnchor and tradingWindow and quarterOK and ...
+aLong = enableALong and tradePermission and close > bodyHigh
+if aLong
+    strategy.entry(...)
+    tradedToday := true          // <- only set when a trade FIRES
+```
+
+`quarterOK` gates the trade, but `tradedToday` records only that a trade
+happened. So a first break that failed the quarter test left `tradedToday`
+false and the day still open, and the script kept scanning. The next break that
+drifted within range was taken instead — hours later, at a different price, in
+a rule that now reads "wait until price is near a quarter, then buy a break".
+
+Measured on identical ticks, fills and exits, with only the selection differing:
+
+| selection rule | n | PF | exp | net | maxDD | minPF |
+|---|---|---|---|---|---|---|
+| first break, else skip the day | 60 | 1.638 | +4.90 | +293.8 | 75.9 | 1.16 |
+| keep scanning (as written) | 117 | 1.321 | +2.64 | +308.7 | 109.1 | 1.09 |
+
+The 57 substituted days are the bad ones. Net looks similar; expectancy halves
+and drawdown grows 44%.
+
+**Why it matters beyond this script:** this is the same defect the exit-research
+brief guarded against by hand ("SPREAD REJECTION IS A SKIP, NOT A SUBSTITUTION"),
+arrived at accidentally through wiring rather than through a decision. A filter
+that rejects a candidate without consuming the opportunity is not a filter — it
+is a search, and the search runs until something passes. It always inflates the
+sample with the marginal cases the filter was meant to exclude, and it is
+invisible in the code because each individual line reads correctly.
+
+**Prevention:** a per-period opportunity latch must be set by the EVENT that
+consumes the period, never by the outcome. Set it where the candidate is
+identified, before any filter is applied, and let the filters decide only
+whether an order is sent. Then test it: count the trades the rule produces and
+compare against the count the specification implies. A doubled trade count is
+the signature.
+
+**Related:** BUG-023 (a null hypothesis that skipped the filters it was
+testing), BUG-033 (signal state unaware the stop fired). Same family — state
+that does not record what actually happened.
