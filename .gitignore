@@ -53,3 +53,5 @@ research/gold_10am_flip/data/*.pkl
 # Micro-Q3 audit: derived NY/Melbourne tick arrays and 1-minute bars, rebuilt by
 # research/microq3/code/build_ny.py from the master parquet in ~3 minutes.
 research/microq3/data/
+research/microq3/data_holdout/
+research/gold_holdout_tick_data/

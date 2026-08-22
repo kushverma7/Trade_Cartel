@@ -17,10 +17,13 @@ The entry tick is the first tick STRICTLY AFTER the candle's closing timestamp,
 found by searchsorted(..., side='right'). Candle construction and the filters
 that use the entry price are therefore separated in time by construction.
 """
-import numpy as np, pandas as pd
+import os, numpy as np, pandas as pd
 
 PTS = 1000.0
-D = "research/microq3/data"
+# MICROQ3_DATA lets the SAME engine be pointed at the holdout year. Default is
+# unchanged, so every result produced before this switch existed is unaffected.
+# The frozen specification must run on one engine or the comparison is void.
+D = os.environ.get("MICROQ3_DATA", "research/microq3/data")
 NY = np.load(f"{D}/ny_ms.npy")
 BID = np.load(f"{D}/bid_i.npy")
 ASK = np.load(f"{D}/ask_i.npy")
