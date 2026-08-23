@@ -1563,3 +1563,53 @@ neither job was running while both appeared to be.
 
 **Cost.** Two lost runs and roughly 40 minutes of a stalled pipeline in which
 two jobs appeared to be running and neither was.
+
+## BUG-049 — Moving one parameter of a spec whose parameters must move together (2026-08-23)
+
+**Found:** testing a supplied "3-window" Pine that offers 18:45 / 19:30 / 21:15 as
+selectable anchors. Called `M.signals(anchor_start=21*60+15)` to test the 21:15
+window.
+
+**Symptom:** the 21:15 anchor returned **PF 0.054 on a 4.2% win rate over 24
+trades** — 1 win, 21 stops, 2 time exits. Every result in a 61-anchor sweep built
+the same way was junk, and the sweep put the ONE correctly-configured anchor
+(18:45) at rank 1 of 61, which read as a spectacular confirmation.
+
+**Root cause:** `microq3.DEF` carries the anchor and the signal window as four
+independent parameters:
+
+```python
+DEF = dict(anchor_start=18*60+45, anchor_len=15,
+           win_from=19*60, win_to=19*60+30, ...)
+```
+
+`win_from`/`win_to` default to the window that follows the *default* anchor.
+Overriding `anchor_start` alone builds the synthetic candle at 21:15–21:30 and
+then searches for breaks at 19:00–19:30 — an hour and a half **before** the
+anchor exists. The rule became "predict a candle that has not happened yet",
+which is why it lost almost every trade. The repo's own archived scans do it
+correctly (`holdout_test.py` passes `win_from=st+15, win_to=st+45`); only the
+ad-hoc re-test did not.
+
+**What caught it:** the standing absurdity assertion — a win rate below 10% or
+above 90% is a bug until proven otherwise. 4.2% tripped it immediately, and the
+`sig_hm` column then showed every trade stamped 1140 (19:00) regardless of the
+anchor requested.
+
+**Prevention.** When a spec has parameters that are *derived* from one another,
+do not let the derived ones be independently defaultable. Either compute them:
+
+```python
+def signals(anchor_start=..., anchor_len=15, win_len=30, **kw):
+    win_from = anchor_start + anchor_len
+    win_to   = win_from + win_len
+```
+
+or assert the relationship at entry. Cheap detection: after any parameter sweep,
+check that the output actually varies along the swept axis — here every row
+carried the same `sig_hm`, which is the tell. A sweep in which one cell is
+correct and the rest are broken will crown that cell.
+
+**Related:** BUG-044 (a classifier that inspects endpoints and misses the span),
+BUG-047 (a latch set by the outcome). Same family — a configuration that reads
+correctly line by line and encodes a relationship nobody stated.

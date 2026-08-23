@@ -5795,3 +5795,79 @@ out-of-sample split. It passed the first two and failed the third. Recording it
 because the *shape* matters — a z of +3.80 in-sample collapsing to +0.06 out of
 sample, on a family selected as the best of eleven, is what overfitting looks
 like when it is caught. Had it replicated it would still have lost money.
+
+### The "3-window" anchor selector, tested (2026-08-23)
+
+Supplied Pine offers 18:45 / 19:30 / 21:15 as selectable anchors, screenshot
+showing 21:15 at 15 trades / 80% WR / PF 4.50 / net +168. Tested on the tick
+engine at the screenshot's own SL 16 / TP 18, 12h stop, window = anchor+15 to
+anchor+45, against an ALL-DAY sweep of every 5-minute anchor with n>=10.
+
+| ID | Anchor | 2025-26 (in-sample) | 2024-25 (unseen) | Verdict |
+|----|--------|---------------------|------------------|---------|
+| AW01 | **18:45** | n=25, PF **3.415**, rank **1/271** | n=11, PF 1.306, rank **55/270** | in-sample champion, ordinary out of sample |
+| AW02 | **19:30** | n=31, PF 1.070, rank 79/271 | n=24, PF 1.720, rank **19/270** | ranks invert vs 18:45 |
+| AW03 | **21:15** | n=40, PF **1.784**, rank **10/271** | n=30, PF **0.577**, rank **238/270** | **NOT VALID — top-10 anchor becomes bottom-12%** |
+| AW04 | All-day anchor distribution | 271 / 270 anchors | median PF 0.874 / 0.944 | **CONTROL — 95 of 271 and 122 of 270 arbitrary anchors clear PF 1.0** |
+
+**About 40% of arbitrary five-minute anchors "work" in any given year**, so
+picking the best of three is a three-way multiple comparison on top of the
+116,640 hypotheses MQ07 already priced at p = 0.0662. 21:15 is the clearest
+case this repo has produced: rank 10 of 271 in-sample, rank 238 of 270 out of
+sample, and the sign of its expectancy flips with it (+$192 to −$102).
+
+Caveat on the comparison: the screenshot's 15 trades do not match the 40 my
+engine finds in the same year at those settings, so its window or filters differ.
+Per the evidence hierarchy, the exported trade list would settle it; the anchor
+ranking above does not depend on that reconciliation.
+
+**BUG-049 was found and fixed inside this test** — the first pass moved
+`anchor_start` without moving `win_from`/`win_to`, so it built a 21:15 anchor and
+searched for breaks at 19:00. It returned PF 0.054 on a 4.2% win rate, which the
+absurdity assertion caught. The repo's archived anchor scans were checked and do
+it correctly, so MQ03 stands.
+
+### Quarter Theory late-state books, Round 1 — acceptance vs touch (2026-08-23)
+
+Brief: frequency constraint lifted, tiny targets explicitly allowed, MFE/MAE
+before stops, chronological TRAIN / VALIDATION / HOLDOUT. Code
+`research/qt2/code/`, write-up `research/qt2/REPORT.md`. 155,723,004 ticks,
+106,451 attempts, raw-tick execution inside each attempt window (nothing grid
+quantised). **EDGE = realised P(next rung) minus `p_geom = to_lqp/(to_lqp+to_next)`,
+the driftless probability from that exact fill.**
+
+Splits: TRAIN 2024-08-20..2025-08-20 | VALIDATION 2025-08-20..2026-02-20 |
+HOLDOUT 2026-02-20..2026-08-21.
+
+| ID | Config | n | Split | Exp $ | PF | EDGE | Verdict |
+|----|--------|---|-------|-------|----|------|---------|
+| QT2-01 | Book A Whole→Comp, TOUCH | 1,823 | both yr | — | — | **−8.2%** (z −13.1) | NOT VALID |
+| QT2-02 | Book A, EXC $0.50 | 1,777 | both yr | — | — | −7.9% (z −14.2) | NOT VALID |
+| QT2-03 | Book A, 50 TICKS beyond | 1,435 | both yr | — | — | −6.2% (z −10.6) | NOT VALID |
+| QT2-04 | Book A, RETEST-and-hold | 1,238 | both yr | — | — | −5.8% (z −9.7) | NOT VALID |
+| QT2-05 | Book A, DWELL 60s | 655 | both yr | — | — | −4.8% (z −6.0) | NOT VALID — **raw WR 90.8% vs 84.1% for touch, and still below its own baseline** |
+| QT2-06 | Book B Comp→LQP, all five defs | 233–1,606 | both yr | — | — | −0.8% to −6.5% | NOT VALID |
+| QT2-07 | **ZERO-COST control, mid fills** | same | both yr | — | — | **−0.8% to −3.4%** | **CONTROL — ~2/3 of the deficit is execution; residual is H106 overshoot** |
+| QT2-08 | Zero-cost, Book A TOUCH, $0.50 target vs $20 stop | 1,823 | both yr | −0.558 | **0.459** | — | **CONTROL — 94.8% WR and PF 0.46 paying NOTHING. Risking $20 for $0.50 fails frictionlessly** |
+| QT2-09 | Tiny-target sweep, Book A TOUCH, $20 stop | 234 ea | TRAIN | −1.500 to −0.949 | 0.23–0.71 | — | **NOT VALID at every target $0.50–$5.00. $0.50 target = 89.3% WR, PF 0.23, spread is 113% of target** |
+| QT2-10 | Full 1,000-cell sweep (2 books × 5 defs × 10 targets × 10 stops) | 1.22M races | TRAIN | best +0.293 | best 1.08 | — | **8 of 1,000 cells positive (0.8%)** |
+| QT2-11 | Same 1,000 cells | — | VALIDATION | best −0.554 | — | — | **0 of 1,000 positive** |
+| QT2-12 | Same 1,000 cells | — | HOLDOUT | best −0.546 | — | — | **0 of 1,000 positive** |
+| QT2-13 | Cells positive in ALL THREE splits | — | all | — | — | — | **0 of 1,000** |
+| QT2-14 | Frozen TRAIN champion (B/dwell/tp$5/sl$20) | 94/70/69 | TR/VAL/HO | +0.293 / **−1.529** / **−0.642** | 1.08 / 0.70 / 0.86 | — | **NOT VALID OOS — sign reverses** |
+| QT2-15 | All 8 TRAIN-positive cells pooled out of sample | 1,112 | VAL+HO | **−0.966** | **0.700** | — | **NOT VALID — every one reverses** |
+| QT2-16 | Filter waterfall, target pinned $2.50 / stop $20 | 176–234 | TRAIN | −1.036 → −0.237 → −0.690 | 0.66→0.90→0.75 | — | **CONTROL — NOT monotone. Stricter dwell(60s) is WORSE than retest despite 176 vs 177 events** |
+
+**Headline.** Acceptance is a real phenomenon and it is worth exactly nothing.
+Requiring 60 continuous seconds beyond the Whole lifts the raw hit rate from
+84.1% to 90.8% — and lifts the geometric baseline from 92.3% to 95.6%, because
+waiting means entering closer to the target. The win rate is bought at precisely
+the price of its own improvement, in both books, both years, all five
+definitions. The $0.50 target hits **89.3%** of the time — within a rounding
+error of the 89.66% the architecture was built on — and is the worst cell in the
+entire study at PF 0.23.
+
+**Method note that would have saved both rounds:** the single cheap number is
+zero-cost edge over the entry's own geometric baseline. It was −0.8% to −3.4%
+here and +1.2% in the Yotov engine round. Neither needed a 1,000-cell sweep to
+reject.
