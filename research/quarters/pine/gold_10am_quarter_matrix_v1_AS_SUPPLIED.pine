@@ -1,0 +1,685 @@
+//@version=6
+strategy("10AM Quarter Matrix v1 - GOLD",
+     overlay=true,
+     initial_capital=100000,
+     default_qty_type=strategy.fixed,
+     default_qty_value=1,
+     pyramiding=0,
+     process_orders_on_close=true,
+     calc_on_every_tick=false)
+
+
+// ============================================================================
+// 10AM QUARTER MATRIX v1
+// XAUUSD - 5 MINUTE
+//
+// CURRENT RESEARCH RULE:
+//
+// 1. Capture 10:00-10:05 Australia/Melbourne candle.
+// 2. 10AM candle must be bullish.
+// 3. Minimum real body = $1.00.
+// 4. After 10AM:
+//      Close above body high = A LONG
+//      Close below body low  = FLIP SHORT
+// 5. First valid break wins.
+// 6. Maximum one trade per day.
+// 7. Signal must be within $7.50 of nearest $25 price quarter.
+// 8. Default SL = $15.
+// 9. Default TP = $25.
+//
+// NOTE:
+// Historical bid/ask spread filtering cannot be reproduced exactly
+// on a normal TradingView Pine backtest.
+// ============================================================================
+
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+string groupTime = "1. TIME"
+
+string tz = input.string(
+     "Australia/Melbourne",
+     "Strategy Timezone",
+     group=groupTime)
+
+int anchorHour = input.int(
+     10,
+     "10AM Anchor Hour",
+     minval=0,
+     maxval=23,
+     group=groupTime)
+
+int anchorMinute = input.int(
+     0,
+     "Anchor Minute",
+     minval=0,
+     maxval=59,
+     group=groupTime)
+
+int flatHour = input.int(
+     23,
+     "Flat By Hour",
+     minval=1,
+     maxval=23,
+     group=groupTime)
+
+
+// ============================================================================
+// 10AM CANDLE
+// ============================================================================
+
+string groupCandle = "2. 10AM CANDLE"
+
+float minimumBody = input.float(
+     1.0,
+     "Minimum 10AM Body ($)",
+     minval=0.0,
+     step=0.25,
+     group=groupCandle)
+
+bool bullishOnly = input.bool(
+     true,
+     "Bullish 10AM Candle Only",
+     group=groupCandle)
+
+
+// ============================================================================
+// SIGNAL SETTINGS
+// ============================================================================
+
+string groupSignals = "3. SIGNALS"
+
+bool enableALong = input.bool(
+     true,
+     "Enable A Long",
+     group=groupSignals)
+
+bool enableFlipShort = input.bool(
+     true,
+     "Enable Flip Short",
+     group=groupSignals)
+
+bool oneTradePerDay = input.bool(
+     true,
+     "Maximum One Trade Per Day",
+     group=groupSignals)
+
+
+// ============================================================================
+// PRICE QUARTER SETTINGS
+// ============================================================================
+
+string groupQuarter = "4. PRICE QUARTERS"
+
+string quarterChoice = input.string(
+     "25",
+     "Quarter Size",
+     options=["6.25", "12.5", "25", "50", "100", "250"],
+     group=groupQuarter)
+
+float maxQuarterDistance = input.float(
+     7.5,
+     "Maximum Distance From Quarter ($)",
+     minval=0.0,
+     step=0.25,
+     group=groupQuarter)
+
+bool showQuarterGrid = input.bool(
+     true,
+     "Show Quarter Grid",
+     group=groupQuarter)
+
+
+// Safe replacement for the switch statement that caused your error.
+
+f_getQuarterStep(string choice) =>
+    float result = 25.0
+
+    if choice == "6.25"
+        result := 6.25
+    else if choice == "12.5"
+        result := 12.5
+    else if choice == "25"
+        result := 25.0
+    else if choice == "50"
+        result := 50.0
+    else if choice == "100"
+        result := 100.0
+    else if choice == "250"
+        result := 250.0
+
+    result
+
+
+float quarterStep = f_getQuarterStep(quarterChoice)
+
+
+// ============================================================================
+// RISK MANAGEMENT
+// ============================================================================
+
+string groupRisk = "5. RISK / EXIT"
+
+float stopPoints = input.float(
+     15.0,
+     "Stop Loss ($)",
+     minval=0.5,
+     step=0.5,
+     group=groupRisk)
+
+float targetPoints = input.float(
+     25.0,
+     "Take Profit ($)",
+     minval=3.0,
+     step=0.5,
+     group=groupRisk)
+
+
+// ============================================================================
+// DISPLAY
+// ============================================================================
+
+string groupDisplay = "6. DISPLAY"
+
+bool showBody = input.bool(
+     true,
+     "Show 10AM Body",
+     group=groupDisplay)
+
+bool showSignals = input.bool(
+     true,
+     "Show Signals",
+     group=groupDisplay)
+
+bool showDashboard = input.bool(
+     true,
+     "Show Dashboard",
+     group=groupDisplay)
+
+
+// ============================================================================
+// TIME CHECK
+// ============================================================================
+
+int h = hour(time, tz)
+int m = minute(time, tz)
+
+int closeH = hour(time_close, tz)
+int closeM = minute(time_close, tz)
+
+bool isAnchorBar =
+     h == anchorHour and
+     m == anchorMinute
+
+bool afterAnchor =
+     h > anchorHour or
+     (h == anchorHour and m > anchorMinute)
+
+bool beforeFlat =
+     h < flatHour
+
+bool tradingWindow =
+     afterAnchor and
+     beforeFlat
+
+
+// Detect new Melbourne calendar day.
+
+int currentDay = dayofmonth(time, tz)
+int previousDay = dayofmonth(time[1], tz)
+
+bool newDay =
+     not na(previousDay) and
+     currentDay != previousDay
+
+
+// ============================================================================
+// DAILY STATE
+// ============================================================================
+
+var float bodyOpen = na
+var float bodyClose = na
+var float bodyHigh = na
+var float bodyLow = na
+var float bodySize = na
+
+var bool validAnchor = false
+var bool tradedToday = false
+
+var string lastSignal = "NONE"
+var float lastQuarter = na
+var float lastQuarterDistance = na
+
+
+if newDay
+    bodyOpen := na
+    bodyClose := na
+    bodyHigh := na
+    bodyLow := na
+    bodySize := na
+
+    validAnchor := false
+    tradedToday := false
+
+    lastSignal := "NONE"
+    lastQuarter := na
+    lastQuarterDistance := na
+
+
+// ============================================================================
+// CAPTURE 10AM CANDLE
+// ============================================================================
+
+if isAnchorBar
+
+    bodyOpen := open
+    bodyClose := close
+
+    bodyHigh := math.max(open, close)
+    bodyLow := math.min(open, close)
+
+    bodySize := math.abs(close - open)
+
+    bool directionOK =
+         bullishOnly ? close > open : true
+
+    validAnchor :=
+         directionOK and
+         bodySize >= minimumBody
+
+
+// ============================================================================
+// PRICE QUARTER CALCULATIONS
+// ============================================================================
+
+float nearestQuarter =
+     math.round(close / quarterStep) * quarterStep
+
+float quarterDistance =
+     math.abs(close - nearestQuarter)
+
+bool quarterOK =
+     quarterDistance <= maxQuarterDistance
+
+
+float quarterBelow =
+     math.floor(close / quarterStep) * quarterStep
+
+float quarterAbove =
+     quarterBelow + quarterStep
+
+float quarterBelow2 =
+     quarterBelow - quarterStep
+
+float quarterAbove2 =
+     quarterAbove + quarterStep
+
+
+// ============================================================================
+// TRADE PERMISSION
+// ============================================================================
+
+bool tradePermission =
+     validAnchor and
+     tradingWindow and
+     quarterOK and
+     strategy.position_size == 0 and
+     (not oneTradePerDay or not tradedToday)
+
+
+// ============================================================================
+// SIGNAL LOGIC
+// ============================================================================
+
+// A LONG:
+// Bullish 10AM candle and later completed 5m close above its body high.
+
+bool aLong =
+     enableALong and
+     tradePermission and
+     not na(bodyHigh) and
+     close > bodyHigh
+
+
+// FLIP SHORT:
+// Bullish 10AM candle and later completed 5m close below its body low.
+
+bool flipShort =
+     enableFlipShort and
+     tradePermission and
+     not na(bodyLow) and
+     close < bodyLow
+
+
+// ============================================================================
+// CONVERT GOLD POINT DISTANCES TO SYMBOL TICKS
+// ============================================================================
+
+int slTicks =
+     int(math.round(stopPoints / syminfo.mintick))
+
+int tpTicks =
+     int(math.round(targetPoints / syminfo.mintick))
+
+
+// ============================================================================
+// EXECUTION
+// ============================================================================
+
+if aLong
+
+    strategy.entry(
+         "A_LONG",
+         strategy.long,
+         comment="A LONG")
+
+    strategy.exit(
+         "A_LONG_EXIT",
+         from_entry="A_LONG",
+         loss=slTicks,
+         profit=tpTicks)
+
+    tradedToday := true
+
+    lastSignal := "A LONG"
+    lastQuarter := nearestQuarter
+    lastQuarterDistance := quarterDistance
+
+
+if flipShort
+
+    strategy.entry(
+         "FLIP_SHORT",
+         strategy.short,
+         comment="FLIP SHORT")
+
+    strategy.exit(
+         "FLIP_SHORT_EXIT",
+         from_entry="FLIP_SHORT",
+         loss=slTicks,
+         profit=tpTicks)
+
+    tradedToday := true
+
+    lastSignal := "FLIP SHORT"
+    lastQuarter := nearestQuarter
+    lastQuarterDistance := quarterDistance
+
+
+// ============================================================================
+// END OF DAY EXIT
+// ============================================================================
+
+bool eodBar =
+     closeH == flatHour and
+     closeM == 0
+
+if eodBar and strategy.position_size != 0
+    strategy.close_all(comment="EOD")
+
+
+// ============================================================================
+// 10AM BODY PLOTS
+// ============================================================================
+
+plot(
+     showBody and validAnchor ? bodyHigh : na,
+     title="10AM Body High",
+     linewidth=2,
+     style=plot.style_linebr,
+     color=color.green)
+
+plot(
+     showBody and validAnchor ? bodyLow : na,
+     title="10AM Body Low",
+     linewidth=2,
+     style=plot.style_linebr,
+     color=color.red)
+
+
+// Highlight 10AM candle.
+
+bgcolor(
+     isAnchorBar
+     ? color.new(color.yellow, 85)
+     : na)
+
+
+// ============================================================================
+// QUARTER GRID
+// ============================================================================
+
+plot(
+     showQuarterGrid ? quarterBelow : na,
+     title="Quarter Below",
+     color=color.new(color.blue, 30),
+     linewidth=1,
+     style=plot.style_stepline)
+
+plot(
+     showQuarterGrid ? quarterAbove : na,
+     title="Quarter Above",
+     color=color.new(color.blue, 30),
+     linewidth=1,
+     style=plot.style_stepline)
+
+plot(
+     showQuarterGrid ? quarterBelow2 : na,
+     title="Quarter Below 2",
+     color=color.new(color.gray, 60),
+     linewidth=1,
+     style=plot.style_stepline)
+
+plot(
+     showQuarterGrid ? quarterAbove2 : na,
+     title="Quarter Above 2",
+     color=color.new(color.gray, 60),
+     linewidth=1,
+     style=plot.style_stepline)
+
+
+// ============================================================================
+// SIGNAL MARKERS
+// ============================================================================
+
+plotshape(
+     showSignals and aLong,
+     title="A Long",
+     text="A LONG",
+     style=shape.labelup,
+     location=location.belowbar,
+     size=size.small,
+     color=color.green,
+     textcolor=color.white)
+
+plotshape(
+     showSignals and flipShort,
+     title="Flip Short",
+     text="FLIP SHORT",
+     style=shape.labeldown,
+     location=location.abovebar,
+     size=size.small,
+     color=color.red,
+     textcolor=color.white)
+
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+alertcondition(
+     aLong,
+     title="Quarter Matrix A LONG",
+     message="10AM Quarter Matrix A LONG - {{ticker}} @ {{close}}")
+
+alertcondition(
+     flipShort,
+     title="Quarter Matrix FLIP SHORT",
+     message="10AM Quarter Matrix FLIP SHORT - {{ticker}} @ {{close}}")
+
+
+// ============================================================================
+// DASHBOARD
+// ============================================================================
+
+float grossProfit = strategy.grossprofit
+float grossLoss = math.abs(strategy.grossloss)
+
+float profitFactor =
+     grossLoss > 0
+     ? grossProfit / grossLoss
+     : na
+
+int closedTrades = strategy.closedtrades
+
+float winRate =
+     closedTrades > 0
+     ? (strategy.wintrades * 100.0) / closedTrades
+     : na
+
+
+var table dashboard =
+     table.new(
+         position.top_right,
+         2,
+         10,
+         border_width=1)
+
+
+if barstate.islast and showDashboard
+
+    table.cell(
+         dashboard,
+         0,
+         0,
+         "10AM QUARTER MATRIX",
+         bgcolor=color.new(color.blue, 70),
+         text_color=color.white)
+
+    table.cell(
+         dashboard,
+         1,
+         0,
+         "v1",
+         bgcolor=color.new(color.blue, 70),
+         text_color=color.white)
+
+    table.cell(
+         dashboard,
+         0,
+         1,
+         "Closed Trades")
+
+    table.cell(
+         dashboard,
+         1,
+         1,
+         str.tostring(closedTrades))
+
+    table.cell(
+         dashboard,
+         0,
+         2,
+         "Win Rate")
+
+    table.cell(
+         dashboard,
+         1,
+         2,
+         na(winRate)
+         ? "-"
+         : str.tostring(winRate, "#.##") + "%")
+
+    table.cell(
+         dashboard,
+         0,
+         3,
+         "Profit Factor")
+
+    table.cell(
+         dashboard,
+         1,
+         3,
+         na(profitFactor)
+         ? "-"
+         : str.tostring(profitFactor, "#.###"))
+
+    table.cell(
+         dashboard,
+         0,
+         4,
+         "Net Profit")
+
+    table.cell(
+         dashboard,
+         1,
+         4,
+         str.tostring(strategy.netprofit, "#.##"))
+
+    table.cell(
+         dashboard,
+         0,
+         5,
+         "SL / TP")
+
+    table.cell(
+         dashboard,
+         1,
+         5,
+         str.tostring(stopPoints, "#.##") +
+         " / " +
+         str.tostring(targetPoints, "#.##"))
+
+    table.cell(
+         dashboard,
+         0,
+         6,
+         "Quarter Size")
+
+    table.cell(
+         dashboard,
+         1,
+         6,
+         "$" + str.tostring(quarterStep))
+
+    table.cell(
+         dashboard,
+         0,
+         7,
+         "Last Signal")
+
+    table.cell(
+         dashboard,
+         1,
+         7,
+         lastSignal)
+
+    table.cell(
+         dashboard,
+         0,
+         8,
+         "Last Quarter")
+
+    table.cell(
+         dashboard,
+         1,
+         8,
+         na(lastQuarter)
+         ? "-"
+         : str.tostring(lastQuarter, "#.##"))
+
+    table.cell(
+         dashboard,
+         0,
+         9,
+         "Distance")
+
+    table.cell(
+         dashboard,
+         1,
+         9,
+         na(lastQuarterDistance)
+         ? "-"
+         : "$" + str.tostring(lastQuarterDistance, "#.##"))
