@@ -2729,3 +2729,56 @@ selection artefact until the stop is shown to have been hit.
 
 **Invalidation:** a model whose reported drawdown is stable across stop widths
 *because* stops are hit at every width, with the hit count reported.
+
+## H103 — A theory whose branches exhaust the sample space makes no prediction
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-23.
+
+**Claim:** when a framework's stated outcomes cover every possible observation,
+it cannot be wrong and therefore cannot be informative. The tell is an author
+presenting that completeness as a *strength*.
+
+**Evidence:** the Quarters Theory, webinar 1 (Ilian Yotov, FXStreet 2010), stated
+in his own words — *"here is the beauty ladies and gentlemen, the outcome of both
+events, whether a large quarter is completed or whether it is not successfully
+completed, the outcome of both events always leads to a price move that targets a
+familiar price level."* Price either travels 250 pips on a 250-pip grid, and so
+arrives at the adjacent grid line by arithmetic, or it does not and retraces
+toward the line it came from. Those two cases are all the cases. The residual
+content reduces to H99's *x/S* identity, which holds on any grid in any market
+and in simulated noise.
+
+**Consequence:** before testing any framework, write down the observation that
+would falsify it. If none exists, the framework is a coordinate system — possibly
+a useful one — and must not be described as predictive. Add to the pre-flight of
+any external methodology arriving in this repo: *what result would make this
+wrong?*
+
+**Invalidation:** a version of the claim that forbids some reachable price path.
+
+## H104 — A framework that gains a test per disconfirming case is being fitted
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-23.
+
+**Claim:** when each new presentation of a method introduces a rule that explains
+the previous presentation's failure, the rules are being fitted to history one
+case at a time. The pattern is invisible in any single presentation and obvious
+across a series — which is why the whole corpus must be read before a verdict.
+
+**Evidence:** the five Quarters Theory webinars, Feb 2010 → Jan 2011. Webinar 3
+adds the trend-wave failure trigger; webinar 4 adds the Hesitation Zone *and* the
+"last problematic price point"; webinar 5 adds the two-part transition test. Each
+arrives narrating the case it explains, and none was stated before that event.
+Sharper: the "last problematic price point" is introduced in webinar 4 to explain
+AUD/USD stalling at 1.0182 — and when webinar 5 re-narrates that identical
+November event, the concept is not mentioned. Used once, when needed, then
+dropped.
+
+**Consequence:** when evaluating external material, read the full series and date
+every rule against the event it explains. A rule stated *after* its motivating
+case is a free parameter, not evidence. Companion to BUG-046 (a control drawn
+once is a random variable) and to this repo's own MaxPF audit, where a
+configuration selected its way into a subset that never tested its stop.
+
+**Invalidation:** a rule from this framework stated in one session and confirmed
+on an event in a later session, with no intervening amendment.
