@@ -251,12 +251,87 @@ error. The substantive statement is the zero-cost one — expectancy ≈ 0 means
 there is no directional information to invert, and both sides lose once the
 spread is paid. Which is the Phase 9 verdict reached a second way.
 
-### Remaining robustness runs
+---
 
-*Pending — `barclose.log` (trigger on an H1 or D1 close rather than any tick
-touching the level, which is closer to how Yotov actually reads charts) and
-`trendfilter.log` (the same momentum filter applied to round and shifted grids
-alike, to answer "but you left out the Trend Waves").*
+## Answering the two fair objections
+
+### Objection 1 — "tick-touch overtrades; Yotov reads bar closes"
+
+True, and it is the most aggressive possible reading. Re-run with the trigger
+being the first **H1 or D1 close** beyond Q + 0.30S, entered at the next tick:
+
+| bar | year | S | n | **ROUND PF** | ROUND net $ | shifted PF range | round's rank |
+|---|---|---|---|---|---|---|---|
+| H1 | 2025-26 | $25 | 819 | 0.817 | −$984 | 0.781–0.895 | 3/4 |
+| H1 | 2025-26 | $50 | 273 | 0.954 | −$176 | 0.717–1.218 | 3/4 |
+| H1 | 2025-26 | $100 | 70 | 0.828 | −$203 | 0.541–0.921 | 3/4 |
+| H1 | 2024-25 | $25 | 179 | 0.714 | −$335 | 0.768–0.815 | **4/4** |
+| H1 | 2024-25 | $50 | 33 | 0.619 | −$193 | 0.676–0.786 | **4/4** |
+| D1 | 2025-26 | $25 | 152 | 1.058 | −$75 | 0.726–1.195 | 2/4 |
+| D1 | 2025-26 | $50 | 111 | 1.152 | −$234 | 0.691–1.154 | 2/4 |
+| D1 | 2024-25 | $50 | 41 | 1.353 | +$102 | 1.017–1.104 | 1/4 |
+
+Totals: **H1 round −$1,890**, D1 round **−$492** against shifted grids averaging
+**+$492 per phase**. The round grid is the worst or second-worst of its four
+phases in every H1 cell. Bar-close entry cuts the trade count by an order of
+magnitude and does not turn the system profitable.
+
+*Reading note: with a close-based entry the per-trade risk varies over
+[0.30S, S), so net R and net dollars can disagree in sign. Dollars are the
+honest measure here.*
+
+### Objection 2 — "you left out the Trend Waves"
+
+Also true. The Trend Wave layer's testable core is momentum, so the crudest
+proxy is applied — only take longs when price is above where it was N days ago —
+**to the round grid and the shifted grids alike**. The question is not whether
+momentum helps. It is whether the quarters contribute anything once it does.
+
+| filter | round mean PF | shifted mean PF | round net $ | shifted net $ per phase |
+|---|---|---|---|---|
+| none | 0.967 | **1.060** | −$4,063 | −$1,674 |
+| 1-day trend | 0.996 | **1.107** | −$2,179 | **+$174** |
+| 3-day trend | 1.001 | **1.082** | −$2,888 | −$308 |
+| 10-day trend | 0.924 | **1.000** | −$2,632 | −$959 |
+
+Momentum helps a little — and it helps the **shifted** grids more. Under every
+filter the round grid's mean PF is below the shifted mean, and its net dollars
+stay negative while the shifted average turns positive at the 1-day filter.
+Bolting Yotov's trend layer onto his quarters makes the case for roundness
+*worse*, not better.
+
+---
+
+## Verdict
+
+**The Quarters Theory does not work on gold, and the roundness of the grid
+contributes nothing.** Three independent tests agree, both fair objections were
+tested and neither changes the answer, and the mechanism is settled:
+
+1. The premise's own decisive measurement returns **0.500** — the gambler's-ruin
+   value — plus a tick-discretisation artefact that is fully explained and has
+   no market content. Largest round-vs-shifted gap across 192 cells: **0.0002**.
+2. Swing extremes land near quarter points at exactly the rate chance dictates.
+3. The traded system loses. At the trade-dense scales **no phase is profitable
+   in either year**, and the round grid is a below-average member of its own
+   phase family (median rank 8.5 of 12).
+4. **With zero costs the profit factor is 0.99–1.01 at every scale with a real
+   sample.** The signal is a coin flip; the entire loss is execution.
+5. Yotov's own Hesitation Zone filter makes it worse than entering at the level
+   with identical dollar risk.
+
+### What this does not settle
+
+- **Gold, not FX.** Test 1 is market-agnostic mathematics and transfers. Tests 2
+  and 3 are gold-specific and do not refute the FX claim, which remains untested
+  here. Running the same phase-shift control on EUR/USD, GBP/USD, USD/JPY and
+  AUD/USD is the obvious next step and needs only a symbol change in the
+  Dukascopy pipeline.
+- **The discretionary overlay.** The "strong enough fundamental reason" gate is
+  unfalsifiable and was not tested; it cannot be.
+- **The Trend Waves layer on its own.** It was tested only as a *filter on the
+  quarters*. As standalone swing-structure analysis it may have merit — but that
+  is a separate claim with nothing to do with round numbers.
 
 ---
 

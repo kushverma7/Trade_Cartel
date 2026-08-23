@@ -5684,3 +5684,25 @@ discretionary "fundamental justification" gate is unfalsifiable and untested.
 
 Beliefs **H105**, **H106**. Code `research/quarters/code/`; report
 `research/quarters/REPORT.md`.
+
+### Quarters Theory on gold — the two fair objections tested (2026-08-23)
+
+| ID | Config | n | Window | Exp | PF | Verdict |
+|----|--------|---|--------|-----|----|---------|
+| QG17 | H1-close trigger, ROUND grid, all scales | 33–819 | both | — | 0.619–0.954 | NOT VALID — **−$1,890**, round is worst or 2nd-worst of its 4 phases in EVERY H1 cell |
+| QG18 | D1-close trigger, ROUND vs 3 shifted | 9–152 | both | — | 0.326–1.353 | NOT VALID — round −$492 vs shifted **+$492/phase** |
+| QG19 | Trend filter (none / 1d / 3d / 10d), ROUND | 38–1931 | both | — | mean 0.924–1.001 | NOT VALID — net $ negative under EVERY filter |
+| QG20 | Same filters, shifted grids | same | both | — | mean 1.000–1.107 | **CONTROL — momentum helps the SHIFTED grids MORE than the round one** |
+
+Headline: bar-close entry cuts the trade count an order of magnitude and does
+not turn the system profitable. A momentum filter helps a little — and helps
+non-round grids more. Under all four filters the round grid's mean PF sits below
+the shifted mean and its dollars stay negative while the shifted average turns
+positive. **Adding Yotov's trend layer to his quarters makes the case for
+roundness worse, not better.**
+
+FINAL VERDICT on the gold test: the Quarters Theory does not work on gold and
+roundness contributes nothing. Both fair objections were tested and neither
+changes the answer. NOT SETTLED: the FX claim (QG01–QG04 transfer as
+mathematics, QG05–QG20 are gold-specific), the unfalsifiable fundamental gate,
+and the Trend Waves layer as standalone swing analysis.
