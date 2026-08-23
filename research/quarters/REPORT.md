@@ -201,10 +201,62 @@ spec error, not a result. It is re-run correctly as `entry-at-level` in
 `run_controls.py`, with the stop 0.30S the wrong side of Q so the risk matches
 the baseline.
 
-### Remaining controls
+### Why it loses — the zero-cost control settles it
 
-*Pending — `controls.log` (entry-at-level, zero-cost, inverted),
-`barclose.log` (H1/D1 close trigger), `trendfilter.log`.*
+Refilling the identical trades on **mid** instead of bid/ask:
+
+| S | real quotes | **zero cost** | execution cost | nominal spread/risk | ratio |
+|---|---|---|---|---|---|
+| $25 | PF 0.811 (−0.1383R) | **PF 1.011 (+0.0080R)** | 0.146R | 0.089R | 1.64× |
+| $50 | PF 0.852 (−0.1075R) | **PF 0.987 (−0.0093R)** | 0.098R | 0.045R | 2.20× |
+| $100 | PF 0.942 (−0.0405R) | **PF 1.010 (+0.0070R)** | 0.048R | 0.022R | 2.15× |
+| $250 | PF 1.059 (+0.0342R) | PF 1.082 (+0.0469R) | 0.013R | 0.009R | 1.44× |
+
+**Zero-cost profit factor is 0.99–1.01 at every scale with a real sample.** The
+signal is a coin flip. The entire loss is execution.
+
+And execution costs **1.4–2.2× the nominal spread**, not 1×. Half the spread is
+paid at entry and half at exit, but there is a third cost: with real quotes the
+**bid** reaches a long's stop before the mid would, while having to climb an
+extra half-spread to reach its target. Some would-be winners become losers.
+
+### The Hesitation Zone filter does not earn its keep
+
+Entering **at** the quarter point with the same dollar risk (stop 0.30S the
+wrong side, so risk matches the baseline) loses less at three of four scales:
+
+| S | with the 0.30S filter | entering at Q |
+|---|---|---|
+| $25 | 0.811 (−$9,187) | **0.871** (−$5,064) |
+| $50 | 0.852 (−$3,486) | **0.885** (−$1,947) |
+| $100 | **0.942** (−$721) | 0.901 (−$934) |
+| $250 | 1.059 (+$145) | **1.273** (+$759) |
+
+The two constructions differ in reward:risk (2.33 vs 3.33), which is the
+mechanism — but that *is* the choice Yotov's filter makes, and it is the worse
+one on this data.
+
+### It is not an artefact of gold's +34% year
+
+Longs and shorts lose at about the same rate: PF **0.828** and **0.793** at
+S = $25, **0.890** and **0.813** at S = $50.
+
+### What "inverted" does and does not say
+
+Negating the R series gives PF 1.233 / +0.138R. That is **arithmetic, not a
+tradeable result** — actually trading the inverse would pay the spread again
+rather than receive it, and would mirror the geometry to RR 0.43 instead of
+2.33. The row is a **sign check**: it confirms the loss is real and not a coding
+error. The substantive statement is the zero-cost one — expectancy ≈ 0 means
+there is no directional information to invert, and both sides lose once the
+spread is paid. Which is the Phase 9 verdict reached a second way.
+
+### Remaining robustness runs
+
+*Pending — `barclose.log` (trigger on an H1 or D1 close rather than any tick
+touching the level, which is closer to how Yotov actually reads charts) and
+`trendfilter.log` (the same momentum filter applied to round and shifted grids
+alike, to answer "but you left out the Trend Waves").*
 
 ---
 
