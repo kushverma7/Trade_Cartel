@@ -2886,3 +2886,77 @@ checks and both were positive on the first two scripts they were run against.
 **Invalidation:** three or more supplied scripts audited with the latch set
 correctly at the candidate, which would make this a coincidence of two rather
 than a pattern.
+
+## H108 — On gold, the round-trip cost sets a hard floor on target size, and it is about $7
+
+**Confidence:** high (38,210 trades, both years, tick-exact bid/ask fills).
+
+**Claim.** Execution cost on XAUUSD is roughly $1.50 per round trip — a $0.69
+median spread paid on entry plus real slippage past the stop. Because that cost
+is fixed in dollars and independent of the target, it consumes a share of the
+prize that scales as 1/target:
+
+| target | cost per trade | **cost as % of target** |
+|---|---|---|
+| ≤ $2 | $1.71 | **108.9%** |
+| $2 – $4 | $1.53 | 60.7% |
+| $4 – $7 | $0.97 | 20.4% |
+| $7 – $12 | $0.69 | 9.6% |
+
+At a $2 target the round trip costs more than the trade can win. Below about
+$7 an entry needs a large and demonstrable edge merely to break even; above it,
+execution stops dominating and the entry's own quality decides the outcome.
+
+**Why this matters more than it looks.** It runs directly against the intuition
+that small targets are safer because they win more often. They do win more
+often — a $2.50 target inside a $25 quarter hits about 85–90% of the time (H99)
+— but the win rate is bought at exactly the price of its own improvement, and
+then cost is charged on top. **A high win rate on gold is a cost-multiplier: it
+means more round trips per dollar of range captured.**
+
+**Evidence.** `RESULTS_LEDGER.md` YE12–YE14. The clearest single case: entry at
+the Whole with a stop at the LQP and a $2.50 target scores an **85.1% win rate
+over 1,712 trades and loses $1.46 per trade.**
+
+**Consequence — standing rule.** Any proposed gold strategy with a target under
+$7 must state its cost assumption in the same breath as its win rate, and be
+tested against a zero-cost control. If PF at zero cost is near 1.00, the win
+rate is geometry and the strategy is a cost pump.
+
+**Invalidation:** a venue with a materially tighter effective spread on gold
+(under ~$0.20 round trip), or a fill model that gets passive entries rather than
+crossing the spread — both would move the floor down and are worth measuring
+before this rule is applied to someone else's execution.
+
+## H109 — Conditioning layers on a zero-edge entry are worth 1–3 points, not 8
+
+**Confidence:** moderate-high (one full four-layer architecture, 30,490 trades).
+
+**Claim.** Stacking location, state, recency and timing filters on top of an
+entry with no directional edge does not create one. Each layer moves the result
+by one to three percentage points, and the moves are in the direction the theory
+predicts — which is exactly what makes it seductive.
+
+**Evidence** (Yotov Gold Quarter Engine v1, YE17–YE19), measured as edge over
+each trade's own geometric baseline:
+
+| layer | best slice | worst slice | worth |
+|---|---|---|---|
+| structural confluence (10 Spaceman levels) | −6.6% at ≤$0.50 | −9.8% at >$6.25 | 3.2pp |
+| attempt recency (24h window) | +4.3% free, attempt 1 | +1.0% free, attempt 4+ | 3.3pp |
+| dual-hesitation lockout | −7.8% clean | −9.2% flagged | 1.4pp |
+| session timing (6-hour bands) | −6.2% | −16.4% | small, no band positive |
+
+Every ordering is correct. None is large. Against a −7.9% cost the stack cannot
+reach zero, and an exhaustive search over 60 filter combinations in the target
+trade-count band returned a best PF of **0.85**.
+
+**Consequence.** Establish the entry's zero-cost edge FIRST, on the raw signal,
+before building any hierarchy on top of it. If the raw entry scores within about
+1pp of its geometric baseline, no combination of filters will rescue it; they
+will only produce a smaller sample of the same coin flip with a more persuasive
+story attached. The layers are a multiplier on an edge, not a substitute for one.
+
+**Invalidation:** a conditioning layer that moves the zero-cost edge by more than
+5pp on an out-of-sample year and survives a phase or permutation control. None of
+the four here came close.

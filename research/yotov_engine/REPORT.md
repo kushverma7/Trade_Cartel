@@ -160,7 +160,8 @@ Pooled over both years, real fills vs zero-cost:
 | Comp → LQP, wide stop | 1,488 | 2.02 | 0.59 | **87.6%** | −4.9% | 0.990 | −0.5% | −1.12 |
 
 Eight of eleven sit within ±1.0% of their own geometric baseline at zero cost.
-Family 7 is the one exception at +6.2% — see §6.
+Family 7 is the one exception at +6.2% — it got a full 12-phase control and an
+out-of-sample split, and died on the second. See §6.
 
 ---
 
@@ -204,11 +205,38 @@ Layers 2–4 were built and measured, not assumed:
   filter points the right way and is worth 1.4pp.
 - **Timing (Layer 4)** — the worst band is 18:00–20:00 NY at −16.4%, the rest sit
   between −6.2% and −8.5%. No band is positive.
-- **Family 7 (Failed Whole → Half)** is the only genuinely positive zero-cost
-  result at +6.2% on n=1,829, about 5.6 standard errors. It is one of eleven
-  families tested, and it still loses $0.86 a trade at real cost. Its phase
-  control is running; unless the round grid separates from the shifted ones, it
-  is the overshoot artefact again.
+### Family 7 — the one result that looked real, and how it died
+
+**Failed Whole → Half** was the only family with a materially positive zero-cost
+edge: +6.2% on n=1,829. It got the full treatment, because it deserved it.
+
+**A full 12-phase control separated it.** Round scored +6.23% against a shifted
+range of +0.36% to +3.96% (mean +2.36%, sd 1.22) — **rank 1 of 12, z = +3.16**.
+That is the first time in this repo that a level-based rule has beaten its own
+phase control. Across the other four reversal families the ranks were 2, 2, 8
+and 11, so it was not a general "round is special" pattern either.
+
+**A quote-clustering artefact was ruled out** before believing it: if gold quotes
+piled up on round increments, a phase-0 grid line would sit on a popular quote
+while shifted lines sat between them, manufacturing the effect. They do not —
+quotes land on exact $0.25 boundaries **25× less often than uniform** (0.016% vs
+0.400%), and the sub-cell structure is half-cent granularity spread evenly across
+the cell.
+
+**Then the out-of-sample split killed it:**
+
+| | n | ROUND free edge | shifted mean | round's rank | z |
+|---|---|---|---|---|---|
+| 2025-26 (in-sample) | 1,596 | **+6.99%** | +2.60% | **1 / 12** | **+3.80** |
+| 2024-25 (holdout) | 233 | +1.00% | +0.73% | **5 / 12** | **+0.06** |
+
+In the unseen year the round grid sits dead centre of the shifted distribution.
+The pooled result was carried entirely by the in-sample year, which supplies 87%
+of the trades. **It does not replicate.**
+
+And even taken at face value it was never tradeable: zero-cost expectancy
++$0.402/trade against an execution cost of $1.263. Break-even needs a spread
+under $0.32; the measured median on those trades is $0.81.
 
 ---
 

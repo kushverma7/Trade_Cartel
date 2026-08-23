@@ -5740,3 +5740,58 @@ Headline: the script is a faithful transcription of the stated spec and its
 header numbers reconcile — but it contains BUG-047 for the second time in this
 repo, it defaults to hiding the year that fails, and the headline it advertises
 rests on two trades that survived by nine and thirteen cents.
+
+### Yotov Gold Quarter Engine v1 — built to spec and tested (2026-08-23)
+
+User-supplied architecture: fixed price map (LQP $25, rungs at 0.10 / 0.30 /
+0.50 / 0.80 / 0.90 / 1.00), four layers (Yotov state, Spaceman location,
+liquidity event, timing), eight trade families, dual-hesitation lockout, attempt
+counter, $100 range transition. Code `research/yotov_engine/code/`, write-up
+`research/yotov_engine/REPORT.md`. All rows: real bid/ask fills, 12h clock,
+both tick years. **EDGE = realised WR minus each trade's own geometric baseline
+`p_geom = risk/(risk+reward)`** — zero for a rule that only re-describes the
+geometry, whatever its win rate.
+
+| ID | Config | n | Window | Exp $ | PF | EDGE | Verdict |
+|----|--------|---|--------|-------|----|------|---------|
+| YE01 | Rung ladder, round $25 grid, all six steps | 106,451 attempts | both | — | — | within ~2pp of x/y | **CONTROL — the ladder is gambler's ruin (H99)** |
+| YE02 | Whole → Completion, round grid | 1,608 / 245 | 2025-26 / 2024-25 | — | — | 87.94% / 87.35% vs H99 88.89% | cited "89.66% on 2,708" does not reproduce; number is 0.80/0.90 |
+| YE03 | Same, 12 phase-shifted grids | 1,608 ea | both | — | — | round 87.94% vs shifted mean 89.36% | **CONTROL — round ranks 12/12 and 11/12. Roundness slightly HURTS** |
+| YE04 | Completion → target, round grid | 1,414 / 214 | both | — | — | 91.80% / 91.12% vs H99 90.00% | cited 84.76% does not reproduce |
+| YE05 | F1 sweep+reclaim (Spaceman level swept at an LQP, reclaimed) | 23,650 | both | −0.76 | 0.492 | −7.4% | NOT VALID |
+| YE06 | F2 quarter acceptance (HZ cleared, pullback holds LQP) | 3,311 | both | −1.05 | 0.634 | −7.8% | NOT VALID |
+| YE07 | F3 Whole → Completion, structural stop | 1,712 | both | −1.45 | 0.464 | −13.6% | NOT VALID |
+| YE08 | F4 failed completion reversal | 1,519 | both | −1.12 | 0.597 | −8.7% | NOT VALID |
+| YE09 | F5 major $100 range transition | 298 | both | −4.50 | 0.592 | −12.1% | NOT VALID |
+| YE10 | **ALL five families combined** | **30,490** | both | **−0.89** | **0.527** | **−7.9%** | **NOT VALID** |
+| YE11 | **ZERO-COST control, mid-to-mid, same trades** | 30,490 | both | −0.023 | **0.984** | **+1.2%** | **CONTROL — the signal is a coin flip; the whole loss is execution** |
+| YE12 | Whole → Completion with a WIDE stop at the LQP | 1,712 | both | **−1.46** | 0.52 | −6.6% | **WR 85.1% — the promised win rate, and it loses money** |
+| YE13 | Completion → LQP with a wide stop | 1,488 | both | −1.12 | 0.59 | −4.9% | WR 87.6%, still negative |
+| YE14 | Cost drag by target size | 38,210 | both | — | — | — | **cost = 108.9% of a $2 target, 60.7% of $2–4, 20.4% of $4–7, 9.6% of $7–12** |
+| YE15 | Phase control on the whole engine, 6 grids | 30k ea | both | — | round 0.527 vs shifted 0.457–0.554 | — | **CONTROL — round ranks 4/6, mid-pack** |
+| YE16 | Phase control, F5 major $100 transition | 259–318 ea | both | — | round 0.592 vs shifted mean 0.902 | — | **CONTROL — round ranks 6/6, WORST. Only profitable on a shifted grid** |
+| YE17 | Structural confluence (10 Spaceman levels) | 30,490 | both | — | — | −6.6% at ≤$0.50 vs −9.8% at >$6.25 | 3pp in the predicted direction, swamped by 8pp cost |
+| YE18 | Attempt number, 24h recency window | 606 / 28,800 | both | — | — | free edge +4.3% (att 1) vs +1.0% (att 4+) | **the spec's "fresh attempt" rule is directionally RIGHT — and 3pp** |
+| YE19 | Dual-hesitation lockout | 3,807 flagged | both | — | — | −9.2% flagged vs −7.8% clean | filter points the right way, worth 1.4pp |
+| YE20 | Exhaustive slice search, 250–500 trades/yr band | 60 slices | both | −0.18 best | **0.85 best** | — | **NOT VALID — no slice reached PF 1.0, against a bar of 2.5** |
+| YE21 | Quote-clustering artefact check | 2.48M quotes | 2025-26 | — | — | — | **CONTROL — gold quotes hit $0.25 boundaries 25× LESS than uniform; the phase control is not measuring my own grid** |
+
+Headline: the engine was built exactly as specified and every layer measured
+rather than assumed. It produces 22,558 trades a year at PF 0.527. The three
+reasons are independent and each is decisive: the rung ladder is arithmetic
+(YE01–YE04), the signal is a coin flip once execution is removed (YE11), and the
+$2–2.50 target the spec prefers costs more to trade than it pays (YE14). The
+conditioning layers all pointed the way the spec predicted and were each worth
+1–3 percentage points against an 8-point cost — **they were not wrong, they were
+too small.**
+
+| YE22 | **Family 7 "Failed Whole → Half", full 12-phase control** | 1,829 | both | −0.86 | free 1.195 | **round +6.23% vs shifted mean +2.36%, rank 1/12, z=+3.16** | the ONLY level rule in this repo ever to beat its phase control |
+| YE23 | Same, split by year | 1,596 / 233 | 2025-26 / 2024-25 | — | — | **rank 1/12 z=+3.80 in-sample; rank 5/12 z=+0.06 OOS** | **NOT VALID — does not replicate; pooled result was 87% in-sample** |
+| YE24 | Same, cost arithmetic | 1,829 | both | free +0.402, real −0.861 | — | — | needs a spread under $0.32 to break even; measured median $0.81 |
+
+**On YE22–YE24.** Family 7 was the one result worth chasing and it got the full
+treatment: 12 phases, a quote-clustering artefact check (YE21), and an
+out-of-sample split. It passed the first two and failed the third. Recording it
+because the *shape* matters — a z of +3.80 in-sample collapsing to +0.06 out of
+sample, on a family selected as the best of eleven, is what overfitting looks
+like when it is caught. Had it replicated it would still have lost money.
