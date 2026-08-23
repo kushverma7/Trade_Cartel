@@ -1489,3 +1489,37 @@ the signature.
 **Related:** BUG-023 (a null hypothesis that skipped the filters it was
 testing), BUG-033 (signal state unaware the stop fired). Same family — state
 that does not record what actually happened.
+
+## BUG-048 — `pkill -f` / `pgrep -f` match the shell that issues them (2026-08-23)
+
+**Symptom.** `pkill -f "run_barclose.py"` returned exit 144 and the command
+died before its remaining statements ran — including the file edit it was
+supposed to make. Separately, `pgrep -af "python3 research/quarters"` reported
+jobs as "running" that had never started, and `ps aux | grep -cE 'run_(asym|system)'`
+returned non-zero counts for processes that did not exist.
+
+**Root cause.** The `-f` flag matches against the FULL command line. A shell
+running `pkill -f "run_barclose.py"` has that string in its own command line, so
+it matches itself and sends itself the signal. The same applies to `pgrep -f`
+and to `ps | grep`: a background waiter shell whose script mentions
+`run_trendfilter.py` shows up in every search for that name, so a bash waiter
+gets counted as a running python job.
+
+**How it compounded.** Because the reported "running trendfilter" was actually a
+bash waiter blocked on `until [ -f barclose.csv ]`, a second waiter was queued to
+start barclose *after that process exited*. It could never exit, because it was
+waiting for the file the queued job was supposed to produce. **Deadlock**, and
+neither job was running while both appeared to be.
+
+**Prevention.**
+1. To kill: resolve the PID first and `kill -9 <pid>`. Never `pkill -f` on a
+   pattern that appears in the killing command.
+2. To detect: match on the process NAME, not the command line —
+   `ps -eo pid,comm,args --no-headers | awk '$2=="python3" && /pattern/'` — and
+   sanity-check with RSS. A 6 MB "python job" that has been alive 35 minutes at
+   0% CPU is a bash wrapper, not a running script.
+3. The bracket trick (`'[r]un_foo'`) defeats `ps | grep` self-matching but does
+   NOT stop a waiter shell from matching, so it is not sufficient on its own.
+
+**Cost.** Two lost runs and roughly 40 minutes of a stalled pipeline in which
+two jobs appeared to be running and neither was.
