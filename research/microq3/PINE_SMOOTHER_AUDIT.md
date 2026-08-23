@@ -213,6 +213,41 @@ it says 1.257.
 
 ---
 
+## 5b. The equity curve
+
+`research/microq3/results/pine_equity_curve.png`, built by
+`research/microq3/code/pine_equity.py`. Per-trade ledgers at
+`results/equity_pine.csv`, `equity_ref_nospread.csv`, `equity_ref.csv`.
+
+| | n | PF | WR | net $ | maxDD $ | net/maxDD |
+|---|---|---|---|---|---|---|
+| **Pine as written** | 45 | 2.15 | 55.6% | +343.5 | **62.7** | 5.48 |
+| researched, no spread filter | 34 | 2.87 | 61.8% | +351.7 | 46.9 | 7.49 |
+| researched, spread ≤ 1.50 | 25 | 4.89 | 72.0% | +368.6 | **15.9** | 23.24 |
+
+The three curves end within $25 of each other and separate almost entirely on
+the path. The Pine's extra 11 trades add no money (−$8.3) and quadruple the
+maximum drawdown against the header's version.
+
+**What the curve says in the strategy's favour:**
+
+- **No single trade carries it.** Top trade = 7.6% of net, top 5 = 38%. With
+  fixed ±$25.50 / −$15.50 exits that is structural — no winner *can* dominate —
+  so read it as "the fixed exits did their job", not as evidence of robustness.
+- **Both halves work.** First half (17 trades to 2026-02-18) PF 2.08; second
+  half (28 trades) PF 2.19. The year is not one good quarter.
+
+**What the curve says against it:**
+
+- **172 of 355 days under water**, including a single 73-day drawdown
+  (2026-02-08 → 2026-04-22) that took $62.70 — 18% of the year's entire profit,
+  and 4× the researched version's worst.
+- **The trade stream is thin and lumpy** — median 5 days between trades, max
+  33, seven gaps over a fortnight. At 45 trades a year there is no month in
+  which the curve carries statistical weight.
+- **Nearly all of the second half's gain lands in April–May 2026** (+$200.2 of
+  +$343.5, 58%), against a flat +$115 across the preceding eight months.
+
 ## 6. Dashboard desync (cosmetic)
 
 Rows 5–7 print `"$1–$6.25"`, `"$25 ± $6.25"` and `"15.5 / 25.5"` as string
