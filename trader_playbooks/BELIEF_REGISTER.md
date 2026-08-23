@@ -2846,3 +2846,43 @@ manufacture in this repo's problem domain.
 
 **Invalidation:** a crossing-continuation excess that does NOT scale as 1/S, or
 one that survives subtraction of the measured overshoot.
+
+## H107 — A per-period opportunity latch set by the OUTCOME is the most common defect in supplied Pine
+
+**Confidence:** high (2 for 2 on supplied scripts audited against ground truth).
+
+**Claim.** When someone hands over a strategy whose spec says "one trade per
+day / per session / per anchor", the latch that enforces it is set inside the
+entry block far more often than at the point the opportunity is consumed. Every
+filter upstream of the entry then silently becomes a search: it rejects a
+candidate without spending the period, and the scan continues until something
+passes.
+
+**Evidence.** Both supplied Pine strategies audited against the Dukascopy tick
+engine on this branch had it, arrived at independently:
+
+| script | documented n | actual n | PF documented rule | PF as written |
+|---|---|---|---|---|
+| 10AM Quarter Matrix v1 (2026-08-21) | 60 | 117 | 1.638 | 1.321 |
+| Micro-Q3 Smoother (2026-08-23) | 34 | 45 | 2.869 | 2.149 |
+
+Both inflate the trade count by 30–95%, both leave net P&L nearly unchanged, and
+both raise maximum drawdown (44% and 34%). The re-admitted trades are the
+filter's own rejects, so they perform at the no-edge baseline — pooled over both
+years the Micro-Q3 additions ran WR 50.0% at t = +0.71.
+
+**Why it keeps happening.** Every individual line reads correctly. The bug lives
+in the relationship between two statements that are usually 60+ lines apart, and
+Pine's `var` scoping makes the latch look like ordinary state. Nothing in the
+language or the Strategy Tester flags it.
+
+**Consequence — standing check.** Before auditing anything else in a supplied
+strategy, locate the per-period latch and read what sets it. If the assignment
+is inside `if <entry condition>`, the bug is present. Then count the trades the
+script produces and compare against the count the written spec implies; a
+trade count 1.3x or more above spec is the signature. Both are two-minute
+checks and both were positive on the first two scripts they were run against.
+
+**Invalidation:** three or more supplied scripts audited with the latch set
+correctly at the candidate, which would make this a coincidence of two rather
+than a pattern.

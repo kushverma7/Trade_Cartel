@@ -1490,6 +1490,46 @@ the signature.
 testing), BUG-033 (signal state unaware the stop fired). Same family — state
 that does not record what actually happened.
 
+**SECOND OCCURRENCE, 2026-08-23** — "Micro-Q3 Smoother — GOLD [Recovered
+Research Logic]", a different supplied Pine script by a different route, same
+wiring:
+
+```pinescript
+tradePermission = inResearchWindow and insideSignalWindow and quarterOK and
+     strategy.position_size == 0 and not tradedThisAnchor
+aShort = enableAShort and tradePermission and not na(bodyLow) and close < bodyLow
+if aShort
+    strategy.entry(...)
+    tradedThisAnchor := true     // <- again, only set when a trade FIRES
+```
+
+Measured on identical ticks, fills and exits (SL 15.50 / TP 25.50 / 12h stop),
+against the reproducible reference — no spread filter on either side, so only
+the selection rule differs:
+
+| selection rule | n | PF | exp | net | maxDD |
+|---|---|---|---|---|---|
+| first break, else skip the day | 34 | 2.869 | +10.34 | +351.7 | 46.9 |
+| keep scanning (as written) | 45 | 2.149 | +7.63 | +343.5 | 62.7 |
+
+Same signature as the first occurrence: net barely moves, expectancy falls 26%,
+drawdown grows 34%. Two refinements the second case adds:
+
+1. **The substitution can be purely additive.** Here the Pine took the *same*
+   break as the reference on all 34 shared days — it never replaced a good
+   trade, it only appended days the reference declined. So "check whether the
+   good trades changed" is not a sufficient test; the trade COUNT is.
+2. **The appended trades are indistinguishable from random entries.** Pooled
+   over both years: n=16, WR 50.0%, t=+0.71, and the sign of the effect reverses
+   between years. With a 25.50 target against a 15.50 stop a coin flip breaks
+   even at PF ≈ 1.65; the appended trades scored 1.46. This is what the defect
+   always produces — the filter's rejects, re-admitted.
+
+**Detection rule, now that there are two cases:** grep any supplied strategy for
+the per-period latch and check what sets it. If the assignment sits inside the
+`if <entry condition>` block, the bug is present. It is a two-line check and it
+has been positive both times it was run.
+
 ## BUG-048 — `pkill -f` / `pgrep -f` match the shell that issues them (2026-08-23)
 
 **Symptom.** `pkill -f "run_barclose.py"` returned exit 144 and the command

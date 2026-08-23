@@ -5706,3 +5706,37 @@ roundness contributes nothing. Both fair objections were tested and neither
 changes the answer. NOT SETTLED: the FX claim (QG01–QG04 transfer as
 mathematics, QG05–QG20 are gold-specific), the unfalsifiable fundamental gate,
 and the Trend Waves layer as standalone swing analysis.
+
+### Pine audit — "Micro-Q3 Smoother — GOLD [Recovered Research Logic]" (2026-08-23)
+
+Supplied Pine v6 strategy audited against the tick engine. Source archived at
+`research/microq3/pine/micro_q3_smoother_v1.pine`; full write-up at
+`research/microq3/PINE_SMOOTHER_AUDIT.md`. All rows share the script's own
+settings: SL $15.50, TP $25.50, 12-hour time stop.
+
+| ID | Config | n | Window | Exp | PF | maxDD | Verdict |
+|----|--------|---|--------|-----|----|-------|---------|
+| PS01 | Researched selection, spread ≤ 1.50 (the header's claim) | 25 | 2025-08-21..2026-08-20 | +14.74 | **4.894** | 15.9 | **IN-SAMPLE ONLY** — header claims 4.887, reconciles once the 12h clock is applied |
+| PS02 | Researched selection, NO spread filter (what Pine can reproduce) | 34 | 2025-26 | +10.34 | 2.869 | 46.9 | IN-SAMPLE ONLY — the unreproducible filter is worth PF 2.87→4.89 |
+| PS03 | **PINE AS WRITTEN** (BUG-047, quarter filter is a search) | 45 | 2025-26 | +7.63 | 2.149 | 62.7 | **DEFECT** — +32% trades vs PS02, PF −25%, maxDD +34% |
+| PS04 | Same three rules, holdout year | 11 / 12 / 17 | 2024-08-20..2025-08-20 | +1.84 / +0.38 / +4.20 | 1.257 / 1.049 / 1.649 | 41.4 / 57.1 / 41.4 | **NOT VALID OOS** — Pine's own headline falls 2.149→1.649, researched 4.894→1.257 |
+| PS05 | Trades BUG-047 ADDS, both years pooled | 16 | both | +3.66 | 1.464 | — | **CONTROL — coin flip.** 8 SL / 7 TP / 1 TIME, WR 50.0%, t=+0.71; sign reverses by year (−8.3 on 11 IS, +66.8 on 5 OOS) |
+| PS06 | Wait-for-quarter vs take-the-first-break, on the same 16 substituted days | 16 | both | — | — | — | CONTROL — +58.5 vs +26.6, but **13 of 16 days resolve identically**; the quarter delays entry into the same move |
+| PS07 | Fill model, entries held fixed: mid fill + no costs vs real bid/ask | 25 | 2025-26 | — | 4.849 → 4.914 | 15.9 | **+$5.60 / 1.5%** — spread changes WHICH trades win, not what a win pays; flipped none here. Median entry spread $0.947 |
+| PS08 | Flip the winners with the least room before their target | 25 | 2025-26 | — | 4.894 → 3.280 | — | **FRAGILITY — 2 of 18 winners survived by $0.09 and $0.13.** Flipping those two costs PF 1.6 |
+
+Two corrections to earlier repo numbers found during this audit:
+
+1. **MQ01's PF 5.125 and this PF 4.894 are the same result under different
+   horizons.** MQ01 used the engine's session horizon (17:00 NY next day, ~22h);
+   the script's 12-hour stop is what reproduces the header's 4.887.
+2. **`microq3.apply()` credits favourable target overshoot** — it books
+   `fav[j]`, the first real quote at or beyond the target, not the target price.
+   `research/quarters/code/system.py` treats the target as a resting limit.
+   Worth +$4.26 over the 25 trades; this is optimism in OUR baseline, not the
+   Pine's.
+
+Headline: the script is a faithful transcription of the stated spec and its
+header numbers reconcile — but it contains BUG-047 for the second time in this
+repo, it defaults to hiding the year that fails, and the headline it advertises
+rests on two trades that survived by nine and thirteen cents.
