@@ -48,10 +48,15 @@ def run_bars(book, S, bar_ms, grids, zone=0.30, tgt=1.0, days=3):
         if c == prev:
             continue
         up = c > prev
-        qc = (prev + 1) if up else prev          # quarter line, in coarse units
+        # Anchor Q to the quarter the CLOSE is actually working -- the line just
+        # below it going up, just above it going down. Anchoring instead to the
+        # FIRST line crossed is wrong: a daily close routinely overshoots several
+        # lines, which put the entry beyond its own target and produced "TP"
+        # exits with negative P&L (182 TP against a 20.5% win rate).
+        qc = c if up else (c + 1)
         Q = ph + qc * S_i
         prev = c
-        # decisive: the CLOSE must sit 0.30*S beyond Q, not merely past it
+        # decisive: the CLOSE must sit 0.30*S into the quarter it is working
         if up and close[i] < Q + zi:
             continue
         if (not up) and close[i] > Q - zi:
@@ -65,6 +70,15 @@ def run_bars(book, S, bar_ms, grids, zone=0.30, tgt=1.0, days=3):
         risk = abs(e - Q)
         if risk < f:
             continue
+        # The entry tick is the one AFTER the bar close, so it can gap past
+        # EITHER level. Skip both cases rather than book a nonsense trade:
+        #   target already behind us  -> a "TP" that was never reachable
+        #   stop on the wrong side    -> an "SL" that can settle in profit
+        # Both were caught by the assertions below before these guards existed.
+        if (up and tgt_px <= e) or ((not up) and tgt_px >= e):
+            continue
+        if (up and e <= Q) or ((not up) and e >= Q):
+            continue
         t_end = ny[k0] + days * DAY_MS
         if up:                                   # long: marked out on BID
             p0 = max(int(np.searchsorted(idx_b, k0, "right")) - 1, 0)
@@ -74,8 +88,14 @@ def run_bars(book, S, bar_ms, grids, zone=0.30, tgt=1.0, days=3):
             p0 = max(int(np.searchsorted(idx_a, k0, "right")) - 1, 0)
             kx, why = _race(idx_a, ca, p0, qf, qf - tg - 1, False, t_end, ny)
             pnl = (e - tgt_px) if why == "WIN" else (e - int(ask[kx]))
+        tag = {"WIN": "TP", "LOSE": "SL", "TIME": "TIME"}[why]
+        # Self-check: a target hit must pay and a stop must cost. This assertion
+        # is what the first version lacked -- it silently emitted TP exits with
+        # negative P&L for a whole run before the win rate gave it away.
+        assert not (tag == "TP" and pnl <= 0), f"TP with pnl {pnl} at Q={Q} e={e}"
+        assert not (tag == "SL" and pnl > 0), f"SL with pnl {pnl} at Q={Q} e={e}"
         trades.append((int(ny[k0]), 1 if up else -1, e / PTS, pnl / PTS,
-                       pnl / risk, {"WIN": "TP", "LOSE": "SL", "TIME": "TIME"}[why],
+                       pnl / risk, tag,
                        (int(ny[kx]) - int(ny[k0])) / 60000.0))
         busy = kx
     return trades
