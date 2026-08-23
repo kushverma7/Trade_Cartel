@@ -131,7 +131,80 @@ the round grid does not beat grids of identical spacing placed elsewhere.**
 
 ## Test 3 — the Hesitation Zone system, tick-exact
 
-*Results pending — see `results/system.log`, `controls.log`, `barclose.csv`.*
+*The full system from webinars 4 and 5: trigger on a 0.30S penetration past a
+quarter point, abort if price falls 0.10S back first, stop at Q, target the next
+quarter point, 3-day clock. Real bid/ask fills, no overlapping trades.
+1R = the realised entry-to-stop distance (≈ 0.30S plus the spread).*
+
+### Round grid vs 11 shifted grids
+
+| year | S | n | **ROUND PF** | shifted mean | shifted range | round's rank | ROUND net $ | phases with PF>1 |
+|---|---|---|---|---|---|---|---|---|
+| 2025-26 | $25 | 7381 | 0.811 | 0.797 | 0.783–0.832 | 2/12 | **−$9,187** | **0/12** |
+| 2025-26 | $50 | 1931 | 0.852 | 0.897 | 0.843–0.953 | 10/12 | −$3,486 | **0/12** |
+| 2025-26 | $100 | 528 | 0.942 | 0.984 | 0.902–1.096 | 9/12 | −$721 | 4/12 |
+| 2025-26 | $250 | 87 | 1.059 | 1.149 | 0.883–1.552 | 10/12 | +$145 | 11/12 |
+| 2024-25 | $25 | 1148 | 0.859 | 0.881 | 0.838–0.922 | 8/12 | −$965 | **0/12** |
+| 2024-25 | $50 | 286 | 1.044 | 1.024 | 0.920–1.159 | 4/12 | +$117 | 8/12 |
+| 2024-25 | $100 | 77 | 1.028 | 1.177 | 0.867–1.559 | 9/12 | +$26 | 9/12 |
+| 2024-25 | $250 | 10 | 1.868 | 1.441 | 0.218–4.488 | 3/12 | +$172 | 5/12 |
+
+Four things, in order of importance:
+
+1. **The round grid is never the best.** Its ranks across the eight cells are
+   2, 10, 9, 10, 8, 4, 9, 3 — median 8.5 of 12. It is a below-average member of
+   its own phase family.
+2. **Where the sample is large the system loses, on every phase.** At S = $25,
+   **zero of twelve phases are profitable in either year**, and the round grid
+   loses $9,187 on 7,381 trades.
+3. **Where it makes money the sample has collapsed.** The profitable cells are
+   n = 87 and n = 10, and their phase distributions span 0.883–1.552 and
+   0.218–4.488. That is noise with a wide error bar, not an edge.
+4. **The scale that "works" does not replicate.** In 2025-26 only $250 is
+   positive; in 2024-25, $50, $100 and $250 are. Nothing holds across years.
+
+### Config variants (round grid, both years)
+
+No variant rescues it where the sample is big enough to mean anything:
+
+| year | S | tol-target | wide-stop | long-clock |
+|---|---|---|---|---|
+| 2025-26 | $25 | 0.798 (−$9,976) | 0.832 (−$7,218) | 0.811 (−$9,187) |
+| 2025-26 | $50 | 0.863 (−$3,180) | 0.867 (−$2,760) | 0.852 (−$3,485) |
+| 2025-26 | $100 | 0.952 (−$566) | 0.936 (−$650) | 0.969 (−$382) |
+| 2024-25 | $25 | 0.879 (−$853) | 0.888 (−$632) | 0.864 (−$932) |
+
+`tol-target` credits Yotov's 25-pip completion tolerance (target at 0.90S);
+`wide-stop` puts the stop one overshoot area past Q; `long-clock` relaxes the
+Three-Day Rule to ten days.
+
+### The dominant pattern is trade count
+
+Expectancy improves monotonically as S grows and trades thin out, crossing zero
+only where n is too small to trust:
+
+| S | risk (0.30S) | spread as % of risk | n (2025-26) | expectancy |
+|---|---|---|---|---|
+| $25 | $7.50 | 8.9% | 7381 | −0.138R |
+| $50 | $15.00 | 4.5% | 1931 | −0.107R |
+| $100 | $30.00 | 2.2% | 528 | −0.022R |
+| $250 | $75.00 | 0.9% | 87 | +0.118R |
+
+That is the signature of a rule paying the spread without an edge to cover it —
+the same verdict the all-day QT sweep reached in Phase 9.
+
+### One config was mis-specified and is discarded
+
+An early `no-filter` control put both the entry and the stop at Q, leaving risk
+≈ the spread; it stopped out almost instantly (PF 0.065, WR 0.3%). That is a
+spec error, not a result. It is re-run correctly as `entry-at-level` in
+`run_controls.py`, with the stop 0.30S the wrong side of Q so the risk matches
+the baseline.
+
+### Remaining controls
+
+*Pending — `controls.log` (entry-at-level, zero-cost, inverted),
+`barclose.log` (H1/D1 close trigger), `trendfilter.log`.*
 
 ---
 

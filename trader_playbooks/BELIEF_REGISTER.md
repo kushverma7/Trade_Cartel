@@ -2782,3 +2782,67 @@ configuration selected its way into a subset that never tested its stop.
 
 **Invalidation:** a rule from this framework stated in one session and confirmed
 on an event in a later session, with no intervening amendment.
+
+## H105 — Round-number price grids carry no information on gold, at any scale
+
+**Status:** ACTIVE. **Confidence:** very high. **Added:** 2026-08-23.
+
+**Claim:** on XAUUSD, a grid of round levels does nothing that a grid of the
+SAME SPACING placed at any other phase does not do. This extends H98 (which
+tested traverse and acceptance statistics) to first-passage behaviour and to a
+fully traded system, across two independent tick years.
+
+**Evidence:** 192 cells — 2 tick years × 8 grid scales ($2.50 to $250) × 12
+phases — measuring P(reach Q+S before Q−S) from a quarter-point crossing.
+**The largest gap between the round grid and the mean of its 11 shifted grids,
+across every cell, is 0.000211 — two hundredths of a percentage point.** Within
+a scale, all twelve phases agree to four decimal places.
+
+Traded, the picture is the same: the Hesitation Zone system's round grid ranks
+2, 10, 9, 10, 8, 4, 9, 3 of 12 across the eight (year × scale) cells — median
+8.5, a below-average member of its own phase family. At S = $25, **zero of
+twelve phases are profitable in either year.**
+
+**Consequence:** never accept a level-based result without a phase-shift
+control. The control costs one extra loop and it is the only thing that
+separates "this level matters" from "levels of this spacing occur every S
+dollars". Companion to H98, H99, GL03 and H100.
+
+**Invalidation:** a round grid beating its shifted distribution on a
+pre-declared statistic, on data not used to choose the statistic.
+
+## H106 — A level-crossing "continuation" statistic is biased by tick overshoot
+
+**Status:** ACTIVE. **Confidence:** very high. **Added:** 2026-08-23.
+
+**Claim:** any measurement of the form *"having crossed level X, does price
+continue?"* is biased upward by the discretisation of the tape. Prices move in
+jumps, so the tick that crosses X lands some distance PAST it, and the
+first-passage race starts with a head start. The bias is **overshoot / 2S** and
+is present on every grid, in every market, with no market structure involved.
+
+**Evidence:** measured on both gold tick years. Mean crossing overshoot is flat
+in S — $0.127 in 2025-26 and $0.052 in 2024-25 across a hundredfold range of S —
+exactly as a fixed tick-size effect requires, and 2.5× larger in the
+higher-priced, more volatile year. The model predicts the observed excess over
+0.500 to within 0–6% wherever the excess is large enough to measure:
+
+| S | overshoot/2S | observed excess | ratio |
+|---|---|---|---|
+| $2.50 | 0.0241 | 0.0231 | 0.96 |
+| $5.00 | 0.0124 | 0.0123 | 0.99 |
+| $12.50 | 0.0051 | 0.0052 | 1.02 |
+| $25.00 | 0.0025 | 0.0027 | 1.06 |
+
+Because the bias scales as 1/S, a fine grid manufactures what looks like strong
+momentum: at S = $2.50 it produces P(continuation) = 0.523, which is 4.6 standard
+errors from 0.500 on 2.5M events and means nothing at all.
+
+**Consequence:** before reporting any crossing-continuation number, either
+subtract overshoot/2S or compare against a phase control (which cancels it
+automatically, since every phase shares the same overshoot). A "momentum after
+the break" finding on a fine grid is the single easiest false positive to
+manufacture in this repo's problem domain.
+
+**Invalidation:** a crossing-continuation excess that does NOT scale as 1/S, or
+one that survives subtraction of the measured overshoot.
