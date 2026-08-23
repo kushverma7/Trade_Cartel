@@ -5642,3 +5642,45 @@ profitable (IS17). Beliefs **H101**, **H102**.
 
 Code: `research/insample/code/exits.py`; log `research/insample/results/exits.log`;
 report `research/insample/REPORT.md`
+
+## QUARTERS THEORY (YOTOV) BACKTESTED ON GOLD (2026-08-23)
+
+Yotov's rules are fractions of the large quarter S (tolerance 0.10S, hesitation
+zone 0.30S, half point 0.50S, target 1.00S), so the system is scale-free. Gold
+has no pip convention, so **S is a researcher degree of freedom**: every scale
+is tested, and every scale against **11 phase-shifted grids of identical
+spacing** which share the same data, drift and volatility. Two tick years,
+tick-exact bid/ask fills. 1R = the realised entry-to-stop distance.
+
+| ID | Config | n | Window | Exp | PF | maxDD | Verdict |
+|----|--------|---|--------|-----|----|-------|---------|
+| QG01 | P(continuation) from a quarter-point crossing, round $25 grid | 240,876 | 2025-26 | — | P=0.5027 | — | H99 predicts 0.500 |
+| QG02 | Same, 11 shifted phases | 240,876 ea | 2025-26 | — | 0.5026–0.5028 | — | CONTROL — round indistinguishable |
+| QG03 | Largest round-vs-shifted gap, ALL 192 cells (2 yr × 8 scales × 12 phases) | — | both | — | **0.000211** | — | **CONTROL — the whole roundness effect is 0.02pp** |
+| QG04 | Crossing-overshoot model of the excess over 0.500 | both | both | — | pred/obs 0.96–1.06 | — | the excess IS tick discretisation (H106) |
+| QG05 | Daily + weekly extremes within 0.10S of a quarter point | 1252 / 214 | both | — | 0.187–0.252 vs 20% base | — | NOT VALID — 8 of 10 cells at base rate |
+| QG06 | Same, the 2 cells at p<0.05 (daily & weekly S=$50) | 1252 / 214 | both | — | 0.225 / 0.252 | — | NOT VALID — 10 cells tested, Bonferroni 0.15 / 0.36 |
+| QG07 | Hesitation Zone system, ROUND grid, S=$25 | 7,381 | 2025-26 | −0.138R | **0.811** | 1054.9R | **NOT VALID — −$9,187** |
+| QG08 | Same, 11 shifted phases | 7,381 ea | 2025-26 | — | 0.783–0.832 | — | CONTROL — **0 of 12 phases profitable**, round ranks 2/12 |
+| QG09 | Same, S=$25, holdout year | 1,148 | 2024-25 | −0.102R | 0.859 | — | NOT VALID — 0 of 12 phases profitable |
+| QG10 | Round grid's rank among its 12 phases, all 8 (year × scale) cells | — | both | — | ranks 2,10,9,10,8,4,9,3 | — | CONTROL — median 8.5/12, below average |
+| QG11 | **Zero-cost control — identical trades filled on MID** | 7,430 | 2025-26 | **+0.008R** | **1.011** | — | **the signal is a coin flip; the loss is execution** |
+| QG12 | Zero-cost, S=$50 / $100 | 1,946 / 523 | 2025-26 | −0.009R / +0.007R | 0.987 / 1.010 | — | same at every scale with a real sample |
+| QG13 | Execution cost vs nominal spread | — | both | 0.146R vs 0.089R | — | — | **1.4–2.2×** — the bid hits a long's stop before the mid would |
+| QG14 | Entry AT the quarter point, same dollar risk (no 0.30S filter) | 5,278 | 2025-26 | −0.103R | 0.871 | — | **the Hesitation Zone filter HURTS** (0.871 vs 0.811) |
+| QG15 | Long vs short split, S=$25 | 3,750 / 3,631 | 2025-26 | — | 0.828 / 0.793 | — | CONTROL — not an artefact of gold's +34% year |
+| QG16 | Profitable cells (S=$250) | 87 / 10 | 2025-26 / 2024-25 | +0.034R / +0.187R | 1.059 / 1.868 | — | NOT VALID — phase range 0.88–1.55 and 0.22–4.49 |
+
+Headline: **the Quarters Theory does not work on gold and roundness contributes
+nothing.** Three independent tests agree. The mechanism is settled by QG11 — with
+zero costs the profit factor is 0.99–1.01 at every scale with a real sample, so
+the signal has no edge before costs and the entire loss is the spread. Yotov's
+own Hesitation Zone filter makes it worse (QG14). Where the system does make
+money the sample has collapsed to n=87 and n=10 (QG16).
+
+SCOPE LIMIT: this is **gold**; Yotov's claim is **FX**. QG01–QG04 are
+market-agnostic mathematics and transfer; QG05–QG16 are gold-specific. The
+discretionary "fundamental justification" gate is unfalsifiable and untested.
+
+Beliefs **H105**, **H106**. Code `research/quarters/code/`; report
+`research/quarters/REPORT.md`.
