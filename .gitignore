@@ -63,3 +63,4 @@ research/goldmap/data/
 
 # in-sample tick-path cache: a regenerable 1.3 GB artifact, never a repo file
 research/insample/results/*.npz
+.pipeline_done
