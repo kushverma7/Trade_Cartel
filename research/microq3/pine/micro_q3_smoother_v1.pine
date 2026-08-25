@@ -1,0 +1,972 @@
+//@version=6
+strategy(
+     "Micro-Q3 Smoother — GOLD [Recovered Research Logic]",
+     overlay = true,
+     initial_capital = 100000,
+     default_qty_type = strategy.fixed,
+     default_qty_value = 1,
+     pyramiding = 0,
+     process_orders_on_close = true,
+     calc_on_every_tick = false
+)
+
+// ============================================================================
+// MICRO-Q3 SMOOTHER — GOLD
+//
+// Recovered research structure:
+//
+// XAUUSD — 5-minute chart
+//
+// Synthetic anchor:
+//   18:45–19:00 New York
+//   Built from 18:45, 18:50 and 18:55 5-minute candles
+//
+// FILTERS:
+//   • Anchor must be bearish
+//   • Anchor body >= $1.00
+//   • Anchor body <= $6.25
+//
+// SIGNAL WINDOW:
+//   • First eligible close = 19:05 NY
+//   • Last eligible close  = 19:30 NY
+//
+// SIGNALS:
+//   A_SHORT:
+//      First completed 5m close below synthetic real-body LOW
+//
+//   FLIP_LONG:
+//      First completed 5m close above synthetic real-body HIGH
+//
+//   Whichever happens first = only trade for that anchor.
+//
+// QUARTER FILTER:
+//   Signal close must be <= $6.25 from nearest $25 Gold level.
+//
+// EXITS:
+//   SL = $15.50
+//   TP = $25.50
+//   Maximum holding time = 12 hours
+//
+// ORIGINAL RESEARCH:
+//   25 trades
+//   72.0% win rate
+//   PF ≈ 4.887
+//   Net ≈ +365.083 Gold points
+//
+// IMPORTANT:
+// Original Dukascopy tick research also used:
+//      entry spread <= $1.50
+//
+// Standard TradingView historical OHLC does NOT contain the historical
+// Dukascopy bid/ask spread stream, so that exact filter cannot be reproduced.
+// ============================================================================
+
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+groupTime = "1 — Time"
+
+tz = input.string(
+     "America/New_York",
+     "Strategy Timezone",
+     group = groupTime
+)
+
+signalWindowMin = input.int(
+     30,
+     "Signal Window After 19:00",
+     minval = 5,
+     maxval = 120,
+     step = 5,
+     group = groupTime
+)
+
+maxHoldHours = input.float(
+     12.0,
+     "Maximum Hold Hours",
+     minval = 0.5,
+     step = 0.5,
+     group = groupTime
+)
+
+
+// ============================================================================
+// RESEARCH DATE WINDOW
+// ============================================================================
+
+groupWindow = "2 — Research Window"
+
+restrictWindow = input.bool(
+     true,
+     "Restrict To Original Research Year",
+     group = groupWindow
+)
+
+researchStart = input.time(
+     timestamp("UTC", 2025, 8, 20, 14, 0),
+     "Research Start",
+     group = groupWindow
+)
+
+researchEnd = input.time(
+     timestamp("UTC", 2026, 8, 20, 14, 0),
+     "Research End",
+     group = groupWindow
+)
+
+inResearchWindow =
+     not restrictWindow or
+     (time >= researchStart and time < researchEnd)
+
+
+// ============================================================================
+// ANCHOR FILTERS
+// ============================================================================
+
+groupAnchor = "3 — Synthetic Anchor"
+
+minimumBody = input.float(
+     1.0,
+     "Minimum Anchor Body ($)",
+     minval = 0,
+     step = 0.25,
+     group = groupAnchor
+)
+
+maximumBody = input.float(
+     6.25,
+     "Maximum Anchor Body ($)",
+     minval = 0.25,
+     step = 0.25,
+     group = groupAnchor
+)
+
+
+// ============================================================================
+// SIGNALS
+// ============================================================================
+
+groupSignal = "4 — Signals"
+
+enableAShort = input.bool(
+     true,
+     "Enable A_SHORT",
+     group = groupSignal
+)
+
+enableFlipLong = input.bool(
+     true,
+     "Enable FLIP_LONG",
+     group = groupSignal
+)
+
+
+// ============================================================================
+// QUARTER FILTER
+// ============================================================================
+
+groupQuarter = "5 — Quarter Filter"
+
+quarterStep = input.float(
+     25.0,
+     "Quarter Step ($)",
+     minval = 1,
+     step = 0.25,
+     group = groupQuarter
+)
+
+maxQuarterDistance = input.float(
+     6.25,
+     "Maximum Distance From Quarter ($)",
+     minval = 0,
+     step = 0.25,
+     group = groupQuarter
+)
+
+showQuarterGrid = input.bool(
+     true,
+     "Show Quarter Levels",
+     group = groupQuarter
+)
+
+
+// ============================================================================
+// RISK
+// ============================================================================
+
+groupRisk = "6 — Risk"
+
+stopPoints = input.float(
+     15.5,
+     "Stop Loss ($)",
+     minval = 0.5,
+     step = 0.5,
+     group = groupRisk
+)
+
+targetPoints = input.float(
+     25.5,
+     "Take Profit ($)",
+     minval = 0.5,
+     step = 0.5,
+     group = groupRisk
+)
+
+
+// ============================================================================
+// DISPLAY
+// ============================================================================
+
+groupDisplay = "7 — Display"
+
+showAnchor = input.bool(
+     true,
+     "Show Synthetic Body",
+     group = groupDisplay
+)
+
+showSignals = input.bool(
+     true,
+     "Show Signals",
+     group = groupDisplay
+)
+
+showDashboard = input.bool(
+     true,
+     "Show Dashboard",
+     group = groupDisplay
+)
+
+
+// ============================================================================
+// REQUIRE 5 MINUTES
+// ============================================================================
+
+if barstate.isfirst and timeframe.in_seconds() != 300
+    runtime.error(
+         "Micro-Q3 Smoother must be tested on a 5-minute chart."
+    )
+
+
+// ============================================================================
+// NEW YORK TIME
+// ============================================================================
+
+h = hour(time, tz)
+m = minute(time, tz)
+
+
+// ============================================================================
+// STATE
+// ============================================================================
+
+var float synthOpen = na
+var float synthClose = na
+
+var float bodyHigh = na
+var float bodyLow = na
+var float bodySize = na
+
+var int anchorEndTime = na
+
+var bool anchorReady = false
+var bool anchorValid = false
+var bool tradedThisAnchor = false
+
+var int activeEntryTime = na
+
+var string lastSignal = "NONE"
+var float lastQuarter = na
+var float lastQuarterDistance = na
+
+
+// ============================================================================
+// SYNTHETIC ANCHOR
+//
+// 18:45 candle = OPEN
+// 18:50 candle = middle
+// 18:55 candle = CLOSE
+//
+// 18:55 candle closes at 19:00.
+// ============================================================================
+
+isAnchorStart =
+     h == 18 and
+     m == 45
+
+isAnchorMiddle =
+     h == 18 and
+     m == 50
+
+isAnchorLast =
+     h == 18 and
+     m == 55
+
+
+if isAnchorStart
+
+    synthOpen := open
+    synthClose := na
+
+    bodyHigh := na
+    bodyLow := na
+    bodySize := na
+
+    anchorEndTime := na
+
+    anchorReady := false
+    anchorValid := false
+    tradedThisAnchor := false
+
+    activeEntryTime := na
+
+    lastSignal := "NONE"
+    lastQuarter := na
+    lastQuarterDistance := na
+
+
+// ============================================================================
+// COMPLETE SYNTHETIC CANDLE
+// ============================================================================
+
+if isAnchorLast and not na(synthOpen)
+
+    synthClose := close
+
+    bodyHigh :=
+         math.max(
+             synthOpen,
+             synthClose
+         )
+
+    bodyLow :=
+         math.min(
+             synthOpen,
+             synthClose
+         )
+
+    bodySize :=
+         math.abs(
+             synthClose -
+             synthOpen
+         )
+
+    bearishAnchor =
+         synthClose <
+         synthOpen
+
+    anchorValid :=
+         bearishAnchor and
+         bodySize >= minimumBody and
+         bodySize <= maximumBody
+
+    anchorEndTime :=
+         time_close
+
+    anchorReady :=
+         true
+
+
+// ============================================================================
+// SIGNAL WINDOW
+//
+// Anchor finishes 19:00.
+//
+// Eligible completed closes:
+//
+// 19:05
+// 19:10
+// 19:15
+// 19:20
+// 19:25
+// 19:30
+// ============================================================================
+
+minsAfterAnchor =
+     anchorReady and
+     not na(anchorEndTime) ?
+     (time_close - anchorEndTime) /
+     60000.0 :
+     na
+
+
+insideSignalWindow =
+     anchorReady and
+     anchorValid and
+     not na(minsAfterAnchor) and
+     minsAfterAnchor >= 5 and
+     minsAfterAnchor <= signalWindowMin
+
+
+// ============================================================================
+// QUARTER CALCULATION
+// ============================================================================
+
+nearestQuarter =
+     math.round(
+         close /
+         quarterStep
+     ) *
+     quarterStep
+
+
+distanceFromQuarter =
+     math.abs(
+         close -
+         nearestQuarter
+     )
+
+
+quarterOK =
+     distanceFromQuarter <=
+     maxQuarterDistance
+
+
+// ============================================================================
+// TRADE PERMISSION
+// ============================================================================
+
+tradePermission =
+     inResearchWindow and
+     insideSignalWindow and
+     quarterOK and
+     strategy.position_size == 0 and
+     not tradedThisAnchor
+
+
+// ============================================================================
+// A SHORT
+//
+// First completed 5-minute close BELOW synthetic body low.
+// ============================================================================
+
+aShort =
+     enableAShort and
+     tradePermission and
+     not na(bodyLow) and
+     close < bodyLow
+
+
+// ============================================================================
+// FLIP LONG
+//
+// First completed 5-minute close ABOVE synthetic body high.
+// ============================================================================
+
+flipLong =
+     enableFlipLong and
+     tradePermission and
+     not na(bodyHigh) and
+     close > bodyHigh
+
+
+// ============================================================================
+// CONVERT GOLD DISTANCE TO TICKS
+// ============================================================================
+
+slTicks =
+     int(
+         math.max(
+             1,
+             math.round(
+                 stopPoints /
+                 syminfo.mintick
+             )
+         )
+     )
+
+
+tpTicks =
+     int(
+         math.max(
+             1,
+             math.round(
+                 targetPoints /
+                 syminfo.mintick
+             )
+         )
+     )
+
+
+// ============================================================================
+// A SHORT ENTRY
+// ============================================================================
+
+if aShort
+
+    strategy.entry(
+         "A_SHORT",
+         strategy.short,
+         comment = "A_SHORT"
+    )
+
+    strategy.exit(
+         "A_SHORT EXIT",
+         from_entry = "A_SHORT",
+         loss = slTicks,
+         profit = tpTicks
+    )
+
+    tradedThisAnchor := true
+
+    activeEntryTime :=
+         time_close
+
+    lastSignal :=
+         "A_SHORT"
+
+    lastQuarter :=
+         nearestQuarter
+
+    lastQuarterDistance :=
+         distanceFromQuarter
+
+
+// ============================================================================
+// FLIP LONG ENTRY
+// ============================================================================
+
+if flipLong
+
+    strategy.entry(
+         "FLIP_LONG",
+         strategy.long,
+         comment = "FLIP_LONG"
+    )
+
+    strategy.exit(
+         "FLIP_LONG EXIT",
+         from_entry = "FLIP_LONG",
+         loss = slTicks,
+         profit = tpTicks
+    )
+
+    tradedThisAnchor := true
+
+    activeEntryTime :=
+         time_close
+
+    lastSignal :=
+         "FLIP_LONG"
+
+    lastQuarter :=
+         nearestQuarter
+
+    lastQuarterDistance :=
+         distanceFromQuarter
+
+
+// ============================================================================
+// KEEP EXITS ACTIVE
+// ============================================================================
+
+if strategy.position_size < 0
+
+    strategy.exit(
+         "A_SHORT EXIT",
+         from_entry = "A_SHORT",
+         loss = slTicks,
+         profit = tpTicks
+    )
+
+
+if strategy.position_size > 0
+
+    strategy.exit(
+         "FLIP_LONG EXIT",
+         from_entry = "FLIP_LONG",
+         loss = slTicks,
+         profit = tpTicks
+    )
+
+
+// ============================================================================
+// 12-HOUR TIME STOP
+// ============================================================================
+
+maxHoldMs =
+     int(
+         maxHoldHours *
+         60 *
+         60 *
+         1000
+     )
+
+
+timeStopReached =
+     strategy.position_size != 0 and
+     not na(activeEntryTime) and
+     time_close >=
+     activeEntryTime +
+     maxHoldMs
+
+
+if timeStopReached
+
+    strategy.close_all(
+         comment = "12H TIME"
+    )
+
+
+// Reset timer when position closes.
+
+if strategy.position_size == 0 and
+   strategy.position_size[1] != 0
+
+    activeEntryTime := na
+
+
+// ============================================================================
+// ANCHOR VISUALS
+// ============================================================================
+
+plot(
+     showAnchor and
+     anchorReady and
+     anchorValid ?
+     bodyHigh :
+     na,
+     "Synthetic Body High",
+     linewidth = 2,
+     style = plot.style_linebr,
+     color = color.red
+)
+
+
+plot(
+     showAnchor and
+     anchorReady and
+     anchorValid ?
+     bodyLow :
+     na,
+     "Synthetic Body Low",
+     linewidth = 2,
+     style = plot.style_linebr,
+     color = color.red
+)
+
+
+// Highlight 18:45–19:00 anchor.
+
+isAnchorBar =
+     isAnchorStart or
+     isAnchorMiddle or
+     isAnchorLast
+
+
+bgcolor(
+     isAnchorBar ?
+     color.new(
+         color.orange,
+         86
+     ) :
+     na
+)
+
+
+// ============================================================================
+// QUARTER GRID
+// ============================================================================
+
+quarterBelow =
+     math.floor(
+         close /
+         quarterStep
+     ) *
+     quarterStep
+
+
+quarterAbove =
+     quarterBelow +
+     quarterStep
+
+
+plot(
+     showQuarterGrid ?
+     quarterBelow :
+     na,
+     "Quarter Below",
+     style = plot.style_stepline,
+     linewidth = 1,
+     color = color.new(
+         color.blue,
+         40
+     )
+)
+
+
+plot(
+     showQuarterGrid ?
+     quarterAbove :
+     na,
+     "Quarter Above",
+     style = plot.style_stepline,
+     linewidth = 1,
+     color = color.new(
+         color.blue,
+         40
+     )
+)
+
+
+// ============================================================================
+// SIGNAL MARKERS
+// ============================================================================
+
+plotshape(
+     showSignals and
+     aShort,
+     title = "A_SHORT",
+     text = "A\nSHORT",
+     style = shape.labeldown,
+     location = location.abovebar,
+     size = size.tiny,
+     color = color.red,
+     textcolor = color.white
+)
+
+
+plotshape(
+     showSignals and
+     flipLong,
+     title = "FLIP_LONG",
+     text = "FLIP\nLONG",
+     style = shape.labelup,
+     location = location.belowbar,
+     size = size.tiny,
+     color = color.green,
+     textcolor = color.white
+)
+
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+alertcondition(
+     aShort,
+     title = "Micro-Q3 A_SHORT",
+     message = "Micro-Q3 A_SHORT on {{ticker}} @ {{close}}"
+)
+
+
+alertcondition(
+     flipLong,
+     title = "Micro-Q3 FLIP_LONG",
+     message = "Micro-Q3 FLIP_LONG on {{ticker}} @ {{close}}"
+)
+
+
+// ============================================================================
+// DASHBOARD
+// ============================================================================
+
+grossLossAbs =
+     math.abs(
+         strategy.grossloss
+     )
+
+
+profitFactor =
+     grossLossAbs > 0 ?
+     strategy.grossprofit /
+     grossLossAbs :
+     na
+
+
+closedTrades =
+     strategy.closedtrades
+
+
+winRate =
+     closedTrades > 0 ?
+     strategy.wintrades /
+     closedTrades *
+     100 :
+     na
+
+
+var table dash =
+     table.new(
+         position.top_right,
+         2,
+         10,
+         border_width = 1
+     )
+
+
+if barstate.islast and
+   showDashboard
+
+    table.cell(
+         dash,
+         0,
+         0,
+         "MICRO-Q3"
+    )
+
+    table.cell(
+         dash,
+         1,
+         0,
+         "SMOOTHER"
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         1,
+         "Trades"
+    )
+
+    table.cell(
+         dash,
+         1,
+         1,
+         str.tostring(
+             closedTrades
+         )
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         2,
+         "Win Rate"
+    )
+
+    table.cell(
+         dash,
+         1,
+         2,
+         na(winRate) ?
+         "-" :
+         str.tostring(
+             winRate,
+             "#.0"
+         ) +
+         "%"
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         3,
+         "PF"
+    )
+
+    table.cell(
+         dash,
+         1,
+         3,
+         na(profitFactor) ?
+         "-" :
+         str.tostring(
+             profitFactor,
+             "#.00"
+         )
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         4,
+         "Net"
+    )
+
+    table.cell(
+         dash,
+         1,
+         4,
+         str.tostring(
+             strategy.netprofit,
+             "#.##"
+         )
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         5,
+         "Anchor Body"
+    )
+
+    table.cell(
+         dash,
+         1,
+         5,
+         "$1–$6.25"
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         6,
+         "Quarter"
+    )
+
+    table.cell(
+         dash,
+         1,
+         6,
+         "$25 ± $6.25"
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         7,
+         "SL / TP"
+    )
+
+    table.cell(
+         dash,
+         1,
+         7,
+         "15.5 / 25.5"
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         8,
+         "Last Signal"
+    )
+
+    table.cell(
+         dash,
+         1,
+         8,
+         lastSignal
+    )
+
+
+    table.cell(
+         dash,
+         0,
+         9,
+         "Quarter Distance"
+    )
+
+    table.cell(
+         dash,
+         1,
+         9,
+         na(lastQuarterDistance) ?
+         "-" :
+         "$" +
+         str.tostring(
+             lastQuarterDistance,
+             "#.##"
+         )
+    )

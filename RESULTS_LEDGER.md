@@ -5483,3 +5483,391 @@ is AEDT and New York is EST. The 09:50 reference candle is absent on **180 of
 
 Report: `research/gold_10am/report/GOLD_10AM_2024_2026_FULL_REPORT.md`
 Ledger: `research/gold_10am/results/research_ledger.csv` (G01-G26)
+
+
+## GOLD 10AM BODY PIERCE + FLIP — tick-exact (2026-08-21)
+
+Data: 91,629,949 Dukascopy XAUUSD ticks, 2025-08-21 → 2026-08-20 Australia/
+Melbourne, 257 constructible days. Fills: long buys the ask and sells the bid,
+short the reverse; exits resolved on real quotes in arrival order. No assumed
+cost. Anchor: the 10:00 candle's own open (09:50 is absent on 91 of 261
+weekdays).
+
+| ID | Config | n | Window | Exp (pts) | PF | maxDD | Verdict |
+|----|--------|---|--------|-----------|----|-------|---------|
+| GF01 | As supplied (A-short+Flip), SL18/TP40, 09:50 anchor | 206 | 170 days | +0.72 | 1.07 | 606 | NOT VALID — t 0.42 |
+| GF02 | A_S leg alone, SL18/TP40 | 101 | 257 days | +0.207 | ~1.0 | — | NOT VALID — zero, confirms H92 |
+| GF03 | A_L leg alone, SL15/TP25 | 134 | 257 days | +4.77 | 1.66 | — | NOT VALID — train +6.07 / test +1.22 |
+| GF04 | A-both, SL15/TP25 (robust-selected on train) | 235 | 257 days | +2.81 | 1.35 | 174 | **NOT VALID — null p 0.571** |
+| GF05 | Walk-forward, re-selected each fold | 100 | 4 folds OOS | +1.52 | 1.14 | 173.6 | NOT VALID — t 0.58, maxDD > net |
+| GF06 | Random-time long control, SL15/TP25 | 257×400 | 257 days | −0.45 | — | — | CONTROL (benchmark) |
+| GF07 | Permutation null, full selection re-run | 7 perms | 257 days | +2.95 mean | — | — | CONTROL — null BEATS the real result |
+
+Headline: the selection procedure applied to scrambled candles produces a
+slightly BETTER average result (+2.95) than it produces on real candles (+2.81).
+The body is inert. Entry timing is not: random-time longs lose 0.45 points a
+trade against the breakout's +2.81, z 5.81. See H94, H95.
+
+| GL01 | Locked universe + body>=1, SL15/TP25 (no quarter filter) | 104 | 2025-08-21..2026-08-20 | +4.45 | 1.580 | 81.1 | baseline — minPF 1.36 |
+| GL02 | + entry within $7.50 of a $25 quarter | 59 | same | +5.92 | 1.813 | 70.9 | **NOT ADOPTED — minPF 1.28 < 1.36** |
+| GL03 | Same filter, 24 non-round grid phases | 57–68 each | same | — | 1.578 ± 0.141 | — | CONTROL — 5 of 24 beat round on minPF |
+| GL04 | Random 59-of-104 subsets, no rule | 2000 draws | same | — | 1.61 ± 0.28 | — | CONTROL — P(PF≥1.81)=0.22, P(minPF≥1.28)=0.385 |
+| GL05 | Round-number-snapped TP, SL15, locked universe | 131 | same | +3.0..+5.1 | 1.34–1.62 | 86–127 | NOT VALID — no variant beats fixed TP27 minPF 1.42 |
+| GL06 | Key levels / pivots, rejection vs 400-redraw sham | 22–157 per level | 275 days | — | — | — | CONTROL — best edge +0.6pp, family-wise p 0.998 |
+
+Headline: quarters, round numbers, key levels and pivots all measure at their
+controls. The acceptance ladder is x/S (H99). The $25 entry filter raises
+full-sample PF and lowers minimum chronological PF (H100). Reported PF 2.115 on
+the 59-trade set did not reproduce: same 59 trades, measured PF 1.813.
+
+
+## MICRO-Q3 18:45 ANCHOR — ADVERSARIAL VALIDATION + HOLDOUT YEAR (2026-08-22)
+
+Second tick year downloaded from the same Dukascopy BI5 feed: **64,093,055 ticks**,
+2024-08-20 14:00 → 2025-08-20 14:00 UTC, median spread $0.510, 0 undecodable
+files, 0 `bid > ask`, 0 out-of-order. Never inspected while any rule was chosen.
+Same engine, same fill convention (limit TP fills AT target, stop is market-
+triggered on the real next quote).
+
+| ID | Config | n | Window | Exp (pts) | PF | maxDD | Verdict |
+|----|--------|---|--------|-----------|----|-------|---------|
+| MQ01 | Frozen 18:45 micro-Q3 spec | 25 | 2025-08-21..2026-08-20 | +15.47 | 5.125 | 15.9 | **IN-SAMPLE ONLY** |
+| MQ02 | Identical spec, unseen year | 11 | 2024-08-20..2025-08-20 | +3.10 | **1.361** | 63.1 | **NOT VALID OOS** — walk-forward predicted 1.37 |
+| MQ03 | 29 five-minute anchors, n≥10, unseen year | 11–39 each | 2024-25 | median +0.33 | median 1.17 | — | CONTROL — 18:45 ranks **9 of 29** (was 1 of 29) |
+| MQ04 | Random entry minute, real direction | 400 draws | 2025-26 | +14.44 | — | — | CONTROL — p 0.23 vs real +15.47; timing adds nothing |
+| MQ05 | Real minute, random direction | 400 draws | 2025-26 | +2.43 | — | — | CONTROL — collapses |
+| MQ06 | Real minute, inverted direction | 25 | 2025-26 | −9.56 | — | — | CONTROL — sign flips; the direction call IS the edge |
+| MQ07 | Reality Check, 18 anchors × 6,480 params = 116,640 hypotheses, 150 perms | — | 2025-26 | real best +22.44 vs null median +17.10 | — | — | **p = 0.0662** — anchor-only correction would have said 0.0233 |
+
+Headline: the walk-forward's 1.37 prediction and the holdout's 1.361 agree to two
+decimals — the method worked, and what it predicted was the collapse. Direction is
+real (inverting it flips the sign), timing is not (randomising the minute costs
+nothing). Once every parameter actually tried is priced in, p = 0.0662.
+**Classification: FILTERED BUT FRAGILE EDGE.**
+
+Code: `research/microq3/code/{build_holdout,holdout_test}.py`, `research/microq3/ADVERSARIAL.md`
+
+
+## ALL-DAY QUARTERLY THEORY STRUCTURAL SWEEP — BOTH YEARS (2026-08-22)
+
+Rather than defend one anchor: every QT sweep event across the whole 24 hours,
+both tick years, 90-minute and 6-hour cycles.
+
+| ID | Config | n | Window | Exp | PF | maxDD | Verdict |
+|----|--------|---|--------|-----|----|-------|---------|
+| GM01 | Every QT sweep event, MTM at 5/15/30/60/90 min | 7,887 | both years | **−0.60 at every horizon** | <1 | — | NOT VALID — mean spread $0.630; the loss IS the spread |
+| GM02 | Fade every QT event instead | 7,887 | both years | −0.60 | <1 | — | CONTROL — fading loses the same, so there is no information to invert |
+| GM03 | Quarter range → next quarter range | 7,887 | both years | r **+0.62 to +0.69** | — | — | **VALID** — QT predicts RANGE, not direction |
+
+Headline: mark-to-market is flat at −0.60 across every horizon rather than
+decaying toward zero, and mean spread over the same events is $0.630. The
+signature of no directional information at all. What the QT partition does carry
+is volatility clustering — usable for sizing and target width, not for entry side.
+
+Code: `research/goldmap/code/*.py`, report `research/goldmap/REPORT.md`
+
+
+## 10AM QUARTER MATRIX — THE $25 FILTER, IN AND OUT, ON BOTH YEARS (2026-08-22)
+
+Researched rule (first 5m body break wins, a filter failure SKIPS the day),
+SL 15 / TP 25, entry window to 11:00 Melbourne, spread cap 2.0.
+
+| ID | Config | n | Window | Exp (pts) | PF | maxDD | Verdict |
+|----|--------|---|--------|-----------|----|-------|---------|
+| GH01 | + $25 quarter filter | 58 | 2025-26 | +6.89 | 1.997 | 50.4 | **IN-SAMPLE ONLY** |
+| GH02 | + $25 quarter filter, unseen year | 31 | 2024-25 | −3.36 | **0.675** | 167.5 | **NOT VALID OOS** — t −1.04 |
+| GH03 | filter stripped | 103 | 2025-26 | +4.64 | 1.599 | 80.5 | in-sample, t +2.32 |
+| GH04 | filter stripped, unseen year | 62 | 2024-25 | +1.19 | **1.145** | 75.3 | positive OOS, t +0.50 |
+| GH05 | filter stripped, **POOLED** | **165** | both years | +3.34 | **1.422** | 80.5 | **BEST SURVIVING — t +2.17, p 0.0314, positive in BOTH years** |
+| GH06 | Pine v1 selection (BUG-047 substitution) | 180 | both years | +1.03 | 1.117 | 262.0 | NOT VALID — t +0.71, maxDD 262 |
+
+Headline: the $25 filter halves the trade count, **triples the drawdown**
+(80.5 → 167.5) and turns the unseen year negative (1.145 → 0.675), while leaving
+pooled PF essentially unchanged (1.422 → 1.410). It is the single worst component
+in the stack, and Phase 6's shifted-grid controls had already said so in-sample.
+`requireQuarter` now defaults to **false** in the Pine. Confirms H100 out of sample.
+
+Code: `research/goldmap/code/tenam_holdout.py`;
+ledgers `research/goldmap/results/tenam_{both_years,unfiltered_both_years}.csv`
+
+
+## ONE-YEAR IN-SAMPLE OPTIMISATION STUDY — 2025-26 ONLY (2026-08-22)
+
+***EVERY ROW BELOW IS IN-SAMPLE BY CONSTRUCTION.*** Run at explicit user
+direction with the holdout year ruled out and transferability deliberately not an
+objective. Selected as the maximum over **246,807 grid cells** on 896 QT cycles.
+Exact raw Dukascopy tick execution; R = |entry − structural stop|.
+
+| ID | Config | n | Window | Exp (R) | PF | maxDD (R) | Verdict |
+|----|--------|---|--------|---------|----|-----------|---------|
+| IS01 | Base universe, no filters | 363 events | 2025-26 | −0.288 | 0.581 | — | baseline the search starts from |
+| IS02 | Model 2 — highest PF at n≥20 | 20 | 2025-26 | +0.387 | **8.73** | 1.00 | IN-SAMPLE — clears the PF 8.10 benchmark |
+| IS03 | Model 10 — best all-day, n≥25 | 25 | 2025-26 | +0.324 | **8.09** | 1.00 | IN-SAMPLE — clears the PF 5.29 / DD ≤1R benchmark |
+| IS04 | Model 3 — highest PF at n≥30 | 31 | 2025-26 | +0.551 | 6.14 | 1.02 | IN-SAMPLE |
+| IS05 | Model 4 — highest net R | 45 | 2025-26 | +0.707 | 2.93 | 5.47 | IN-SAMPLE — net +31.81R |
+| IS06 | MaxPF configuration as it first reported | 15 | 2025-26 | — | **21.3** | — | **INVALID — 0 of 15 trades ever tested a stop** |
+| IS07 | The same 15 trades, stops actually enforced | 15 | 2025-26 | — | **3.35** | — | the honest number for IS06 |
+| IS08 | Sweep-depth surface, 13 thresholds | 16–363 | 2025-26 | — | **3.97 → 0.74 monotone** | — | **PLATEAU** — 10 ordered steps, not one fitted cell |
+| IS09 | Q2-efficiency "cliff" at 0.45 | 31 → 35 | 2025-26 | — | 6.14 → 3.87 | — | **ARTEFACT** — the drop is 3 trades: −0.04R, −1.01R, −1.02R |
+| IS10 | Activity percentile deciles | 65–120 each | 2025-26 | −0.076 to −0.480 | 0.28–0.88 | — | NOT VALID — negative in ALL TEN deciles, no hump |
+
+Headline: **both stated benchmarks were beaten in-sample** (PF 8.73 at n=20,
+PF 8.09 at n=25 with DD 1.00R). IS06/IS07 is the row that matters — a PF of 21.3
+built entirely out of a subset in which the stop was never reached, worth 3.35
+once stops are enforced. Of the three parameter surfaces only sweep depth behaves
+like structure (IS08); the Q2-efficiency threshold is three trades (IS09) and the
+activity gate is not measuring activity (IS10). **No row here is marked VALID —
+none has an out-of-sample test, by design.**
+
+Code: `research/insample/code/{cycles,resolve,search,models}.py`;
+results `research/insample/results/{models.log,top100.csv}`
+
+### Exit optimisation on the in-sample models (2026-08-22) — 34 families x 6 universes
+
+| ID | Config | n | Window | Exp (R) | PF | maxDD (R) | Verdict |
+|----|--------|---|--------|---------|----|-----------|---------|
+| IS11 | n=20 model, structural target (RR≤0.75 by rule) | 20 | 2025-26 | +0.387 | 8.73 | 1.00 | IN-SAMPLE baseline |
+| IS12 | Same 20 trades, best cell of the 5×6 fixed-R surface | 20 | 2025-26 | +0.543 | **3.93** | 1.36 | **the PF belongs to the target, not the entry (H101)** |
+| IS13 | Same 20 trades, plain 1R target | 20 | 2025-26 | **+0.543** | 3.93 | 1.36 | +10.87R vs +7.74R — 40% MORE money at half the PF |
+| IS14 | n=20 and n=25 models at stop 1.25R / 1.5R / 2.0R | 20, 25 | 2025-26 | — | 11.95 / 10.58 | 0.73 | **IDENTICAL across a doubling — the stop was never tested (H102)** |
+| IS15 | All management overlays (BE ×4, trail ×4, partials ×6) | 20–31 | 2025-26 | — | ≤ baseline | — | NOT ADOPTED — neutral where they never fire, halve PF where they do |
+| IS16 | Base universe, best of all 34 exit families | 896 | 2025-26 | −0.251 | **0.66** | 239.5 | NOT VALID — no exit rescues the raw signal |
+| IS17 | Activity band × cycle heatmap, structural exit | 152–210 per band | 2025-26 | — | 0.27–1.03 | — | NOT VALID — **20 cells, none above PF 1.04** |
+
+Headline: the exit study answers what the search could not. PF 8+ is produced by
+a sub-1R target with a 92–95% win rate, costs 40% of the expectancy, and rests on
+stops that were never reached. The only exit-side finding worth keeping is
+negative: nothing rescues the base universe (IS16) and no activity band is
+profitable (IS17). Beliefs **H101**, **H102**.
+
+Code: `research/insample/code/exits.py`; log `research/insample/results/exits.log`;
+report `research/insample/REPORT.md`
+
+## QUARTERS THEORY (YOTOV) BACKTESTED ON GOLD (2026-08-23)
+
+Yotov's rules are fractions of the large quarter S (tolerance 0.10S, hesitation
+zone 0.30S, half point 0.50S, target 1.00S), so the system is scale-free. Gold
+has no pip convention, so **S is a researcher degree of freedom**: every scale
+is tested, and every scale against **11 phase-shifted grids of identical
+spacing** which share the same data, drift and volatility. Two tick years,
+tick-exact bid/ask fills. 1R = the realised entry-to-stop distance.
+
+| ID | Config | n | Window | Exp | PF | maxDD | Verdict |
+|----|--------|---|--------|-----|----|-------|---------|
+| QG01 | P(continuation) from a quarter-point crossing, round $25 grid | 240,876 | 2025-26 | — | P=0.5027 | — | H99 predicts 0.500 |
+| QG02 | Same, 11 shifted phases | 240,876 ea | 2025-26 | — | 0.5026–0.5028 | — | CONTROL — round indistinguishable |
+| QG03 | Largest round-vs-shifted gap, ALL 192 cells (2 yr × 8 scales × 12 phases) | — | both | — | **0.000211** | — | **CONTROL — the whole roundness effect is 0.02pp** |
+| QG04 | Crossing-overshoot model of the excess over 0.500 | both | both | — | pred/obs 0.96–1.06 | — | the excess IS tick discretisation (H106) |
+| QG05 | Daily + weekly extremes within 0.10S of a quarter point | 1252 / 214 | both | — | 0.187–0.252 vs 20% base | — | NOT VALID — 8 of 10 cells at base rate |
+| QG06 | Same, the 2 cells at p<0.05 (daily & weekly S=$50) | 1252 / 214 | both | — | 0.225 / 0.252 | — | NOT VALID — 10 cells tested, Bonferroni 0.15 / 0.36 |
+| QG07 | Hesitation Zone system, ROUND grid, S=$25 | 7,381 | 2025-26 | −0.138R | **0.811** | 1054.9R | **NOT VALID — −$9,187** |
+| QG08 | Same, 11 shifted phases | 7,381 ea | 2025-26 | — | 0.783–0.832 | — | CONTROL — **0 of 12 phases profitable**, round ranks 2/12 |
+| QG09 | Same, S=$25, holdout year | 1,148 | 2024-25 | −0.102R | 0.859 | — | NOT VALID — 0 of 12 phases profitable |
+| QG10 | Round grid's rank among its 12 phases, all 8 (year × scale) cells | — | both | — | ranks 2,10,9,10,8,4,9,3 | — | CONTROL — median 8.5/12, below average |
+| QG11 | **Zero-cost control — identical trades filled on MID** | 7,430 | 2025-26 | **+0.008R** | **1.011** | — | **the signal is a coin flip; the loss is execution** |
+| QG12 | Zero-cost, S=$50 / $100 | 1,946 / 523 | 2025-26 | −0.009R / +0.007R | 0.987 / 1.010 | — | same at every scale with a real sample |
+| QG13 | Execution cost vs nominal spread | — | both | 0.146R vs 0.089R | — | — | **1.4–2.2×** — the bid hits a long's stop before the mid would |
+| QG14 | Entry AT the quarter point, same dollar risk (no 0.30S filter) | 5,278 | 2025-26 | −0.103R | 0.871 | — | **the Hesitation Zone filter HURTS** (0.871 vs 0.811) |
+| QG15 | Long vs short split, S=$25 | 3,750 / 3,631 | 2025-26 | — | 0.828 / 0.793 | — | CONTROL — not an artefact of gold's +34% year |
+| QG16 | Profitable cells (S=$250) | 87 / 10 | 2025-26 / 2024-25 | +0.034R / +0.187R | 1.059 / 1.868 | — | NOT VALID — phase range 0.88–1.55 and 0.22–4.49 |
+
+Headline: **the Quarters Theory does not work on gold and roundness contributes
+nothing.** Three independent tests agree. The mechanism is settled by QG11 — with
+zero costs the profit factor is 0.99–1.01 at every scale with a real sample, so
+the signal has no edge before costs and the entire loss is the spread. Yotov's
+own Hesitation Zone filter makes it worse (QG14). Where the system does make
+money the sample has collapsed to n=87 and n=10 (QG16).
+
+SCOPE LIMIT: this is **gold**; Yotov's claim is **FX**. QG01–QG04 are
+market-agnostic mathematics and transfer; QG05–QG16 are gold-specific. The
+discretionary "fundamental justification" gate is unfalsifiable and untested.
+
+Beliefs **H105**, **H106**. Code `research/quarters/code/`; report
+`research/quarters/REPORT.md`.
+
+### Quarters Theory on gold — the two fair objections tested (2026-08-23)
+
+| ID | Config | n | Window | Exp | PF | Verdict |
+|----|--------|---|--------|-----|----|---------|
+| QG17 | H1-close trigger, ROUND grid, all scales | 33–819 | both | — | 0.619–0.954 | NOT VALID — **−$1,890**, round is worst or 2nd-worst of its 4 phases in EVERY H1 cell |
+| QG18 | D1-close trigger, ROUND vs 3 shifted | 9–152 | both | — | 0.326–1.353 | NOT VALID — round −$492 vs shifted **+$492/phase** |
+| QG19 | Trend filter (none / 1d / 3d / 10d), ROUND | 38–1931 | both | — | mean 0.924–1.001 | NOT VALID — net $ negative under EVERY filter |
+| QG20 | Same filters, shifted grids | same | both | — | mean 1.000–1.107 | **CONTROL — momentum helps the SHIFTED grids MORE than the round one** |
+
+Headline: bar-close entry cuts the trade count an order of magnitude and does
+not turn the system profitable. A momentum filter helps a little — and helps
+non-round grids more. Under all four filters the round grid's mean PF sits below
+the shifted mean and its dollars stay negative while the shifted average turns
+positive. **Adding Yotov's trend layer to his quarters makes the case for
+roundness worse, not better.**
+
+FINAL VERDICT on the gold test: the Quarters Theory does not work on gold and
+roundness contributes nothing. Both fair objections were tested and neither
+changes the answer. NOT SETTLED: the FX claim (QG01–QG04 transfer as
+mathematics, QG05–QG20 are gold-specific), the unfalsifiable fundamental gate,
+and the Trend Waves layer as standalone swing analysis.
+
+### Pine audit — "Micro-Q3 Smoother — GOLD [Recovered Research Logic]" (2026-08-23)
+
+Supplied Pine v6 strategy audited against the tick engine. Source archived at
+`research/microq3/pine/micro_q3_smoother_v1.pine`; full write-up at
+`research/microq3/PINE_SMOOTHER_AUDIT.md`. All rows share the script's own
+settings: SL $15.50, TP $25.50, 12-hour time stop.
+
+| ID | Config | n | Window | Exp | PF | maxDD | Verdict |
+|----|--------|---|--------|-----|----|-------|---------|
+| PS01 | Researched selection, spread ≤ 1.50 (the header's claim) | 25 | 2025-08-21..2026-08-20 | +14.74 | **4.894** | 15.9 | **IN-SAMPLE ONLY** — header claims 4.887, reconciles once the 12h clock is applied |
+| PS02 | Researched selection, NO spread filter (what Pine can reproduce) | 34 | 2025-26 | +10.34 | 2.869 | 46.9 | IN-SAMPLE ONLY — the unreproducible filter is worth PF 2.87→4.89 |
+| PS03 | **PINE AS WRITTEN** (BUG-047, quarter filter is a search) | 45 | 2025-26 | +7.63 | 2.149 | 62.7 | **DEFECT** — +32% trades vs PS02, PF −25%, maxDD +34% |
+| PS04 | Same three rules, holdout year | 11 / 12 / 17 | 2024-08-20..2025-08-20 | +1.84 / +0.38 / +4.20 | 1.257 / 1.049 / 1.649 | 41.4 / 57.1 / 41.4 | **NOT VALID OOS** — Pine's own headline falls 2.149→1.649, researched 4.894→1.257 |
+| PS05 | Trades BUG-047 ADDS, both years pooled | 16 | both | +3.66 | 1.464 | — | **CONTROL — coin flip.** 8 SL / 7 TP / 1 TIME, WR 50.0%, t=+0.71; sign reverses by year (−8.3 on 11 IS, +66.8 on 5 OOS) |
+| PS06 | Wait-for-quarter vs take-the-first-break, on the same 16 substituted days | 16 | both | — | — | — | CONTROL — +58.5 vs +26.6, but **13 of 16 days resolve identically**; the quarter delays entry into the same move |
+| PS07 | Fill model, entries held fixed: mid fill + no costs vs real bid/ask | 25 | 2025-26 | — | 4.849 → 4.914 | 15.9 | **+$5.60 / 1.5%** — spread changes WHICH trades win, not what a win pays; flipped none here. Median entry spread $0.947 |
+| PS08 | Flip the winners with the least room before their target | 25 | 2025-26 | — | 4.894 → 3.280 | — | **FRAGILITY — 2 of 18 winners survived by $0.09 and $0.13.** Flipping those two costs PF 1.6 |
+
+Two corrections to earlier repo numbers found during this audit:
+
+1. **MQ01's PF 5.125 and this PF 4.894 are the same result under different
+   horizons.** MQ01 used the engine's session horizon (17:00 NY next day, ~22h);
+   the script's 12-hour stop is what reproduces the header's 4.887.
+2. **`microq3.apply()` credits favourable target overshoot** — it books
+   `fav[j]`, the first real quote at or beyond the target, not the target price.
+   `research/quarters/code/system.py` treats the target as a resting limit.
+   Worth +$4.26 over the 25 trades; this is optimism in OUR baseline, not the
+   Pine's.
+
+Headline: the script is a faithful transcription of the stated spec and its
+header numbers reconcile — but it contains BUG-047 for the second time in this
+repo, it defaults to hiding the year that fails, and the headline it advertises
+rests on two trades that survived by nine and thirteen cents.
+
+### Yotov Gold Quarter Engine v1 — built to spec and tested (2026-08-23)
+
+User-supplied architecture: fixed price map (LQP $25, rungs at 0.10 / 0.30 /
+0.50 / 0.80 / 0.90 / 1.00), four layers (Yotov state, Spaceman location,
+liquidity event, timing), eight trade families, dual-hesitation lockout, attempt
+counter, $100 range transition. Code `research/yotov_engine/code/`, write-up
+`research/yotov_engine/REPORT.md`. All rows: real bid/ask fills, 12h clock,
+both tick years. **EDGE = realised WR minus each trade's own geometric baseline
+`p_geom = risk/(risk+reward)`** — zero for a rule that only re-describes the
+geometry, whatever its win rate.
+
+| ID | Config | n | Window | Exp $ | PF | EDGE | Verdict |
+|----|--------|---|--------|-------|----|------|---------|
+| YE01 | Rung ladder, round $25 grid, all six steps | 106,451 attempts | both | — | — | within ~2pp of x/y | **CONTROL — the ladder is gambler's ruin (H99)** |
+| YE02 | Whole → Completion, round grid | 1,608 / 245 | 2025-26 / 2024-25 | — | — | 87.94% / 87.35% vs H99 88.89% | cited "89.66% on 2,708" does not reproduce; number is 0.80/0.90 |
+| YE03 | Same, 12 phase-shifted grids | 1,608 ea | both | — | — | round 87.94% vs shifted mean 89.36% | **CONTROL — round ranks 12/12 and 11/12. Roundness slightly HURTS** |
+| YE04 | Completion → target, round grid | 1,414 / 214 | both | — | — | 91.80% / 91.12% vs H99 90.00% | cited 84.76% does not reproduce |
+| YE05 | F1 sweep+reclaim (Spaceman level swept at an LQP, reclaimed) | 23,650 | both | −0.76 | 0.492 | −7.4% | NOT VALID |
+| YE06 | F2 quarter acceptance (HZ cleared, pullback holds LQP) | 3,311 | both | −1.05 | 0.634 | −7.8% | NOT VALID |
+| YE07 | F3 Whole → Completion, structural stop | 1,712 | both | −1.45 | 0.464 | −13.6% | NOT VALID |
+| YE08 | F4 failed completion reversal | 1,519 | both | −1.12 | 0.597 | −8.7% | NOT VALID |
+| YE09 | F5 major $100 range transition | 298 | both | −4.50 | 0.592 | −12.1% | NOT VALID |
+| YE10 | **ALL five families combined** | **30,490** | both | **−0.89** | **0.527** | **−7.9%** | **NOT VALID** |
+| YE11 | **ZERO-COST control, mid-to-mid, same trades** | 30,490 | both | −0.023 | **0.984** | **+1.2%** | **CONTROL — the signal is a coin flip; the whole loss is execution** |
+| YE12 | Whole → Completion with a WIDE stop at the LQP | 1,712 | both | **−1.46** | 0.52 | −6.6% | **WR 85.1% — the promised win rate, and it loses money** |
+| YE13 | Completion → LQP with a wide stop | 1,488 | both | −1.12 | 0.59 | −4.9% | WR 87.6%, still negative |
+| YE14 | Cost drag by target size | 38,210 | both | — | — | — | **cost = 108.9% of a $2 target, 60.7% of $2–4, 20.4% of $4–7, 9.6% of $7–12** |
+| YE15 | Phase control on the whole engine, 6 grids | 30k ea | both | — | round 0.527 vs shifted 0.457–0.554 | — | **CONTROL — round ranks 4/6, mid-pack** |
+| YE16 | Phase control, F5 major $100 transition | 259–318 ea | both | — | round 0.592 vs shifted mean 0.902 | — | **CONTROL — round ranks 6/6, WORST. Only profitable on a shifted grid** |
+| YE17 | Structural confluence (10 Spaceman levels) | 30,490 | both | — | — | −6.6% at ≤$0.50 vs −9.8% at >$6.25 | 3pp in the predicted direction, swamped by 8pp cost |
+| YE18 | Attempt number, 24h recency window | 606 / 28,800 | both | — | — | free edge +4.3% (att 1) vs +1.0% (att 4+) | **the spec's "fresh attempt" rule is directionally RIGHT — and 3pp** |
+| YE19 | Dual-hesitation lockout | 3,807 flagged | both | — | — | −9.2% flagged vs −7.8% clean | filter points the right way, worth 1.4pp |
+| YE20 | Exhaustive slice search, 250–500 trades/yr band | 60 slices | both | −0.18 best | **0.85 best** | — | **NOT VALID — no slice reached PF 1.0, against a bar of 2.5** |
+| YE21 | Quote-clustering artefact check | 2.48M quotes | 2025-26 | — | — | — | **CONTROL — gold quotes hit $0.25 boundaries 25× LESS than uniform; the phase control is not measuring my own grid** |
+
+Headline: the engine was built exactly as specified and every layer measured
+rather than assumed. It produces 22,558 trades a year at PF 0.527. The three
+reasons are independent and each is decisive: the rung ladder is arithmetic
+(YE01–YE04), the signal is a coin flip once execution is removed (YE11), and the
+$2–2.50 target the spec prefers costs more to trade than it pays (YE14). The
+conditioning layers all pointed the way the spec predicted and were each worth
+1–3 percentage points against an 8-point cost — **they were not wrong, they were
+too small.**
+
+| YE22 | **Family 7 "Failed Whole → Half", full 12-phase control** | 1,829 | both | −0.86 | free 1.195 | **round +6.23% vs shifted mean +2.36%, rank 1/12, z=+3.16** | the ONLY level rule in this repo ever to beat its phase control |
+| YE23 | Same, split by year | 1,596 / 233 | 2025-26 / 2024-25 | — | — | **rank 1/12 z=+3.80 in-sample; rank 5/12 z=+0.06 OOS** | **NOT VALID — does not replicate; pooled result was 87% in-sample** |
+| YE24 | Same, cost arithmetic | 1,829 | both | free +0.402, real −0.861 | — | — | needs a spread under $0.32 to break even; measured median $0.81 |
+
+**On YE22–YE24.** Family 7 was the one result worth chasing and it got the full
+treatment: 12 phases, a quote-clustering artefact check (YE21), and an
+out-of-sample split. It passed the first two and failed the third. Recording it
+because the *shape* matters — a z of +3.80 in-sample collapsing to +0.06 out of
+sample, on a family selected as the best of eleven, is what overfitting looks
+like when it is caught. Had it replicated it would still have lost money.
+
+### The "3-window" anchor selector, tested (2026-08-23)
+
+Supplied Pine offers 18:45 / 19:30 / 21:15 as selectable anchors, screenshot
+showing 21:15 at 15 trades / 80% WR / PF 4.50 / net +168. Tested on the tick
+engine at the screenshot's own SL 16 / TP 18, 12h stop, window = anchor+15 to
+anchor+45, against an ALL-DAY sweep of every 5-minute anchor with n>=10.
+
+| ID | Anchor | 2025-26 (in-sample) | 2024-25 (unseen) | Verdict |
+|----|--------|---------------------|------------------|---------|
+| AW01 | **18:45** | n=25, PF **3.415**, rank **1/271** | n=11, PF 1.306, rank **55/270** | in-sample champion, ordinary out of sample |
+| AW02 | **19:30** | n=31, PF 1.070, rank 79/271 | n=24, PF 1.720, rank **19/270** | ranks invert vs 18:45 |
+| AW03 | **21:15** | n=40, PF **1.784**, rank **10/271** | n=30, PF **0.577**, rank **238/270** | **NOT VALID — top-10 anchor becomes bottom-12%** |
+| AW04 | All-day anchor distribution | 271 / 270 anchors | median PF 0.874 / 0.944 | **CONTROL — 95 of 271 and 122 of 270 arbitrary anchors clear PF 1.0** |
+
+**About 40% of arbitrary five-minute anchors "work" in any given year**, so
+picking the best of three is a three-way multiple comparison on top of the
+116,640 hypotheses MQ07 already priced at p = 0.0662. 21:15 is the clearest
+case this repo has produced: rank 10 of 271 in-sample, rank 238 of 270 out of
+sample, and the sign of its expectancy flips with it (+$192 to −$102).
+
+Caveat on the comparison: the screenshot's 15 trades do not match the 40 my
+engine finds in the same year at those settings, so its window or filters differ.
+Per the evidence hierarchy, the exported trade list would settle it; the anchor
+ranking above does not depend on that reconciliation.
+
+**BUG-049 was found and fixed inside this test** — the first pass moved
+`anchor_start` without moving `win_from`/`win_to`, so it built a 21:15 anchor and
+searched for breaks at 19:00. It returned PF 0.054 on a 4.2% win rate, which the
+absurdity assertion caught. The repo's archived anchor scans were checked and do
+it correctly, so MQ03 stands.
+
+### Quarter Theory late-state books, Round 1 — acceptance vs touch (2026-08-23)
+
+Brief: frequency constraint lifted, tiny targets explicitly allowed, MFE/MAE
+before stops, chronological TRAIN / VALIDATION / HOLDOUT. Code
+`research/qt2/code/`, write-up `research/qt2/REPORT.md`. 155,723,004 ticks,
+106,451 attempts, raw-tick execution inside each attempt window (nothing grid
+quantised). **EDGE = realised P(next rung) minus `p_geom = to_lqp/(to_lqp+to_next)`,
+the driftless probability from that exact fill.**
+
+Splits: TRAIN 2024-08-20..2025-08-20 | VALIDATION 2025-08-20..2026-02-20 |
+HOLDOUT 2026-02-20..2026-08-21.
+
+| ID | Config | n | Split | Exp $ | PF | EDGE | Verdict |
+|----|--------|---|-------|-------|----|------|---------|
+| QT2-01 | Book A Whole→Comp, TOUCH | 1,823 | both yr | — | — | **−8.2%** (z −13.1) | NOT VALID |
+| QT2-02 | Book A, EXC $0.50 | 1,777 | both yr | — | — | −7.9% (z −14.2) | NOT VALID |
+| QT2-03 | Book A, 50 TICKS beyond | 1,435 | both yr | — | — | −6.2% (z −10.6) | NOT VALID |
+| QT2-04 | Book A, RETEST-and-hold | 1,238 | both yr | — | — | −5.8% (z −9.7) | NOT VALID |
+| QT2-05 | Book A, DWELL 60s | 655 | both yr | — | — | −4.8% (z −6.0) | NOT VALID — **raw WR 90.8% vs 84.1% for touch, and still below its own baseline** |
+| QT2-06 | Book B Comp→LQP, all five defs | 233–1,606 | both yr | — | — | −0.8% to −6.5% | NOT VALID |
+| QT2-07 | **ZERO-COST control, mid fills** | same | both yr | — | — | **−0.8% to −3.4%** | **CONTROL — ~2/3 of the deficit is execution; residual is H106 overshoot** |
+| QT2-08 | Zero-cost, Book A TOUCH, $0.50 target vs $20 stop | 1,823 | both yr | −0.558 | **0.459** | — | **CONTROL — 94.8% WR and PF 0.46 paying NOTHING. Risking $20 for $0.50 fails frictionlessly** |
+| QT2-09 | Tiny-target sweep, Book A TOUCH, $20 stop | 234 ea | TRAIN | −1.500 to −0.949 | 0.23–0.71 | — | **NOT VALID at every target $0.50–$5.00. $0.50 target = 89.3% WR, PF 0.23, spread is 113% of target** |
+| QT2-10 | Full 1,000-cell sweep (2 books × 5 defs × 10 targets × 10 stops) | 1.22M races | TRAIN | best +0.293 | best 1.08 | — | **8 of 1,000 cells positive (0.8%)** |
+| QT2-11 | Same 1,000 cells | — | VALIDATION | best −0.554 | — | — | **0 of 1,000 positive** |
+| QT2-12 | Same 1,000 cells | — | HOLDOUT | best −0.546 | — | — | **0 of 1,000 positive** |
+| QT2-13 | Cells positive in ALL THREE splits | — | all | — | — | — | **0 of 1,000** |
+| QT2-14 | Frozen TRAIN champion (B/dwell/tp$5/sl$20) | 94/70/69 | TR/VAL/HO | +0.293 / **−1.529** / **−0.642** | 1.08 / 0.70 / 0.86 | — | **NOT VALID OOS — sign reverses** |
+| QT2-15 | All 8 TRAIN-positive cells pooled out of sample | 1,112 | VAL+HO | **−0.966** | **0.700** | — | **NOT VALID — every one reverses** |
+| QT2-16 | Filter waterfall, target pinned $2.50 / stop $20 | 176–234 | TRAIN | −1.036 → −0.237 → −0.690 | 0.66→0.90→0.75 | — | **CONTROL — NOT monotone. Stricter dwell(60s) is WORSE than retest despite 176 vs 177 events** |
+
+**Headline.** Acceptance is a real phenomenon and it is worth exactly nothing.
+Requiring 60 continuous seconds beyond the Whole lifts the raw hit rate from
+84.1% to 90.8% — and lifts the geometric baseline from 92.3% to 95.6%, because
+waiting means entering closer to the target. The win rate is bought at precisely
+the price of its own improvement, in both books, both years, all five
+definitions. The $0.50 target hits **89.3%** of the time — within a rounding
+error of the 89.66% the architecture was built on — and is the worst cell in the
+entire study at PF 0.23.
+
+**Method note that would have saved both rounds:** the single cheap number is
+zero-cost edge over the entry's own geometric baseline. It was −0.8% to −3.4%
+here and +1.2% in the Yotov engine round. Neither needed a 1,000-cell sweep to
+reject.

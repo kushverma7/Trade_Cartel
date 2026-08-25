@@ -1,0 +1,126 @@
+==============================================================================================================================
+TEN MODEL CATEGORIES   ***ONE-YEAR IN-SAMPLE OPTIMISED, 2025-08-21 to 2026-08-20***
+Selected as the maximum over 246,807 grid cells on a base universe of PF 0.581 / -0.288R.
+==============================================================================================================================
+
+MODEL 1  ABSOLUTE HIGHEST PF   
+  rule: cyc=D123 sweep=both Q2eff<=0.5 DFR<=0.85 Q1eff>=0.3 RR<=0.75 sweep<=9 act=(0.0, 1.0)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           13     inf  +0.205   +2.67 100.0%   0.00   0.00  0.928    0   7/7        12/0/1
+  unresolved time exits contribute +0.41R of +2.67R (15%)
+
+MODEL 2  HIGHEST PF, n>=20   
+  rule: cyc=D123 sweep=any Q2eff<=0.4 DFR<=0.85 Q1eff>=0 RR<=0.75 sweep<=9 act=(0.3, 0.8)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           20    8.73  +0.387   +7.74  95.0%   1.00   0.26  0.965    1   8/9        19/1/0
+
+MODEL 3  HIGHEST PF, n>=30   
+  rule: cyc=ALL sweep=any Q2eff<=0.4 DFR<=0.75 Q1eff>=0.2 RR<=2 sweep<=9 act=(0.3, 0.8)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           31    6.14  +0.551  +17.08  87.1%   1.02   0.42  0.966    1  10/11       24/3/4
+  unresolved time exits contribute +0.82R of +17.08R (5%)
+
+MODEL 4  HIGHEST NET R   
+  rule: cyc=ALL sweep=single Q2eff<=9 DFR<=0.9 Q1eff>=0.2 RR<=99 sweep<=0.1 act=(0.0, 1.0)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           45    2.93  +0.707  +31.81  55.6%   5.47   2.04  0.879    4   9/12     19/13/13
+  unresolved time exits contribute +6.07R of +31.81R (19%)
+
+MODEL 5  HIGHEST EXPECTANCY   
+  rule: cyc=D123 sweep=any Q2eff<=9 DFR<=0.7 Q1eff>=0.2 RR<=99 sweep<=0.1 act=(0.0, 1.0)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           15    5.54  +1.781  +26.72  60.0%   3.60   1.42  0.922    3   7/9         6/5/4
+  unresolved time exits contribute +7.98R of +26.72R (30%)
+
+MODEL 6  SMOOTHEST EQUITY   (composite of R2, monthly consistency, DD, Ulcer, streak)
+  rule: cyc=D1 sweep=any Q2eff<=0.4375 DFR<=9 Q1eff>=0 RR<=1 sweep<=9 act=(0.2, 0.8)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           22    3.79  +0.301   +6.62  81.8%   1.00   0.35  0.952    1  10/10       18/2/2
+  unresolved time exits contribute -0.37R of +6.62R (-6%)
+
+MODEL 7  LOWEST DRAWDOWN, n>=20   
+  rule: cyc=ALL sweep=any Q2eff<=0.4375 DFR<=0.75 Q1eff>=0 RR<=1 sweep<=9 act=(0.3, 0.8)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           23    8.51  +0.425   +9.77  91.3%   1.00   0.31  0.959    1  10/11       20/1/2
+  unresolved time exits contribute -0.28R of +9.77R (-3%)
+
+MODEL 8  BEST ACTIVITY-GATED   
+  rule: cyc=D123 sweep=any Q2eff<=0.4 DFR<=0.85 Q1eff>=0 RR<=0.75 sweep<=9 act=(0.3, 0.8)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           20    8.73  +0.387   +7.74  95.0%   1.00   0.26  0.965    1   8/9        19/1/0
+
+MODEL 9  BEST PURE QT (sweep/DFR structure only)   
+  rule: cyc=ALL sweep=single Q2eff<=9 DFR<=0.8 Q1eff>=0.2 RR<=99 sweep<=0.075 act=(0.0, 1.0)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           20    4.55  +1.165  +23.30  60.0%   3.04   1.32  0.868    3   7/9        10/5/5
+  unresolved time exits contribute -0.35R of +23.30R (-1%)
+
+MODEL 10  BEST ALL-DAY   
+  rule: cyc=ALL sweep=any Q2eff<=0.4375 DFR<=0.9 Q1eff>=0.2 RR<=0.75 sweep<=9 act=(0.3, 0.8)
+            n      PF   exp R   net R     WR     DD  Ulcer     R2 strk    mo+   TP/SL/TIME
+           25    8.09  +0.324   +8.11  92.0%   1.00   0.28  0.955    1  10/11       23/1/1
+  unresolved time exits contribute -0.14R of +8.11R (-2%)
+
+  top 100 candidates written to results/top100.csv
+
+==============================================================================================================================
+PARAMETER SURFACES — is the edge a plateau or one cell?   [IN-SAMPLE]
+==============================================================================================================================
+
+  Q2 EFFICIENCY THRESHOLD  (the reported cliff near 0.45)
+  Q2eff <=      n      PF    exp R    net R     WR   new trades admitted
+  0.3          20    5.28   +0.498    +9.96  85.0%   
+  0.325        23    4.37   +0.487   +11.20  82.6%   +0.61R  -1.00R  +1.63R
+  0.35         27    4.96   +0.488   +13.18  85.2%   +0.67R  +0.86R  +0.02R  +0.43R
+  0.375        29    5.63   +0.531   +15.41  86.2%   +1.54R  +0.69R
+  0.4          31    6.14   +0.551   +17.08  87.1%   +0.39R  +1.29R
+  0.425        33    4.67   +0.486   +16.04  81.8%   -0.04R  -1.01R
+  0.4375       34    4.77   +0.486   +16.51  82.4%   +0.47R
+  0.45         35    3.87   +0.443   +15.49  80.0%   -1.02R
+  0.475        35    3.87   +0.443   +15.49  80.0%   
+  0.5          35    3.87   +0.443   +15.49  80.0%   
+  0.55         36    3.27   +0.402   +14.49  77.8%   -1.00R
+  0.6          37    3.27   +0.393   +14.54  78.4%   +0.05R
+  9            40    2.87   +0.346   +13.82  77.5%   +0.01R  +0.28R  -1.01R
+
+  DFR / Q1 THRESHOLD
+  DFR <=        n      PF    exp R    net R     WR
+  0.5           4    1.79   +0.200    +0.80  75.0%
+  0.6           8    4.07   +0.388    +3.10  87.5%
+  0.7          21    4.94   +0.436    +9.16  85.7%
+  0.75         31    6.14   +0.551   +17.08  87.1%
+  0.775        33    4.75   +0.493   +16.25  84.8%
+  0.8          39    3.29   +0.382   +14.89  79.5%
+  0.825        41    2.92   +0.352   +14.43  78.0%
+  0.85         47    2.30   +0.293   +13.78  74.5%
+  0.9          57    1.49   +0.145    +8.24  66.7%
+  9            86    1.35   +0.111    +9.50  62.8%
+
+  SWEEP DEPTH THRESHOLD  (shallow liquidity grabs hypothesis)
+  sweep <=      n      PF    exp R    net R     WR
+  0.05         16    3.97   +0.900   +14.40  62.5%
+  0.075        24    2.72   +0.787   +18.89  50.0%
+  0.1          37    2.54   +0.665   +24.61  48.6%
+  0.125        47    1.69   +0.356   +16.74  42.6%
+  0.15         60    1.49   +0.256   +15.37  38.3%
+  0.175        69    1.49   +0.256   +17.65  39.1%
+  0.2          80    1.40   +0.213   +17.08  38.8%
+  0.225        87    1.33   +0.180   +15.62  39.1%
+  0.25         97    1.13   +0.072    +7.01  37.1%
+  0.3         112    1.02   +0.010    +1.10  35.7%
+  0.4         172    0.99   -0.005    -0.88  33.7%
+  0.5         200    0.90   -0.063   -12.66  34.5%
+  9           363    0.74   -0.174   -63.23  32.5%
+
+  ACTIVITY PERCENTILE DECILES  (is the relationship hump-shaped?)
+  activity          n      PF    exp R    net R     WR
+  0%-10%           76    0.28   -0.480   -36.51  35.5%
+  10%-20%          76    0.61   -0.278   -21.11  25.0%
+  20%-30%          90    0.60   -0.304   -27.34  22.2%
+  30%-40%          65    0.36   -0.458   -29.75  30.8%
+  40%-50%          64    0.35   -0.454   -29.08  32.8%
+  50%-60%          75    0.88   -0.076    -5.68  32.0%
+  60%-70%         100    0.42   -0.431   -43.13  27.0%
+  70%-80%          80    0.79   -0.140   -11.23  31.2%
+  80%-90%          90    0.76   -0.164   -14.74  30.0%
+  90%-100%        120    0.77   -0.143   -17.16  32.5%

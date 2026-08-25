@@ -1285,3 +1285,331 @@ replacement string in a unit test and require no match. Verified separately that
 the flagged file holds 0 lines matching any live-credential pattern.
 
 **Status:** OPEN — reported, not yet fixed.
+
+---
+
+## BUG-042 — A global back-off multiplies its own cost by the worker count (2026-08-21)
+
+**Symptom:** the Dukascopy tick fetcher ran at 12 hours/sec for the first ~800
+hours, then collapsed to 0.4 hours/sec and stayed there. No request was failing:
+295 of the last 300 hours succeeded on the first attempt, with zero retries.
+
+**Root cause:** on any 503 the fetcher set a **global** cool-off,
+`_throttle_until = now + 30`, shared by all 16 workers. Every worker checked it
+before each request. So one 503 did not cost 30 seconds — it cost 16 workers x 30
+seconds of idle capacity, and 503s arrived often enough that the pool spent most
+of its life parked. The throttle intended to be polite to the server was the
+thing destroying throughput.
+
+**Why it was hard to see:** the per-hour records looked *healthy* — no errors, no
+retries. The damage was in the time between requests, which nothing logged. The
+symptom (slow) and the evidence (clean records) pointed away from each other.
+
+**Fix:** shorten the global cool-off to 4 seconds and let each worker's own
+exponential BACKOFF ladder do the real spacing. A per-worker ladder staggers
+retries; a global pause synchronises every worker onto the same stall. Raising
+concurrency to 24 afterwards restored 12 hours/sec with a negligible error rate.
+
+**Prevention:** a back-off that blocks shared workers is priced in
+worker-seconds, not seconds. Before adding one, multiply the pause by the pool
+size and ask whether that is an acceptable cost for one failed request. Prefer
+per-request back-off; reserve global pauses for genuine 429s, and keep them
+short. And when throughput drops while the success rate stays perfect, suspect
+your own rate limiter before the server's.
+
+---
+
+## BUG-043 — np.datetime64() rejects a np.int64 scalar under NumPy 2.x (2026-08-21)
+
+**Symptom:** `ValueError: Could not convert object to NumPy datetime` from
+`np.datetime64(ts[0], "ms")`, where `ts` was a perfectly ordinary int64 array of
+epoch milliseconds. The array was fine; indexing it was fine; only the
+conversion failed.
+
+**Root cause:** `ts[0]` is a `np.int64` scalar, not a Python `int`. NumPy 2.x no
+longer accepts a NumPy integer scalar in the `np.datetime64(value, unit)`
+constructor. `np.datetime64(int(ts[0]), "ms")` works.
+
+**Why it matters here:** the message names *datetime* conversion, so the
+instinct is to distrust the timestamp column — which had just been rewritten to
+fix a genuinely different timezone problem. Two unrelated defects wearing the
+same error text sent the first fix down the wrong path.
+
+**Prevention:** wrap NumPy integer scalars in `int()` at any boundary that
+expects a Python scalar. When an error survives a fix that should have resolved
+it, re-read the traceback line rather than re-fixing the same suspect: the line
+number moving without the message changing is the tell that it is a second bug.
+
+---
+
+## BUG-044 — A range classifier that only inspects its ENDPOINTS misses what the range SPANS (2026-08-21)
+
+**Symptom:** the tick-gap classifier flagged a 73-hour hole in the gold feed
+(2026-04-02 → 2026-04-05) as UNEXPLAINED. It is the Good Friday shutdown, the
+single most predictable closure of the year.
+
+**Root cause:** the classifier tested the gap's two endpoints against a holiday
+list. The gap *starts* on Thursday 2026-04-02 and *ends* on Sunday 2026-04-05;
+Good Friday is 2026-04-03, which is neither endpoint. Same defect flagged the
+Black Friday early close, whose gap runs from Friday into Sunday. An interval was
+being classified by its boundaries instead of its contents.
+
+**Fix:** replace endpoint pattern-matching with a measurement. Walk the interval
+minute by minute against a real session calendar (`market_closed()`, in New York
+time — the clock gold's settlement break and weekly open/close actually follow)
+and count how many minutes the market was genuinely open. A gap is explained when
+a scheduled closure accounts for essentially all of it; a gap overlapping no
+closure at all is never excused, however short. This also fixed the empty-hour
+classifier, which needed the "the 18:00 open belongs to the NEXT calendar date,
+so the evening before a full holiday never opens" rule to attribute the six empty
+hours on the eve of Good Friday.
+
+**Prevention:** when classifying an interval, ask what it *contains*, not what it
+touches. Endpoint tests are only valid when the property is known to be constant
+across the interval — which is exactly what a calendar is not. Always keep a
+negative control in the test set: the classifier that got this wrong still passed
+a suite of eight cases, because every case was one where endpoint matching
+happened to work.
+
+---
+
+## BUG-045 — A naive local wall clock stored as epoch ms is not an instant (2026-08-21)
+
+**Symptom:** mapping the verified 10AM trades onto Quarterly-Theory phases in New
+York time produced a partition with no Q2 at all (85/0/1/59 across the 90-minute
+quarters) where the collaborating analysis had a clean 79/65 split.
+
+**Root cause:** the study's `t_signal` carries `timestamp_melbourne` -- a NAIVE
+Melbourne wall clock stored as epoch milliseconds, exactly as the tick dataset
+documents it. `datetime.fromtimestamp(ms/1000, utc)` reads that as a UTC instant,
+which silently shifts every label by 10 or 11 hours and lands the trades in the
+wrong quarter entirely. The correct order is: recover the naive wall clock,
+LOCALISE it to Australia/Melbourne, and only then convert to New York, so both
+DST calendars apply in the right sequence. After the fix the 90-minute split
+reproduced the collaborator's counts exactly (79 and 65).
+
+**Why it matters beyond this study:** the dataset deliberately stores
+timestamp_melbourne naive so every reader sees the literal local time. That
+choice makes the column safe to READ and unsafe to do ARITHMETIC on. Any code
+that converts it to another zone must localise first.
+
+**Prevention:** never pass a naive-wall-clock epoch to a timezone conversion.
+Convert through an explicit localisation. And when a partition disagrees with a
+collaborator's on COUNTS rather than on values, suspect the axis, not the data --
+matching totals with mismatched buckets is the signature of a shifted label.
+
+---
+
+## BUG-046 — A control drawn once is a random variable, not a baseline
+
+**Found:** 2026-08-21, gold price-level study.
+
+**Symptom:** the pivot/key-level study reported prior-day high beating its sham
+control by +9.7pp on n=122, the single positive result out of eight levels
+tested. Every other level was at or below its control.
+
+**Root cause:** the sham was drawn ONCE. Each day was paired with one randomly
+chosen other day, and that single pairing became "the baseline". Re-drawing the
+pairing 400 times showed the sham rejection rate for PDH has a standard
+deviation of 4.3pp and a mean of 48.0%. The one draw that had been used landed
+at 37.8% — 2.4 sd low. Against the control's actual distribution the real number
+(47.5%) sits at -0.5pp, p = 0.589. The entire edge was noise in the control, not
+signal in the data.
+
+**Why it matters beyond this study:** a randomised control has a sampling
+distribution exactly like the thing it is controlling. Comparing a point
+estimate to a single draw of a noisy baseline is a coin flip dressed as a test,
+and it fails in the direction that flatters the hypothesis, because a
+surprisingly LOW control reads as a surprisingly GOOD result.
+
+**Prevention:** never compare against one control draw. Redraw enough times to
+get a distribution, quote the observed value's position in it as a p-value, and
+where several variants were screened, also compute the distribution of the BEST
+control across variants — the family-wise number. Here the best of eight real
+levels beat its control by +0.6pp, which the best of eight sham levels exceeds
+with p = 0.998.
+
+**Cross-reference:** same family as the shuffled-pairing control in H97 and the
+permutation null in H95. The pattern in all three: preserve everything, sever
+only the claimed cause, and repeat until you have a distribution.
+
+---
+
+## BUG-047 — A rejected signal that does not end the day becomes a search for one that passes
+
+**Found:** 2026-08-21, auditing the supplied "10AM Quarter Matrix v1" Pine against
+the tick engine.
+
+**Symptom:** the script's header documents "first valid break wins, maximum one
+trade per day". It traded 117 days where the documented rule trades 60, at
+roughly half the expectancy.
+
+**Root cause:** the entry filter and the day-latch were wired to different
+conditions.
+
+```pinescript
+tradePermission = validAnchor and tradingWindow and quarterOK and ...
+aLong = enableALong and tradePermission and close > bodyHigh
+if aLong
+    strategy.entry(...)
+    tradedToday := true          // <- only set when a trade FIRES
+```
+
+`quarterOK` gates the trade, but `tradedToday` records only that a trade
+happened. So a first break that failed the quarter test left `tradedToday`
+false and the day still open, and the script kept scanning. The next break that
+drifted within range was taken instead — hours later, at a different price, in
+a rule that now reads "wait until price is near a quarter, then buy a break".
+
+Measured on identical ticks, fills and exits, with only the selection differing:
+
+| selection rule | n | PF | exp | net | maxDD | minPF |
+|---|---|---|---|---|---|---|
+| first break, else skip the day | 60 | 1.638 | +4.90 | +293.8 | 75.9 | 1.16 |
+| keep scanning (as written) | 117 | 1.321 | +2.64 | +308.7 | 109.1 | 1.09 |
+
+The 57 substituted days are the bad ones. Net looks similar; expectancy halves
+and drawdown grows 44%.
+
+**Why it matters beyond this script:** this is the same defect the exit-research
+brief guarded against by hand ("SPREAD REJECTION IS A SKIP, NOT A SUBSTITUTION"),
+arrived at accidentally through wiring rather than through a decision. A filter
+that rejects a candidate without consuming the opportunity is not a filter — it
+is a search, and the search runs until something passes. It always inflates the
+sample with the marginal cases the filter was meant to exclude, and it is
+invisible in the code because each individual line reads correctly.
+
+**Prevention:** a per-period opportunity latch must be set by the EVENT that
+consumes the period, never by the outcome. Set it where the candidate is
+identified, before any filter is applied, and let the filters decide only
+whether an order is sent. Then test it: count the trades the rule produces and
+compare against the count the specification implies. A doubled trade count is
+the signature.
+
+**Related:** BUG-023 (a null hypothesis that skipped the filters it was
+testing), BUG-033 (signal state unaware the stop fired). Same family — state
+that does not record what actually happened.
+
+**SECOND OCCURRENCE, 2026-08-23** — "Micro-Q3 Smoother — GOLD [Recovered
+Research Logic]", a different supplied Pine script by a different route, same
+wiring:
+
+```pinescript
+tradePermission = inResearchWindow and insideSignalWindow and quarterOK and
+     strategy.position_size == 0 and not tradedThisAnchor
+aShort = enableAShort and tradePermission and not na(bodyLow) and close < bodyLow
+if aShort
+    strategy.entry(...)
+    tradedThisAnchor := true     // <- again, only set when a trade FIRES
+```
+
+Measured on identical ticks, fills and exits (SL 15.50 / TP 25.50 / 12h stop),
+against the reproducible reference — no spread filter on either side, so only
+the selection rule differs:
+
+| selection rule | n | PF | exp | net | maxDD |
+|---|---|---|---|---|---|
+| first break, else skip the day | 34 | 2.869 | +10.34 | +351.7 | 46.9 |
+| keep scanning (as written) | 45 | 2.149 | +7.63 | +343.5 | 62.7 |
+
+Same signature as the first occurrence: net barely moves, expectancy falls 26%,
+drawdown grows 34%. Two refinements the second case adds:
+
+1. **The substitution can be purely additive.** Here the Pine took the *same*
+   break as the reference on all 34 shared days — it never replaced a good
+   trade, it only appended days the reference declined. So "check whether the
+   good trades changed" is not a sufficient test; the trade COUNT is.
+2. **The appended trades are indistinguishable from random entries.** Pooled
+   over both years: n=16, WR 50.0%, t=+0.71, and the sign of the effect reverses
+   between years. With a 25.50 target against a 15.50 stop a coin flip breaks
+   even at PF ≈ 1.65; the appended trades scored 1.46. This is what the defect
+   always produces — the filter's rejects, re-admitted.
+
+**Detection rule, now that there are two cases:** grep any supplied strategy for
+the per-period latch and check what sets it. If the assignment sits inside the
+`if <entry condition>` block, the bug is present. It is a two-line check and it
+has been positive both times it was run.
+
+## BUG-048 — `pkill -f` / `pgrep -f` match the shell that issues them (2026-08-23)
+
+**Symptom.** `pkill -f "run_barclose.py"` returned exit 144 and the command
+died before its remaining statements ran — including the file edit it was
+supposed to make. Separately, `pgrep -af "python3 research/quarters"` reported
+jobs as "running" that had never started, and `ps aux | grep -cE 'run_(asym|system)'`
+returned non-zero counts for processes that did not exist.
+
+**Root cause.** The `-f` flag matches against the FULL command line. A shell
+running `pkill -f "run_barclose.py"` has that string in its own command line, so
+it matches itself and sends itself the signal. The same applies to `pgrep -f`
+and to `ps | grep`: a background waiter shell whose script mentions
+`run_trendfilter.py` shows up in every search for that name, so a bash waiter
+gets counted as a running python job.
+
+**How it compounded.** Because the reported "running trendfilter" was actually a
+bash waiter blocked on `until [ -f barclose.csv ]`, a second waiter was queued to
+start barclose *after that process exited*. It could never exit, because it was
+waiting for the file the queued job was supposed to produce. **Deadlock**, and
+neither job was running while both appeared to be.
+
+**Prevention.**
+1. To kill: resolve the PID first and `kill -9 <pid>`. Never `pkill -f` on a
+   pattern that appears in the killing command.
+2. To detect: match on the process NAME, not the command line —
+   `ps -eo pid,comm,args --no-headers | awk '$2=="python3" && /pattern/'` — and
+   sanity-check with RSS. A 6 MB "python job" that has been alive 35 minutes at
+   0% CPU is a bash wrapper, not a running script.
+3. The bracket trick (`'[r]un_foo'`) defeats `ps | grep` self-matching but does
+   NOT stop a waiter shell from matching, so it is not sufficient on its own.
+
+**Cost.** Two lost runs and roughly 40 minutes of a stalled pipeline in which
+two jobs appeared to be running and neither was.
+
+## BUG-049 — Moving one parameter of a spec whose parameters must move together (2026-08-23)
+
+**Found:** testing a supplied "3-window" Pine that offers 18:45 / 19:30 / 21:15 as
+selectable anchors. Called `M.signals(anchor_start=21*60+15)` to test the 21:15
+window.
+
+**Symptom:** the 21:15 anchor returned **PF 0.054 on a 4.2% win rate over 24
+trades** — 1 win, 21 stops, 2 time exits. Every result in a 61-anchor sweep built
+the same way was junk, and the sweep put the ONE correctly-configured anchor
+(18:45) at rank 1 of 61, which read as a spectacular confirmation.
+
+**Root cause:** `microq3.DEF` carries the anchor and the signal window as four
+independent parameters:
+
+```python
+DEF = dict(anchor_start=18*60+45, anchor_len=15,
+           win_from=19*60, win_to=19*60+30, ...)
+```
+
+`win_from`/`win_to` default to the window that follows the *default* anchor.
+Overriding `anchor_start` alone builds the synthetic candle at 21:15–21:30 and
+then searches for breaks at 19:00–19:30 — an hour and a half **before** the
+anchor exists. The rule became "predict a candle that has not happened yet",
+which is why it lost almost every trade. The repo's own archived scans do it
+correctly (`holdout_test.py` passes `win_from=st+15, win_to=st+45`); only the
+ad-hoc re-test did not.
+
+**What caught it:** the standing absurdity assertion — a win rate below 10% or
+above 90% is a bug until proven otherwise. 4.2% tripped it immediately, and the
+`sig_hm` column then showed every trade stamped 1140 (19:00) regardless of the
+anchor requested.
+
+**Prevention.** When a spec has parameters that are *derived* from one another,
+do not let the derived ones be independently defaultable. Either compute them:
+
+```python
+def signals(anchor_start=..., anchor_len=15, win_len=30, **kw):
+    win_from = anchor_start + anchor_len
+    win_to   = win_from + win_len
+```
+
+or assert the relationship at entry. Cheap detection: after any parameter sweep,
+check that the output actually varies along the swept axis — here every row
+carried the same `sig_hm`, which is the tell. A sweep in which one cell is
+correct and the rest are broken will crown that cell.
+
+**Related:** BUG-044 (a classifier that inspects endpoints and misses the span),
+BUG-047 (a latch set by the outcome). Same family — a configuration that reads
+correctly line by line and encodes a relationship nobody stated.

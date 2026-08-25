@@ -1435,3 +1435,133 @@ RESULTS_LEDGER.md for the numbers and H91/H92/H93 for the beliefs.
 - **The gold maintenance break is at NY 17:00-18:00 and its Melbourne clock time
   is set by TWO DST calendars.** 07:00-08:00 (AEST+EDT), 08:00-09:00 (AEDT+EDT),
   09:00-10:00 (AEDT+EST). The third case kills 09:50 completely, Nov-Mar.
+
+---
+
+## 2026-08-21 — GOLD TICK DATASET: one verified year of Dukascopy XAUUSD ticks
+
+**Data acquisition only. No strategy research was run — the user was explicit
+about that twice.**
+
+### What now exists
+`research/gold_tick_data/dukascopy/` — a 91,629,949-tick XAUUSD dataset covering
+2025-08-21 00:00:00.000 → 2026-08-20 23:59:59.999 **Australia/Melbourne**.
+- `processed/GOLD_XAUUSD_DUKASCOPY_TICKS_2025-08-21_to_2026-08-20.parquet`
+  957 MiB, ZSTD-9, 8 columns, ms precision.
+  SHA256 `f5be07253e91d1112005294e5c0714b4b295c432b07044e0982ac4328635b96c`
+- `code/` — fetch_ticks / build / audit / verify / manifest / make_readme.
+  The whole thing rebuilds from Dukascopy in ~15 minutes.
+- **The Parquet and the 373 MB raw .bi5 mirror are NOT in git** (user directive:
+  "keep it as a generated data artifact"). They live on EPHEMERAL container disk
+  and are gone when the container recycles. `logs/manifest_by_hour.csv` holds a
+  SHA256 per raw hourly file so the mirror is re-verifiable without re-fetching.
+- Delivered to the user as 39 x 25 MiB lossless byte-split parts (the chat
+  channel caps uploads at 30 MiB), with REASSEMBLE.txt and per-part checksums.
+  Concatenation was verified to reproduce the master SHA256 exactly.
+
+### STANDING FACT: the raw Dukascopy tick route works from this container
+`https://datafeed.dukascopy.com/datafeed/{SYM}/{YYYY}/{MM0}/{DD}/{HH}h_ticks.bi5`
+- **MM0 is ZERO-INDEXED** (January=00, August=07). This is the single most
+  common way to fetch the wrong month.
+- LZMA1 "alone" format. Decompresses to 20-byte big-endian records `>IIIff`:
+  ms-offset-into-hour, **ASK, then BID**, ask volume, bid volume.
+  **Ask precedes bid.** Reversing them yields a permanently negative spread.
+- XAUUSD divisor is **1000** (3345255 → $3345.255). Verified empirically.
+- Dukascopy answers **HTTP 200 with zero bytes** for an hour it has no ticks
+  for. That is a real answer, not a failure. Treating empty as missing would
+  have condemned 2,849 of 8,760 hours.
+- Throughput is bursty token-bucket: 12 hours/sec in bursts, with stalls. 24
+  workers is the sweet spot; a 25th connection gets reset. Whole year ≈ 15 min.
+
+### Measured facts about gold worth keeping
+- **Median spread $0.670** (mean $0.740, p99 $2.20, max $15.00) across 91.6M
+  ticks. This independently corroborates the $0.630 median measured in the
+  gold_10am study off the same feed — two separate measurements, same answer.
+  H90 and the three results the spread gates can now use a real number.
+- Gold ran **$3,321 → $5,597** over the year. Any fixed-dollar exit compared
+  across this window is comparing two different instruments (compounds the ATR
+  point already in the register).
+- 91.6M ticks / 312 trading days = mean 293,686 ticks/day, median 281,549.
+  Min 24,535 (2026-07-04, Independence Day). Max 817,963 (2026-01-30).
+- 2025: 30,760,509 ticks / 114 days. 2026: 60,869,440 ticks / 198 days.
+
+### Data quality — all zero
+Exact duplicate rows, duplicate timestamps, out-of-order timestamps, missing
+bid/ask, invalid price rows, bid>ask, zero spread, negative spread: **0 each**.
+Unresolved download hours: **0** (all 8,760 requested and answered; one hour
+needed a --retry-errors sweep after six 503s). Unexpected empty hours: **0**.
+Six unexplained gaps totalling **51 minutes across the whole year**, all in
+known thin-liquidity windows. This is a clean feed.
+
+### The methodological point worth carrying
+The gap classifier initially called the 73-hour **Good Friday** shutdown
+"unexplained" because it matched only the gap's ENDPOINTS (Thursday and Sunday)
+against a holiday list, and Good Friday is neither endpoint. It passed eight
+unit tests first — every one of which happened to be a case where endpoint
+matching worked. Fixed by measuring instead: walk the interval minute by minute
+against a real session calendar in **New York** time and count genuinely-open
+minutes. See BUG-044. Two more bugs registered: BUG-042 (a global back-off costs
+worker-count x its duration, and silently destroyed throughput while every
+request still succeeded) and BUG-043 (NumPy 2.x rejects np.int64 in
+np.datetime64()).
+
+### CURRENT STATE AND NEXT ACTION (2026-08-21)
+- **The dataset is finished, verified and delivered. Strategy research on it has
+  NOT started and must not start until the user asks.**
+- The three live threads from 2026-08-20 are untouched and still open: the manual
+  visual test PAUSED AT CHART 089, and the gold 10am study's NO-EDGE verdict.
+- The AU200 spread measurement still gates H90 / gap continuation / AMD FVG. The
+  identical BI5 route now proven here will measure it — `E_XJO-ASX`, same
+  decoder, same fetcher with a different symbol. That remains a small job.
+
+---
+
+### CURRENT STATE AND NEXT ACTION (2026-08-21, late — supersedes the block above)
+
+The dataset block above is still accurate. What changed: **strategy research on
+the dataset did start**, at the user's explicit request, and has run through six
+phases. All of it is committed and pushed to `claude/gold-tick-data-dukascopy-r3xu10`
+(PR #7, open draft, head `350a9da`, no CI in this repo).
+
+**What was asked and delivered, in order:** the 10AM logics tested tick-exactly;
+MFE/MAE excursions and practical TP/SL; a TP1 partial with a trailed runner;
+exit engineering against a LOCKED entry universe (the user split the research
+with a second researcher who owns entry work — I own exits and verification);
+a Quarterly Theory cross-check; and a price-level study covering quarters,
+round numbers, key levels and pivots.
+
+**The standing verdict on the strategy.** One thing survives its control:
+displacement from the 10:00 open beats random entry (z = 5.81). Everything else
+tested does not. The 10:00 candle BODY is inert (permutation p = 0.571). The
+exit surface is a broad flat plateau (SL 12–18 x TP 22–32) and re-optimising it
+in walk-forward is WORSE than freezing it (PF 1.03 vs 1.77). Five separate
+candidate entry upgrades — per-direction exits, time stops, break-even, $25
+quarter proximity, level confluence — each failed its own control.
+
+**The method that keeps paying, and the way it fails.** Every claim gets a
+control that preserves the geometry and severs only the claimed cause:
+permutation of the candle body, shuffled pairing for ratio ladders, phase shift
+for level grids, sham levels for pivots, random subsets for filters. Three
+"findings" died to these this session, including one of my own (BUG-046: a sham
+drawn ONCE is a random variable; a low draw reads as a good result). Two closed
+forms explain results that looked like market structure: the acceptance ladder
+is gambler's ruin x/S (H99), and the Q1->Q2 compression ladder is ratio
+selection (H97).
+
+**Captured:** H94–H100, GF01–GF07, GL01–GL06, BUG-042 through BUG-046.
+
+**NEXT ACTION — do not start unprompted:**
+1. **Unreconciled:** the collaborator reports PF 2.115 on a 59-trade set; the
+   same 59 trades measure 1.813 here, net +349 vs +435, max DD 70.9 vs 45.
+   Selection matches EXACTLY, so the gap is fills or exit handling. Flagged to
+   the user; needs their fill details. Do not chase it unilaterally.
+2. **Deferred by the user, not cancelled:** XAGUSD silver, resumable from hour
+   239/8760 via checkpoint (~15 min). XPTUSD and COPPER both 404 on this feed,
+   so there is no metals triad.
+3. Recorded but NOT acted on, per the entry-rule freeze: A_LONG is 91 of 131
+   signals, but FLIP_SHORT carries a higher win rate at small targets.
+4. Still open from 2026-08-20: the manual visual test PAUSED AT CHART 089, and
+   the AU200 spread measurement gating H90 (`E_XJO-ASX`, same BI5 route).
+
+**The real next test is data neither researcher has seen.** Everything above is
+one year, and it has now been looked at many times.

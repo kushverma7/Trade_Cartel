@@ -1,0 +1,112 @@
+==============================================================================
+10AM BODY PIERCE + FLIP — XAUUSD — TICK-EXACT STUDY
+==============================================================================
+
+DATA     91,629,949 Dukascopy XAUUSD ticks, 2025-08-21 → 2026-08-20
+         Australia/Melbourne. Exits resolved on real bid/ask in arrival
+         order; longs pay the ask and sell the bid, shorts the reverse.
+         No assumed cost input anywhere.
+
+------------------------------------------------------------------------------
+1. THE 09:50 LINE CANNOT BE BUILT FOR A THIRD OF THE YEAR
+------------------------------------------------------------------------------
+  Melbourne weekdays              261
+  with a 09:50 bar                170  (65.1%)
+  with a 10:00 bar                257  (98.5%)
+
+  Nov-2025 → Feb-2026 is 0%. Gold's daily settlement break sits at
+  09:00-10:00 Melbourne whenever Australia is on AEDT and New York on EST,
+  so there is no market at 09:50. Anchoring on the 10:00 candle's own open
+  (as instructed) lifts constructible days from 170 to 257, and makes the
+  line one of the body's extremes — so the rule is a pure body pierce.
+
+------------------------------------------------------------------------------
+2. RESULTS BY LOGIC — Pine defaults SL 18 / TP 40, 10:00 anchor
+------------------------------------------------------------------------------
+  Per-leg expectancy over the full year:
+    A_L   n= 134   exp  +4.765 pts   win  50.7%   net    +638.6
+    A_S   n= 101   exp  +0.207 pts   win  41.6%   net     +20.9
+
+  A_S — the short continuation leg the supplied script keeps as its ONLY
+  A leg — earns +0.21 points a trade over a year. That is zero, and it
+  reproduces this repo's H92 independently on new data and better fills.
+
+------------------------------------------------------------------------------
+3. SELECTED CONFIGURATION (robust selection, train only)
+------------------------------------------------------------------------------
+  A-both (long + short continuation, no flip), SL 15 / TP 25.
+  Chosen by maximising the WORST train MAR among the cell and its eight
+  neighbours, so a lucky isolated cell cannot win.
+
+  TRAIN  n=163  exp +3.07  PF 1.40  maxDD 157  R2 0.94  t 2.03
+  TEST   n= 72  exp +2.21  PF 1.26  maxDD 116  R2 0.72
+  FULL   n=235  exp +2.81  PF 1.35  maxDD 174  MAR 3.80  t 2.21
+  net +659 points, 4.6 trades/week, median hold 89 min
+  months green 12 of 13   (losing: ['2026-04'])
+
+  Read alone this is the smooth curve that was asked for. It does not
+  survive the controls below.
+
+------------------------------------------------------------------------------
+4. CONTROL — is the long leg just gold's +35% year?
+------------------------------------------------------------------------------
+  random-time longs, same days/exits, 400 resamples:
+      exp mean -0.446   sd 0.897   best of 400 +1.675
+  A_L observed expectancy +4.765   ->  z = 5.81, p < 0.0025
+
+  Random longs LOSE despite the drift, because a 15-point stop against a
+  25-point target needs better than a 37.5% hit rate. So entry timing is
+  doing real work: waiting for displacement from the 10:00 open genuinely
+  beats entering at random. THIS PART IS ROBUST.
+
+------------------------------------------------------------------------------
+5. CONTROL — does the 10:00 CANDLE add anything?
+------------------------------------------------------------------------------
+  The whole 1,456-configuration sweep and the identical selection rule,
+  re-run on permuted data: each day's 10:00 body size transplanted from a
+  random other day, onto that day's real 10:00 open and real price path.
+  Everything is preserved except the link between candle and session.
+
+  permutations run            7
+  selected expectancy         mean +2.954  sd 1.251  max +4.686
+  selected t-stat             mean +1.774  max +2.410
+  OBSERVED expectancy         +2.806   ->  p = 0.571
+  OBSERVED t-stat             +2.214   ->  p = 0.143
+
+  Configurations the null procedure selected:
+      perm  1  Flip_long_only     SL=5    TP=15   exp  +1.454  t +1.56
+      perm  2  Flip_long_only     SL=30   TP=50   exp  +4.686  t +1.43
+      perm  3  A_both             SL=15   TP=25   exp  +2.830  t +2.17
+      perm  4  Flip_long_only     SL=12   TP=25   exp  +3.284  t +1.88
+      perm  5  Flip_long_only     SL=26   TP=25   exp  +1.780  t +0.76
+      perm  6  A_both             SL=10   TP=20   exp  +2.237  t +2.21
+      perm  7  A_both             SL=40   TP=25   exp  +4.410  t +2.41
+
+------------------------------------------------------------------------------
+6. WALK-FORWARD — re-selecting inside every fold
+------------------------------------------------------------------------------
+  train 2025-08-21..2026-03-23 -> A_both SL=15 TP=25 | OOS n= 25 exp   -3.86 net    -96.5
+  train 2025-10-02..2026-05-05 -> A_both SL=15 TP=25 | OOS n= 28 exp   +1.22 net    +34.0
+  train 2025-11-13..2026-06-16 -> All_four SL=40 TP=40 | OOS n= 38 exp   +6.25 net   +237.5
+  train 2025-12-26..2026-07-28 -> Flip_short_only SL=18 TP=50 | OOS n=  9 exp   -2.60 net    -23.4
+
+  ALL OUT-OF-SAMPLE: n=100  exp +1.516  PF 1.137  net +151.6  maxDD 173.6  MAR 0.87  t 0.58
+
+------------------------------------------------------------------------------
+7. VERDICT
+------------------------------------------------------------------------------
+  The 10:00 candle's BODY carries no usable information. The permutation
+  null reproduces the headline result — same selected setup, same
+  expectancy, same t — from data where the candle has been scrambled.
+
+  What is real is narrower and more useful: displacement from the 10:00
+  open, traded with momentum and a target well above the stop, beats
+  random entry decisively (z ≈ 5.8). The candle body is riding that; it is
+  not creating it.
+
+  For a dependable, smooth equity curve this is NOT there yet. One year is
+  ~250 setups, the walk-forward swings from -3.86 to +6.25 points a trade
+  fold to fold, and only 13% of the long-leg parameter grid is positive in
+  both halves of the sample. A smooth in-sample curve selected from 1,456
+  candidates is the expected output of the search, not evidence against it.
+==============================================================================

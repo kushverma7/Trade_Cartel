@@ -33,3 +33,34 @@ Trade_Cartel_Source_Corpus_FULL.pdf
 Trade_Cartel_Source_Corpus_COMPLETE.pdf
 Trade_Cartel_Transcripts_And_Lessons.pdf
 Trade_Cartel_Quarters_Theory_Complete.pdf
+
+# Dukascopy tick datasets — bulk binary, and the gold Parquet exceeds GitHub's
+# 100 MB per-file limit. The pipeline in <symbol>_tick_data/dukascopy/code/
+# rebuilds all of it from Dukascopy in ~15 minutes, and logs/manifest_by_hour.csv
+# carries a SHA256 for every raw file, so the artefacts are reproducible rather
+# than stored. Patterns are wildcarded by symbol: the gold-only versions let a
+# partial silver download get swept in by a broad `git add`.
+research/*_tick_data/dukascopy/raw/
+research/*_tick_data/dukascopy/processed/*.parquet
+research/*_tick_data/dukascopy/processed/*.csv.gz
+research/*_tick_data/dukascopy/processed/parts/
+research/*_tick_data/dukascopy/processed/parts*/
+
+# 10AM study: regenerable intermediates (session_ticks is 1.25 GB)
+research/gold_10am_flip/data/*.npy
+research/gold_10am_flip/data/*.pkl
+
+# Micro-Q3 audit: derived NY/Melbourne tick arrays and 1-minute bars, rebuilt by
+# research/microq3/code/build_ny.py from the master parquet in ~3 minutes.
+research/microq3/data/
+research/microq3/data_holdout/
+research/gold_holdout_tick_data/
+
+# Derived tick-aligned label arrays for the goldmap phase, rebuilt in seconds by
+# research/goldmap/code/tenam_holdout.py from the NY arrays. Hundreds of MB each.
+research/goldmap/results/*.npy
+research/goldmap/data/
+
+# in-sample tick-path cache: a regenerable 1.3 GB artifact, never a repo file
+research/insample/results/*.npz
+.pipeline_done

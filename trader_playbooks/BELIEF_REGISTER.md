@@ -2504,3 +2504,459 @@ volatility artefact against a fixed dollar stop.
 
 **Invalidation:** a market where the "after a real opposite breakout" partition
 is the stronger one, pre-registered before looking.
+
+## H94 — The 10:00 candle's BODY is inert; the 10:00 OPEN is not (2026-08-21)
+
+**Belief:** on XAU/USD, the body of the 10:00 Melbourne candle carries no
+directional information. What the "10AM body pierce" family actually harvests is
+generic displacement-from-the-open momentum, which is real but is a property of
+the anchor and of the session, not of the candle.
+
+**Evidence:** 91,629,949 Dukascopy ticks, 2025-08-21 to 2026-08-20, exits
+resolved on real bid/ask in arrival order. The best of 1,456 configurations
+(A-both, SL 15 / TP 25) returns +2.81 points a trade, PF 1.35, t 2.21, 12 of 13
+months green. Re-running the identical sweep and the identical selection rule on
+data where each day's 10:00 body size is transplanted from a random other day --
+real open, real path, only the candle-to-session link destroyed -- the procedure
+selects the SAME setup and returns +2.83, t 2.17. Across 7 permutations the
+null's mean selected expectancy is **+2.95, higher than the real +2.81**;
+p = 0.571. Separately, random-time longs on the same days with the same exits
+average **-0.45** points (400 resamples, best +1.68) against the breakout
+entries' +2.81, z = 5.81.
+
+**Consequence:** stop testing variations of "what did the 10AM candle do". Test
+the anchor instead: displacement from the 10:00 reopen, sized against the
+session's own volatility. Also retire the fixed-dollar stop here -- random longs
+lose in a +35% year purely because a 15-point stop against a 25-point target
+needs a >37.5% hit rate.
+
+**Invalidation:** a permutation test in which scrambling the candle body
+materially degrades the selected result. That is the test this belief was built
+on and the one that must be beaten to overturn it.
+
+## H95 — A smooth in-sample equity curve is the EXPECTED output of a grid search (2026-08-21)
+
+**Belief:** in this repo's typical setting -- one instrument, ~250 setups, a few
+hundred trades, a sweep of order 10^3 configurations -- selecting on curve
+smoothness produces a smooth curve whether or not an edge exists. Smoothness is
+therefore not evidence.
+
+**Evidence:** ranking 1,456 configurations by equity R-squared returned, at the
+top, systems with expectancy -0.86 and PF 0.51 (a straight line pointing DOWN
+scores R-squared 0.99). Ranking by MAR returned a config with 12 of 13 green
+months whose walk-forward pooled result is expectancy +1.52 with a maximum
+drawdown (173.6) LARGER than its net profit (151.6), and whose null-permutation
+p-value is 0.571.
+
+**Consequence:** never quote R-squared or "months green" as a robustness claim.
+The only smoothness numbers that count are walk-forward, and they must be paired
+with a null that runs the WHOLE selection procedure, not a t-test on the winner.
+
+**Invalidation:** none expected; this is a property of selection, not of a market.
+
+## H96 — The Quarterly-Theory quarter label on the 10AM setup is the DST calendar relabelled (2026-08-21)
+
+**Belief:** partitioning the verified bullish-10AM first-break trades by their
+New York Quarterly-Theory phase carries no information. The quarter label is a
+deterministic function of the date's DST regime, and the differences between
+quarters are smaller than a random split of the same group sizes produces.
+
+**Evidence:** 145 tick-verified trades. The 90-minute quarter is PERFECTLY
+determined by the signal's NY hour -- NY 18:00 and 19:00 are always Q1 (79
+trades), NY 20:00 is always Q2 (65) -- and the NY hour is fixed by which of the
+Melbourne/New-York DST regimes the date falls in. Permutation test holding group
+sizes fixed: observed best-bucket PF 1.75 against a null MEDIAN of 1.88,
+p = 0.79; best-worst spread 0.21 against null p = 0.85. Micro quarters the same:
+best bucket 2.46 against a null median of 2.48, p = 0.54, spread p = 0.88. The
+reported "Micro Q3 PF 3.57" did not reproduce under correct timezone handling
+(1.96 on n=24), and a random 22-trade subset of these 145 reaches PF >= 3.57
+3.2% of the time on its own.
+
+**Consequence:** do not condition the 10AM system on quarter phase. Splitting by
+quarter is splitting the year into two calendar blocks, so any apparent edge is
+a statement about which months traded well.
+
+**Invalidation:** a quarter partition on an instrument or window where the label
+is NOT collinear with a DST block, clearing a size-matched permutation null.
+
+## H97 — The Q1 -> Q2 expansion ladder is a ratio artifact, not gold (2026-08-21)
+
+**Belief:** "a compressed Q1 is followed by proportionally larger Q2 expansion"
+is produced by the arithmetic of dividing by a small number, not by any Q1->Q2
+relationship.
+
+**Evidence:** 1,024 complete NY 90-minute Q1->Q2 pairs from the tick data
+reproduce the reported monotonic ladder (1.66x, 1.25x, 1.03x, 0.81x across Q1
+size quartiles). Re-pairing every real Q1 with a Q2 drawn from a RANDOM UNRELATED
+cycle -- destroying any link while preserving both marginal distributions --
+yields a ladder that is monotonic AND STEEPER: 2.54x, 1.35x, 0.94x, 0.52x.
+Selecting on a small denominator guarantees a large ratio; regression to the mean
+supplies the rest.
+
+**Consequence:** the real ladder being FLATTER than the shuffled one is the only
+signal present, and it points the other way -- toward mild volatility clustering,
+where a large Q1 is followed by a larger-than-random Q2.
+
+**Invalidation:** any conditional-range claim that beats its own shuffled-pairing
+control. Ratios of a quantity to a selected-on quantity always need that control.
+
+---
+
+## H98 — Round price levels carry no edge on gold beyond their spacing
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-21.
+
+**Claim:** on XAUUSD, a grid at multiples of $25 (or $5, $10, $50, $100) behaves
+indistinguishably from a grid of the same spacing at a non-round phase. What
+looks like level behaviour is an effect of SPACING on a near-random walk.
+
+**Evidence:** one year of ticks. Traverse advantage of the round phase over
+shifted phases <= +0.0106 and sign-changing across S. Time spent near levels is
+33.3% everywhere — the no-preference baseline — and round grids show marginally
+LESS of it than the S/3 control. Applied as a trade filter (entry within $7.50
+of a $25 quarter), the round grid's minimum chronological PF (1.28) is beaten by
+5 of 24 non-round phases, and by the unfiltered sample (1.36).
+
+**Consequence:** draw the grid for orientation if you like, but never let
+roundness upgrade a signal, and never claim a level effect without a phase
+control. Scale remains real (H76, H77); roundness does not.
+
+**Invalidation:** any round-phase result that beats the distribution of its own
+shifted phases on minimum chronological PF, not on full-sample PF.
+
+---
+
+## H99 — The "acceptance ladder" is the gambler's-ruin formula x/S
+
+**Status:** ACTIVE. **Confidence:** very high (closed form). **Added:** 2026-08-21.
+
+**Claim:** the observation that continuation probability from a level rises
+smoothly with acceptance, and crosses 50% at the halfway point of EVERY grid
+size, is arithmetic. For a driftless walk starting x above the bottom of an
+interval of width S, P(top before bottom) = x/S exactly, so x = S/2 gives 0.5
+for every S at every scale. Apparent fractal self-similarity across $6.25 /
+$12.50 / $25 / $50 / $100 grids is that identity, not a market property.
+
+**Evidence:** tick-exact measurement tracks x/S within a few points at every
+scale ($25 grid: 24.0 vs 20.0, 43.9 vs 40.0, 53.6 vs 50.0, 63.0 vs 60.0, 81.1 vs
+80.0). Phase-shifted grids give the same ladder.
+
+**Consequence:** an acceptance ladder is not evidence of anything until the x/S
+line is subtracted. The residual — here +1 to +5pp, growing with grid size, and
+phase-independent — is the only part that is about gold, and it is generic
+momentum, not a level effect.
+
+**Invalidation:** a residual over x/S that is large, localised on round phases,
+and stable out of sample.
+
+---
+
+## H100 — The $25-proximity entry filter improves the headline and degrades the metric
+
+**Status:** ACTIVE. **Confidence:** medium-high. **Added:** 2026-08-21.
+
+**Claim:** filtering the locked 10AM entry universe to entries within $7.50 of a
+$25 quarter raises full-sample PF (1.580 -> 1.813) while LOWERING the minimum
+profit factor across chronological splits (1.36 -> 1.28) — the metric declared
+primary for this research. It is a sample-size trade, not an edge.
+
+**Evidence:** selection reproduces exactly (131 -> body>=1 -> 104 -> 59). Random
+59-of-104 subsets with no rule reach that PF 22% of the time and that minPF 38.5%
+of the time. Phase-shifted grids of identical spacing beat it on minPF in 5 of 24
+cases. The filtered holdout PF (4.96 on 12 trades under the filtered-set split
+convention; 14.98 on 10 under the universe convention) trips the absurdity rule.
+
+**Consequence:** do not adopt the quarter-proximity filter. Removing 43% of an
+already small sample to gain 0.23 of full-sample PF is the exact trade the
+minimum-PF ranking rule exists to prevent.
+
+**Invalidation:** the filter beating the unfiltered universe on minimum
+chronological PF, on data neither researcher has touched.
+
+## H101 — A profit factor above 8 on 20-30 trades is a claim about the TARGET, not the entry
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-22.
+
+**Claim:** when a selection rule contains a reward:risk cap below 1, a very high
+profit factor and a 90%+ win rate follow **mechanically** from the target sitting
+closer than the stop. The number describes the exit geometry, not the quality of
+the entry, and it is bought by giving up money.
+
+**Evidence:** the one-year in-sample study (2025-08-21..2026-08-20, 246,807 grid
+cells). Every benchmark-beating model carries RR <= 0.75. Substituting a plain
+fixed multiple of R for the structural target, on the SAME trades:
+
+| universe | structural target | best cell of the whole 5x6 fixed-R surface |
+|---|---|---|
+| n=20 | PF 8.73 | PF 3.93 |
+| n=25 | PF 8.09 | PF 4.17 |
+| n=31 | PF 6.14 | PF 3.27 |
+
+And the money moves the other way: the n=20 model is PF 8.73 / +7.74R on the
+structural target and PF 3.93 / **+10.87R** on a plain 1R target. Optimising PF
+selected against expectancy by 40%.
+
+**Consequence:** never report a profit factor without the reward:risk of the rule
+that produced it. When RR < 1, quote expectancy instead — PF is measuring the
+target distance. This is a companion to evidence-hierarchy rule 2 (a reported PF
+is a joint claim about a signal AND a fill assumption); it is also a joint claim
+about the target.
+
+**Invalidation:** a sub-1R-target model whose PF survives substitution with a
+fixed 1R target on the same trade list.
+
+## H102 — An exit parameter whose result is unchanged across a doubling has not been tested
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-22.
+
+**Claim:** if widening a stop from 1.25R to 2R changes the result by nothing at
+all, the stop was never a participant in the outcome. The reported drawdown is
+then a property of the selected subset, not of the risk rule, and it will not
+survive the first trade that behaves differently.
+
+**Evidence:** in the one-year in-sample study both benchmark-beating models
+returned **identical** statistics at stop 1.25R, 1.5R and 2.0R (n=20: PF 11.95,
+DD 0.73R; n=25: PF 10.58, DD 0.73R) — no trade in either subset ever ran more
+than 1.25R against. The same pathology, found independently: the MaxPF
+configuration reported PF 21.3 on 15 trades of which **zero** touched a stop;
+enforcing stops gives PF 3.35.
+
+**Consequence:** add to the pre-flight of any backtest report — count how many
+trades actually reached the stop. If it is zero, or if the metrics are invariant
+to doubling the stop, the drawdown figure is not evidence. Reinforces
+evidence-hierarchy rule 4: a drawdown under 1R on a 20-trade sample is a
+selection artefact until the stop is shown to have been hit.
+
+**Invalidation:** a model whose reported drawdown is stable across stop widths
+*because* stops are hit at every width, with the hit count reported.
+
+## H103 — A theory whose branches exhaust the sample space makes no prediction
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-23.
+
+**Claim:** when a framework's stated outcomes cover every possible observation,
+it cannot be wrong and therefore cannot be informative. The tell is an author
+presenting that completeness as a *strength*.
+
+**Evidence:** the Quarters Theory, webinar 1 (Ilian Yotov, FXStreet 2010), stated
+in his own words — *"here is the beauty ladies and gentlemen, the outcome of both
+events, whether a large quarter is completed or whether it is not successfully
+completed, the outcome of both events always leads to a price move that targets a
+familiar price level."* Price either travels 250 pips on a 250-pip grid, and so
+arrives at the adjacent grid line by arithmetic, or it does not and retraces
+toward the line it came from. Those two cases are all the cases. The residual
+content reduces to H99's *x/S* identity, which holds on any grid in any market
+and in simulated noise.
+
+**Consequence:** before testing any framework, write down the observation that
+would falsify it. If none exists, the framework is a coordinate system — possibly
+a useful one — and must not be described as predictive. Add to the pre-flight of
+any external methodology arriving in this repo: *what result would make this
+wrong?*
+
+**Invalidation:** a version of the claim that forbids some reachable price path.
+
+## H104 — A framework that gains a test per disconfirming case is being fitted
+
+**Status:** ACTIVE. **Confidence:** high. **Added:** 2026-08-23.
+
+**Claim:** when each new presentation of a method introduces a rule that explains
+the previous presentation's failure, the rules are being fitted to history one
+case at a time. The pattern is invisible in any single presentation and obvious
+across a series — which is why the whole corpus must be read before a verdict.
+
+**Evidence:** the five Quarters Theory webinars, Feb 2010 → Jan 2011. Webinar 3
+adds the trend-wave failure trigger; webinar 4 adds the Hesitation Zone *and* the
+"last problematic price point"; webinar 5 adds the two-part transition test. Each
+arrives narrating the case it explains, and none was stated before that event.
+Sharper: the "last problematic price point" is introduced in webinar 4 to explain
+AUD/USD stalling at 1.0182 — and when webinar 5 re-narrates that identical
+November event, the concept is not mentioned. Used once, when needed, then
+dropped.
+
+**Consequence:** when evaluating external material, read the full series and date
+every rule against the event it explains. A rule stated *after* its motivating
+case is a free parameter, not evidence. Companion to BUG-046 (a control drawn
+once is a random variable) and to this repo's own MaxPF audit, where a
+configuration selected its way into a subset that never tested its stop.
+
+**Invalidation:** a rule from this framework stated in one session and confirmed
+on an event in a later session, with no intervening amendment.
+
+## H105 — Round-number price grids carry no information on gold, at any scale
+
+**Status:** ACTIVE. **Confidence:** very high. **Added:** 2026-08-23.
+
+**Claim:** on XAUUSD, a grid of round levels does nothing that a grid of the
+SAME SPACING placed at any other phase does not do. This extends H98 (which
+tested traverse and acceptance statistics) to first-passage behaviour and to a
+fully traded system, across two independent tick years.
+
+**Evidence:** 192 cells — 2 tick years × 8 grid scales ($2.50 to $250) × 12
+phases — measuring P(reach Q+S before Q−S) from a quarter-point crossing.
+**The largest gap between the round grid and the mean of its 11 shifted grids,
+across every cell, is 0.000211 — two hundredths of a percentage point.** Within
+a scale, all twelve phases agree to four decimal places.
+
+Traded, the picture is the same: the Hesitation Zone system's round grid ranks
+2, 10, 9, 10, 8, 4, 9, 3 of 12 across the eight (year × scale) cells — median
+8.5, a below-average member of its own phase family. At S = $25, **zero of
+twelve phases are profitable in either year.**
+
+**Consequence:** never accept a level-based result without a phase-shift
+control. The control costs one extra loop and it is the only thing that
+separates "this level matters" from "levels of this spacing occur every S
+dollars". Companion to H98, H99, GL03 and H100.
+
+**Invalidation:** a round grid beating its shifted distribution on a
+pre-declared statistic, on data not used to choose the statistic.
+
+## H106 — A level-crossing "continuation" statistic is biased by tick overshoot
+
+**Status:** ACTIVE. **Confidence:** very high. **Added:** 2026-08-23.
+
+**Claim:** any measurement of the form *"having crossed level X, does price
+continue?"* is biased upward by the discretisation of the tape. Prices move in
+jumps, so the tick that crosses X lands some distance PAST it, and the
+first-passage race starts with a head start. The bias is **overshoot / 2S** and
+is present on every grid, in every market, with no market structure involved.
+
+**Evidence:** measured on both gold tick years. Mean crossing overshoot is flat
+in S — $0.127 in 2025-26 and $0.052 in 2024-25 across a hundredfold range of S —
+exactly as a fixed tick-size effect requires, and 2.5× larger in the
+higher-priced, more volatile year. The model predicts the observed excess over
+0.500 to within 0–6% wherever the excess is large enough to measure:
+
+| S | overshoot/2S | observed excess | ratio |
+|---|---|---|---|
+| $2.50 | 0.0241 | 0.0231 | 0.96 |
+| $5.00 | 0.0124 | 0.0123 | 0.99 |
+| $12.50 | 0.0051 | 0.0052 | 1.02 |
+| $25.00 | 0.0025 | 0.0027 | 1.06 |
+
+Because the bias scales as 1/S, a fine grid manufactures what looks like strong
+momentum: at S = $2.50 it produces P(continuation) = 0.523, which is 4.6 standard
+errors from 0.500 on 2.5M events and means nothing at all.
+
+**Consequence:** before reporting any crossing-continuation number, either
+subtract overshoot/2S or compare against a phase control (which cancels it
+automatically, since every phase shares the same overshoot). A "momentum after
+the break" finding on a fine grid is the single easiest false positive to
+manufacture in this repo's problem domain.
+
+**Invalidation:** a crossing-continuation excess that does NOT scale as 1/S, or
+one that survives subtraction of the measured overshoot.
+
+## H107 — A per-period opportunity latch set by the OUTCOME is the most common defect in supplied Pine
+
+**Confidence:** high (2 for 2 on supplied scripts audited against ground truth).
+
+**Claim.** When someone hands over a strategy whose spec says "one trade per
+day / per session / per anchor", the latch that enforces it is set inside the
+entry block far more often than at the point the opportunity is consumed. Every
+filter upstream of the entry then silently becomes a search: it rejects a
+candidate without spending the period, and the scan continues until something
+passes.
+
+**Evidence.** Both supplied Pine strategies audited against the Dukascopy tick
+engine on this branch had it, arrived at independently:
+
+| script | documented n | actual n | PF documented rule | PF as written |
+|---|---|---|---|---|
+| 10AM Quarter Matrix v1 (2026-08-21) | 60 | 117 | 1.638 | 1.321 |
+| Micro-Q3 Smoother (2026-08-23) | 34 | 45 | 2.869 | 2.149 |
+
+Both inflate the trade count by 30–95%, both leave net P&L nearly unchanged, and
+both raise maximum drawdown (44% and 34%). The re-admitted trades are the
+filter's own rejects, so they perform at the no-edge baseline — pooled over both
+years the Micro-Q3 additions ran WR 50.0% at t = +0.71.
+
+**Why it keeps happening.** Every individual line reads correctly. The bug lives
+in the relationship between two statements that are usually 60+ lines apart, and
+Pine's `var` scoping makes the latch look like ordinary state. Nothing in the
+language or the Strategy Tester flags it.
+
+**Consequence — standing check.** Before auditing anything else in a supplied
+strategy, locate the per-period latch and read what sets it. If the assignment
+is inside `if <entry condition>`, the bug is present. Then count the trades the
+script produces and compare against the count the written spec implies; a
+trade count 1.3x or more above spec is the signature. Both are two-minute
+checks and both were positive on the first two scripts they were run against.
+
+**Invalidation:** three or more supplied scripts audited with the latch set
+correctly at the candidate, which would make this a coincidence of two rather
+than a pattern.
+
+## H108 — On gold, the round-trip cost sets a hard floor on target size, and it is about $7
+
+**Confidence:** high (38,210 trades, both years, tick-exact bid/ask fills).
+
+**Claim.** Execution cost on XAUUSD is roughly $1.50 per round trip — a $0.69
+median spread paid on entry plus real slippage past the stop. Because that cost
+is fixed in dollars and independent of the target, it consumes a share of the
+prize that scales as 1/target:
+
+| target | cost per trade | **cost as % of target** |
+|---|---|---|
+| ≤ $2 | $1.71 | **108.9%** |
+| $2 – $4 | $1.53 | 60.7% |
+| $4 – $7 | $0.97 | 20.4% |
+| $7 – $12 | $0.69 | 9.6% |
+
+At a $2 target the round trip costs more than the trade can win. Below about
+$7 an entry needs a large and demonstrable edge merely to break even; above it,
+execution stops dominating and the entry's own quality decides the outcome.
+
+**Why this matters more than it looks.** It runs directly against the intuition
+that small targets are safer because they win more often. They do win more
+often — a $2.50 target inside a $25 quarter hits about 85–90% of the time (H99)
+— but the win rate is bought at exactly the price of its own improvement, and
+then cost is charged on top. **A high win rate on gold is a cost-multiplier: it
+means more round trips per dollar of range captured.**
+
+**Evidence.** `RESULTS_LEDGER.md` YE12–YE14. The clearest single case: entry at
+the Whole with a stop at the LQP and a $2.50 target scores an **85.1% win rate
+over 1,712 trades and loses $1.46 per trade.**
+
+**Consequence — standing rule.** Any proposed gold strategy with a target under
+$7 must state its cost assumption in the same breath as its win rate, and be
+tested against a zero-cost control. If PF at zero cost is near 1.00, the win
+rate is geometry and the strategy is a cost pump.
+
+**Invalidation:** a venue with a materially tighter effective spread on gold
+(under ~$0.20 round trip), or a fill model that gets passive entries rather than
+crossing the spread — both would move the floor down and are worth measuring
+before this rule is applied to someone else's execution.
+
+## H109 — Conditioning layers on a zero-edge entry are worth 1–3 points, not 8
+
+**Confidence:** moderate-high (one full four-layer architecture, 30,490 trades).
+
+**Claim.** Stacking location, state, recency and timing filters on top of an
+entry with no directional edge does not create one. Each layer moves the result
+by one to three percentage points, and the moves are in the direction the theory
+predicts — which is exactly what makes it seductive.
+
+**Evidence** (Yotov Gold Quarter Engine v1, YE17–YE19), measured as edge over
+each trade's own geometric baseline:
+
+| layer | best slice | worst slice | worth |
+|---|---|---|---|
+| structural confluence (10 Spaceman levels) | −6.6% at ≤$0.50 | −9.8% at >$6.25 | 3.2pp |
+| attempt recency (24h window) | +4.3% free, attempt 1 | +1.0% free, attempt 4+ | 3.3pp |
+| dual-hesitation lockout | −7.8% clean | −9.2% flagged | 1.4pp |
+| session timing (6-hour bands) | −6.2% | −16.4% | small, no band positive |
+
+Every ordering is correct. None is large. Against a −7.9% cost the stack cannot
+reach zero, and an exhaustive search over 60 filter combinations in the target
+trade-count band returned a best PF of **0.85**.
+
+**Consequence.** Establish the entry's zero-cost edge FIRST, on the raw signal,
+before building any hierarchy on top of it. If the raw entry scores within about
+1pp of its geometric baseline, no combination of filters will rescue it; they
+will only produce a smaller sample of the same coin flip with a more persuasive
+story attached. The layers are a multiplier on an edge, not a substitute for one.
+
+**Invalidation:** a conditioning layer that moves the zero-cost edge by more than
+5pp on an out-of-sample year and survives a phase or permutation control. None of
+the four here came close.
